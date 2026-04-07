@@ -167,7 +167,7 @@ impl RenderOnce for AiUpsellCard {
         match self.sign_in_status {
             SignInStatus::SignedIn => match self.user_plan {
                 None | Some(Plan::ZedFree) => card
-                    .child(Label::new("Try Zed AI").size(LabelSize::Large))
+                    .child(Label::new("Try PaddleBoard AI").size(LabelSize::Large))
                     .map(|this| {
                         if self.account_too_young {
                             this.child(YoungAccountBanner).child(
@@ -271,7 +271,7 @@ impl RenderOnce for AiUpsellCard {
             },
             // Signed Out State
             _ => card
-                .child(Label::new("Try Zed AI").size(LabelSize::Large))
+                .child(Label::new("Try PaddleBoard AI").size(LabelSize::Large))
                 .child(
                     div()
                         .max_w_3_4()
@@ -310,7 +310,7 @@ impl Component for AiUpsellCard {
     }
 
     fn description() -> Option<&'static str> {
-        Some("A card presenting the Zed AI product during user's first-open onboarding flow.")
+        Some("A card presenting the PaddleBoard AI product during user's first-open onboarding flow.")
     }
 
     fn preview(_window: &mut Window, _cx: &mut App) -> Option<AnyElement> {

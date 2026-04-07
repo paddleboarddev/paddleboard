@@ -1,0 +1,11 @@
+[package]
+name = "browser"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+gpui.workspace = true
+workspace.workspace = true
+ui.workspace = true
+wry.workspace = true

@@ -3,6 +3,7 @@
   {
     "use_key_equivalents": true,
     "bindings": {
+      "ctrl-alt-t": "workspace::OpenPaddleBoardTour",
       "f4": "debugger::Start",
       "shift-f5": "debugger::Stop",
       "shift-cmd-f5": "debugger::RerunSession",

@@ -1387,7 +1387,7 @@ pub(crate) async fn restore_or_create_workspace(
                 recent_projects::open_remote_project(
                     connection_options,
                     paths.paths().iter().map(PathBuf::from).collect(),
-                    app_state,
+                    app_state.clone(),
                     workspace::OpenOptions::default(),
                     cx,
                 )
@@ -1460,12 +1460,12 @@ pub(crate) async fn restore_or_create_workspace(
             }
         }
     } else if matches!(kvp.read_kvp(FIRST_OPEN), Ok(None)) {
-        cx.update(|cx| show_onboarding_view(app_state, cx)).await?;
+        cx.update(|cx| show_onboarding_view(app_state.clone(), cx)).await?;
     } else {
         cx.update(|cx| {
             workspace::open_new(
                 Default::default(),
-                app_state,
+                app_state.clone(),
                 cx,
                 |workspace, window, cx| {
                     let restore_on_startup = WorkspaceSettings::get_global(cx).restore_on_startup;
@@ -1481,6 +1481,24 @@ pub(crate) async fn restore_or_create_workspace(
         .await?;
     }
 
+    let marker_path = paths::config_dir().join(".tour_seen");
+    if !marker_path.exists() {
+        let tour_path = paths::config_dir().join("PaddleBoard_Tour.md");
+        let _ = std::fs::write(&tour_path, include_str!("../../workspace/src/tour.md"));
+        let _ = std::fs::write(&marker_path, "seen");
+        
+        let app_state_clone = app_state.clone();
+        let task = cx.update(|cx| {
+            workspace::open_paths(
+                &[tour_path],
+                app_state_clone,
+                workspace::OpenOptions::default(),
+                cx
+            )
+        });
+        
+        let _ = task.await;
+    }
     Ok(())
 }
 

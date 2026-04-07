@@ -637,7 +637,7 @@ impl EditPredictionButton {
                 }
             })
             .separator()
-            .entry("Use Zed AI", None, {
+            .entry("Use PaddleBoard AI", None, {
                 let fs = fs.clone();
                 move |_window, cx| {
                     set_completion_provider(fs.clone(), cx, EditPredictionProvider::Zed)
