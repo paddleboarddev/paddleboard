@@ -1018,13 +1018,13 @@ impl TitleBar {
             client::Status::UpgradeRequired => {
                 let auto_updater = auto_update::AutoUpdater::get(cx);
                 let label = match auto_updater.map(|auto_update| auto_update.read(cx).status()) {
-                    Some(AutoUpdateStatus::Updated { .. }) => "Please restart Zed to Collaborate",
+                    Some(AutoUpdateStatus::Updated { .. }) => "Please restart PaddleBoard to Collaborate",
                     Some(AutoUpdateStatus::Installing { .. })
                     | Some(AutoUpdateStatus::Downloading { .. })
                     | Some(AutoUpdateStatus::Checking) => "Updating...",
                     Some(AutoUpdateStatus::Idle)
                     | Some(AutoUpdateStatus::Errored { .. })
-                    | None => "Please update Zed to Collaborate",
+                    | None => "Please update PaddleBoard to Collaborate",
                 };
 
                 Some(
@@ -1046,23 +1046,8 @@ impl TitleBar {
         }
     }
 
-    pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> Button {
-        let client = self.client.clone();
-        let workspace = self.workspace.clone();
-        Button::new("sign_in", "Sign In")
-            .label_size(LabelSize::Small)
-            .on_click(move |_, window, cx| {
-                let client = client.clone();
-                let workspace = workspace.clone();
-                window
-                    .spawn(cx, async move |mut cx| {
-                        client
-                            .sign_in_with_optional_connect(true, cx)
-                            .await
-                            .notify_workspace_async_err(workspace, &mut cx);
-                    })
-                    .detach();
-            })
+    pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> impl Element {
+        ui::div() // Removed Sign In
     }
 
     pub fn render_user_menu_button(&mut self, cx: &mut Context<Self>) -> impl Element {
@@ -1163,7 +1148,7 @@ impl TitleBar {
                                     .w_full()
                                     .gap_1()
                                     .justify_between()
-                                    .child(Label::new("Restart to update Zed").color(Color::Accent))
+                                    .child(Label::new("Restart to update PaddleBoard").color(Color::Accent))
                                     .child(
                                         Icon::new(IconName::Download)
                                             .size(IconSize::Small)

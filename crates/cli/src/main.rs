@@ -45,19 +45,19 @@ trait InstalledApp {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "zed",
+    name = "paddleboard",
     disable_version_flag = true,
-    before_help = "The Zed CLI binary.
+    before_help = "The PaddleBoard CLI binary.
 This CLI is a separate binary that invokes Zed.
 
 Examples:
-    `zed`
-          Simply opens Zed
-    `zed --foreground`
+    `paddleboard`
+          Simply opens PaddleBoard
+    `paddleboard --foreground`
           Runs in foreground (shows all logs)
-    `zed path-to-your-project`
-          Open your project in Zed
-    `zed -n path-to-file `
+    `paddleboard path-to-your-project`
+          Open your project in PaddleBoard
+    `paddleboard -n path-to-file `
           Open file/folder in a new window",
     after_help = "To read from stdin, append '-', e.g. 'ps axf | zed -'"
 )]
@@ -86,7 +86,7 @@ struct Args {
     )]
     #[arg(long, value_name = "DIR")]
     user_data_dir: Option<String>,
-    /// The paths to open in Zed (space-separated).
+    /// The paths to open in PaddleBoard (space-separated).
     ///
     /// Use `path:line:column` syntax to open a file at the given line and column.
     paths_with_position: Vec<String>,
@@ -114,7 +114,7 @@ struct Args {
     #[cfg(target_os = "windows")]
     #[arg(long, value_name = "USER@DISTRO")]
     wsl: Option<String>,
-    /// Not supported in Zed CLI, only supported on Zed binary
+    /// Not supported in PaddleBoard CLI, only supported on Zed binary
     /// Will attempt to give the correct command to run
     #[arg(long)]
     system_specs: bool,
@@ -477,7 +477,7 @@ fn main() -> Result<()> {
     }
     let args = Args::parse();
 
-    // `zed --askpass` Makes zed operate in nc/netcat mode for use with askpass
+    // `paddleboard --askpass` Makes zed operate in nc/netcat mode for use with askpass
     if let Some(socket) = &args.askpass {
         askpass::main(socket);
         return Ok(());
@@ -502,7 +502,7 @@ fn main() -> Result<()> {
     if args.system_specs {
         let path = app.path();
         let msg = [
-            "The `--system-specs` argument is not supported in the Zed CLI, only on Zed binary.",
+            "The `--system-specs` argument is not supported in the PaddleBoard CLI, only on Zed binary.",
             "To retrieve the system specs on the command line, run the following command:",
             &format!("{} --system-specs", path.display()),
         ];
@@ -549,7 +549,7 @@ fn main() -> Result<()> {
         {
             use collections::HashMap;
 
-            // On Linux, the desktop entry uses `cli` to spawn `zed`.
+            // On Linux, the desktop entry uses `cli` to spawn `paddleboard`.
             // We need to handle env vars correctly since std::env::vars() may not contain
             // project-specific vars (e.g. those set by direnv).
             // By setting env to None here, the LSP will use worktree env vars instead,

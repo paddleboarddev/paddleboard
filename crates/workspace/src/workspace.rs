@@ -776,6 +776,24 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
                 cx,
             );
         })
+        .on_action(|_: &OpenPaddleBoardTour, cx: &mut App| {
+            let app_state = AppState::global(cx);
+            let config_dir = paths::config_dir();
+            let tour_path = config_dir.join("PaddleBoard_Tour.md");
+            let marker_path = config_dir.join(".tour_seen");
+
+            if !tour_path.exists() {
+                let _ = std::fs::write(&tour_path, include_str!("tour.md"));
+            }
+            if !marker_path.exists() {
+                let _ = std::fs::write(&marker_path, "seen");
+            }
+            
+            let task = open_paths(&[tour_path], app_state.clone(), OpenOptions::default(), cx);
+            task.detach_and_log_err(cx);
+                
+            
+        })
         .on_action(|_: &OpenFiles, cx: &mut App| {
             let directories = cx.can_select_mixed_files_and_dirs();
             let app_state = AppState::global(cx);
@@ -1676,6 +1694,8 @@ impl Workspace {
             status_bar.add_left_item(left_dock_buttons, window, cx);
             status_bar.add_right_item(right_dock_buttons, window, cx);
             status_bar.add_right_item(bottom_dock_buttons, window, cx);
+            let tour_btn = cx.new(|cx| tour_status_item::TourStatusItem::new(cx));
+            status_bar.add_right_item(tour_btn, window, cx);
             status_bar
         });
 
@@ -14837,3 +14857,12 @@ mod tests {
         });
     }
 }
+
+#[derive(Clone, PartialEq, serde::Deserialize, gpui::Action)]
+#[action(namespace = workspace)]
+pub struct OpenBrowser;
+
+#[derive(Clone, PartialEq, serde::Deserialize, gpui::Action)]
+#[action(namespace = workspace)]
+pub struct OpenPaddleBoardTour;
+pub mod tour_status_item;

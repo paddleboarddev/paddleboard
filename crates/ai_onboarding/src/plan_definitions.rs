@@ -1,7 +1,7 @@
 use gpui::{IntoElement, ParentElement};
 use ui::{List, ListBulletItem, prelude::*};
 
-/// Centralized definitions for Zed AI plans
+/// Centralized definitions for PaddleBoard AI plans
 pub struct PlanDefinitions;
 
 impl PlanDefinitions {

@@ -203,6 +203,7 @@ members = [
     "crates/title_bar",
     "crates/toolchain_selector",
     "crates/ui",
+    "crates/browser",
     "crates/ui_input",
     "crates/ui_macros",
     "crates/ui_prompt",
@@ -253,6 +254,8 @@ publish = false
 edition = "2024"
 
 [workspace.dependencies]
+browser = { path = "crates/browser" }
+wry = "0.40.0"
 
 #
 # Workspace member crates

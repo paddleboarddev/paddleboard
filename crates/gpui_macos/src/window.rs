@@ -427,6 +427,7 @@ struct MacWindowState {
     background_executor: BackgroundExecutor,
     native_window: id,
     native_view: NonNull<Object>,
+    webview: Option<wry::WebView>,
     blurred_view: Option<id>,
     background_appearance: WindowBackgroundAppearance,
     display_link: Option<DisplayLink>,
@@ -743,6 +744,7 @@ impl MacWindow {
                 background_executor,
                 native_window,
                 native_view: NonNull::new_unchecked(native_view),
+                webview: None,
                 blurred_view: None,
                 background_appearance: WindowBackgroundAppearance::Opaque,
                 display_link: None,
@@ -1423,6 +1425,49 @@ impl PlatformWindow for MacWindow {
         self.0.as_ref().lock().background_appearance
     }
 
+    // PaddleBoard Webview Integration
+    fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {
+        use raw_window_handle::HasWindowHandle;
+        
+        let mut state = self.0.lock();
+        
+        if state.webview.is_none() {
+            if let Ok(handle) = self.window_handle() {
+                let rect = wry::Rect {
+                    position: wry::dpi::Position::Physical(wry::dpi::PhysicalPosition::new(
+                        f32::from(bounds.origin.x) as i32,
+                        f32::from(bounds.origin.y) as i32,
+                    )),
+                    size: wry::dpi::Size::Physical(wry::dpi::PhysicalSize::new(
+                        f32::from(bounds.size.width) as u32,
+                        f32::from(bounds.size.height) as u32,
+                    )),
+                };
+                
+                let builder = wry::WebViewBuilder::new_as_child(&handle).with_url(url).with_bounds(rect);
+                if let Ok(webview) = builder.build() {
+                    state.webview = Some(webview);
+                }
+            }
+        }
+    }
+
+    fn update_webview(&mut self, bounds: Bounds<Pixels>) {
+        let mut state = self.0.lock();
+        if let Some(webview) = &mut state.webview {
+            let rect = wry::Rect {
+                position: wry::dpi::Position::Physical(wry::dpi::PhysicalPosition::new(
+                    f32::from(bounds.origin.x) as i32,
+                    f32::from(bounds.origin.y) as i32,
+                )),
+                size: wry::dpi::Size::Physical(wry::dpi::PhysicalSize::new(
+                    f32::from(bounds.size.width) as u32,
+                    f32::from(bounds.size.height) as u32,
+                )),
+            };
+            let _ = webview.set_bounds(rect);
+        }
+    }
     fn is_subpixel_rendering_supported(&self) -> bool {
         false
     }

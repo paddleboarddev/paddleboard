@@ -3,7 +3,7 @@ use crate::{
     DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool, FindPathTool, GrepTool,
     ListDirectoryTool, MovePathTool, NowTool, OpenTool, ProjectSnapshot, ReadFileTool,
     RestoreFileFromDiskTool, SaveFileTool, SpawnAgentTool, StreamingEditFileTool,
-    SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision,
+    SystemPromptTemplate, Template, Templates, TerminalTool, SandboxTool, ToolPermissionDecision,
     UpdatePlanTool, WebSearchTool, decide_permission_from_settings,
 };
 use acp_thread::{MentionUri, UserMessageId};
@@ -1538,6 +1538,7 @@ impl Thread {
         self.add_tool(SaveFileTool::new(self.project.clone()));
         self.add_tool(RestoreFileFromDiskTool::new(self.project.clone()));
         self.add_tool(TerminalTool::new(self.project.clone(), environment.clone()));
+        self.add_tool(SandboxTool::new(self.project.clone(), environment.clone()));
         self.add_tool(WebSearchTool);
 
         if self.depth() < MAX_SUBAGENT_DEPTH {
