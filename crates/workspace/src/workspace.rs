@@ -783,16 +783,14 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
             let marker_path = config_dir.join(".tour_seen");
 
             if !tour_path.exists() {
-                let _ = std::fs::write(&tour_path, include_str!("tour.md"));
+                std::fs::write(&tour_path, include_str!("tour.md")).log_err();
             }
             if !marker_path.exists() {
-                let _ = std::fs::write(&marker_path, "seen");
+                std::fs::write(&marker_path, "seen").log_err();
             }
-            
-            let task = open_paths(&[tour_path], app_state.clone(), OpenOptions::default(), cx);
+
+            let task = open_paths(&[tour_path], app_state, OpenOptions::default(), cx);
             task.detach_and_log_err(cx);
-                
-            
         })
         .on_action(|_: &OpenFiles, cx: &mut App| {
             let directories = cx.can_select_mixed_files_and_dirs();
@@ -14861,6 +14859,10 @@ mod tests {
 #[derive(Clone, PartialEq, serde::Deserialize, gpui::Action)]
 #[action(namespace = workspace)]
 pub struct OpenBrowser;
+
+#[derive(Clone, PartialEq, serde::Deserialize, gpui::Action)]
+#[action(namespace = workspace)]
+pub struct OpenUnsloth;
 
 #[derive(Clone, PartialEq, serde::Deserialize, gpui::Action)]
 #[action(namespace = workspace)]

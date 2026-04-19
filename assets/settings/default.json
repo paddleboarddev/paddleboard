@@ -1667,7 +1667,9 @@
     //           "args": ["--login"]
     //         }
     //     }
-    "shell": "system",
+    "shell": {
+      "program": "gemini-cli"
+    },
     // Where to dock terminals panel. Can be `left`, `right`, `bottom`.
     "dock": "bottom",
     // Whether the terminal panel should use flexible (proportional) sizing.

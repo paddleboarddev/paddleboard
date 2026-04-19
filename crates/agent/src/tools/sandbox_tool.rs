@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use settings::Settings;
 use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     rc::Rc,
     sync::Arc,
     time::Duration,
@@ -24,8 +24,10 @@ const COMMAND_OUTPUT_LIMIT: u64 = 16 * 1024;
 /// Executes a shell command securely within an isolated Podman (gVisor runsc) container.
 ///
 /// Use this tool whenever you generate unverified code, run tests, or execute build scripts
-/// that could potentially harm the host system. The command runs inside an ephemeral Ubuntu container
-/// but maps the project directory so file changes are preserved.
+/// that could potentially harm the host system. The command runs inside an ephemeral Ubuntu
+/// container; the project worktree identified by `cd` is mounted at `/workspace` inside the
+/// container and the command starts with that as its working directory, so file changes made
+/// there are visible on the host.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SandboxToolInput {
     /// The command to execute securely.
@@ -123,16 +125,19 @@ impl AgentTool for SandboxTool {
                 .image
                 .clone()
                 .unwrap_or_else(|| "ubuntu:latest".to_string());
-            let wd_str = working_dir.to_string_lossy().to_string();
 
-            // Construct the secure podman gvisor command
+            // Mount the host worktree at a fixed in-container path so the container filesystem
+            // layout is stable and host paths do not leak through the mount point. The user's
+            // shell command and any host path we interpolate are wrapped with POSIX single-quote
+            // escaping (close quote, backslash-escape, reopen quote) so they survive both the
+            // outer shell that spawns podman and the `bash -c` inside the container.
+            const CONTAINER_WORKDIR: &str = "/workspace";
+            let host_wd = shell_single_quote(&working_dir.to_string_lossy());
+            let container_wd = shell_single_quote(CONTAINER_WORKDIR);
+            let image_arg = shell_single_quote(&image);
+            let user_command = shell_single_quote(&input.command);
             let podman_command = format!(
-                "podman run --rm --runtime=runsc -v '{}:{}' -w '{}' {} bash -c '{}'",
-                wd_str,
-                wd_str,
-                wd_str,
-                image,
-                input.command.replace("'", "'\\''")
+                "podman run --rm --runtime=runsc -v {host_wd}:{container_wd} -w {container_wd} {image_arg} bash -c {user_command}",
             );
 
             let terminal = self
@@ -266,15 +271,64 @@ fn process_content(
     format!("Ran command `{command}`\n\n{content}")
 }
 fn working_dir(input: &SandboxToolInput, project: &Entity<Project>, cx: &App) -> Result<PathBuf> {
-    let mut working_dir = None;
+    // We compare via canonical paths when possible so that trailing slashes, `.`/`..` components,
+    // or symlink differences between what the model emits and what the worktree stores do not
+    // cause spurious "invalid working directory" errors. Canonicalization can fail (e.g. permission
+    // errors), so we fall back to the raw PathBuf in that case, which is strictly more permissive
+    // than the previous `to_string_lossy()` equality check.
+    let input_path = PathBuf::from(&input.cd);
+    let canonical_input = std::fs::canonicalize(&input_path).unwrap_or(input_path);
     for worktree in project.read(cx).worktrees(cx) {
         let worktree = worktree.read(cx);
-        if input.cd == worktree.abs_path().to_string_lossy() {
-            working_dir = Some(worktree.abs_path().to_path_buf());
-            break;
+        let worktree_abs = worktree.abs_path();
+        let canonical_worktree =
+            std::fs::canonicalize(&worktree_abs).unwrap_or_else(|_| worktree_abs.to_path_buf());
+        if canonical_input == canonical_worktree {
+            return Ok(worktree_abs.to_path_buf());
         }
     }
-    working_dir.ok_or_else(|| {
-        anyhow::anyhow!("invalid working directory. must be one of the project root directories")
-    })
+    anyhow::bail!("invalid working directory. must be one of the project root directories")
+}
+
+/// POSIX shell single-quote escaping: wrap `s` in single quotes, and replace every `'` in `s`
+/// with `'\''` (close quote, escaped literal quote, reopen quote). The result is safe to pass
+/// through `bash -c` and through any POSIX shell interpolation, regardless of the original
+/// contents of `s`.
+fn shell_single_quote(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('\'');
+    for ch in s.chars() {
+        if ch == '\'' {
+            out.push_str("'\\''");
+        } else {
+            out.push(ch);
+        }
+    }
+    out.push('\'');
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shell_single_quote;
+
+    #[test]
+    fn quotes_plain_strings() {
+        assert_eq!(shell_single_quote("hello"), "'hello'");
+        assert_eq!(shell_single_quote(""), "''");
+    }
+
+    #[test]
+    fn escapes_embedded_single_quotes() {
+        assert_eq!(shell_single_quote("it's"), "'it'\\''s'");
+        assert_eq!(shell_single_quote("'"), "''\\'''");
+    }
+
+    #[test]
+    fn passes_through_shell_metacharacters_verbatim() {
+        assert_eq!(
+            shell_single_quote("rm -rf $HOME && echo pwned"),
+            "'rm -rf $HOME && echo pwned'"
+        );
+    }
 }

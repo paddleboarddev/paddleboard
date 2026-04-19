@@ -1,11 +1,22 @@
 [package]
 name = "browser"
 version = "0.1.0"
-edition = "2021"
-publish = false
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/browser.rs"
+doctest = false
 
 [dependencies]
+anyhow.workspace = true
 gpui.workspace = true
+log.workspace = true
+util.workspace = true
 workspace.workspace = true
 ui.workspace = true
 wry.workspace = true

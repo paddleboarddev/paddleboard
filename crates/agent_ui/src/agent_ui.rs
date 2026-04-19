@@ -255,6 +255,7 @@ pub struct NewNativeAgentThreadFromSummary {
 #[serde(rename_all = "snake_case")]
 pub enum Agent {
     #[default]
+    Gemini,
     #[serde(alias = "NativeAgent", alias = "TextThread")]
     NativeAgent,
     #[serde(alias = "Custom")]
@@ -268,6 +269,8 @@ impl From<AgentId> for Agent {
     fn from(id: AgentId) -> Self {
         if id.as_ref() == agent::ZED_AGENT_ID.as_ref() {
             Self::NativeAgent
+        } else if id.as_ref() == "gemini" {
+            Self::Gemini
         } else {
             Self::Custom { id }
         }
@@ -277,6 +280,7 @@ impl From<AgentId> for Agent {
 impl Agent {
     pub fn id(&self) -> AgentId {
         match self {
+            Self::Gemini => AgentId::new("gemini"),
             Self::NativeAgent => agent::ZED_AGENT_ID.clone(),
             Self::Custom { id } => id.clone(),
         }
@@ -288,6 +292,7 @@ impl Agent {
 
     pub fn label(&self) -> SharedString {
         match self {
+            Self::Gemini => "Gemini".into(),
             Self::NativeAgent => "Zed Agent".into(),
             Self::Custom { id, .. } => id.0.clone(),
         }
@@ -295,6 +300,7 @@ impl Agent {
 
     pub fn icon(&self) -> Option<IconName> {
         match self {
+            Self::Gemini => Some(IconName::AiGemini),
             Self::NativeAgent => None,
             Self::Custom { .. } => Some(IconName::Sparkle),
         }
@@ -306,6 +312,7 @@ impl Agent {
         thread_store: Entity<agent::ThreadStore>,
     ) -> Rc<dyn agent_servers::AgentServer> {
         match self {
+            Self::Gemini => Rc::new(agent_servers::CustomAgentServer::new(AgentId::new("gemini"))),
             Self::NativeAgent => Rc::new(agent::NativeAgentServer::new(fs, thread_store)),
             Self::Custom { id: name } => {
                 Rc::new(agent_servers::CustomAgentServer::new(name.clone()))
@@ -918,6 +925,10 @@ mod tests {
 
     #[test]
     fn test_deserialize_external_agent_variants() {
+        assert_eq!(
+            serde_json::from_str::<Agent>(r#""gemini""#).unwrap(),
+            Agent::Gemini,
+        );
         assert_eq!(
             serde_json::from_str::<Agent>(r#""NativeAgent""#).unwrap(),
             Agent::NativeAgent,

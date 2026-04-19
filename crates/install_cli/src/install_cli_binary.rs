@@ -1,7 +1,6 @@
 use super::register_zed_scheme;
 use anyhow::{Context as _, Result};
 use gpui::{AppContext as _, AsyncApp, Context, PromptLevel, Window, actions};
-use release_channel::ReleaseChannel;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use util::ResultExt;

@@ -1210,12 +1210,12 @@ impl AgentPanel {
 
     fn has_history_for_selected_agent(&self, cx: &App) -> bool {
         match &self.selected_agent {
-            Agent::NativeAgent => true,
-            Agent::Custom { .. } => self
+            Agent::Gemini | Agent::Custom { .. } => self
                 .connection_store
                 .read(cx)
                 .entry(&self.selected_agent)
                 .map_or(false, |entry| entry.read(cx).history().is_some()),
+            Agent::NativeAgent => true,
         }
     }
 

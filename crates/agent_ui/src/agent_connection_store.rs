@@ -220,6 +220,7 @@ impl AgentConnectionStore {
         let store = store.read(cx);
         self.entries.retain(|key, _| match key {
             Agent::NativeAgent => true,
+            Agent::Gemini => store.external_agents.contains_key("gemini"),
             Agent::Custom { id } => store.external_agents.contains_key(id),
         });
         cx.notify();
