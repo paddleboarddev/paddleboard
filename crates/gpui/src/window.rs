@@ -1114,11 +1114,24 @@ fn default_bounds(display_id: Option<DisplayId>, cx: &mut App) -> WindowBounds {
 }
 
 impl Window {
+    /// Adds a webview at the given bounds within this window.
     pub fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {
         self.platform_window.add_webview(url, bounds);
     }
+
+    /// Updates the bounds of the existing webview in this window.
     pub fn update_webview(&mut self, bounds: Bounds<Pixels>) {
         self.platform_window.update_webview(bounds);
+    }
+
+    /// Hides the webview by collapsing it to zero size.
+    pub fn hide_webview(&mut self) {
+        self.platform_window.hide_webview();
+    }
+
+    /// Navigates the existing webview to a new URL.
+    pub fn navigate_webview(&mut self, url: &str) {
+        self.platform_window.navigate_webview(url);
     }
     pub(crate) fn new(
         handle: AnyWindowHandle,

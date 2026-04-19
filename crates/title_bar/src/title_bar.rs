@@ -47,7 +47,7 @@ use ui::{
 use update_version::UpdateVersion;
 use util::ResultExt;
 use workspace::{
-    MultiWorkspace, ToggleWorktreeSecurity, Workspace, WorkspaceId, notifications::NotifyResultExt,
+    MultiWorkspace, ToggleWorktreeSecurity, Workspace, WorkspaceId,
 };
 
 use zed_actions::OpenRemote;

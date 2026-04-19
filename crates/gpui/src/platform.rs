@@ -639,8 +639,10 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn completed_frame(&self) {}
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas>;
     // PaddleBoard Webview Integration
-    fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {}
-    fn update_webview(&mut self, bounds: Bounds<Pixels>) {}
+    fn add_webview(&mut self, _url: &str, _bounds: Bounds<Pixels>) {}
+    fn update_webview(&mut self, _bounds: Bounds<Pixels>) {}
+    fn hide_webview(&mut self) {}
+    fn navigate_webview(&mut self, _url: &str) {}
     fn is_subpixel_rendering_supported(&self) -> bool;
 
     // macOS specific methods

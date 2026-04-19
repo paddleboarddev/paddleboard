@@ -214,6 +214,10 @@ pub struct AgentSettingsContent {
     ///
     /// Default: true
     pub show_merge_conflict_indicator: Option<bool>,
+    /// Whether to enable the sandbox mode for tool execution.
+    ///
+    /// Default: true
+    pub sandbox_mode: Option<bool>,
     /// Per-tool permission rules for granular control over which tool actions
     /// require confirmation.
     ///

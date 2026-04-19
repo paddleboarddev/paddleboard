@@ -1426,48 +1426,83 @@ impl PlatformWindow for MacWindow {
     }
 
     // PaddleBoard Webview Integration
-    fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {
-        use raw_window_handle::HasWindowHandle;
-        
-        let mut state = self.0.lock();
-        
-        if state.webview.is_none() {
-            if let Ok(handle) = self.window_handle() {
-                let rect = wry::Rect {
-                    position: wry::dpi::Position::Physical(wry::dpi::PhysicalPosition::new(
-                        f32::from(bounds.origin.x) as i32,
-                        f32::from(bounds.origin.y) as i32,
-                    )),
-                    size: wry::dpi::Size::Physical(wry::dpi::PhysicalSize::new(
-                        f32::from(bounds.size.width) as u32,
-                        f32::from(bounds.size.height) as u32,
-                    )),
-                };
-                
-                let builder = wry::WebViewBuilder::new_as_child(&handle).with_url(url).with_bounds(rect);
-                if let Ok(webview) = builder.build() {
-                    state.webview = Some(webview);
-                }
-            }
+    fn add_webview(&mut self, url: &str, _bounds: Bounds<Pixels>) {
+        // Extract the native_view pointer and whether a webview already exists before
+        // releasing the lock, since window_handle() also needs to acquire it.
+        let (already_has_webview, native_view) = {
+            let state = self.0.lock();
+            (state.webview.is_some(), state.native_view)
+        };
+
+        if already_has_webview {
+            return;
+        }
+
+        let raw_handle = unsafe {
+            raw_window_handle::AppKitWindowHandle::new(native_view.cast())
+        };
+        let window_handle = unsafe {
+            raw_window_handle::WindowHandle::borrow_raw(
+                raw_window_handle::RawWindowHandle::AppKit(raw_handle),
+            )
+        };
+
+        // Start with zero rect; update_webview will set the real bounds during prepaint.
+        let rect = wry::Rect {
+            position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition::new(0.0, 0.0)),
+            size: wry::dpi::Size::Logical(wry::dpi::LogicalSize::new(0.0, 0.0)),
+        };
+
+        let builder = wry::WebViewBuilder::new_as_child(&window_handle)
+            .with_url(url)
+            .with_bounds(rect);
+        if let Ok(webview) = builder.build() {
+            self.0.lock().webview = Some(webview);
         }
     }
 
     fn update_webview(&mut self, bounds: Bounds<Pixels>) {
         let mut state = self.0.lock();
+        // macOS NSView uses bottom-left origin; GPUI uses top-left. Flip Y.
+        // Read view height before mutably borrowing state.webview.
+        let view_height =
+            unsafe { NSView::bounds(state.native_view.as_ptr()).size.height as f32 };
         if let Some(webview) = &mut state.webview {
+            let y_flipped = view_height - f32::from(bounds.origin.y) - f32::from(bounds.size.height);
             let rect = wry::Rect {
-                position: wry::dpi::Position::Physical(wry::dpi::PhysicalPosition::new(
-                    f32::from(bounds.origin.x) as i32,
-                    f32::from(bounds.origin.y) as i32,
+                position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition::new(
+                    f64::from(bounds.origin.x),
+                    y_flipped as f64,
                 )),
-                size: wry::dpi::Size::Physical(wry::dpi::PhysicalSize::new(
-                    f32::from(bounds.size.width) as u32,
-                    f32::from(bounds.size.height) as u32,
+                size: wry::dpi::Size::Logical(wry::dpi::LogicalSize::new(
+                    f64::from(bounds.size.width),
+                    f64::from(bounds.size.height),
                 )),
             };
             let _ = webview.set_bounds(rect);
         }
     }
+
+    fn hide_webview(&mut self) {
+        let mut state = self.0.lock();
+        if let Some(webview) = &mut state.webview {
+            let rect = wry::Rect {
+                position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition::new(0.0, 0.0)),
+                size: wry::dpi::Size::Logical(wry::dpi::LogicalSize::new(0.0, 0.0)),
+            };
+            let _ = webview.set_bounds(rect);
+        }
+    }
+
+    fn navigate_webview(&mut self, url: &str) {
+        let state = self.0.lock();
+        if let Some(webview) = &state.webview {
+            if let Err(error) = webview.load_url(url) {
+                log::error!("Failed to navigate webview to {url}: {error}");
+            }
+        }
+    }
+
     fn is_subpixel_rendering_supported(&self) -> bool {
         false
     }
