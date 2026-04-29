@@ -1438,9 +1438,7 @@ impl PlatformWindow for MacWindow {
             return;
         }
 
-        let raw_handle = unsafe {
-            raw_window_handle::AppKitWindowHandle::new(native_view.cast())
-        };
+        let raw_handle = raw_window_handle::AppKitWindowHandle::new(native_view.cast());
         let window_handle = unsafe {
             raw_window_handle::WindowHandle::borrow_raw(
                 raw_window_handle::RawWindowHandle::AppKit(raw_handle),
@@ -1463,16 +1461,13 @@ impl PlatformWindow for MacWindow {
 
     fn update_webview(&mut self, bounds: Bounds<Pixels>) {
         let mut state = self.0.lock();
-        // macOS NSView uses bottom-left origin; GPUI uses top-left. Flip Y.
-        // Read view height before mutably borrowing state.webview.
-        let view_height =
-            unsafe { NSView::bounds(state.native_view.as_ptr()).size.height as f32 };
         if let Some(webview) = &mut state.webview {
-            let y_flipped = view_height - f32::from(bounds.origin.y) - f32::from(bounds.size.height);
+            // wry's set_bounds internally flips Y (top-left → NSView bottom-left), so pass
+            // GPUI's top-left coordinates directly and let wry do the conversion.
             let rect = wry::Rect {
                 position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition::new(
                     f64::from(bounds.origin.x),
-                    y_flipped as f64,
+                    f64::from(bounds.origin.y),
                 )),
                 size: wry::dpi::Size::Logical(wry::dpi::LogicalSize::new(
                     f64::from(bounds.size.width),

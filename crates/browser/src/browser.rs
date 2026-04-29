@@ -1,4 +1,5 @@
 use anyhow::Result;
+use editor::{Editor, EditorEvent};
 use gpui::{
     Action, App, AsyncWindowContext, Bounds, Context, Element, ElementId, Entity, EventEmitter,
     FocusHandle, Focusable, GlobalElementId, IntoElement, LayoutId, Pixels, Render, WeakEntity,
@@ -6,7 +7,8 @@ use gpui::{
 };
 use std::panic::Location;
 use std::time::Duration;
-use ui::IconName;
+use theme::ActiveTheme;
+use ui::{ButtonSize, ButtonStyle, prelude::*};
 use util::{ResultExt, command::new_command};
 use workspace::{
     Workspace,
@@ -16,23 +18,50 @@ use workspace::{
 gpui::actions!(browser, [ToggleFocus]);
 
 const BROWSER_PANEL_KEY: &str = "BrowserPanel";
-const DEFAULT_URL: &str = "about:blank";
+const DEFAULT_URL: &str = "https://www.google.com";
 const UNSLOTH_IMAGE: &str = "unslothai/unsloth-studio";
+
+const BOOKMARKS: &[(&str, &str)] = &[
+    ("Google", "https://www.google.com"),
+    ("GitHub", "https://github.com"),
+    ("Hacker News", "https://news.ycombinator.com"),
+];
 
 pub struct Browser {
     focus_handle: FocusHandle,
     url: String,
+    address_bar: Entity<Editor>,
     position: DockPosition,
     webview_initialized: bool,
+    weak_self: WeakEntity<Self>,
+    _subscriptions: Vec<gpui::Subscription>,
 }
 
 impl Browser {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let focus_handle = cx.focus_handle();
+
+        let address_bar = cx.new(|cx| {
+            let mut editor = Editor::single_line(window, cx);
+            editor.set_placeholder_text("Search or enter URL", window, cx);
+            editor.set_text(DEFAULT_URL, window, cx);
+            editor
+        });
+
+        let subscriptions = vec![cx.subscribe(&address_bar, |_, _, event: &EditorEvent, cx| {
+            if matches!(event, EditorEvent::Blurred) {
+                cx.notify();
+            }
+        })];
+
         Self {
-            focus_handle: cx.focus_handle(),
+            focus_handle,
             url: DEFAULT_URL.to_string(),
+            address_bar,
             position: DockPosition::Left,
             webview_initialized: false,
+            weak_self: cx.weak_entity(),
+            _subscriptions: subscriptions,
         }
     }
 
@@ -40,7 +69,31 @@ impl Browser {
         _workspace: WeakEntity<Workspace>,
         mut cx: AsyncWindowContext,
     ) -> Result<Entity<Self>> {
-        Ok(cx.new(|cx| Self::new(cx)))
+        cx.new_window_entity(|window, cx| Self::new(window, cx))
+    }
+
+    fn navigate_to_address_bar_content(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let input = self.address_bar.read(cx).text(cx);
+        let url = normalize_url(input.as_str());
+        self.url = url.clone();
+        self.address_bar.update(cx, |editor, cx| {
+            editor.set_text(url.clone(), window, cx);
+        });
+        if self.webview_initialized {
+            window.navigate_webview(&url);
+        }
+        cx.notify();
+    }
+
+    fn navigate_to(&mut self, url: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.url = url.to_string();
+        self.address_bar.update(cx, |editor, cx| {
+            editor.set_text(url, window, cx);
+        });
+        if self.webview_initialized {
+            window.navigate_webview(url);
+        }
+        cx.notify();
     }
 }
 
@@ -100,24 +153,71 @@ impl Panel for Browser {
     }
 
     fn set_active(&mut self, active: bool, window: &mut Window, _cx: &mut Context<Self>) {
-        if active {
-            if !self.webview_initialized {
-                window.add_webview(&self.url, Bounds::default());
-                self.webview_initialized = true;
-            }
-        } else {
+        if !active {
             window.hide_webview();
         }
     }
 }
 
 impl Render for Browser {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        BrowserElement
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let colors = cx.theme().colors();
+
+        v_flex()
+            .size_full()
+            .bg(colors.panel_background)
+            .child(
+                h_flex()
+                    .h(DynamicSpacing::Base32.px(cx))
+                    .gap_1p5()
+                    .px_2()
+                    .border_b_1()
+                    .border_color(colors.border_variant)
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .capture_action(cx.listener(
+                                |this, _: &editor::actions::Newline, window, cx| {
+                                    this.navigate_to_address_bar_content(window, cx);
+                                },
+                            ))
+                            .child(self.address_bar.clone()),
+                    ),
+            )
+            .child(
+                v_flex()
+                    .px_2()
+                    .py(DynamicSpacing::Base06.rems(cx))
+                    .border_b_1()
+                    .border_color(colors.border_variant)
+                    .child(
+                        h_flex()
+                            .min_h_8()
+                            .items_center()
+                            .gap_0p5()
+                            .children(BOOKMARKS.iter().enumerate().map(|(index, (title, url))| {
+                                let url = url.to_string();
+                                Button::new(index, *title)
+                                    .style(ButtonStyle::Subtle)
+                                    .size(ButtonSize::Compact)
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.navigate_to(&url, window, cx);
+                                    }))
+                            })),
+                    ),
+            )
+            .child(BrowserElement {
+                browser: self.weak_self.clone(),
+                url: self.url.clone(),
+            })
     }
 }
 
-struct BrowserElement;
+struct BrowserElement {
+    browser: WeakEntity<Browser>,
+    url: String,
+}
 
 impl IntoElement for BrowserElement {
     type Element = Self;
@@ -147,7 +247,7 @@ impl Element for BrowserElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut style = gpui::Style::default();
         style.size.width = gpui::Length::Definite(gpui::DefiniteLength::Fraction(1.0));
-        style.size.height = gpui::Length::Definite(gpui::DefiniteLength::Fraction(1.0));
+        style.flex_grow = 1.0;
         (window.request_layout(style, [], cx), ())
     }
 
@@ -158,9 +258,22 @@ impl Element for BrowserElement {
         bounds: Bounds<Pixels>,
         _request_layout: &mut Self::RequestLayoutState,
         window: &mut Window,
-        _cx: &mut App,
+        cx: &mut App,
     ) -> Self::PrepaintState {
-        window.update_webview(bounds);
+        let initialized = self
+            .browser
+            .read_with(cx, |browser, _| browser.webview_initialized)
+            .unwrap_or(true);
+        if initialized {
+            window.update_webview(bounds);
+        } else {
+            window.add_webview(&self.url, bounds);
+            self.browser
+                .update(cx, |browser, _| {
+                    browser.webview_initialized = true;
+                })
+                .ok();
+        }
     }
 
     fn paint(
@@ -174,6 +287,18 @@ impl Element for BrowserElement {
         _cx: &mut App,
     ) {
     }
+}
+
+fn normalize_url(input: &str) -> String {
+    let trimmed = input.trim();
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        return trimmed.to_string();
+    }
+    if !trimmed.contains(' ') && trimmed.contains('.') {
+        return format!("https://{trimmed}");
+    }
+    let encoded = urlencoding::encode(trimmed);
+    format!("https://www.google.com/search?q={encoded}")
 }
 
 pub fn init(cx: &mut App) {
@@ -235,12 +360,8 @@ async fn start_unsloth(
         .update_in(cx, |workspace, window, cx| {
             if let Some(browser_panel) = workspace.panel::<Browser>(cx) {
                 browser_panel.update(cx, |browser, cx| {
-                    browser.url = url.clone();
-                    cx.notify();
+                    browser.navigate_to(&url, window, cx);
                 });
-                if browser_panel.read(cx).webview_initialized {
-                    window.navigate_webview(&url);
-                }
                 workspace.open_panel::<Browser>(window, cx);
             }
         })
