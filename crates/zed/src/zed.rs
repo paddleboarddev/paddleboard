@@ -20,6 +20,7 @@ use assets::Assets;
 
 use breadcrumbs::Breadcrumbs;
 use browser::Browser;
+use llm_picker::LlmPicker;
 use client::zed_urls;
 use collections::VecDeque;
 use debugger_ui::debugger_panel::DebugPanel;
@@ -659,6 +660,7 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
         );
         let debug_panel = DebugPanel::load(workspace_handle.clone(), cx);
         let browser_panel = Browser::load(workspace_handle.clone(), cx.clone());
+        let llm_picker_panel = LlmPicker::load(workspace_handle.clone(), cx.clone());
 
         workspace_handle
             .update_in(cx, |_workspace, window, cx| {
@@ -697,6 +699,7 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
             add_panel_when_ready(notification_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(debug_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(browser_panel, workspace_handle.clone(), cx.clone()),
+            add_panel_when_ready(llm_picker_panel, workspace_handle.clone(), cx.clone()),
             initialize_agent_panel(workspace_handle, cx.clone()).map(|r| r.log_err()),
         );
 

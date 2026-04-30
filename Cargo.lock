@@ -2156,9 +2156,12 @@ name = "browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "editor",
  "gpui",
  "log",
+ "theme",
  "ui",
+ "urlencoding",
  "util",
  "workspace",
  "wry",
@@ -10392,6 +10395,18 @@ dependencies = [
  "util",
  "webrtc-sys",
  "zed-scap",
+]
+
+[[package]]
+name = "llm_picker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "language_model",
+ "theme",
+ "ui",
+ "workspace",
 ]
 
 [[package]]
@@ -23123,6 +23138,7 @@ dependencies = [
  "language_tools",
  "languages",
  "line_ending_selector",
+ "llm_picker",
  "log",
  "markdown",
  "markdown_preview",
