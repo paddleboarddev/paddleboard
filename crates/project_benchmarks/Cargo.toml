@@ -18,7 +18,7 @@ node_runtime.workspace = true
 project.workspace = true
 release_channel.workspace = true
 remote = { workspace = true, features = ["build-remote-server-binary"] }
-rpassword = "7.4"
+rpassword = "7.5"
 semver.workspace = true
 settings.workspace = true
 watch.workspace = true
