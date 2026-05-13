@@ -254,7 +254,7 @@ mod octo_client {
                 .replace("\n", "")
         }
 
-        async fn graphql<R: octocrab::FromResponse>(
+        async fn graphql<R: octocrab::FromResponse + DeserializeOwned>(
             &self,
             query: &serde_json::Value,
         ) -> octocrab::Result<R> {
