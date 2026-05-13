@@ -137,6 +137,12 @@ pub enum ContextServerConfiguration {
         command: ContextServerCommand,
         remote: bool,
     },
+    Sandboxed {
+        command: ContextServerCommand,
+        image: String,
+        forward_env: Vec<String>,
+        mount_worktree: bool,
+    },
     Extension {
         command: ContextServerCommand,
         settings: serde_json::Value,
@@ -153,6 +159,7 @@ impl ContextServerConfiguration {
     pub fn command(&self) -> Option<&ContextServerCommand> {
         match self {
             ContextServerConfiguration::Custom { command, .. } => Some(command),
+            ContextServerConfiguration::Sandboxed { command, .. } => Some(command),
             ContextServerConfiguration::Extension { command, .. } => Some(command),
             ContextServerConfiguration::Http { .. } => None,
         }
@@ -171,6 +178,9 @@ impl ContextServerConfiguration {
         match self {
             ContextServerConfiguration::Custom { remote, .. } => *remote,
             ContextServerConfiguration::Extension { remote, .. } => *remote,
+            // Sandboxed servers always run on the local machine — there's no remote
+            // story for the gVisor runtime yet, so this is intentionally false.
+            ContextServerConfiguration::Sandboxed { .. } => false,
             ContextServerConfiguration::Http { .. } => false,
         }
     }
@@ -190,6 +200,18 @@ impl ContextServerConfiguration {
                 command,
                 remote,
             } => Some(ContextServerConfiguration::Custom { command, remote }),
+            ContextServerSettings::SandboxedStdio {
+                enabled: _,
+                command,
+                image,
+                forward_env,
+                mount_worktree,
+            } => Some(ContextServerConfiguration::Sandboxed {
+                command,
+                image,
+                forward_env,
+                mount_worktree,
+            }),
             ContextServerSettings::Extension {
                 enabled: _,
                 settings,
@@ -711,6 +733,9 @@ impl ContextServerStore {
         let needs_remote_command = match configuration.as_ref() {
             ContextServerConfiguration::Custom { .. }
             | ContextServerConfiguration::Extension { .. } => remote,
+            // Sandboxed servers always launch via the local podman runtime; there's
+            // no remote-command resolution to do.
+            ContextServerConfiguration::Sandboxed { .. } => false,
             ContextServerConfiguration::Http { .. } => false,
         };
 
@@ -846,6 +871,37 @@ impl ContextServerStore {
                         Some(Duration::from_secs(
                             timeout.unwrap_or(global_timeout).min(MAX_TIMEOUT_SECS),
                         )),
+                    )))
+                }
+                ContextServerConfiguration::Sandboxed {
+                    image,
+                    forward_env,
+                    mount_worktree,
+                    ..
+                } => {
+                    let mut command = configuration
+                        .command()
+                        .context("Missing command configuration for sandboxed context server")?
+                        .clone();
+                    command.timeout = Some(
+                        command
+                            .timeout
+                            .unwrap_or(global_timeout)
+                            .min(MAX_TIMEOUT_SECS),
+                    );
+
+                    // For sandboxed servers, the working directory is the host path
+                    // we mount into the container at /workspace. In a remote project
+                    // session it's a remote path that can't be bind-mounted locally,
+                    // so we drop it.
+                    let working_directory = if is_remote_project { None } else { root_path };
+                    anyhow::Ok(Arc::new(ContextServer::sandboxed_stdio(
+                        id,
+                        command,
+                        image.clone(),
+                        forward_env.clone(),
+                        *mount_worktree,
+                        working_directory,
                     )))
                 }
                 _ => {
