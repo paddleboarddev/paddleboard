@@ -989,6 +989,11 @@ impl ExtensionImports for WasmState {
                                 enabled: _,
                                 command,
                                 ..
+                            }
+                            | project::project_settings::ContextServerSettings::SandboxedStdio {
+                                enabled: _,
+                                command,
+                                ..
                             } => Ok(serde_json::to_string(&settings::ContextServerSettings {
                                 command: Some(settings::CommandSettings {
                                     path: command.path.to_str().map(|path| path.to_string()),

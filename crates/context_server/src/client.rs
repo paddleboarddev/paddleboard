@@ -21,7 +21,7 @@ use std::{
 use util::{ResultExt, TryFutureExt};
 
 use crate::{
-    transport::{StdioTransport, Transport},
+    transport::{SandboxConfig, SandboxedStdioTransport, StdioTransport, Transport},
     types::{CancelledParams, ClientNotification, Notification as _, notifications::Cancelled},
 };
 
@@ -186,6 +186,32 @@ impl Client {
 
         let timeout = binary.timeout.map(Duration::from_secs);
         let transport = Arc::new(StdioTransport::new(binary, working_directory, &cx)?);
+        Self::new(server_id, server_name.into(), transport, timeout, cx)
+    }
+
+    /// Creates a new Client instance for a context server whose process runs inside
+    /// a Podman + gVisor sandbox container instead of directly on the host.
+    pub fn sandboxed_stdio(
+        server_id: ContextServerId,
+        binary: ModelContextServerBinary,
+        sandbox: &SandboxConfig,
+        cx: AsyncApp,
+    ) -> Result<Self> {
+        log::debug!(
+            "starting sandboxed context server (image={}, executable={:?}, args={:?})",
+            sandbox.image,
+            binary.executable,
+            &binary.args
+        );
+
+        let server_name = binary
+            .executable
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(String::new);
+
+        let timeout = binary.timeout.map(Duration::from_secs);
+        let transport = Arc::new(SandboxedStdioTransport::new(binary, sandbox, &cx)?);
         Self::new(server_id, server_name.into(), transport, timeout, cx)
     }
 

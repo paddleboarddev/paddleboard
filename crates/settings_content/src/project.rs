@@ -369,6 +369,36 @@ pub struct SessionSettingsContent {
 #[derive(Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema, MergeFrom, Debug)]
 #[serde(untagged, rename_all = "snake_case")]
 pub enum ContextServerSettingsContent {
+    // SandboxedStdio must be listed before Stdio: it shares the flattened command fields,
+    // and the only disambiguator is the required `image` field. Serde tries variants in
+    // declaration order under `#[serde(untagged)]`, so this ordering ensures a settings
+    // object that includes `image` is parsed as the sandboxed variant while plain stdio
+    // configs (no `image`) fall through to `Stdio`.
+    SandboxedStdio {
+        /// Whether the context server is enabled.
+        #[serde(default = "default_true")]
+        enabled: bool,
+        #[serde(flatten)]
+        command: ContextServerCommand,
+        /// Container image to run the MCP server inside, e.g. `python:3.12-slim` or
+        /// `ghcr.io/github/github-mcp-server:latest`. Required — its presence is also
+        /// what distinguishes this variant from `Stdio` in the untagged enum.
+        image: String,
+        /// Names of host environment variables to forward into the container via
+        /// `podman run -e NAME=VALUE`. Values are resolved at run time from
+        /// PaddleBoard's process environment and are never serialized into the
+        /// agent's context. Names that contain `=`, are empty, or aren't set on
+        /// the host are skipped with a log warning.
+        #[serde(default)]
+        forward_env: Vec<String>,
+        /// Mount the active worktree at `/workspace` inside the container. Set to
+        /// false for MCP servers that should have no access to the user's
+        /// filesystem.
+        ///
+        /// Default: true
+        #[serde(default = "default_true")]
+        mount_worktree: bool,
+    },
     Stdio {
         /// Whether the context server is enabled.
         #[serde(default = "default_true")]
@@ -417,6 +447,12 @@ pub enum ContextServerSettingsContent {
 impl ContextServerSettingsContent {
     pub fn set_enabled(&mut self, enabled: bool) {
         match self {
+            ContextServerSettingsContent::SandboxedStdio {
+                enabled: sandbox_enabled,
+                ..
+            } => {
+                *sandbox_enabled = enabled;
+            }
             ContextServerSettingsContent::Stdio {
                 enabled: custom_enabled,
                 ..
