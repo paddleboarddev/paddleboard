@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/recap-enforcer.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
