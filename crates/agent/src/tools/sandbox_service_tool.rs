@@ -51,6 +51,11 @@ pub struct SandboxServiceToolInput {
     /// Optional maximum time to wait for the service to become ready (in milliseconds).
     /// Defaults to 30000.
     pub startup_timeout_ms: Option<u64>,
+    /// Optional list of host environment variable *names* to forward into the container,
+    /// e.g. `["GOOGLE_API_KEY"]` for an `adk web` service. Values are read from PaddleBoard's
+    /// own process environment at run time and passed via `podman run -e` — they are never
+    /// exposed to the model. Names missing from the host env are skipped with a log warning.
+    pub forward_env: Option<Vec<String>>,
 }
 
 pub struct SandboxServiceTool {
@@ -150,19 +155,22 @@ impl AgentTool for SandboxServiceTool {
             const CONTAINER_WORKDIR: &str = "/workspace";
             let host_wd = working_dir.to_string_lossy().to_string();
 
+            let env_args = resolve_forward_env(input.forward_env.as_deref());
+
             let container_id = cx
                 .background_spawn({
                     let image = image.clone();
                     let host_wd = host_wd.clone();
                     let port_spec = port_spec.clone();
                     let user_command = input.command.clone();
+                    let env_args = env_args.clone();
                     async move {
                         let mut cmd = new_command("podman");
+                        cmd.args(["run", "-d", "--rm", "--runtime=runsc"]);
+                        for env_arg in &env_args {
+                            cmd.args(["-e", env_arg]);
+                        }
                         cmd.args([
-                            "run",
-                            "-d",
-                            "--rm",
-                            "--runtime=runsc",
                             "-p",
                             &port_spec,
                             "-v",
@@ -305,6 +313,32 @@ fn stop_container(cx: &mut gpui::AsyncApp, container_id: &str) {
     .detach();
 }
 
+/// Resolve `forward_env` names against the host process environment, producing one
+/// `NAME=value` string per successfully-resolved variable. Missing names are skipped with a
+/// log warning — we don't fail the run, because the service may still work without an
+/// optional credential. We also reject names with `=` in them so a malicious agent can't
+/// smuggle extra env vars through a single entry.
+fn resolve_forward_env(names: Option<&[String]>) -> Vec<String> {
+    let Some(names) = names else { return Vec::new() };
+    let mut args = Vec::with_capacity(names.len());
+    for name in names {
+        if name.is_empty() || name.contains('=') {
+            log::warn!("sandbox_service_tool: ignoring invalid forward_env name {name:?}");
+            continue;
+        }
+        match std::env::var(name) {
+            Ok(value) => args.push(format!("{name}={value}")),
+            Err(_) => {
+                log::warn!(
+                    "sandbox_service_tool: forward_env name {name:?} not set in host \
+                     environment; skipping"
+                );
+            }
+        }
+    }
+    args
+}
+
 /// Parse `podman port` output. Each line looks like `0.0.0.0:54321` or `127.0.0.1:54321`,
 /// possibly prefixed by `proto/host_port -> ` depending on the podman version. We take the
 /// last `:`-delimited token and parse it as a u16.
@@ -324,7 +358,40 @@ fn parse_host_port(output: &str) -> Option<u16> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_host_port;
+    use super::{parse_host_port, resolve_forward_env};
+
+    #[test]
+    fn resolve_forward_env_returns_empty_when_none() {
+        assert!(resolve_forward_env(None).is_empty());
+        assert!(resolve_forward_env(Some(&[])).is_empty());
+    }
+
+    #[test]
+    fn resolve_forward_env_skips_missing_and_invalid_names() {
+        // Use a name that's overwhelmingly unlikely to be set.
+        let names = vec![
+            "PB_SANDBOX_TEST_DEFINITELY_UNSET_VAR_42".to_string(),
+            "".to_string(),
+            "INVALID=NAME".to_string(),
+        ];
+        assert!(resolve_forward_env(Some(&names)).is_empty());
+    }
+
+    #[test]
+    fn resolve_forward_env_picks_up_set_vars() {
+        // Set in this process — won't bleed across test binaries.
+        // SAFETY: setting an env var local to this test; no other thread reads it.
+        unsafe {
+            std::env::set_var("PB_SANDBOX_TEST_FORWARD_ENV", "hello world");
+        }
+        let names = vec!["PB_SANDBOX_TEST_FORWARD_ENV".to_string()];
+        let resolved = resolve_forward_env(Some(&names));
+        assert_eq!(resolved, vec!["PB_SANDBOX_TEST_FORWARD_ENV=hello world"]);
+        // SAFETY: cleaning up the test-local env var.
+        unsafe {
+            std::env::remove_var("PB_SANDBOX_TEST_FORWARD_ENV");
+        }
+    }
 
     #[test]
     fn parses_ipv4_host_port() {
