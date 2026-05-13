@@ -52,7 +52,7 @@ terminal.workspace = true
 uuid.workspace = true
 util.workspace = true
 watch.workspace = true
-zed_credentials_provider.workspace = true
+paddleboard_credentials_provider.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true

@@ -30,7 +30,7 @@ fn run_bump_patch_version(branch: &WorkflowInput) -> steps::NamedJob {
 
     fn bump_patch_version(token: &StepOutput) -> Step<Run> {
         named::bash(indoc::indoc! {r#"
-            channel="$(cat crates/zed/RELEASE_CHANNEL)"
+            channel="$(cat crates/paddleboard/RELEASE_CHANNEL)"
 
             tag_suffix=""
             case $channel in

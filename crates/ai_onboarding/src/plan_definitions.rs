@@ -5,7 +5,7 @@ use ui::{List, ListBulletItem, prelude::*};
 pub struct PlanDefinitions;
 
 impl PlanDefinitions {
-    pub const AI_DESCRIPTION: &'static str = "Zed offers a complete agentic experience, with robust editing and reviewing features to collaborate with AI.";
+    pub const AI_DESCRIPTION: &'static str = "PaddleBoard offers a complete agentic experience, with robust editing and reviewing features to collaborate with AI.";
 
     pub fn free_plan(&self) -> impl IntoElement {
         List::new()

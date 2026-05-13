@@ -37,7 +37,7 @@ actions!(
 
 pub fn open(
     workspace: &mut Workspace,
-    _: &zed_actions::git::Worktree,
+    _: &paddleboard_actions::git::Worktree,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {

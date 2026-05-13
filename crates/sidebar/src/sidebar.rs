@@ -49,10 +49,10 @@ use workspace::{
     sidebar_side_context_menu,
 };
 
-use zed_actions::OpenRecent;
-use zed_actions::editor::{MoveDown, MoveUp};
+use paddleboard_actions::OpenRecent;
+use paddleboard_actions::editor::{MoveDown, MoveUp};
 
-use zed_actions::agents_sidebar::{FocusSidebarFilter, ToggleThreadSwitcher};
+use paddleboard_actions::agents_sidebar::{FocusSidebarFilter, ToggleThreadSwitcher};
 
 use crate::thread_switcher::{ThreadSwitcher, ThreadSwitcherEntry, ThreadSwitcherEvent};
 
@@ -1603,7 +1603,7 @@ impl Sidebar {
                         menu.entry(
                             "Move to New Window",
                             Some(Box::new(
-                                zed_actions::agents_sidebar::MoveWorkspaceToNewWindow,
+                                paddleboard_actions::agents_sidebar::MoveWorkspaceToNewWindow,
                             )),
                             move |window, cx| {
                                 multi_workspace

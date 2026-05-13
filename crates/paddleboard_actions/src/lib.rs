@@ -19,7 +19,7 @@ pub struct OpenBrowser {
     pub url: String,
 }
 
-/// Opens a zed:// URL within the application.
+/// Opens a paddleboard:// URL within the application.
 #[derive(Clone, PartialEq, Deserialize, JsonSchema, Action)]
 #[action(namespace = zed)]
 #[serde(deny_unknown_fields)]
@@ -38,21 +38,21 @@ actions!(
     zed,
     [
         /// Opens the settings editor.
-        #[action(deprecated_aliases = ["zed_actions::OpenSettingsEditor"])]
+        #[action(deprecated_aliases = ["paddleboard_actions::OpenSettingsEditor"])]
         OpenSettings,
         /// Opens the settings JSON file.
-        #[action(deprecated_aliases = ["zed_actions::OpenSettings"])]
+        #[action(deprecated_aliases = ["paddleboard_actions::OpenSettings"])]
         OpenSettingsFile,
         /// Opens project-specific settings.
-        #[action(deprecated_aliases = ["zed_actions::OpenProjectSettings"])]
+        #[action(deprecated_aliases = ["paddleboard_actions::OpenProjectSettings"])]
         OpenProjectSettings,
         /// Opens the default keymap file.
         OpenDefaultKeymap,
         /// Opens the user keymap file.
-        #[action(deprecated_aliases = ["zed_actions::OpenKeymap"])]
+        #[action(deprecated_aliases = ["paddleboard_actions::OpenKeymap"])]
         OpenKeymapFile,
         /// Opens the keymap editor.
-        #[action(deprecated_aliases = ["zed_actions::OpenKeymapEditor"])]
+        #[action(deprecated_aliases = ["paddleboard_actions::OpenKeymapEditor"])]
         OpenKeymap,
         /// Opens account settings.
         OpenAccountSettings,
@@ -618,7 +618,7 @@ impl Spawn {
 #[serde(deny_unknown_fields)]
 pub struct Rerun {
     /// Controls whether the task context is reevaluated prior to execution of a task.
-    /// If it is not, environment variables such as ZED_COLUMN, ZED_FILE are gonna be the same as in the last execution of a task
+    /// If it is not, environment variables such as PADDLEBOARD_COLUMN, PADDLEBOARD_FILE are gonna be the same as in the last execution of a task
     /// If it is, these variables will be updated to reflect current state of editor at the time task::Rerun is executed.
     /// default: false
     #[serde(default)]

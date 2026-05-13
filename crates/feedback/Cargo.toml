@@ -20,5 +20,5 @@ system_specs.workspace = true
 urlencoding.workspace = true
 util.workspace = true
 workspace.workspace = true
-zed_actions.workspace = true
+paddleboard_actions.workspace = true
 

@@ -86,7 +86,7 @@ pub use visual_test::VisualTestPlatform;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 #[inline]
 pub fn guess_compositor() -> &'static str {
-    if std::env::var_os("ZED_HEADLESS").is_some() {
+    if std::env::var_os("PADDLEBOARD_HEADLESS").is_some() {
         return "Headless";
     }
 
@@ -641,7 +641,9 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     // PaddleBoard Webview Integration
     fn add_webview(&mut self, _url: &str, _bounds: Bounds<Pixels>) {}
     fn update_webview(&mut self, _bounds: Bounds<Pixels>) {}
+    fn show_webview(&mut self) {}
     fn hide_webview(&mut self) {}
+    fn remove_webview(&mut self) {}
     fn navigate_webview(&mut self, _url: &str) {}
     fn is_subpixel_rendering_supported(&self) -> bool;
 

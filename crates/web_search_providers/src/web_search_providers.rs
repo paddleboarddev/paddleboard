@@ -62,7 +62,7 @@ fn register_zed_web_search_provider(
         )
     } else {
         registry.unregister_provider(WebSearchProviderId(
-            cloud::ZED_WEB_SEARCH_PROVIDER_ID.into(),
+            cloud::PADDLEBOARD_WEB_SEARCH_PROVIDER_ID.into(),
         ));
     }
 }

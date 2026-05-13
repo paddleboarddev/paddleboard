@@ -213,13 +213,13 @@ fn set_release_channel_to_nightly(platform: Platform) -> Step<Run> {
             set -eu
             version=$(git rev-parse --short HEAD)
             echo "Publishing version: ${version} on release channel nightly"
-            echo "nightly" > crates/zed/RELEASE_CHANNEL
+            echo "nightly" > crates/paddleboard/RELEASE_CHANNEL
         "#}),
         Platform::Windows => named::pwsh(indoc::indoc! {r#"
             $ErrorActionPreference = "Stop"
             $version = git rev-parse --short HEAD
             Write-Host "Publishing version: $version on release channel nightly"
-            "nightly" | Set-Content -Path "crates/zed/RELEASE_CHANNEL"
+            "nightly" | Set-Content -Path "crates/paddleboard/RELEASE_CHANNEL"
         "#})
         .working_directory("${{ env.ZED_WORKSPACE }}"),
     }

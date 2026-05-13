@@ -39,7 +39,7 @@ use language_model::{
     LanguageModelRequest, LanguageModelRequestMessage, LanguageModelRequestTool,
     LanguageModelToolResult, LanguageModelToolResultContent, LanguageModelToolSchemaFormat,
     LanguageModelToolUse, LanguageModelToolUseId, Role, SelectedModel, Speed, StopReason,
-    TokenUsage, ZED_CLOUD_PROVIDER_ID,
+    TokenUsage, PADDLEBOARD_CLOUD_PROVIDER_ID,
 };
 use project::Project;
 use prompt_store::ProjectContext;
@@ -967,6 +967,8 @@ pub struct Thread {
     ui_scroll_position: Option<gpui::ListOffset>,
     /// Weak references to running subagent threads for cancellation propagation
     running_subagents: Vec<WeakEntity<Thread>>,
+    /// When true, every tool call requires explicit user approval before execution.
+    step_mode: bool,
 }
 
 impl Thread {
@@ -1082,6 +1084,7 @@ impl Thread {
             draft_prompt: None,
             ui_scroll_position: None,
             running_subagents: Vec::new(),
+            step_mode: false,
         }
     }
 
@@ -1301,6 +1304,7 @@ impl Thread {
                 offset_in_item: gpui::px(sp.offset_in_item),
             }),
             running_subagents: Vec::new(),
+            step_mode: false,
         }
     }
 
@@ -2110,7 +2114,7 @@ impl Thread {
             return Err(anyhow!(error));
         };
 
-        let auto_retry = if model.provider_id() == ZED_CLOUD_PROVIDER_ID {
+        let auto_retry = if model.provider_id() == PADDLEBOARD_CLOUD_PROVIDER_ID {
             plan.is_some()
         } else {
             true
@@ -2365,42 +2369,137 @@ impl Thread {
         cx: &mut Context<Self>,
     ) -> Task<LanguageModelToolResult> {
         let fs = self.project.read(cx).fs().clone();
-        let tool_event_stream = ToolCallEventStream::new(
-            tool_use_id.clone(),
-            event_stream.clone(),
-            Some(fs),
-            cancellation_rx,
-        );
-        tool_event_stream.update_fields(
-            acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
-        );
         let supports_images = self.model().is_some_and(|model| model.supports_images());
-        let tool_result = tool.run(tool_input, tool_event_stream, cx);
-        cx.foreground_executor().spawn(async move {
-            let (is_error, output) = match tool_result.await {
-                Ok(mut output) => {
-                    if let LanguageModelToolResultContent::Image(_) = &output.llm_output
-                        && !supports_images
-                    {
-                        output = AgentToolOutput::from_error(
-                            "Attempted to read an image, but this model doesn't support it.",
-                        );
-                        (true, output)
-                    } else {
-                        (false, output)
-                    }
-                }
-                Err(output) => (true, output),
-            };
 
-            LanguageModelToolResult {
-                tool_use_id,
-                tool_name,
-                is_error,
-                content: output.llm_output,
-                output: Some(output.raw_output),
-            }
-        })
+        if self.step_mode {
+            let tool_event_stream = ToolCallEventStream::new(
+                tool_use_id.clone(),
+                event_stream.clone(),
+                Some(fs),
+                cancellation_rx,
+            );
+
+            let options = acp_thread::PermissionOptions::Flat(vec![
+                acp::PermissionOption::new("allow", "Step", acp::PermissionOptionKind::AllowOnce),
+                acp::PermissionOption::new("deny", "Skip", acp::PermissionOptionKind::RejectOnce),
+            ]);
+            let (response_tx, response_rx) = oneshot::channel();
+            event_stream
+                .0
+                .unbounded_send(Ok(ThreadEvent::ToolCallAuthorization(
+                    ToolCallAuthorization {
+                        tool_call: acp::ToolCallUpdate::new(
+                            tool_use_id.to_string(),
+                            acp::ToolCallUpdateFields::new()
+                                .title(format!("Step: {}", tool_name)),
+                        ),
+                        options,
+                        response: response_tx,
+                        context: None,
+                    },
+                )))
+                .ok();
+
+            cx.spawn(async move |_this, cx| {
+                let outcome = match response_rx.await {
+                    Ok(outcome) => outcome,
+                    Err(_) => {
+                        return LanguageModelToolResult {
+                            tool_use_id,
+                            tool_name,
+                            is_error: true,
+                            content: LanguageModelToolResultContent::Text(Arc::from(
+                                "Step mode authorization canceled",
+                            )),
+                            output: None,
+                        }
+                    }
+                };
+
+                let is_allowed = matches!(
+                    outcome.option_kind,
+                    acp::PermissionOptionKind::AllowOnce | acp::PermissionOptionKind::AllowAlways
+                );
+
+                if !is_allowed {
+                    return LanguageModelToolResult {
+                        tool_use_id,
+                        tool_name,
+                        is_error: true,
+                        content: LanguageModelToolResultContent::Text(Arc::from(
+                            "Tool skipped in step mode",
+                        )),
+                        output: Some("Tool skipped in step mode".into()),
+                    };
+                }
+
+                tool_event_stream.update_fields(
+                    acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
+                );
+
+                let tool_result = cx.update(|cx| tool.run(tool_input, tool_event_stream, cx));
+
+                let (is_error, output) = match tool_result.await {
+                    Ok(mut output) => {
+                        if let LanguageModelToolResultContent::Image(_) = &output.llm_output
+                            && !supports_images
+                        {
+                            output = AgentToolOutput::from_error(
+                                "Attempted to read an image, but this model doesn't support it.",
+                            );
+                            (true, output)
+                        } else {
+                            (false, output)
+                        }
+                    }
+                    Err(output) => (true, output),
+                };
+
+                LanguageModelToolResult {
+                    tool_use_id,
+                    tool_name,
+                    is_error,
+                    content: output.llm_output,
+                    output: Some(output.raw_output),
+                }
+            })
+        } else {
+            let tool_event_stream = ToolCallEventStream::new(
+                tool_use_id.clone(),
+                event_stream.clone(),
+                Some(fs),
+                cancellation_rx,
+            );
+            tool_event_stream.update_fields(
+                acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
+            );
+            let tool_result = tool.run(tool_input, tool_event_stream, cx);
+            cx.foreground_executor().spawn(async move {
+                let (is_error, output) = match tool_result.await {
+                    Ok(mut output) => {
+                        if let LanguageModelToolResultContent::Image(_) = &output.llm_output
+                            && !supports_images
+                        {
+                            output = AgentToolOutput::from_error(
+                                "Attempted to read an image, but this model doesn't support it.",
+                            );
+                            (true, output)
+                        } else {
+                            (false, output)
+                        }
+                    }
+                    Err(output) => (true, output),
+                };
+
+                LanguageModelToolResult {
+                    tool_use_id,
+                    tool_name,
+                    is_error,
+                    content: output.llm_output,
+                    output: Some(output.raw_output),
+                }
+            })
+        }
     }
 
     fn handle_tool_use_json_parse_error_event(
@@ -2927,6 +3026,15 @@ impl Thread {
     #[cfg(any(test, feature = "test-support"))]
     pub fn set_subagent_context(&mut self, context: SubagentContext) {
         self.subagent_context = Some(context);
+    }
+
+    pub fn step_mode(&self) -> bool {
+        self.step_mode
+    }
+
+    pub fn set_step_mode(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.step_mode = enabled;
+        cx.notify();
     }
 
     pub fn is_turn_complete(&self) -> bool {

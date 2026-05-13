@@ -3160,7 +3160,8 @@ impl ThreadView {
                             .child(self.render_add_context_button(cx))
                             .child(self.render_follow_toggle(cx))
                             .children(self.render_fast_mode_control(cx))
-                            .children(self.render_thinking_control(cx)),
+                            .children(self.render_thinking_control(cx))
+                            .children(self.render_step_mode_toggle(cx)),
                     )
                     .child(
                         h_flex()
@@ -3664,6 +3665,38 @@ impl ThreadView {
         )
     }
 
+    fn render_step_mode_toggle(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if self.is_subagent() {
+            return None;
+        }
+        let thread = self.as_native_thread(cx)?;
+        let step_mode = thread.read(cx).step_mode();
+
+        let (tooltip_label, color) = if step_mode {
+            ("Disable Step Mode", Color::Accent)
+        } else {
+            (
+                "Enable Step Mode (pause before each tool call)",
+                Color::Muted,
+            )
+        };
+
+        Some(
+            IconButton::new("step-mode", IconName::DebugStepOver)
+                .icon_size(IconSize::Small)
+                .icon_color(color)
+                .tooltip(Tooltip::text(tooltip_label))
+                .on_click(cx.listener(move |this, _, _window, cx| {
+                    if let Some(thread) = this.as_native_thread(cx) {
+                        thread.update(cx, |thread, cx| {
+                            thread.set_step_mode(!thread.step_mode(), cx);
+                        });
+                    }
+                }))
+                .into_any_element(),
+        )
+    }
+
     fn render_effort_selector(
         &self,
         supported_effort_levels: Vec<LanguageModelEffortLevel>,
@@ -4028,7 +4061,7 @@ impl ThreadView {
                         .handler({
                             move |window, cx| {
                                 window.dispatch_action(
-                                    zed_actions::agent::AddSelectionToThread.boxed_clone(),
+                                    paddleboard_actions::agent::AddSelectionToThread.boxed_clone(),
                                     cx,
                                 );
                             }
@@ -4055,13 +4088,13 @@ impl ThreadView {
         let following = self.is_following(cx);
 
         let tooltip_label = if following {
-            if self.agent_id.as_ref() == agent::ZED_AGENT_ID.as_ref() {
+            if self.agent_id.as_ref() == agent::PADDLEBOARD_AGENT_ID.as_ref() {
                 format!("Stop Following the {}", self.agent_id)
             } else {
                 format!("Stop Following {}", self.agent_id)
             }
         } else {
-            if self.agent_id.as_ref() == agent::ZED_AGENT_ID.as_ref() {
+            if self.agent_id.as_ref() == agent::PADDLEBOARD_AGENT_ID.as_ref() {
                 format!("Follow the {}", self.agent_id)
             } else {
                 format!("Follow {}", self.agent_id)
@@ -8313,7 +8346,7 @@ impl ThreadView {
                     move |_, _, _window, cx| {
                         #[cfg(windows)]
                         _window.dispatch_action(
-                            zed_actions::wsl_actions::OpenWsl::default().boxed_clone(),
+                            paddleboard_actions::wsl_actions::OpenWsl::default().boxed_clone(),
                             cx,
                         );
                         cx.notify();

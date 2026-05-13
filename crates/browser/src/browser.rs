@@ -8,14 +8,14 @@ use gpui::{
 use std::panic::Location;
 use std::time::Duration;
 use theme::ActiveTheme;
-use ui::{ButtonSize, ButtonStyle, prelude::*};
+use ui::{ButtonSize, ButtonStyle, IconButton, IconSize, Tooltip, prelude::*};
 use util::{ResultExt, command::new_command};
 use workspace::{
     Workspace,
-    dock::{DockPosition, Panel, PanelEvent},
+    dock::{DockPosition, Panel, PanelEvent, PanelHandle},
 };
 
-gpui::actions!(browser, [ToggleFocus]);
+gpui::actions!(browser, [ToggleFocus, ToggleZoom]);
 
 const BROWSER_PANEL_KEY: &str = "BrowserPanel";
 const DEFAULT_URL: &str = "https://www.google.com";
@@ -33,6 +33,7 @@ pub struct Browser {
     address_bar: Entity<Editor>,
     position: DockPosition,
     webview_initialized: bool,
+    zoomed: bool,
     weak_self: WeakEntity<Self>,
     _subscriptions: Vec<gpui::Subscription>,
 }
@@ -60,8 +61,20 @@ impl Browser {
             address_bar,
             position: DockPosition::Left,
             webview_initialized: false,
+            zoomed: false,
             weak_self: cx.weak_entity(),
             _subscriptions: subscriptions,
+        }
+    }
+
+    fn toggle_zoom(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.zoomed {
+            cx.emit(PanelEvent::ZoomOut);
+        } else {
+            if !self.focus_handle.contains_focused(window, cx) {
+                cx.focus_self(window);
+            }
+            cx.emit(PanelEvent::ZoomIn);
         }
     }
 
@@ -152,16 +165,43 @@ impl Panel for Browser {
         10
     }
 
-    fn set_active(&mut self, active: bool, window: &mut Window, _cx: &mut Context<Self>) {
-        if !active {
-            window.hide_webview();
+    fn set_active(&mut self, active: bool, window: &mut Window, cx: &mut Context<Self>) {
+        if active {
+            if self.webview_initialized {
+                window.show_webview();
+            }
+        } else if self.webview_initialized {
+            // Destroy rather than hide: WKWebView's setHidden has proven unreliable across hide/show cycles.
+            window.remove_webview();
+            self.webview_initialized = false;
         }
+        cx.notify();
+    }
+
+    fn is_zoomed(&self, _window: &Window, _cx: &App) -> bool {
+        self.zoomed
+    }
+
+    fn set_zoomed(&mut self, zoomed: bool, _window: &mut Window, cx: &mut Context<Self>) {
+        self.zoomed = zoomed;
+        cx.notify();
     }
 }
 
 impl Render for Browser {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = cx.theme().colors();
+        let zoomed = self.zoomed;
+        let zoom_icon = if zoomed {
+            IconName::Minimize
+        } else {
+            IconName::Maximize
+        };
+        let zoom_tooltip = if zoomed {
+            "Restore Browser"
+        } else {
+            "Maximize Browser"
+        };
 
         v_flex()
             .size_full()
@@ -183,6 +223,14 @@ impl Render for Browser {
                                 },
                             ))
                             .child(self.address_bar.clone()),
+                    )
+                    .child(
+                        IconButton::new("browser-toggle-zoom", zoom_icon)
+                            .icon_size(IconSize::Small)
+                            .tooltip(Tooltip::text(zoom_tooltip))
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.toggle_zoom(window, cx);
+                            })),
                     ),
             )
             .child(
@@ -265,6 +313,7 @@ impl Element for BrowserElement {
             .read_with(cx, |browser, _| browser.webview_initialized)
             .unwrap_or(true);
         if initialized {
+            window.show_webview();
             window.update_webview(bounds);
         } else {
             window.add_webview(&self.url, bounds);
@@ -307,7 +356,28 @@ pub fn init(cx: &mut App) {
          _window: Option<&mut Window>,
          _cx: &mut Context<Workspace>| {
             workspace.register_action(|workspace, _: &ToggleFocus, window, cx| {
-                workspace.toggle_panel_focus::<Browser>(window, cx);
+                let browser_is_active_and_focused = workspace
+                    .panel::<Browser>(cx)
+                    .map(|browser| {
+                        let position = browser.read(cx).position;
+                        let dock_open = workspace.is_dock_at_position_open(position, cx);
+                        let focused = browser
+                            .panel_focus_handle(cx)
+                            .contains_focused(window, cx);
+                        dock_open && focused
+                    })
+                    .unwrap_or(false);
+
+                if browser_is_active_and_focused {
+                    workspace.close_panel::<Browser>(window, cx);
+                } else {
+                    workspace.toggle_panel_focus::<Browser>(window, cx);
+                }
+            });
+            workspace.register_action(|workspace, _: &ToggleZoom, window, cx| {
+                if let Some(browser) = workspace.panel::<Browser>(cx) {
+                    browser.update(cx, |browser, cx| browser.toggle_zoom(window, cx));
+                }
             });
             workspace.register_action(
                 |_workspace, _: &workspace::OpenUnsloth, window, cx| {

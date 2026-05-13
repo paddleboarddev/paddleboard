@@ -7,7 +7,7 @@ use cloud_llm_client::predict_edits_v3::{
 use cloud_llm_client::{
     EditPredictionRejectReason, EditPredictionRejection,
     MAX_EDIT_PREDICTION_REJECTIONS_PER_REQUEST, MINIMUM_REQUIRED_VERSION_HEADER_NAME,
-    PredictEditsRequestTrigger, RejectEditPredictionsBodyRef, ZED_VERSION_HEADER_NAME,
+    PredictEditsRequestTrigger, RejectEditPredictionsBodyRef, PADDLEBOARD_VERSION_HEADER_NAME,
 };
 use collections::{HashMap, HashSet};
 use copilot::{Copilot, Reinstall, SignIn, SignOut};
@@ -105,7 +105,7 @@ const CHANGE_GROUPING_LINE_SPAN: u32 = 8;
 const EDIT_HISTORY_DIFF_SIZE_LIMIT: usize = 2048 * 3; // ~2048 tokens or ~50% of typical prompt budget
 const COLLABORATOR_EDIT_LOCALITY_CONTEXT_TOKENS: usize = 512;
 const LAST_CHANGE_GROUPING_TIME: Duration = Duration::from_secs(1);
-const ZED_PREDICT_DATA_COLLECTION_CHOICE: &str = "zed_predict_data_collection_choice";
+const PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE: &str = "zed_predict_data_collection_choice";
 const REJECT_REQUEST_DEBOUNCE: Duration = Duration::from_secs(15);
 const EDIT_PREDICTION_SETTLED_EVENT: &str = "Edit Prediction Settled";
 const EDIT_PREDICTION_SETTLED_TTL: Duration = Duration::from_secs(60 * 5);
@@ -789,7 +789,7 @@ impl EditPredictionStore {
             .log_err();
         });
 
-        let credentials_provider = zed_credentials_provider::global(cx);
+        let credentials_provider = paddleboard_credentials_provider::global(cx);
 
         let this = Self {
             projects: HashMap::default(),
@@ -819,10 +819,10 @@ impl EditPredictionStore {
     }
 
     fn zeta2_raw_config_from_env() -> Option<Zeta2RawConfig> {
-        let version_str = env::var("ZED_ZETA_FORMAT").ok()?;
+        let version_str = env::var("PADDLEBOARD_ZETA_FORMAT").ok()?;
         let format = ZetaFormat::parse(&version_str).ok()?;
-        let model_id = env::var("ZED_ZETA_MODEL").ok();
-        let environment = env::var("ZED_ZETA_ENVIRONMENT").ok();
+        let model_id = env::var("PADDLEBOARD_ZETA_MODEL").ok();
+        let environment = env::var("PADDLEBOARD_ZETA_ENVIRONMENT").ok();
         Some(Zeta2RawConfig {
             model_id,
             environment,
@@ -885,7 +885,7 @@ impl EditPredictionStore {
                         .method(Method::GET)
                         .uri(url.as_ref())
                         .header("Authorization", format!("Bearer {}", token))
-                        .header(ZED_VERSION_HEADER_NAME, app_version.to_string())
+                        .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
                         .body(Default::default())?;
                     let mut response = http_client.send(request).await?;
                     if response.status().is_success() {
@@ -2566,7 +2566,7 @@ impl EditPredictionStore {
 
             let mut request_builder = request_builder
                 .header("Content-Type", "application/json")
-                .header(ZED_VERSION_HEADER_NAME, app_version.to_string());
+                .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string());
 
             // Only add Authorization header if we have a token
             if let Some(ref token_value) = token {
@@ -2680,7 +2680,7 @@ impl EditPredictionStore {
 
     fn load_data_collection_choice(cx: &App) -> DataCollectionChoice {
         let choice = KeyValueStore::global(cx)
-            .read_kvp(ZED_PREDICT_DATA_COLLECTION_CHOICE)
+            .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
             .log_err()
             .flatten();
 
@@ -2688,7 +2688,7 @@ impl EditPredictionStore {
             Some("true") => DataCollectionChoice::Enabled,
             Some("false") => DataCollectionChoice::Disabled,
             Some(_) => {
-                log::error!("unknown value in '{ZED_PREDICT_DATA_COLLECTION_CHOICE}'");
+                log::error!("unknown value in '{PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE}'");
                 DataCollectionChoice::NotAnswered
             }
             None => DataCollectionChoice::NotAnswered,
@@ -2702,7 +2702,7 @@ impl EditPredictionStore {
         let kvp = KeyValueStore::global(cx);
         db::write_and_log(cx, move || async move {
             kvp.write_kvp(
-                ZED_PREDICT_DATA_COLLECTION_CHOICE.into(),
+                PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE.into(),
                 is_enabled.to_string(),
             )
             .await
@@ -2948,7 +2948,7 @@ impl Dismissable for ZedPredictUpsell {
         // the database once the user clicked on "Accept and Enable"
         let kvp = KeyValueStore::global(cx);
         if kvp
-            .read_kvp(ZED_PREDICT_DATA_COLLECTION_CHOICE)
+            .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
             .log_err()
             .is_some_and(|s| s.is_some())
         {
@@ -2968,7 +2968,7 @@ pub fn should_show_upsell_modal(cx: &App) -> bool {
 pub fn init(cx: &mut App) {
     cx.observe_new(move |workspace: &mut Workspace, _, _cx| {
         workspace.register_action(
-            move |workspace, _: &zed_actions::OpenZedPredictOnboarding, window, cx| {
+            move |workspace, _: &paddleboard_actions::OpenZedPredictOnboarding, window, cx| {
                 ZedPredictModal::toggle(
                     workspace,
                     workspace.user_store().clone(),

@@ -63,8 +63,8 @@ use workspace::PathList;
 use workspace::{
     CollaboratorId, MultiWorkspace, NewTerminal, Toast, Workspace, notifications::NotificationId,
 };
-use zed_actions::agent::{Chat, ToggleModelSelector};
-use zed_actions::assistant::OpenRulesLibrary;
+use paddleboard_actions::agent::{Chat, ToggleModelSelector};
+use paddleboard_actions::assistant::OpenRulesLibrary;
 
 use super::config_options::ConfigOptionsView;
 use super::entry_view_state::EntryViewState;
@@ -375,6 +375,13 @@ impl ConversationView {
     pub fn thread_view(&self, session_id: &acp::SessionId) -> Option<Entity<ThreadView>> {
         let connected = self.as_connected()?;
         connected.threads.get(session_id).cloned()
+    }
+
+    pub fn all_thread_views(&self) -> Vec<Entity<ThreadView>> {
+        match &self.server_state {
+            ServerState::Connected(connected) => connected.threads.values().cloned().collect(),
+            _ => vec![],
+        }
     }
 
     pub fn as_connected(&self) -> Option<&ConnectedServerState> {
@@ -2596,7 +2603,7 @@ fn loading_contents_spinner(size: IconSize) -> AnyElement {
 }
 
 fn placeholder_text(agent_name: &str, has_commands: bool) -> String {
-    if agent_name == agent::ZED_AGENT_ID.as_ref() {
+    if agent_name == agent::PADDLEBOARD_AGENT_ID.as_ref() {
         format!("Message the {} — @ to include context", agent_name)
     } else if has_commands {
         format!(

@@ -2,27 +2,27 @@ use collab_ui::collab_panel;
 use gpui::{App, Menu, MenuItem, OsAction};
 use release_channel::ReleaseChannel;
 use terminal_view::terminal_panel;
-use zed_actions::{debug_panel, dev};
+use paddleboard_actions::{debug_panel, dev};
 
 pub fn app_menus(cx: &mut App) -> Vec<Menu> {
-    use zed_actions::Quit;
+    use paddleboard_actions::Quit;
 
     let mut view_items = vec![
         MenuItem::action(
             "Zoom In",
-            zed_actions::IncreaseBufferFontSize { persist: false },
+            paddleboard_actions::IncreaseBufferFontSize { persist: false },
         ),
         MenuItem::action(
             "Zoom Out",
-            zed_actions::DecreaseBufferFontSize { persist: false },
+            paddleboard_actions::DecreaseBufferFontSize { persist: false },
         ),
         MenuItem::action(
             "Reset Zoom",
-            zed_actions::ResetBufferFontSize { persist: false },
+            paddleboard_actions::ResetBufferFontSize { persist: false },
         ),
         MenuItem::action(
             "Reset All Zoom",
-            zed_actions::ResetAllZoom { persist: false },
+            paddleboard_actions::ResetAllZoom { persist: false },
         ),
         MenuItem::separator(),
         MenuItem::action("Toggle Left Dock", workspace::ToggleLeftDock),
@@ -40,7 +40,7 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
             ],
         }),
         MenuItem::separator(),
-        MenuItem::action("Project Panel", zed_actions::project_panel::ToggleFocus),
+        MenuItem::action("Project Panel", paddleboard_actions::project_panel::ToggleFocus),
         MenuItem::action("Outline Panel", outline_panel::ToggleFocus),
         MenuItem::action("Collab Panel", collab_panel::ToggleFocus),
         MenuItem::action("Terminal Panel", terminal_panel::ToggleFocus),
@@ -63,34 +63,34 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
             name: "PaddleBoard".into(),
             disabled: false,
             items: vec![
-                MenuItem::action("About PaddleBoard", zed_actions::About),
+                MenuItem::action("About PaddleBoard", paddleboard_actions::About),
                 MenuItem::action("Check for Updates", auto_update::Check),
                 MenuItem::separator(),
                 MenuItem::submenu(Menu::new("Settings").items([
-                    MenuItem::action("Open Settings", zed_actions::OpenSettings),
+                    MenuItem::action("Open Settings", paddleboard_actions::OpenSettings),
                     MenuItem::action("Open Settings File", super::OpenSettingsFile),
-                    MenuItem::action("Open Project Settings", zed_actions::OpenProjectSettings),
+                    MenuItem::action("Open Project Settings", paddleboard_actions::OpenProjectSettings),
                     MenuItem::action("Open Project Settings File", super::OpenProjectSettingsFile),
                     MenuItem::action("Open Default Settings", super::OpenDefaultSettings),
                     MenuItem::separator(),
-                    MenuItem::action("Open Keymap", zed_actions::OpenKeymap),
-                    MenuItem::action("Open Keymap File", zed_actions::OpenKeymapFile),
-                    MenuItem::action("Open Default Key Bindings", zed_actions::OpenDefaultKeymap),
+                    MenuItem::action("Open Keymap", paddleboard_actions::OpenKeymap),
+                    MenuItem::action("Open Keymap File", paddleboard_actions::OpenKeymapFile),
+                    MenuItem::action("Open Default Key Bindings", paddleboard_actions::OpenDefaultKeymap),
                     MenuItem::separator(),
                     MenuItem::action(
                         "Select Theme...",
-                        zed_actions::theme_selector::Toggle::default(),
+                        paddleboard_actions::theme_selector::Toggle::default(),
                     ),
                     MenuItem::action(
                         "Select Icon Theme...",
-                        zed_actions::icon_theme_selector::Toggle::default(),
+                        paddleboard_actions::icon_theme_selector::Toggle::default(),
                     ),
                 ])),
                 MenuItem::separator(),
                 #[cfg(target_os = "macos")]
                 MenuItem::os_submenu("Services", gpui::SystemMenuType::Services),
                 MenuItem::separator(),
-                MenuItem::action("Extensions", zed_actions::Extensions::default()),
+                MenuItem::action("Extensions", paddleboard_actions::Extensions::default()),
                 #[cfg(not(target_os = "windows"))]
                 MenuItem::action("Install PaddleBoard CLI", install_cli::InstallCliBinary),
                 MenuItem::separator(),
@@ -123,13 +123,13 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                 ),
                 MenuItem::action(
                     "Open Recent...",
-                    zed_actions::OpenRecent {
+                    paddleboard_actions::OpenRecent {
                         create_new_window: false,
                     },
                 ),
                 MenuItem::action(
                     "Open Remote...",
-                    zed_actions::OpenRemote {
+                    paddleboard_actions::OpenRemote {
                         create_new_window: false,
                         from_existing_connection: false,
                     },
@@ -233,13 +233,13 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                 MenuItem::action("Back", workspace::GoBack),
                 MenuItem::action("Forward", workspace::GoForward),
                 MenuItem::separator(),
-                MenuItem::action("Command Palette...", zed_actions::command_palette::Toggle),
+                MenuItem::action("Command Palette...", paddleboard_actions::command_palette::Toggle),
                 MenuItem::separator(),
                 MenuItem::action("Go to File...", workspace::ToggleFileFinder::default()),
                 // MenuItem::action("Go to Symbol in Project", project_symbols::Toggle),
                 MenuItem::action(
                     "Go to Symbol in Editor...",
-                    zed_actions::outline::ToggleOutline,
+                    paddleboard_actions::outline::ToggleOutline,
                 ),
                 MenuItem::action("Go to Line/Column...", editor::actions::ToggleGoToLine),
                 MenuItem::separator(),
@@ -264,14 +264,14 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
             items: vec![
                 MenuItem::action(
                     "Spawn Task",
-                    zed_actions::Spawn::ViaModal {
+                    paddleboard_actions::Spawn::ViaModal {
                         reveal_target: None,
                     },
                 ),
                 MenuItem::action("Start Debugger", debugger_ui::Start),
                 MenuItem::separator(),
                 MenuItem::action("Edit tasks.json...", crate::zed::OpenProjectTasks),
-                MenuItem::action("Edit debug.json...", zed_actions::OpenProjectDebugTasks),
+                MenuItem::action("Edit debug.json...", paddleboard_actions::OpenProjectDebugTasks),
                 MenuItem::separator(),
                 MenuItem::action("Continue", debugger_ui::Continue),
                 MenuItem::action("Step Over", debugger_ui::StepOver),
@@ -300,13 +300,13 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                     "View Release Notes Locally",
                     auto_update_ui::ViewReleaseNotesLocally,
                 ),
-                MenuItem::action("View Telemetry", zed_actions::OpenTelemetryLog),
-                MenuItem::action("View Dependency Licenses", zed_actions::OpenLicenses),
+                MenuItem::action("View Telemetry", paddleboard_actions::OpenTelemetryLog),
+                MenuItem::action("View Dependency Licenses", paddleboard_actions::OpenLicenses),
                 MenuItem::action("Show Welcome", onboarding::ShowWelcome),
                 MenuItem::separator(),
-                MenuItem::action("File Bug Report...", zed_actions::feedback::FileBugReport),
-                MenuItem::action("Request Feature...", zed_actions::feedback::RequestFeature),
-                MenuItem::action("Email Us...", zed_actions::feedback::EmailZed),
+                MenuItem::action("File Bug Report...", paddleboard_actions::feedback::FileBugReport),
+                MenuItem::action("Request Feature...", paddleboard_actions::feedback::RequestFeature),
+                MenuItem::action("Email Us...", paddleboard_actions::feedback::EmailZed),
                 MenuItem::separator(),
                 MenuItem::action(
                     "Documentation",
@@ -314,9 +314,9 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                         url: "https://zed.dev/docs".into(),
                     },
                 ),
-                MenuItem::action("Zed Repository", feedback::OpenZedRepo),
+                MenuItem::action("PaddleBoard Repository", feedback::OpenZedRepo),
                 MenuItem::action(
-                    "Zed Twitter",
+                    "PaddleBoard Twitter",
                     super::OpenBrowser {
                         url: "https://twitter.com/zeddotdev".into(),
                     },

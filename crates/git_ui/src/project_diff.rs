@@ -47,7 +47,7 @@ use workspace::{
     notifications::NotifyTaskExt,
     searchable::SearchableItemHandle,
 };
-use zed_actions::agent::ReviewBranchDiff;
+use paddleboard_actions::agent::ReviewBranchDiff;
 use ztracing::instrument;
 
 actions!(

@@ -389,7 +389,7 @@ pub fn mercury_api_token(cx: &mut App) -> Entity<ApiKeyState> {
 }
 
 pub fn load_mercury_api_token(cx: &mut App) -> Task<Result<(), language_model::AuthenticateError>> {
-    let credentials_provider = zed_credentials_provider::global(cx);
+    let credentials_provider = paddleboard_credentials_provider::global(cx);
     mercury_api_token(cx).update(cx, |key_state, cx| {
         key_state.load_if_needed(MERCURY_CREDENTIALS_URL, |s| s, credentials_provider, cx)
     })

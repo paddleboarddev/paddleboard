@@ -41,7 +41,7 @@ static PENDING_CRASH_SERVER_MESSAGES: Mutex<Vec<CrashServerMessage>> = Mutex::ne
 static PANIC_THREAD_ID: AtomicU32 = AtomicU32::new(0);
 
 fn should_install_crash_handler() -> bool {
-    if let Ok(value) = env::var("ZED_GENERATE_MINIDUMPS") {
+    if let Ok(value) = env::var("PADDLEBOARD_GENERATE_MINIDUMPS") {
         return value == "true" || value == "1";
     }
 

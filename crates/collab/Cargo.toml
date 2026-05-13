@@ -132,5 +132,5 @@ unindent.workspace = true
 util.workspace = true
 workspace = { workspace = true, features = ["test-support"] }
 worktree = { workspace = true, features = ["test-support"] }
-zed_actions.workspace = true
+paddleboard_actions.workspace = true
 zlog.workspace = true

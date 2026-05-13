@@ -23,7 +23,7 @@ use itertools::Itertools;
 use language::LanguageRegistry;
 use language_model::{
     IconOrSvg, LanguageModelProvider, LanguageModelProviderId, LanguageModelRegistry,
-    ZED_CLOUD_PROVIDER_ID,
+    PADDLEBOARD_CLOUD_PROVIDER_ID,
 };
 use language_models::AllLanguageModelSettings;
 use notifications::status_toast::{StatusToast, ToastIcon};
@@ -39,7 +39,7 @@ use ui::{
 };
 use util::ResultExt as _;
 use workspace::{Workspace, create_and_open_local_file};
-use zed_actions::{ExtensionCategoryFilter, OpenBrowser};
+use paddleboard_actions::{ExtensionCategoryFilter, OpenBrowser};
 
 pub(crate) use configure_context_server_modal::ConfigureContextServerModal;
 pub(crate) use configure_context_server_tools_modal::ConfigureContextServerToolsModal;
@@ -217,7 +217,7 @@ impl AgentConfiguration {
             .copied()
             .unwrap_or(false);
 
-        let is_zed_provider = provider.id() == ZED_CLOUD_PROVIDER_ID;
+        let is_zed_provider = provider.id() == PADDLEBOARD_CLOUD_PROVIDER_ID;
         let current_plan = if is_zed_provider {
             self.workspace
                 .upgrade()
@@ -548,7 +548,7 @@ impl AgentConfiguration {
                         .entry("Install from Extensions", None, {
                             |window, cx| {
                                 window.dispatch_action(
-                                    zed_actions::Extensions {
+                                    paddleboard_actions::Extensions {
                                         category_filter: Some(
                                             ExtensionCategoryFilter::ContextServers,
                                         ),
@@ -1020,7 +1020,7 @@ impl AgentConfiguration {
                     Some(ContextMenu::build(window, cx, |menu, _window, _cx| {
                         menu.entry("Install from Registry", None, {
                             |window, cx| {
-                                window.dispatch_action(Box::new(zed_actions::AcpRegistry), cx)
+                                window.dispatch_action(Box::new(paddleboard_actions::AcpRegistry), cx)
                             }
                         })
                         .entry("Add Custom Agent", None, {

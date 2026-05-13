@@ -17,9 +17,9 @@ pub fn compliance_check() -> Workflow {
 
 fn scheduled_compliance_check() -> steps::NamedJob {
     let determine_version_step = named::bash(indoc::indoc! {r#"
-        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/zed/Cargo.toml | tr -d '[:space:]')
+        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/paddleboard/Cargo.toml | tr -d '[:space:]')
         if [ -z "$VERSION" ]; then
-            echo "Could not determine version from crates/zed/Cargo.toml"
+            echo "Could not determine version from crates/paddleboard/Cargo.toml"
             exit 1
         fi
         TAG="v${VERSION}-pre"

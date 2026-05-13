@@ -22,7 +22,7 @@ use ui::{
 };
 use util::rel_path::RelPath;
 use workspace::{ParticipantLocation, notifications::DetachAndPromptErr};
-use zed_actions::ShowCallStats;
+use paddleboard_actions::ShowCallStats;
 
 use crate::TitleBar;
 
