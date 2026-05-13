@@ -35,6 +35,20 @@ This means an agent mistake cannot touch anything outside the container. Once th
 
 ---
 
+### Forwarded ports — sandbox services in the browser
+
+When you want the agent to run something long-lived — a dev server, a demo app, an `adk web` UI — it uses the **Sandbox Service Tool**. PaddleBoard starts a detached Podman container (still under gVisor), publishes the service's port to a host port chosen by Podman, and surfaces it as a one-click link in the browser panel.
+
+- The agent picks the container port (e.g. `python3 -m http.server 8000` → port `8000`); PaddleBoard handles the host-side mapping and binds it to `127.0.0.1` only — never your LAN
+- Each running service shows up in a **Forwarded Ports** row above the browser viewport, labeled like `http :54321`
+- Click the label → the browser panel navigates to `http://localhost:54321`
+- Click the × → the container is stopped and the entry disappears
+- The agent can wait for a readiness substring in the container logs before reporting success, so the URL it gives you is actually live
+
+For one-shot commands (builds, tests, scripts) the agent still uses the regular Sandbox Tool. The Service Tool is for processes that should outlive the tool call.
+
+---
+
 ### Step-through mode
 
 Step-through mode lets you approve every tool call before the agent executes it — useful when you want to watch exactly what the agent is doing or sanity-check a risky operation.
@@ -89,6 +103,7 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 | See all agent threads | Click the list-tree icon in the panel bar |
 | Switch LLM provider | Open the LLM Picker panel from the panel bar |
 | Run code in a sandbox | Ask the agent to run a command — it uses the Sandbox Tool automatically |
+| Run a service in a sandbox | Ask the agent to start a server (e.g. `python3 -m http.server 8000`) — it uses the Sandbox Service Tool, and the URL appears in the Forwarded Ports row of the browser panel |
 
 ---
 

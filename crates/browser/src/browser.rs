@@ -1,3 +1,7 @@
+pub mod forwarded_ports;
+
+pub use forwarded_ports::{ForwardedPort, ForwardedPorts};
+
 use anyhow::Result;
 use editor::{Editor, EditorEvent};
 use gpui::{
@@ -49,11 +53,14 @@ impl Browser {
             editor
         });
 
-        let subscriptions = vec![cx.subscribe(&address_bar, |_, _, event: &EditorEvent, cx| {
-            if matches!(event, EditorEvent::Blurred) {
-                cx.notify();
-            }
-        })];
+        let subscriptions = vec![
+            cx.subscribe(&address_bar, |_, _, event: &EditorEvent, cx| {
+                if matches!(event, EditorEvent::Blurred) {
+                    cx.notify();
+                }
+            }),
+            cx.observe_global::<ForwardedPorts>(|_, cx| cx.notify()),
+        ];
 
         Self {
             focus_handle,
@@ -253,6 +260,47 @@ impl Render for Browser {
                                         this.navigate_to(&url, window, cx);
                                     }))
                             })),
+                    )
+                    .when_some(
+                        ForwardedPorts::try_global(cx)
+                            .filter(|p| !p.ports().is_empty())
+                            .map(|p| p.ports().to_vec()),
+                        |this, ports| {
+                            this.child(
+                                h_flex()
+                                    .min_h_8()
+                                    .items_center()
+                                    .flex_wrap()
+                                    .gap_0p5()
+                                    .children(ports.into_iter().map(|port| {
+                                        let host_port = port.host_port;
+                                        let url = port.url();
+                                        let label = format!("{} :{}", port.label, host_port);
+                                        h_flex()
+                                            .gap_0p5()
+                                            .child(
+                                                Button::new(("forwarded-port", host_port as usize), label)
+                                                    .style(ButtonStyle::Subtle)
+                                                    .size(ButtonSize::Compact)
+                                                    .tooltip(Tooltip::text(url.clone()))
+                                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                                        this.navigate_to(&url, window, cx);
+                                                    })),
+                                            )
+                                            .child(
+                                                IconButton::new(
+                                                    ("forwarded-port-stop", host_port as usize),
+                                                    IconName::Close,
+                                                )
+                                                .icon_size(IconSize::XSmall)
+                                                .tooltip(Tooltip::text("Stop container"))
+                                                .on_click(cx.listener(move |_, _, _, cx| {
+                                                    ForwardedPorts::stop(cx, host_port);
+                                                })),
+                                            )
+                                    })),
+                            )
+                        },
                     ),
             )
             .child(BrowserElement {
@@ -351,6 +399,7 @@ fn normalize_url(input: &str) -> String {
 }
 
 pub fn init(cx: &mut App) {
+    forwarded_ports::init(cx);
     cx.observe_new(
         |workspace: &mut Workspace,
          _window: Option<&mut Window>,

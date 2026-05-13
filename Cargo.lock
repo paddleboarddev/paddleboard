@@ -148,6 +148,7 @@ dependencies = [
  "agent_servers",
  "agent_settings",
  "anyhow",
+ "browser",
  "chrono",
  "client",
  "clock",

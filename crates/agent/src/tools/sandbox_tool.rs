@@ -271,12 +271,20 @@ fn process_content(
     format!("Ran command `{command}`\n\n{content}")
 }
 fn working_dir(input: &SandboxToolInput, project: &Entity<Project>, cx: &App) -> Result<PathBuf> {
+    resolve_worktree_dir(&input.cd, project, cx)
+}
+
+pub(super) fn resolve_worktree_dir(
+    cd: &str,
+    project: &Entity<Project>,
+    cx: &App,
+) -> Result<PathBuf> {
     // We compare via canonical paths when possible so that trailing slashes, `.`/`..` components,
     // or symlink differences between what the model emits and what the worktree stores do not
     // cause spurious "invalid working directory" errors. Canonicalization can fail (e.g. permission
     // errors), so we fall back to the raw PathBuf in that case, which is strictly more permissive
     // than the previous `to_string_lossy()` equality check.
-    let input_path = PathBuf::from(&input.cd);
+    let input_path = PathBuf::from(cd);
     let canonical_input = std::fs::canonicalize(&input_path).unwrap_or(input_path);
     for worktree in project.read(cx).worktrees(cx) {
         let worktree = worktree.read(cx);
@@ -294,7 +302,7 @@ fn working_dir(input: &SandboxToolInput, project: &Entity<Project>, cx: &App) ->
 /// with `'\''` (close quote, escaped literal quote, reopen quote). The result is safe to pass
 /// through `bash -c` and through any POSIX shell interpolation, regardless of the original
 /// contents of `s`.
-fn shell_single_quote(s: &str) -> String {
+pub(super) fn shell_single_quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('\'');
     for ch in s.chars() {
