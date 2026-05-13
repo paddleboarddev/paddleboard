@@ -426,9 +426,11 @@ pub struct TelemetrySettingsContent {
 
 impl Default for TelemetrySettingsContent {
     fn default() -> Self {
+        // PaddleBoard ships with telemetry permanently disabled. Settings exist
+        // only because removing them would diverge from upstream Zed shape.
         Self {
-            diagnostics: Some(true),
-            metrics: Some(true),
+            diagnostics: Some(false),
+            metrics: Some(false),
         }
     }
 }
