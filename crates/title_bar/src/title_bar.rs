@@ -50,7 +50,7 @@ use workspace::{
     MultiWorkspace, ToggleWorktreeSecurity, Workspace, WorkspaceId,
 };
 
-use zed_actions::OpenRemote;
+use paddleboard_actions::OpenRemote;
 
 pub use onboarding_banner::restore_banner;
 
@@ -336,7 +336,7 @@ impl TitleBar {
         let platform_style = PlatformStyle::platform();
         let application_menu = match platform_style {
             PlatformStyle::Mac => {
-                if option_env!("ZED_USE_CROSS_PLATFORM_MENU").is_some() {
+                if option_env!("PADDLEBOARD_USE_CROSS_PLATFORM_MENU").is_some() {
                     Some(cx.new(|cx| ApplicationMenu::new(window, cx)))
                 } else {
                     None
@@ -771,7 +771,7 @@ impl TitleBar {
                 move |_window, cx| {
                     Tooltip::for_action(
                         "Recent Projects",
-                        &zed_actions::OpenRecent {
+                        &paddleboard_actions::OpenRecent {
                             create_new_window: false,
                         },
                         cx,
@@ -833,7 +833,7 @@ impl TitleBar {
                 move |_window, cx| {
                     Tooltip::for_action(
                         "Recent Projects",
-                        &zed_actions::OpenRecent {
+                        &paddleboard_actions::OpenRecent {
                             create_new_window: false,
                         },
                         cx,
@@ -937,7 +937,7 @@ impl TitleBar {
                     move |_window, cx| {
                         Tooltip::with_meta(
                             "Git Switcher",
-                            Some(&zed_actions::git::Branch),
+                            Some(&paddleboard_actions::git::Branch),
                             "Worktrees, Branches, and Stashes",
                             cx,
                         )
@@ -1214,19 +1214,19 @@ impl TitleBar {
 
                         this.separator()
                     })
-                    .action("Settings", zed_actions::OpenSettings.boxed_clone())
-                    .action("Keymap", Box::new(zed_actions::OpenKeymap))
+                    .action("Settings", paddleboard_actions::OpenSettings.boxed_clone())
+                    .action("Keymap", Box::new(paddleboard_actions::OpenKeymap))
                     .action(
                         "Themes…",
-                        zed_actions::theme_selector::Toggle::default().boxed_clone(),
+                        paddleboard_actions::theme_selector::Toggle::default().boxed_clone(),
                     )
                     .action(
                         "Icon Themes…",
-                        zed_actions::icon_theme_selector::Toggle::default().boxed_clone(),
+                        paddleboard_actions::icon_theme_selector::Toggle::default().boxed_clone(),
                     )
                     .action(
                         "Extensions",
-                        zed_actions::Extensions::default().boxed_clone(),
+                        paddleboard_actions::Extensions::default().boxed_clone(),
                     )
                     .when(is_signed_in, |this| {
                         this.separator()

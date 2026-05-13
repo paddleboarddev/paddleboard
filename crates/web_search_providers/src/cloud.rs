@@ -40,11 +40,11 @@ impl State {
     }
 }
 
-pub const ZED_WEB_SEARCH_PROVIDER_ID: &str = "zed.dev";
+pub const PADDLEBOARD_WEB_SEARCH_PROVIDER_ID: &str = "zed.dev";
 
 impl WebSearchProvider for CloudWebSearchProvider {
     fn id(&self) -> WebSearchProviderId {
-        WebSearchProviderId(ZED_WEB_SEARCH_PROVIDER_ID.into())
+        WebSearchProviderId(PADDLEBOARD_WEB_SEARCH_PROVIDER_ID.into())
     }
 
     fn search(&self, query: String, cx: &mut App) -> Task<Result<WebSearchResponse>> {

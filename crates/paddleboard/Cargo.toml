@@ -1,7 +1,7 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
-name = "zed"
+name = "paddleboard"
 version = "0.232.0"
 publish.workspace = true
 license = "GPL-3.0-or-later"
@@ -221,8 +221,8 @@ web_search.workspace = true
 web_search_providers.workspace = true
 which_key.workspace = true
 workspace.workspace = true
-zed_actions.workspace = true
-zed_env_vars.workspace = true
+paddleboard_actions.workspace = true
+paddleboard_env_vars.workspace = true
 zlog.workspace = true
 zlog_settings.workspace = true
 

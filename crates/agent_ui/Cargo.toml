@@ -107,7 +107,7 @@ util.workspace = true
 uuid.workspace = true
 watch.workspace = true
 workspace.workspace = true
-zed_actions.workspace = true
+paddleboard_actions.workspace = true
 image.workspace = true
 reqwest_client = { workspace = true, optional = true }
 

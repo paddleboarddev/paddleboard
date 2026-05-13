@@ -2,7 +2,7 @@ use gpui::{App, ClipboardItem, PromptLevel, actions};
 use system_specs::{CopySystemSpecsIntoClipboard, SystemSpecs};
 use util::ResultExt;
 use workspace::Workspace;
-use zed_actions::feedback::{EmailZed, FileBugReport, RequestFeature};
+use paddleboard_actions::feedback::{EmailZed, FileBugReport, RequestFeature};
 
 actions!(
     zed,
@@ -12,7 +12,7 @@ actions!(
     ]
 );
 
-const ZED_REPO_URL: &str = "https://github.com/zed-industries/zed";
+const PADDLEBOARD_REPO_URL: &str = "https://github.com/zed-industries/zed";
 
 const REQUEST_FEATURE_URL: &str = "https://github.com/zed-industries/zed/discussions/new/choose";
 
@@ -91,7 +91,7 @@ pub fn init(cx: &mut App) {
                 .detach();
             })
             .register_action(move |_, _: &OpenZedRepo, _, cx| {
-                cx.open_url(ZED_REPO_URL);
+                cx.open_url(PADDLEBOARD_REPO_URL);
             });
     })
     .detach();

@@ -54,7 +54,7 @@ impl AcpOnboardingModal {
     }
 
     fn open_agent_registry(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
-        window.dispatch_action(Box::new(zed_actions::AcpRegistry), cx);
+        window.dispatch_action(Box::new(paddleboard_actions::AcpRegistry), cx);
         cx.notify();
 
         acp_onboarding_event!("Open Agent Registry Clicked");

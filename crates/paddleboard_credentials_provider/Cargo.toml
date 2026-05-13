@@ -1,5 +1,5 @@
 [package]
-name = "zed_credentials_provider"
+name = "paddleboard_credentials_provider"
 version = "0.1.0"
 edition.workspace = true
 publish.workspace = true
@@ -9,7 +9,7 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [lib]
-path = "src/zed_credentials_provider.rs"
+path = "src/paddleboard_credentials_provider.rs"
 
 [dependencies]
 anyhow.workspace = true

@@ -192,13 +192,13 @@ async fn build_remote_server_from_source(
     use std::path::Path;
     use util::command::{Command, Stdio, new_command};
 
-    if let Ok(path) = std::env::var("ZED_COPY_REMOTE_SERVER") {
+    if let Ok(path) = std::env::var("PADDLEBOARD_COPY_REMOTE_SERVER") {
         let path = std::path::PathBuf::from(path);
         if path.exists() {
             return Ok(Some(path));
         } else {
             log::warn!(
-                "ZED_COPY_REMOTE_SERVER path does not exist, falling back to ZED_BUILD_REMOTE_SERVER: {}",
+                "PADDLEBOARD_COPY_REMOTE_SERVER path does not exist, falling back to PADDLEBOARD_BUILD_REMOTE_SERVER: {}",
                 path.display()
             );
         }
@@ -207,7 +207,7 @@ async fn build_remote_server_from_source(
     // By default, we make building remote server from source opt-out and we do not force artifact compression
     // for quicker builds.
     let build_remote_server =
-        std::env::var("ZED_BUILD_REMOTE_SERVER").unwrap_or("nocompress".into());
+        std::env::var("PADDLEBOARD_BUILD_REMOTE_SERVER").unwrap_or("nocompress".into());
 
     if let "never" = &*build_remote_server {
         return Ok(None);
@@ -215,7 +215,7 @@ async fn build_remote_server_from_source(
         if binary_exists_on_server {
             return Ok(None);
         }
-        log::warn!("ZED_BUILD_REMOTE_SERVER is disabled, but no server binary exists on the server")
+        log::warn!("PADDLEBOARD_BUILD_REMOTE_SERVER is disabled, but no server binary exists on the server")
     }
 
     async fn run_cmd(command: &mut Command) -> Result<()> {
@@ -259,7 +259,7 @@ async fn build_remote_server_from_source(
     if platform.os == RemoteOs::Linux && use_musl {
         rust_flags.push_str(" -C target-feature=+crt-static");
 
-        if let Ok(path) = std::env::var("ZED_ZSTD_MUSL_LIB") {
+        if let Ok(path) = std::env::var("PADDLEBOARD_ZSTD_MUSL_LIB") {
             rust_flags.push_str(&format!(" -C link-arg=-L{path}"));
         }
     }

@@ -41,7 +41,7 @@ use crate::{
     actions::{DisableBreakpoint, EditLogBreakpoint, EnableBreakpoint, ToggleBreakpoint},
     display_map::Companion,
 };
-use zed_actions::assistant::InlineAssist;
+use paddleboard_actions::assistant::InlineAssist;
 
 pub(crate) fn convert_lhs_rows_to_rhs(
     rhs_snapshot: &MultiBufferSnapshot,

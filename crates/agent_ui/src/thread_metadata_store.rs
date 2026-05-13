@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use acp_thread::AcpThreadEvent;
-use agent::{ThreadStore, ZED_AGENT_ID};
+use agent::{ThreadStore, PADDLEBOARD_AGENT_ID};
 use agent_client_protocol as acp;
 use anyhow::Context as _;
 use chrono::{DateTime, Utc};
@@ -61,7 +61,7 @@ fn migrate_thread_metadata(cx: &mut App) {
 
                     Some(ThreadMetadata {
                         session_id: entry.id,
-                        agent_id: ZED_AGENT_ID.clone(),
+                        agent_id: PADDLEBOARD_AGENT_ID.clone(),
                         title: entry.title,
                         updated_at: entry.updated_at,
                         created_at: entry.created_at,
@@ -659,7 +659,7 @@ impl ThreadMetadataDb {
     /// Upsert metadata for a thread.
     pub async fn save(&self, row: ThreadMetadata) -> anyhow::Result<()> {
         let id = row.session_id.0.clone();
-        let agent_id = if row.agent_id.as_ref() == ZED_AGENT_ID.as_ref() {
+        let agent_id = if row.agent_id.as_ref() == PADDLEBOARD_AGENT_ID.as_ref() {
             None
         } else {
             Some(row.agent_id.to_string())
@@ -742,7 +742,7 @@ impl Column for ThreadMetadata {
 
         let agent_id = agent_id
             .map(|id| AgentId::new(id))
-            .unwrap_or(ZED_AGENT_ID.clone());
+            .unwrap_or(PADDLEBOARD_AGENT_ID.clone());
 
         let updated_at = DateTime::parse_from_rfc3339(&updated_at_str)?.with_timezone(&Utc);
         let created_at = created_at_str
@@ -829,7 +829,7 @@ mod tests {
         ThreadMetadata {
             archived: false,
             session_id: acp::SessionId::new(session_id),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: title.to_string().into(),
             updated_at,
             created_at: Some(updated_at),
@@ -1045,7 +1045,7 @@ mod tests {
 
         let existing_metadata = ThreadMetadata {
             session_id: acp::SessionId::new("a-session-0"),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: "Existing Metadata".into(),
             updated_at: now - chrono::Duration::seconds(10),
             created_at: Some(now - chrono::Duration::seconds(10)),
@@ -1119,7 +1119,7 @@ mod tests {
         assert_eq!(list.len(), 4);
         assert!(
             list.iter()
-                .all(|metadata| metadata.agent_id.as_ref() == agent::ZED_AGENT_ID.as_ref())
+                .all(|metadata| metadata.agent_id.as_ref() == agent::PADDLEBOARD_AGENT_ID.as_ref())
         );
 
         let existing_metadata = list
@@ -1155,7 +1155,7 @@ mod tests {
 
         let existing_metadata = ThreadMetadata {
             session_id: acp::SessionId::new("existing-session"),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: "Existing Metadata".into(),
             updated_at: existing_updated_at,
             created_at: Some(existing_updated_at),

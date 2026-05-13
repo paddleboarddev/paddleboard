@@ -50,7 +50,7 @@ impl EditPredictionDelegate for ZedEditPredictionDelegate {
     }
 
     fn display_name() -> &'static str {
-        "Zed's Edit Predictions"
+        "PaddleBoard's Edit Predictions"
     }
 
     fn show_predictions_in_menu() -> bool {

@@ -1001,8 +1001,8 @@ pub struct ProtocolVersion(u32);
 
 impl Header for ProtocolVersion {
     fn name() -> &'static HeaderName {
-        static ZED_PROTOCOL_VERSION: OnceLock<HeaderName> = OnceLock::new();
-        ZED_PROTOCOL_VERSION.get_or_init(|| HeaderName::from_static("x-zed-protocol-version"))
+        static PADDLEBOARD_PROTOCOL_VERSION: OnceLock<HeaderName> = OnceLock::new();
+        PADDLEBOARD_PROTOCOL_VERSION.get_or_init(|| HeaderName::from_static("x-zed-protocol-version"))
     }
 
     fn decode<'i, I>(values: &mut I) -> Result<Self, axum::headers::Error>
@@ -1028,8 +1028,8 @@ impl Header for ProtocolVersion {
 pub struct AppVersionHeader(Version);
 impl Header for AppVersionHeader {
     fn name() -> &'static HeaderName {
-        static ZED_APP_VERSION: OnceLock<HeaderName> = OnceLock::new();
-        ZED_APP_VERSION.get_or_init(|| HeaderName::from_static("x-zed-app-version"))
+        static PADDLEBOARD_APP_VERSION: OnceLock<HeaderName> = OnceLock::new();
+        PADDLEBOARD_APP_VERSION.get_or_init(|| HeaderName::from_static("x-zed-app-version"))
     }
 
     fn decode<'i, I>(values: &mut I) -> Result<Self, axum::headers::Error>
@@ -1057,8 +1057,8 @@ pub struct ReleaseChannelHeader(String);
 
 impl Header for ReleaseChannelHeader {
     fn name() -> &'static HeaderName {
-        static ZED_RELEASE_CHANNEL: OnceLock<HeaderName> = OnceLock::new();
-        ZED_RELEASE_CHANNEL.get_or_init(|| HeaderName::from_static("x-zed-release-channel"))
+        static PADDLEBOARD_RELEASE_CHANNEL: OnceLock<HeaderName> = OnceLock::new();
+        PADDLEBOARD_RELEASE_CHANNEL.get_or_init(|| HeaderName::from_static("x-zed-release-channel"))
     }
 
     fn decode<'i, I>(values: &mut I) -> Result<Self, axum::headers::Error>

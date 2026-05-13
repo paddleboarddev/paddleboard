@@ -49,7 +49,7 @@ use workspace::{
     ModalView, OpenChannelNotesById, OpenOptions, OpenVisible, SplitDirection, Workspace,
     item::PreviewTabsSettings, notifications::NotifyResultExt, pane,
 };
-use zed_actions::search::ToggleIncludeIgnored;
+use paddleboard_actions::search::ToggleIncludeIgnored;
 
 actions!(
     file_finder,

@@ -29,8 +29,8 @@ pub struct ZedChecksumHeader(Vec<u8>);
 
 impl Header for ZedChecksumHeader {
     fn name() -> &'static HeaderName {
-        static ZED_CHECKSUM_HEADER: OnceLock<HeaderName> = OnceLock::new();
-        ZED_CHECKSUM_HEADER.get_or_init(|| HeaderName::from_static("x-zed-checksum"))
+        static PADDLEBOARD_CHECKSUM_HEADER: OnceLock<HeaderName> = OnceLock::new();
+        PADDLEBOARD_CHECKSUM_HEADER.get_or_init(|| HeaderName::from_static("x-zed-checksum"))
     }
 
     fn decode<'i, I>(values: &mut I) -> Result<Self, axum::headers::Error>

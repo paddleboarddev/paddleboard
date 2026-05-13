@@ -40,8 +40,8 @@ use crate::repl_store::ReplStore;
 use picker::Picker;
 use runtimelib::{ExecuteRequest, JupyterMessage, JupyterMessageContent};
 use ui::PopoverMenuHandle;
-use zed_actions::editor::{MoveDown, MoveUp};
-use zed_actions::notebook::{NotebookMoveDown, NotebookMoveUp};
+use paddleboard_actions::editor::{MoveDown, MoveUp};
+use paddleboard_actions::notebook::{NotebookMoveDown, NotebookMoveUp};
 
 actions!(
     notebook,

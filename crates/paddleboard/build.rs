@@ -46,7 +46,7 @@ fn main() {
         std::env::var("TARGET").unwrap()
     );
 
-    let git_sha = match std::env::var("ZED_COMMIT_SHA").ok() {
+    let git_sha = match std::env::var("PADDLEBOARD_COMMIT_SHA").ok() {
         Some(git_sha) => {
             // In deterministic build environments such as Nix, we inject the commit sha into the build script.
             Some(git_sha)
@@ -67,10 +67,10 @@ fn main() {
     };
 
     if let Some(git_sha) = git_sha {
-        println!("cargo:rustc-env=ZED_COMMIT_SHA={git_sha}");
+        println!("cargo:rustc-env=PADDLEBOARD_COMMIT_SHA={git_sha}");
 
         if let Some(build_identifier) = option_env!("GITHUB_RUN_NUMBER") {
-            println!("cargo:rustc-env=ZED_BUILD_ID={build_identifier}");
+            println!("cargo:rustc-env=PADDLEBOARD_BUILD_ID={build_identifier}");
         }
 
         if let Ok(build_profile) = std::env::var("PROFILE")
@@ -78,7 +78,7 @@ fn main() {
         {
             // This is currently the best way to make `cargo build ...`'s build script
             // to print something to stdout without extra verbosity.
-            println!("cargo::warning=Info: using '{git_sha}' hash for ZED_COMMIT_SHA env var");
+            println!("cargo::warning=Info: using '{git_sha}' hash for PADDLEBOARD_COMMIT_SHA env var");
         }
     }
 
@@ -222,12 +222,12 @@ fn main() {
             // Depending on the security applied to the computer, winresource might fail
             // fetching the RC path. Therefore, we add a way to explicitly specify the
             // toolkit path, allowing winresource to use a valid RC path.
-            if let Some(explicit_rc_toolkit_path) = std::env::var("ZED_RC_TOOLKIT_PATH").ok() {
+            if let Some(explicit_rc_toolkit_path) = std::env::var("PADDLEBOARD_RC_TOOLKIT_PATH").ok() {
                 res.set_toolkit_path(explicit_rc_toolkit_path.as_str());
             }
             res.set_icon(icon.to_str().unwrap());
-            res.set("FileDescription", "Zed");
-            res.set("ProductName", "Zed");
+            res.set("FileDescription", "PaddleBoard");
+            res.set("ProductName", "PaddleBoard");
 
             if let Err(e) = res.compile() {
                 eprintln!("{}", e);

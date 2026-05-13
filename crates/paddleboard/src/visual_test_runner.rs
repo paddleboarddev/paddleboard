@@ -44,11 +44,11 @@ fn main() {
 
 #[cfg(target_os = "macos")]
 fn main() {
-    // Set ZED_STATELESS early to prevent file system access to real config directories
-    // This must be done before any code accesses zed_env_vars::ZED_STATELESS
+    // Set PADDLEBOARD_STATELESS early to prevent file system access to real config directories
+    // This must be done before any code accesses paddleboard_env_vars::PADDLEBOARD_STATELESS
     // SAFETY: We're at the start of main(), before any threads are spawned
     unsafe {
-        std::env::set_var("ZED_STATELESS", "1");
+        std::env::set_var("PADDLEBOARD_STATELESS", "1");
     }
 
     env_logger::builder()
@@ -120,7 +120,7 @@ use {
     },
     util::ResultExt as _,
     workspace::{AppState, MultiWorkspace, Workspace},
-    zed_actions::OpenSettingsAt,
+    paddleboard_actions::OpenSettingsAt,
 };
 
 // All macOS-specific constants grouped together
@@ -2297,7 +2297,7 @@ fn run_tool_permissions_visual_tests(
     use agent_settings::{AgentSettings, CompiledRegex, ToolPermissions, ToolRules};
     use collections::HashMap;
     use settings::ToolPermissionMode;
-    use zed_actions::OpenSettingsAt;
+    use paddleboard_actions::OpenSettingsAt;
 
     // Set up tool permissions with "hi" as both always_deny and always_allow for terminal
     cx.update(|cx| {

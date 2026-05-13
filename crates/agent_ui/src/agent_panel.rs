@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use settings::{LanguageModelProviderSetting, LanguageModelSelection};
 
 use feature_flags::{AgentV2FeatureFlag, FeatureFlagAppExt as _};
-use zed_actions::agent::{
+use paddleboard_actions::agent::{
     AddSelectionToThread, ConflictContent, ReauthenticateAgent, ResolveConflictedFilesWithAgent,
     ResolveConflictsWithAgent, ReviewBranchDiff,
 };
@@ -50,7 +50,6 @@ use agent_settings::AgentSettings;
 use ai_onboarding::AgentPanelOnboarding;
 use anyhow::{Context as _, Result, anyhow};
 use client::UserStore;
-use cloud_api_types::Plan;
 use collections::HashMap;
 use editor::Editor;
 use extension::ExtensionEvents;
@@ -82,7 +81,7 @@ use workspace::{
     SerializedPathList, ToggleWorkspaceSidebar, ToggleZoom, Workspace, WorkspaceId,
     dock::{DockPosition, Panel, PanelEvent},
 };
-use zed_actions::{
+use paddleboard_actions::{
     DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
     agent::{OpenAcpOnboardingModal, OpenSettings, ResetAgentZoom, ResetOnboarding},
     assistant::{OpenRulesLibrary, Toggle, ToggleFocus},
@@ -647,6 +646,7 @@ pub struct AgentPanel {
     workspace: WeakEntity<Workspace>,
     /// Workspace id is used as a database key
     workspace_id: Option<WorkspaceId>,
+    #[allow(dead_code)]
     user_store: Entity<UserStore>,
     project: Entity<Project>,
     fs: Arc<dyn Fs>,
@@ -1637,6 +1637,14 @@ impl AgentPanel {
 
     pub fn background_threads(&self) -> &HashMap<acp::SessionId, Entity<ConversationView>> {
         &self.background_threads
+    }
+
+    pub fn all_conversation_views(&self) -> Vec<Entity<ConversationView>> {
+        self.background_threads
+            .values()
+            .cloned()
+            .chain(self.active_conversation_view().cloned())
+            .collect()
     }
 
     pub fn active_conversation_view(&self) -> Option<&Entity<ConversationView>> {
@@ -3062,9 +3070,9 @@ impl AgentPanel {
                             .header("MCP Servers")
                             .action(
                                 "View Server Extensions",
-                                Box::new(zed_actions::Extensions {
+                                Box::new(paddleboard_actions::Extensions {
                                     category_filter: Some(
-                                        zed_actions::ExtensionCategoryFilter::ContextServers,
+                                        paddleboard_actions::ExtensionCategoryFilter::ContextServers,
                                     ),
                                     id: None,
                                 }),
@@ -3360,7 +3368,7 @@ impl AgentPanel {
                             }
                         })
                         .item(
-                            ContextMenuEntry::new("Zed Agent")
+                            ContextMenuEntry::new("PaddleBoard Agent")
                                 .when(is_agent_selected(Agent::NativeAgent), |this| {
                                     this.action(Box::new(NewExternalAgentThread { agent: None }))
                                 })
@@ -3487,7 +3495,7 @@ impl AgentPanel {
                                 .handler({
                                     move |window, cx| {
                                         window
-                                            .dispatch_action(Box::new(zed_actions::AcpRegistry), cx)
+                                            .dispatch_action(Box::new(paddleboard_actions::AcpRegistry), cx)
                                     }
                                 }),
                         )
@@ -3758,76 +3766,14 @@ impl AgentPanel {
         }
     }
 
-    fn should_render_trial_end_upsell(&self, cx: &mut Context<Self>) -> bool {
-        if TrialEndUpsell::dismissed(cx) {
-            return false;
-        }
-
-        match &self.active_view {
-            ActiveView::AgentThread { .. } => {
-                if LanguageModelRegistry::global(cx)
-                    .read(cx)
-                    .default_model()
-                    .is_some_and(|model| {
-                        model.provider.id() != language_model::ZED_CLOUD_PROVIDER_ID
-                    })
-                {
-                    return false;
-                }
-            }
-            ActiveView::Uninitialized | ActiveView::History { .. } | ActiveView::Configuration => {
-                return false;
-            }
-        }
-
-        let plan = self.user_store.read(cx).plan();
-        let has_previous_trial = self.user_store.read(cx).trial_started_at().is_some();
-
-        plan.is_some_and(|plan| plan == Plan::ZedFree) && has_previous_trial
+    fn should_render_trial_end_upsell(&self, _cx: &mut Context<Self>) -> bool {
+        // PaddleBoard: Zed Pro trial upsell is disabled.
+        false
     }
 
-    fn should_render_onboarding(&self, cx: &mut Context<Self>) -> bool {
-        if self.on_boarding_upsell_dismissed.load(Ordering::Acquire) {
-            return false;
-        }
-
-        let user_store = self.user_store.read(cx);
-
-        if user_store.plan().is_some_and(|plan| plan == Plan::ZedPro)
-            && user_store
-                .subscription_period()
-                .and_then(|period| period.0.checked_add_days(chrono::Days::new(1)))
-                .is_some_and(|date| date < chrono::Utc::now())
-        {
-            OnboardingUpsell::set_dismissed(true, cx);
-            self.on_boarding_upsell_dismissed
-                .store(true, Ordering::Release);
-            return false;
-        }
-
-        let has_configured_non_zed_providers = LanguageModelRegistry::read_global(cx)
-            .visible_providers()
-            .iter()
-            .any(|provider| {
-                provider.is_authenticated(cx)
-                    && provider.id() != language_model::ZED_CLOUD_PROVIDER_ID
-            });
-
-        match &self.active_view {
-            ActiveView::Uninitialized | ActiveView::History { .. } | ActiveView::Configuration => {
-                false
-            }
-            ActiveView::AgentThread {
-                conversation_view, ..
-            } if conversation_view.read(cx).as_native_thread(cx).is_none() => false,
-            ActiveView::AgentThread { conversation_view } => {
-                let history_is_empty = conversation_view
-                    .read(cx)
-                    .history()
-                    .is_none_or(|h| h.read(cx).is_empty());
-                history_is_empty || !has_configured_non_zed_providers
-            }
-        }
+    fn should_render_onboarding(&self, _cx: &mut Context<Self>) -> bool {
+        // PaddleBoard: Zed AI onboarding upsell is disabled.
+        false
     }
 
     fn render_onboarding(
@@ -4704,7 +4650,7 @@ mod tests {
             "resource text should be the raw conflict"
         );
         assert!(
-            uri.starts_with("zed:///agent/merge-conflict"),
+            uri.starts_with("paddleboard:///agent/merge-conflict"),
             "URI should use the zed merge-conflict scheme, got: {uri}"
         );
         assert!(uri.contains("utils.rs"), "URI should encode the file path");

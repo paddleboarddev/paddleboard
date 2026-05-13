@@ -37,7 +37,7 @@ use util::{
 };
 use workspace::{Item, SaveIntent, Workspace, notifications::NotifyResultExt};
 use workspace::{SplitDirection, notifications::DetachAndPromptErr};
-use zed_actions::{OpenDocs, RevealTarget};
+use paddleboard_actions::{OpenDocs, RevealTarget};
 
 use crate::{
     ToggleMarksView, ToggleRegistersView, Vim, VimSettings,
@@ -1625,7 +1625,7 @@ fn generate_commands(_: &App) -> Vec<VimCommand> {
         .bang(workspace::CloseAllItemsAndPanes {
             save_intent: Some(SaveIntent::Overwrite),
         }),
-        VimCommand::new(("cq", "uit"), zed_actions::Quit),
+        VimCommand::new(("cq", "uit"), paddleboard_actions::Quit),
         VimCommand::new(
             ("bd", "elete"),
             workspace::CloseItemInAllPanes {

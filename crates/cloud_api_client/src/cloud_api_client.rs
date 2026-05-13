@@ -153,7 +153,7 @@ impl CloudApiClient {
                     .as_ref(),
             )
             .when_some(system_id, |builder, system_id| {
-                builder.header(ZED_SYSTEM_ID_HEADER_NAME, system_id)
+                builder.header(PADDLEBOARD_SYSTEM_ID_HEADER_NAME, system_id)
             });
 
         let request = self.build_request(

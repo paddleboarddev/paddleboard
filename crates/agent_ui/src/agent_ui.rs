@@ -4,6 +4,7 @@ mod agent_diff;
 mod agent_model_selector;
 mod agent_panel;
 mod agent_registry_ui;
+pub mod orchestration_panel;
 mod branch_names;
 mod buffer_codegen;
 mod completion_provider;
@@ -62,6 +63,7 @@ use workspace::Workspace;
 
 use crate::agent_configuration::{ConfigureContextServerModal, ManageProfilesModal};
 pub use crate::agent_panel::{AgentPanel, AgentPanelEvent, WorktreeCreationStatus};
+pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
 pub use crate::inline_assistant::InlineAssistant;
 pub use agent_diff::{AgentDiffPane, AgentDiffToolbar};
@@ -73,7 +75,7 @@ pub(crate) use model_selector_popover::ModelSelectorPopover;
 pub(crate) use thread_history::ThreadHistory;
 pub(crate) use thread_history_view::*;
 pub use thread_import::{AcpThreadImportOnboarding, ThreadImportModal};
-use zed_actions;
+use paddleboard_actions;
 
 pub const DEFAULT_THREAD_TITLE: &str = "New Thread";
 const PARALLEL_AGENT_LAYOUT_BACKFILL_KEY: &str = "parallel_agent_layout_backfilled";
@@ -267,7 +269,7 @@ pub enum Agent {
 
 impl From<AgentId> for Agent {
     fn from(id: AgentId) -> Self {
-        if id.as_ref() == agent::ZED_AGENT_ID.as_ref() {
+        if id.as_ref() == agent::PADDLEBOARD_AGENT_ID.as_ref() {
             Self::NativeAgent
         } else if id.as_ref() == "gemini" {
             Self::Gemini
@@ -281,7 +283,7 @@ impl Agent {
     pub fn id(&self) -> AgentId {
         match self {
             Self::Gemini => AgentId::new("gemini"),
-            Self::NativeAgent => agent::ZED_AGENT_ID.clone(),
+            Self::NativeAgent => agent::PADDLEBOARD_AGENT_ID.clone(),
             Self::Custom { id } => id.clone(),
         }
     }
@@ -293,7 +295,7 @@ impl Agent {
     pub fn label(&self) -> SharedString {
         match self {
             Self::Gemini => "Gemini".into(),
-            Self::NativeAgent => "Zed Agent".into(),
+            Self::NativeAgent => "PaddleBoard Agent".into(),
             Self::Custom { id, .. } => id.0.clone(),
         }
     }
@@ -443,7 +445,7 @@ pub fn init(
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
         workspace.register_action(
             move |workspace: &mut Workspace,
-                  _: &zed_actions::AcpRegistry,
+                  _: &paddleboard_actions::AcpRegistry,
                   window: &mut Window,
                   cx: &mut Context<Workspace>| {
                 let existing = workspace
@@ -582,7 +584,7 @@ fn update_command_palette_filter(cx: &mut App) {
             filter.hide_namespace("edit_prediction");
 
             filter.hide_action_types(&edit_prediction_actions);
-            filter.hide_action_types(&[TypeId::of::<zed_actions::OpenZedPredictOnboarding>()]);
+            filter.hide_action_types(&[TypeId::of::<paddleboard_actions::OpenZedPredictOnboarding>()]);
         } else {
             if agent_enabled {
                 filter.show_namespace("agent");
@@ -618,7 +620,7 @@ fn update_command_palette_filter(cx: &mut App) {
             }
 
             filter.show_namespace("zed_predict_onboarding");
-            filter.show_action_types(&[TypeId::of::<zed_actions::OpenZedPredictOnboarding>()]);
+            filter.show_action_types(&[TypeId::of::<paddleboard_actions::OpenZedPredictOnboarding>()]);
         }
 
         if agent_v2_enabled {

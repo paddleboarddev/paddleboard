@@ -171,7 +171,7 @@ fn save_thread_metadata(
         };
         let metadata = ThreadMetadata {
             session_id,
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title,
             updated_at,
             created_at,
@@ -2065,7 +2065,7 @@ async fn test_focused_thread_tracks_user_intent(cx: &mut TestAppContext) {
         sidebar.activate_thread(
             ThreadMetadata {
                 session_id: session_id_a.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Test".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -2120,7 +2120,7 @@ async fn test_focused_thread_tracks_user_intent(cx: &mut TestAppContext) {
         sidebar.activate_thread(
             ThreadMetadata {
                 session_id: session_id_b.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Thread B".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3561,7 +3561,7 @@ async fn test_activate_archived_thread_with_saved_paths_activates_matching_works
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: session_id.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Archived Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3626,7 +3626,7 @@ async fn test_activate_archived_thread_cwd_fallback_with_matching_workspace(
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: acp::SessionId::new(Arc::from("unknown-session")),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "CWD Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3689,7 +3689,7 @@ async fn test_activate_archived_thread_no_paths_no_cwd_uses_active_workspace(
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: acp::SessionId::new(Arc::from("no-context-session")),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Contextless Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3744,7 +3744,7 @@ async fn test_activate_archived_thread_saved_paths_opens_new_workspace(cx: &mut 
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: session_id.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "New WS Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3798,7 +3798,7 @@ async fn test_activate_archived_thread_reuses_workspace_in_another_window(cx: &m
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: session_id.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Cross Window Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3875,7 +3875,7 @@ async fn test_activate_archived_thread_reuses_workspace_in_another_window_with_t
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: session_id.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Cross Window Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -3955,7 +3955,7 @@ async fn test_activate_archived_thread_prefers_current_window_for_matching_paths
         sidebar.activate_archived_thread(
             ThreadMetadata {
                 session_id: session_id.clone(),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: "Current Window Thread".into(),
                 updated_at: Utc::now(),
                 created_at: None,
@@ -5008,7 +5008,7 @@ async fn test_legacy_thread_with_canonical_path_opens_main_repo_workspace(cx: &m
     cx.update(|_, cx| {
         let metadata = ThreadMetadata {
             session_id: legacy_session.clone(),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: "Legacy Main Thread".into(),
             updated_at: chrono::TimeZone::with_ymd_and_hms(&Utc, 2024, 1, 1, 0, 0, 0).unwrap(),
             created_at: None,
@@ -5221,7 +5221,7 @@ mod property_test {
             + chrono::Duration::seconds(state.thread_counter as i64);
         let metadata = ThreadMetadata {
             session_id,
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title,
             updated_at,
             created_at: None,

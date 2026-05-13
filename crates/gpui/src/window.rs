@@ -1124,9 +1124,19 @@ impl Window {
         self.platform_window.update_webview(bounds);
     }
 
-    /// Hides the webview by collapsing it to zero size.
+    /// Shows the webview after it has been hidden.
+    pub fn show_webview(&mut self) {
+        self.platform_window.show_webview();
+    }
+
+    /// Hides the webview without destroying it.
     pub fn hide_webview(&mut self) {
         self.platform_window.hide_webview();
+    }
+
+    /// Destroys the webview entirely. A subsequent `add_webview` will create a new one.
+    pub fn remove_webview(&mut self) {
+        self.platform_window.remove_webview();
     }
 
     /// Navigates the existing webview to a new URL.

@@ -94,11 +94,11 @@ impl EditFormat {
 
     /// Return an optimal edit format for the language model,
     /// with the ability to override it by setting the
-    /// `ZED_EDIT_FORMAT` environment variable
+    /// `PADDLEBOARD_EDIT_FORMAT` environment variable
     #[allow(dead_code)]
     pub fn from_env(model: Arc<dyn LanguageModel>) -> anyhow::Result<Self> {
         let default = EditFormat::from_model(model)?;
-        std::env::var("ZED_EDIT_FORMAT").map_or(Ok(default), |s| EditFormat::from_str(&s))
+        std::env::var("PADDLEBOARD_EDIT_FORMAT").map_or(Ok(default), |s| EditFormat::from_str(&s))
     }
 }
 

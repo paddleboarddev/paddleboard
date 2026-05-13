@@ -4,7 +4,7 @@ pub mod room;
 
 use anyhow::{Context as _, Result, anyhow};
 use audio::Audio;
-use client::{ChannelId, Client, TypedEnvelope, User, UserStore, ZED_ALWAYS_ACTIVE, proto};
+use client::{ChannelId, Client, TypedEnvelope, User, UserStore, PADDLEBOARD_ALWAYS_ACTIVE, proto};
 use collections::HashSet;
 use futures::{Future, FutureExt, channel::oneshot, future::Shared};
 use gpui::{
@@ -680,7 +680,7 @@ impl ActiveCall {
         project: Option<&Entity<Project>>,
         cx: &mut Context<Self>,
     ) -> Task<Result<()>> {
-        if project.is_some() || !*ZED_ALWAYS_ACTIVE {
+        if project.is_some() || !*PADDLEBOARD_ALWAYS_ACTIVE {
             self.location = project.map(|project| project.downgrade());
             if let Some((room, _)) = self.room.as_ref() {
                 return room.update(cx, |room, cx| room.set_location(project, cx));

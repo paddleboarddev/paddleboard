@@ -5,7 +5,7 @@ use gpui::{
 };
 use language_model::{
     ConfigurationViewTargetAgent, ConfiguredModel, IconOrSvg, LanguageModelProviderId,
-    LanguageModelRegistry, ZED_CLOUD_PROVIDER_ID,
+    LanguageModelRegistry, PADDLEBOARD_CLOUD_PROVIDER_ID,
 };
 use ui::{ButtonSize, ButtonStyle, prelude::*};
 use workspace::{
@@ -36,7 +36,7 @@ impl LlmPicker {
         let initial_provider_id = LanguageModelRegistry::read_global(cx)
             .default_model()
             .map(|m| m.provider.id())
-            .filter(|id| id != &ZED_CLOUD_PROVIDER_ID);
+            .filter(|id| id != &PADDLEBOARD_CLOUD_PROVIDER_ID);
 
         let configuration_view = initial_provider_id.as_ref().and_then(|id| {
             let provider = LanguageModelRegistry::read_global(cx).provider(id)?;
@@ -152,7 +152,7 @@ impl Panel for LlmPicker {
     }
 
     fn activation_priority(&self) -> u32 {
-        9
+        8
     }
 }
 
@@ -165,7 +165,7 @@ impl Render for LlmPicker {
             let rows = registry
                 .visible_providers()
                 .into_iter()
-                .filter(|p| p.id() != ZED_CLOUD_PROVIDER_ID)
+                .filter(|p| p.id() != PADDLEBOARD_CLOUD_PROVIDER_ID)
                 .map(|p| {
                     let id = p.id();
                     let name = p.name().0.clone();

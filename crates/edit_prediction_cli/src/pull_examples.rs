@@ -579,7 +579,7 @@ pub async fn fetch_rejected_examples_after(
                 is_ep_shown_before_rejected AS was_shown,
                 ep_rejected_reason AS reason,
                 zed_version AS zed_version
-            FROM ZED_DBT.DBT_PROD.fct_edit_prediction_examples
+            FROM PADDLEBOARD_DBT.DBT_PROD.fct_edit_prediction_examples
             WHERE ep_outcome LIKE 'Rejected%'
                 AND is_ep_shown_before_rejected = true
                 AND requested_at > TRY_TO_TIMESTAMP_NTZ(?)
@@ -675,7 +675,7 @@ pub async fn fetch_requested_examples_after(
                 requested_at::string AS time,
                 input_payload AS input,
                 zed_version AS zed_version
-            FROM ZED_DBT.DBT_PROD.fct_edit_prediction_examples
+            FROM PADDLEBOARD_DBT.DBT_PROD.fct_edit_prediction_examples
             WHERE requested_at > TRY_TO_TIMESTAMP_NTZ(?)
                 AND (? IS NULL OR (
                     TRY_CAST(SPLIT_PART(zed_version, '.', 2) AS INTEGER) > ?
@@ -757,7 +757,7 @@ pub async fn fetch_captured_examples_after(
                 settled_editable_region AS settled_editable_region,
                 example_payload AS example,
                 zed_version AS zed_version
-            FROM ZED_DBT.DBT_PROD.fct_edit_prediction_examples
+            FROM PADDLEBOARD_DBT.DBT_PROD.fct_edit_prediction_examples
             WHERE settled_editable_region IS NOT NULL
                 AND example_payload IS NOT NULL
                 AND requested_at > TRY_TO_TIMESTAMP_NTZ(?)
@@ -847,7 +847,7 @@ pub async fn fetch_settled_examples_after(
                 settled_editable_region AS settled_editable_region,
                 requested_format AS requested_format,
                 zed_version AS zed_version
-            FROM ZED_DBT.DBT_PROD.fct_edit_prediction_examples
+            FROM PADDLEBOARD_DBT.DBT_PROD.fct_edit_prediction_examples
             WHERE settled_editable_region IS NOT NULL
                 AND requested_at > TRY_TO_TIMESTAMP_NTZ(?)
             ORDER BY requested_at ASC
@@ -936,7 +936,7 @@ pub async fn fetch_rated_examples_after(
                 NULL AS experiment_name,
                 NULL AS environment,
                 zed_version AS zed_version
-            FROM ZED_DBT.DBT_PROD.fct_edit_prediction_examples
+            FROM PADDLEBOARD_DBT.DBT_PROD.fct_edit_prediction_examples
             WHERE rating IS NOT NULL
                 AND (? IS NULL OR rating = ?)
                 AND requested_at > TRY_TO_TIMESTAMP_NTZ(?)

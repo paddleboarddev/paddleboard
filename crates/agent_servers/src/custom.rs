@@ -391,7 +391,7 @@ fn api_key_for_gemini_cli(cx: &mut App) -> Task<Result<String>> {
     if let Some(key) = env_var.value {
         return Task::ready(Ok(key));
     }
-    let credentials_provider = zed_credentials_provider::global(cx);
+    let credentials_provider = paddleboard_credentials_provider::global(cx);
     let api_url = google_ai::API_URL.to_string();
     cx.spawn(async move |cx| {
         Ok(

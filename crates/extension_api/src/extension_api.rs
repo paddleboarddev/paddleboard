@@ -350,7 +350,7 @@ static mut EXTENSION: Option<Box<dyn Extension>> = None;
 #[cfg(target_arch = "wasm32")]
 #[unsafe(link_section = "zed:api-version")]
 #[doc(hidden)]
-pub static ZED_API_VERSION: [u8; 6] = *include_bytes!(concat!(env!("OUT_DIR"), "/version_bytes"));
+pub static PADDLEBOARD_API_VERSION: [u8; 6] = *include_bytes!(concat!(env!("OUT_DIR"), "/version_bytes"));
 
 mod wit {
     wit_bindgen::generate!({

@@ -21,7 +21,7 @@ use workspace::{
     WorkspaceDb, WorkspaceId, notifications::DetachAndPromptErr,
 };
 
-use zed_actions::OpenRemote;
+use paddleboard_actions::OpenRemote;
 
 use crate::{highlights_for_path, icon_for_remote_connection, open_remote_project};
 

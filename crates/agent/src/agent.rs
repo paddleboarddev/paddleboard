@@ -1402,11 +1402,11 @@ impl acp_thread::AgentModelSelector for NativeAgentModelSelector {
     }
 }
 
-pub static ZED_AGENT_ID: LazyLock<AgentId> = LazyLock::new(|| AgentId::new("PaddleBoard Agent"));
+pub static PADDLEBOARD_AGENT_ID: LazyLock<AgentId> = LazyLock::new(|| AgentId::new("PaddleBoard Agent"));
 
 impl acp_thread::AgentConnection for NativeAgentConnection {
     fn agent_id(&self) -> AgentId {
-        ZED_AGENT_ID.clone()
+        PADDLEBOARD_AGENT_ID.clone()
     }
 
     fn telemetry_id(&self) -> SharedString {

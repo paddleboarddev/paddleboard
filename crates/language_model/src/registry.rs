@@ -101,7 +101,7 @@ impl ConfiguredModel {
     }
 
     pub fn is_provided_by_zed(&self) -> bool {
-        self.provider.id() == crate::provider::ZED_CLOUD_PROVIDER_ID
+        self.provider.id() == crate::provider::PADDLEBOARD_CLOUD_PROVIDER_ID
     }
 }
 
@@ -406,7 +406,7 @@ impl LanguageModelRegistry {
 
     pub fn default_model(&self) -> Option<ConfiguredModel> {
         #[cfg(debug_assertions)]
-        if std::env::var("ZED_SIMULATE_NO_LLM_PROVIDER").is_ok() {
+        if std::env::var("PADDLEBOARD_SIMULATE_NO_LLM_PROVIDER").is_ok() {
             return None;
         }
 
@@ -415,7 +415,7 @@ impl LanguageModelRegistry {
 
     pub fn inline_assistant_model(&self) -> Option<ConfiguredModel> {
         #[cfg(debug_assertions)]
-        if std::env::var("ZED_SIMULATE_NO_LLM_PROVIDER").is_ok() {
+        if std::env::var("PADDLEBOARD_SIMULATE_NO_LLM_PROVIDER").is_ok() {
             return None;
         }
 
@@ -426,7 +426,7 @@ impl LanguageModelRegistry {
 
     pub fn commit_message_model(&self) -> Option<ConfiguredModel> {
         #[cfg(debug_assertions)]
-        if std::env::var("ZED_SIMULATE_NO_LLM_PROVIDER").is_ok() {
+        if std::env::var("PADDLEBOARD_SIMULATE_NO_LLM_PROVIDER").is_ok() {
             return None;
         }
 
@@ -438,7 +438,7 @@ impl LanguageModelRegistry {
 
     pub fn thread_summary_model(&self) -> Option<ConfiguredModel> {
         #[cfg(debug_assertions)]
-        if std::env::var("ZED_SIMULATE_NO_LLM_PROVIDER").is_ok() {
+        if std::env::var("PADDLEBOARD_SIMULATE_NO_LLM_PROVIDER").is_ok() {
             return None;
         }
 

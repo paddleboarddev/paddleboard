@@ -34,7 +34,7 @@ use workspace::{
     Workspace,
     item::{Item, ItemEvent},
 };
-use zed_actions::ExtensionCategoryFilter;
+use paddleboard_actions::ExtensionCategoryFilter;
 
 use crate::components::ExtensionCard;
 use crate::extension_version_selector::{
@@ -56,7 +56,7 @@ pub fn init(cx: &mut App) {
         };
         workspace
             .register_action(
-                move |workspace, action: &zed_actions::Extensions, window, cx| {
+                move |workspace, action: &paddleboard_actions::Extensions, window, cx| {
                     let provides_filter = action.category_filter.map(|category| match category {
                         ExtensionCategoryFilter::Themes => ExtensionProvides::Themes,
                         ExtensionCategoryFilter::IconThemes => ExtensionProvides::IconThemes,
@@ -417,7 +417,7 @@ impl ExtensionsPage {
             workspace
                 .update(cx, |_workspace, cx| {
                     window.dispatch_action(
-                        zed_actions::theme_selector::Toggle {
+                        paddleboard_actions::theme_selector::Toggle {
                             themes_filter: Some(themes),
                         }
                         .boxed_clone(),
@@ -436,7 +436,7 @@ impl ExtensionsPage {
             workspace
                 .update(cx, |_workspace, cx| {
                     window.dispatch_action(
-                        zed_actions::icon_theme_selector::Toggle {
+                        paddleboard_actions::icon_theme_selector::Toggle {
                             themes_filter: Some(icon_themes),
                         }
                         .boxed_clone(),
@@ -1473,7 +1473,7 @@ impl ExtensionsPage {
                         source = "ACP Registry Upsell",
                         url = registry_url,
                     );
-                    window.dispatch_action(Box::new(zed_actions::AcpRegistry), cx)
+                    window.dispatch_action(Box::new(paddleboard_actions::AcpRegistry), cx)
                 }
             });
         let open_registry_button = Button::new("open_registry", "Learn More")
@@ -1633,7 +1633,7 @@ impl ExtensionsPage {
                     cx,
                 ),
                 Feature::Git => self.render_feature_upsell_banner(
-                    "Zed comes with basic Git support—more features are coming in the future."
+                    "PaddleBoard comes with basic Git support—more features are coming in the future."
                         .into(),
                     "https://zed.dev/docs/git".into(),
                     false,
@@ -1688,7 +1688,7 @@ impl ExtensionsPage {
                     cx,
                 ),
                 Feature::OpenIn => self.render_feature_upsell_banner(
-                    "Zed supports linking to a source line on GitHub and others.".into(),
+                    "PaddleBoard supports linking to a source line on GitHub and others.".into(),
                     "https://zed.dev/docs/git#git-integrations".into(),
                     false,
                     cx,

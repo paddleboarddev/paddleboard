@@ -1478,15 +1478,29 @@ impl PlatformWindow for MacWindow {
         }
     }
 
-    fn hide_webview(&mut self) {
-        let mut state = self.0.lock();
-        if let Some(webview) = &mut state.webview {
-            let rect = wry::Rect {
-                position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition::new(0.0, 0.0)),
-                size: wry::dpi::Size::Logical(wry::dpi::LogicalSize::new(0.0, 0.0)),
-            };
-            let _ = webview.set_bounds(rect);
+    fn show_webview(&mut self) {
+        let state = self.0.lock();
+        if let Some(webview) = &state.webview {
+            if let Err(error) = webview.set_visible(true) {
+                log::error!("Failed to show webview: {error}");
+            }
         }
+    }
+
+    fn hide_webview(&mut self) {
+        let state = self.0.lock();
+        if let Some(webview) = &state.webview {
+            if let Err(error) = webview.set_visible(false) {
+                log::error!("Failed to hide webview: {error}");
+            }
+        }
+    }
+
+    fn remove_webview(&mut self) {
+        // Dropping the wry::WebView calls removeFromSuperview, fully detaching
+        // the underlying WKWebView from the window's view hierarchy.
+        let mut state = self.0.lock();
+        state.webview = None;
     }
 
     fn navigate_webview(&mut self, url: &str) {

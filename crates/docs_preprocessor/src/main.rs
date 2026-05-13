@@ -61,7 +61,7 @@ impl KeymapOverlay {
     }
 }
 
-const FRONT_MATTER_COMMENT: &str = "<!-- ZED_META {} -->";
+const FRONT_MATTER_COMMENT: &str = "<!-- PADDLEBOARD_META {} -->";
 
 fn main() -> Result<()> {
     zlog::init();

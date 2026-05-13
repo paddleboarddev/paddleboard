@@ -11,7 +11,7 @@ use cloud_llm_client::WebSearchResponse;
 use futures::FutureExt as _;
 use gpui::{App, Task};
 use language_model::{
-    LanguageModelProviderId, LanguageModelToolResultContent, ZED_CLOUD_PROVIDER_ID,
+    LanguageModelProviderId, LanguageModelToolResultContent, PADDLEBOARD_CLOUD_PROVIDER_ID,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,7 @@ impl AgentTool for WebSearchTool {
 
     /// We currently only support Zed Cloud as a provider.
     fn supports_provider(provider: &LanguageModelProviderId) -> bool {
-        provider == &ZED_CLOUD_PROVIDER_ID
+        provider == &PADDLEBOARD_CLOUD_PROVIDER_ID
     }
 
     fn run(

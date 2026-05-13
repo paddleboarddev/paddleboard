@@ -550,7 +550,7 @@ impl Render for GitPicker {
 
 pub fn open_branches(
     workspace: &mut Workspace,
-    _: &zed_actions::git::Branch,
+    _: &paddleboard_actions::git::Branch,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
@@ -559,7 +559,7 @@ pub fn open_branches(
 
 pub fn open_worktrees(
     workspace: &mut Workspace,
-    _: &zed_actions::git::Worktree,
+    _: &paddleboard_actions::git::Worktree,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
@@ -568,7 +568,7 @@ pub fn open_worktrees(
 
 pub fn open_stash(
     workspace: &mut Workspace,
-    _: &zed_actions::git::ViewStash,
+    _: &paddleboard_actions::git::ViewStash,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
@@ -606,21 +606,21 @@ pub fn popover(
 }
 
 pub fn register(workspace: &mut Workspace) {
-    workspace.register_action(|workspace, _: &zed_actions::git::Branch, window, cx| {
+    workspace.register_action(|workspace, _: &paddleboard_actions::git::Branch, window, cx| {
         open_with_tab(workspace, GitPickerTab::Branches, window, cx);
     });
-    workspace.register_action(|workspace, _: &zed_actions::git::Switch, window, cx| {
+    workspace.register_action(|workspace, _: &paddleboard_actions::git::Switch, window, cx| {
         open_with_tab(workspace, GitPickerTab::Branches, window, cx);
     });
     workspace.register_action(
-        |workspace, _: &zed_actions::git::CheckoutBranch, window, cx| {
+        |workspace, _: &paddleboard_actions::git::CheckoutBranch, window, cx| {
             open_with_tab(workspace, GitPickerTab::Branches, window, cx);
         },
     );
-    workspace.register_action(|workspace, _: &zed_actions::git::Worktree, window, cx| {
+    workspace.register_action(|workspace, _: &paddleboard_actions::git::Worktree, window, cx| {
         open_with_tab(workspace, GitPickerTab::Worktrees, window, cx);
     });
-    workspace.register_action(|workspace, _: &zed_actions::git::ViewStash, window, cx| {
+    workspace.register_action(|workspace, _: &paddleboard_actions::git::ViewStash, window, cx| {
         open_with_tab(workspace, GitPickerTab::Stash, window, cx);
     });
 }

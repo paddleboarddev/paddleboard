@@ -27,11 +27,11 @@ pub struct AgentCliAppState {
 }
 
 pub fn init(cx: &mut App) -> Arc<AgentCliAppState> {
-    let app_commit_sha = option_env!("ZED_COMMIT_SHA").map(|s| AppCommitSha::new(s.to_owned()));
+    let app_commit_sha = option_env!("PADDLEBOARD_COMMIT_SHA").map(|s| AppCommitSha::new(s.to_owned()));
 
     let app_version = AppVersion::load(
-        env!("ZED_PKG_VERSION"),
-        option_env!("ZED_BUILD_ID"),
+        env!("PADDLEBOARD_PKG_VERSION"),
+        option_env!("PADDLEBOARD_BUILD_ID"),
         app_commit_sha,
     );
 
@@ -42,7 +42,7 @@ pub fn init(cx: &mut App) -> Arc<AgentCliAppState> {
     cx.set_global(settings_store);
 
     let user_agent = format!(
-        "Zed Agent CLI/{} ({}; {})",
+        "PaddleBoard Agent CLI/{} ({}; {})",
         app_version,
         std::env::consts::OS,
         std::env::consts::ARCH
