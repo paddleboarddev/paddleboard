@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-14
 
+### Sandbox prerequisites UI (PR-B: visibility unit)
+- New crate `paddleboard_sandbox_prereqs_ui` (~350 lines) layered on PR-A's data layer. Three pieces in one file: `SandboxPrereqs` (a `gpui::Global` holding the latest `SandboxStatus` + a `refreshing` flag), `SandboxStatusItem` (status-bar entry — colored shield icon), `SandboxPrereqsModal` (full install-guidance UI with per-step Copy buttons + Refresh).
+- Async-to-GPUI bridge uses `gpui_tokio::Tokio::spawn(cx, async { check().await })`. The probe runs on tokio's pool (needed for `tokio::process::Command`); the result is written back to the global via `cx.update_global` on the foreground thread, which automatically notifies observers so the status bar + modal re-render.
+- Severity model: `Unknown` while initial probe is in flight, `Ok` when podman + gVisor are both satisfied (or gVisor inapplicable on Windows), `Warning` when podman is ready but gVisor isn't configured, `Error` when podman is missing or unreachable.
+- Wire-up: `paddleboard_sandbox_prereqs_ui::init(cx)` in `paddleboard/src/main.rs` right after `gpui_tokio::init` — registers the global, kicks off the first probe, and `cx.observe_new` wires the `paddleboard::OpenSandboxPrereqs` action into every workspace as it opens. Status item is registered in `paddleboard/src/zed.rs`'s `initialize_workspace`, tagged with two `// PaddleBoard:` markers (declaration site + status_bar.add_right_item).
+- v0.1 followup (PR-C, future session): tool gating + settings (`sandbox.on_missing_runtime`: block / fall-back-to-host / warn-once) — the enforcement unit, requires editing three tool entry points (sandbox_tool, sandbox_service_tool, sandboxed_stdio_transport).
+- Verified: `cargo check -p paddleboard` clean; `./script/clippy -p paddleboard_sandbox_prereqs_ui -p paddleboard_sandbox_prereqs` clean. The pre-existing `llm_picker` clippy failure on `main` is unrelated.
+
 ### Sandbox prerequisites detection (PR-A of two)
 - New crate `paddleboard_sandbox_prereqs` with `check() -> SandboxStatus`. Probes `podman --version`, `podman info --format json`, and parses the JSON for `host.ociRuntimes.runsc`. Each probe is timeout-bounded (2s) so a stuck `podman machine` cannot stall startup.
 - Three variants per dimension: `PodmanStatus` (Missing / InstalledNotRunning / Ready) and `GvisorStatus` (Available / NotConfigured / NotApplicable / Unknown). On macOS the InstalledNotRunning state is the common case when `podman machine` is stopped.
