@@ -303,6 +303,11 @@ fn main() {
         return;
     }
 
+    if args.check_sandbox {
+        run_sandbox_prereqs_check();
+        return;
+    }
+
     rayon::ThreadPoolBuilder::new()
         .num_threads(std::thread::available_parallelism().map_or(1, |n| n.get().div_ceil(2)))
         .stack_size(10 * 1024 * 1024)
@@ -905,6 +910,68 @@ fn main() {
         })
         .detach();
     });
+}
+
+fn run_sandbox_prereqs_check() {
+    use paddleboard_sandbox_prereqs::{
+        GvisorStatus, InstallStep, Os, PodmanStatus, SandboxStatus,
+    };
+
+    let runtime = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("Failed to start a tokio runtime for the sandbox check: {error}");
+            process::exit(1);
+        }
+    };
+
+    let status: SandboxStatus = runtime.block_on(paddleboard_sandbox_prereqs::check());
+    let os = Os::detect();
+    let instructions = paddleboard_sandbox_prereqs::install_instructions(&status, os);
+
+    println!("PaddleBoard sandbox prerequisites:");
+    println!();
+    match &status.podman {
+        PodmanStatus::Missing => println!("  Podman:  ✗ not found on $PATH"),
+        PodmanStatus::InstalledNotRunning { version } => {
+            println!("  Podman:  ⚠ {version} (CLI installed but daemon unreachable)")
+        }
+        PodmanStatus::Ready { version } => println!("  Podman:  ✓ {version}"),
+    }
+    match &status.gvisor {
+        GvisorStatus::Available => println!("  gVisor:  ✓ runsc registered with Podman"),
+        GvisorStatus::NotConfigured => println!("  gVisor:  ✗ runsc not registered with Podman"),
+        GvisorStatus::NotApplicable { reason } => println!("  gVisor:  — {reason}"),
+        GvisorStatus::Unknown => {
+            println!("  gVisor:  ? cannot determine status (Podman unreachable)")
+        }
+    }
+    println!();
+    println!("{}", instructions.title);
+    println!("{}", "-".repeat(instructions.title.len()));
+    for (i, step) in instructions.steps.iter().enumerate() {
+        let InstallStep {
+            description,
+            command,
+        } = step;
+        println!("{}. {description}", i + 1);
+        if let Some(command) = command {
+            for line in command.lines() {
+                println!("     {line}");
+            }
+        }
+    }
+    if let Some(doc_url) = instructions.doc_url {
+        println!();
+        println!("More: {doc_url}");
+    }
+
+    if !status.is_satisfied() {
+        process::exit(1);
+    }
 }
 
 fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut App) {
@@ -1684,6 +1751,13 @@ struct Args {
     /// clipboard`
     #[arg(long)]
     system_specs: bool,
+
+    /// Checks whether PaddleBoard's sandbox prerequisites (Podman + gVisor's
+    /// `runsc` runtime) are installed and reachable. Prints status and
+    /// install guidance, then exits. Useful for diagnosing sandbox failures
+    /// without launching the editor.
+    #[arg(long)]
+    check_sandbox: bool,
 
     /// Used for the MCP Server, to remove the need for netcat as a dependency,
     /// by having Zed act like netcat communicating over a Unix socket.

@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-14
 
+### Sandbox prerequisites detection (PR-A of two)
+- New crate `paddleboard_sandbox_prereqs` with `check() -> SandboxStatus`. Probes `podman --version`, `podman info --format json`, and parses the JSON for `host.ociRuntimes.runsc`. Each probe is timeout-bounded (2s) so a stuck `podman machine` cannot stall startup.
+- Three variants per dimension: `PodmanStatus` (Missing / InstalledNotRunning / Ready) and `GvisorStatus` (Available / NotConfigured / NotApplicable / Unknown). On macOS the InstalledNotRunning state is the common case when `podman machine` is stopped.
+- Hand-curated `install_instructions(status, os)` produces ordered `InstallStep`s with copy-paste commands per OS: brew on macOS, distro-detected (`/etc/os-release` ID lookup) on Linux, Podman Desktop pointer on Windows. gVisor section only appears once Podman is `Ready` so missing-Podman users don't see runtime instructions before they have a runtime.
+- CLI: `--check-sandbox` flag on the `paddleboard` binary. Spins up a current-thread tokio runtime, runs the check, prints a status block + install steps, exits 0 if satisfied / 1 if not. Useful for OSS users diagnosing in a terminal before launching the editor.
+- Locally verified end-to-end: `./target/debug/paddleboard --check-sandbox` correctly reports `Podman ✓` + `gVisor ✗`, prints macOS `podman machine ssh` runsc-install path, exits 1. 3/3 unit tests pass; clippy clean.
+- v0.1 followup (PR-B, separate session): background check on startup + cached `Entity<SandboxPrereqs>` + status indicator UI + modal + tool gating + settings. Detection logic is in place; UI surfaces aren't.
+
 ### Fixed shell-interpolation injection pattern in merge_upstream_zed.yml
 - `cargo xtask check-workflows` (exposed after PR #21) flagged 8 instances of `${{ steps.*.outputs.* }}` being interpolated directly into shell `run:` blocks across 5 steps. That's GitHub's documented script-injection pattern — values from `${{ }}` expressions are substituted *before* the shell parses the script, so a value containing shell metacharacters would be executed.
 - In this specific workflow the values come from `git rev-parse` / `git merge-base` / `date -u` and are safe in practice, but the validator is right that the pattern is dangerous and worth fixing on its own merits.

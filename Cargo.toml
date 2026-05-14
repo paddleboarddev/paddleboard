@@ -225,6 +225,7 @@ members = [
     "crates/paddleboard_actions",
     "crates/paddleboard_credentials_provider",
     "crates/paddleboard_env_vars",
+    "crates/paddleboard_sandbox_prereqs",
     "crates/zeta_prompt",
     "crates/zlog",
     "crates/zlog_settings",
@@ -477,6 +478,7 @@ paddleboard = { path = "crates/paddleboard" }
 paddleboard_actions = { path = "crates/paddleboard_actions" }
 paddleboard_credentials_provider = { path = "crates/paddleboard_credentials_provider" }
 paddleboard_env_vars = { path = "crates/paddleboard_env_vars" }
+paddleboard_sandbox_prereqs = { path = "crates/paddleboard_sandbox_prereqs" }
 edit_prediction = { path = "crates/edit_prediction" }
 zeta_prompt = { path = "crates/zeta_prompt" }
 zlog = { path = "crates/zlog" }
