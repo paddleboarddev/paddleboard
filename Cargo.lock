@@ -12649,6 +12649,7 @@ dependencies = [
  "outline_panel",
  "paddleboard_actions",
  "paddleboard_env_vars",
+ "paddleboard_sandbox_prereqs",
  "parking_lot",
  "paths",
  "picker",
@@ -12697,6 +12698,7 @@ dependencies = [
  "time",
  "time_format",
  "title_bar",
+ "tokio",
  "toolchain_selector",
  "tracing",
  "ui",
@@ -12750,6 +12752,15 @@ name = "paddleboard_env_vars"
 version = "0.1.0"
 dependencies = [
  "env_var",
+]
+
+[[package]]
+name = "paddleboard_sandbox_prereqs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
