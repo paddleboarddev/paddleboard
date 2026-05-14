@@ -4,6 +4,7 @@ mod agent_diff;
 mod agent_model_selector;
 mod agent_panel;
 mod agent_registry_ui;
+mod mcp_servers_ui;
 pub mod orchestration_panel;
 mod branch_names;
 mod buffer_codegen;
@@ -65,6 +66,7 @@ use crate::agent_configuration::{ConfigureContextServerModal, ManageProfilesModa
 pub use crate::agent_panel::{AgentPanel, AgentPanelEvent, WorktreeCreationStatus};
 pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
+use crate::mcp_servers_ui::McpServersPage;
 pub use crate::inline_assistant::InlineAssistant;
 pub use agent_diff::{AgentDiffPane, AgentDiffToolbar};
 pub(crate) use conversation_view::ConversationView;
@@ -469,6 +471,25 @@ pub fn init(
                         window,
                         cx,
                     );
+                }
+            },
+        );
+        workspace.register_action(
+            move |workspace: &mut Workspace,
+                  _: &paddleboard_actions::McpServers,
+                  window: &mut Window,
+                  cx: &mut Context<Workspace>| {
+                let existing = workspace
+                    .active_pane()
+                    .read(cx)
+                    .items()
+                    .find_map(|item| item.downcast::<McpServersPage>());
+
+                if let Some(existing) = existing {
+                    workspace.activate_item(&existing, true, true, window, cx);
+                } else {
+                    let page = McpServersPage::new(workspace, window, cx);
+                    workspace.add_item_to_active_pane(Box::new(page), None, true, window, cx);
                 }
             },
         );
