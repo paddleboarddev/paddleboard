@@ -49,6 +49,35 @@ For one-shot commands (builds, tests, scripts) the agent still uses the regular 
 
 ---
 
+### Sandboxed MCP servers
+
+Most editors run **MCP (Model Context Protocol) servers** directly on your host. That means an MCP server has the same filesystem reach, network access, and credentials as you do — which doesn't match PaddleBoard's "everything the agent touches goes through Podman + gVisor" pitch.
+
+PaddleBoard adds a fourth context-server transport, `sandboxed_stdio`, that runs the MCP server inside a `podman run -i --rm --runtime=runsc` container. Stdin and stdout are proxied transparently, so the JSON-RPC framing keeps working without any change on the agent side.
+
+For now you opt in by hand-editing `settings.json`:
+
+```json
+"context_servers": {
+  "github": {
+    "source": "sandboxed_stdio",
+    "command": "github-mcp-server",
+    "args": [],
+    "image": "ghcr.io/github/github-mcp-server:latest",
+    "forward_env": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+    "mount_worktree": true
+  }
+}
+```
+
+- `image` is required and selects the container the server runs inside.
+- `forward_env` is a list of host env var **names**; values are read by PaddleBoard at run time and passed via `podman run -e`, never serialized into the agent's context (same shape as the Sandbox Service Tool).
+- `mount_worktree: true` (default) binds the active worktree at `/workspace` so filesystem-touching MCP servers work the way users expect; set to `false` for servers that shouldn't see your code.
+
+The original `stdio` transport (which runs the binary directly on your host) is unchanged — sandboxing is opt-in per server until the configure modal grows controls for it.
+
+---
+
 ### Step-through mode
 
 Step-through mode lets you approve every tool call before the agent executes it — useful when you want to watch exactly what the agent is doing or sanity-check a risky operation.

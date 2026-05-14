@@ -420,6 +420,15 @@ impl ConfigureContextServerModal {
                     id: server_id,
                     command,
                 }),
+                ContextServerSettings::SandboxedStdio { .. } => {
+                    // Sandboxed MCP servers are settings.json-only in this release.
+                    // The modal doesn't yet expose image / forward_env / mount_worktree
+                    // controls, so opening the existing-server modal would silently
+                    // strip those fields on save. Bail with a clear error instead.
+                    return Err(anyhow::anyhow!(
+                        "Sandboxed MCP servers can only be edited via settings.json in this version"
+                    ));
+                }
                 ContextServerSettings::Http {
                     enabled: _,
                     url,
