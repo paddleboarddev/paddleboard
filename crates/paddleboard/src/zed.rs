@@ -502,6 +502,9 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
 
         let cursor_position =
             cx.new(|_| go_to_line::cursor_position::CursorPosition::new(workspace));
+        // PaddleBoard: surface sandbox prerequisites (Podman + gVisor) in the status bar.
+        let sandbox_status_item =
+            cx.new(paddleboard_sandbox_prereqs_ui::SandboxStatusItem::new);
         let line_ending_indicator =
             cx.new(|_| line_ending_selector::LineEndingIndicator::default());
         let merge_conflict_indicator =
@@ -521,6 +524,8 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             status_bar.add_right_item(vim_mode_indicator, window, cx);
             status_bar.add_right_item(cursor_position, window, cx);
             status_bar.add_right_item(image_info, window, cx);
+            // PaddleBoard: sandbox prerequisites indicator (Podman + gVisor).
+            status_bar.add_right_item(sandbox_status_item, window, cx);
         });
 
         let panels_task = initialize_panels(window, cx);
