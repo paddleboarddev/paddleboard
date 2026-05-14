@@ -7,13 +7,9 @@ use anyhow::{Result, anyhow};
 use clap::Parser;
 use itertools::{Either, Itertools};
 use serde_yaml::Value;
-use strum::IntoEnumIterator;
 
-use crate::tasks::{
-    workflow_checks::check_run_patterns::{
-        RunValidationError, WorkflowFile, WorkflowValidationError,
-    },
-    workflows::WorkflowType,
+use crate::tasks::workflow_checks::check_run_patterns::{
+    RunValidationError, WorkflowFile, WorkflowValidationError,
 };
 
 pub use check_run_patterns::validate_run_command;
@@ -57,18 +53,16 @@ enum WorkflowError {
 }
 
 fn get_all_workflow_files() -> impl Iterator<Item = PathBuf> {
-    WorkflowType::iter()
-        .map(|workflow_type| workflow_type.folder_path())
-        .flat_map(|folder_path| {
-            fs::read_dir(folder_path).into_iter().flat_map(|entries| {
-                entries
-                    .flat_map(Result::ok)
-                    .map(|entry| entry.path())
-                    .filter(|path| {
-                        path.extension()
-                            .is_some_and(|ext| ext == "yaml" || ext == "yml")
-                    })
-            })
+    fs::read_dir(".github/workflows")
+        .into_iter()
+        .flat_map(|entries| {
+            entries
+                .flat_map(Result::ok)
+                .map(|entry| entry.path())
+                .filter(|path| {
+                    path.extension()
+                        .is_some_and(|ext| ext == "yaml" || ext == "yml")
+                })
         })
 }
 
