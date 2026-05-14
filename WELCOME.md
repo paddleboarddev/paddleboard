@@ -47,6 +47,21 @@ When you want the agent to run something long-lived — a dev server, a demo app
 
 For one-shot commands (builds, tests, scripts) the agent still uses the regular Sandbox Tool. The Service Tool is for processes that should outlive the tool call.
 
+#### Recipe — build & run an ADK agent
+
+Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `adk web` UI that's a natural fit for the sandbox service flow. PaddleBoard can scaffold and run it for you without leaving the editor.
+
+1. Export your model credential in the shell you launch PaddleBoard from — e.g. `export GOOGLE_API_KEY=...`. The value stays in your shell; PaddleBoard never copies it into the agent's context.
+2. In a chat thread, say: **"Scaffold a starter ADK agent in this worktree and run `adk web` in the sandbox, forwarding GOOGLE_API_KEY."**
+3. The agent will write `agent.py` and `requirements.txt`, then call `sandbox_service_tool` with something like:
+   - `image: "python:3.12-slim"`
+   - `command: "pip install -r requirements.txt && adk web --host 0.0.0.0 --port 8000"`
+   - `port: 8000`
+   - `forward_env: ["GOOGLE_API_KEY"]`
+4. A Forwarded Ports row appears with the host port; click it to open the ADK UI in the browser panel.
+
+The `forward_env` field accepts a list of host env var **names** only — values are read by the tool at run time and passed to the container via `podman run -e`, never serialized into the conversation.
+
 ---
 
 ### Step-through mode
