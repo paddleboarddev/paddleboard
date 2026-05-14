@@ -137,6 +137,17 @@ Other entities can then register a callback to handle these events by doing `cx.
 
 - Use `./script/clippy` instead of `cargo clippy`
 
+# Fork hygiene
+
+PaddleBoard is a fork of [zed-industries/zed](https://github.com/zed-industries/zed). Full playbook in `FORK_HYGIENE.md` — the rules below are the agent-actionable subset.
+
+- **Prefer new crates over editing upstream files.** Net-new features belong in a `paddleboard_*` crate (`paddleboard_actions`, `paddleboard_env_vars`, etc.). Upstream cannot conflict on a file it doesn't have.
+- **When you must edit an upstream-shaped file, tag the divergence.** Every intentional fork-specific behavior change in shared code gets a `// PaddleBoard: <reason>` comment so future merge resolutions are mechanical. Use `git grep "// PaddleBoard:"` to audit.
+- **Keep upstream-file diffs minimal.** A one-line `#[allow(dead_code)]` + comment is cheaper to merge than a 50-line rewrite. Don't refactor surrounding code just because you're editing the file.
+- **Don't enable behavior we deliberately disabled.** Telemetry (`Telemetry::report_event`), Zed Pro upsells in `agent_panel.rs`, and the default `TelemetrySettingsContent` are intentionally inert. If an upstream merge re-enables them, resolve in favor of the PaddleBoard version.
+- **Asset drift is silent.** `assets/settings/default.json`, `assets/keymaps/`, icons, license files don't fail compile when they diverge — they just break behavior in production. Diff `assets/` after every merge.
+- **Weekly upstream merges land via `.github/workflows/merge_upstream_zed.yml`.** Don't skip a clean one if it's sitting there — merge cost is roughly quadratic in time-since-last-merge.
+
 # Pull request hygiene
 
 When an agent opens or updates a pull request, it must:
