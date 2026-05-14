@@ -21,7 +21,7 @@ use parking_lot::RwLock;
 pub use settings::ContextServerCommand;
 use url::Url;
 
-use crate::transport::HttpTransport;
+use crate::transport::{HttpTransport, SandboxConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ContextServerId(pub Arc<str>);
@@ -34,6 +34,7 @@ impl Display for ContextServerId {
 
 enum ContextServerTransport {
     Stdio(ContextServerCommand, Option<PathBuf>),
+    SandboxedStdio(ContextServerCommand, SandboxConfig),
     Custom(Arc<dyn crate::transport::Transport>),
 }
 
@@ -56,6 +57,30 @@ impl ContextServer {
             configuration: ContextServerTransport::Stdio(
                 command,
                 working_directory.map(|directory| directory.to_path_buf()),
+            ),
+            request_timeout: None,
+        }
+    }
+
+    pub fn sandboxed_stdio(
+        id: ContextServerId,
+        command: ContextServerCommand,
+        image: String,
+        forward_env: Vec<String>,
+        mount_worktree: bool,
+        working_directory: Option<Arc<Path>>,
+    ) -> Self {
+        Self {
+            id,
+            client: RwLock::new(None),
+            configuration: ContextServerTransport::SandboxedStdio(
+                command,
+                SandboxConfig {
+                    image,
+                    forward_env,
+                    mount_worktree,
+                    host_worktree: working_directory.map(|directory| directory.to_path_buf()),
+                },
             ),
             request_timeout: None,
         }
@@ -121,6 +146,17 @@ impl ContextServer {
                     timeout: command.timeout,
                 },
                 working_directory,
+                cx.clone(),
+            )?,
+            ContextServerTransport::SandboxedStdio(command, sandbox) => Client::sandboxed_stdio(
+                client::ContextServerId(self.id.0.clone()),
+                client::ModelContextServerBinary {
+                    executable: Path::new(&command.path).to_path_buf(),
+                    args: command.args.clone(),
+                    env: command.env.clone(),
+                    timeout: command.timeout,
+                },
+                sandbox,
                 cx.clone(),
             )?,
             ContextServerTransport::Custom(transport) => Client::new(

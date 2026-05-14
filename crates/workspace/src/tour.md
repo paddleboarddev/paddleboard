@@ -22,6 +22,12 @@ Need to check documentation or view a local dev server?
 PaddleBoard integrates a lightning-fast native Chromium/WebKit browser directly into the IDE.
 - Press `Cmd-Shift-P` and search for **`workspace: Open Browser`** to test it out!
 
+### 4. Sandboxed MCP Servers
+PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
+- Use `"source": "sandboxed_stdio"` in `settings.json` instead of plain `"stdio"`.
+- Forward only the host env vars you need by name — values stay out of the agent's context.
+- The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.
+
 ---
 
 *You can always revisit this tour by opening the Command Palette (`Cmd-Shift-P`) and selecting **`workspace: Open Paddle Board Tour`**.*
