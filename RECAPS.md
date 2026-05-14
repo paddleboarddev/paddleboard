@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-14
 
+### Fixed shell-interpolation injection pattern in merge_upstream_zed.yml
+- `cargo xtask check-workflows` (exposed after PR #21) flagged 8 instances of `${{ steps.*.outputs.* }}` being interpolated directly into shell `run:` blocks across 5 steps. That's GitHub's documented script-injection pattern — values from `${{ }}` expressions are substituted *before* the shell parses the script, so a value containing shell metacharacters would be executed.
+- In this specific workflow the values come from `git rev-parse` / `git merge-base` / `date -u` and are safe in practice, but the validator is right that the pattern is dangerous and worth fixing on its own merits.
+- Moved each output into a step-level `env:` block, switched `run:` blocks to read `$VAR` instead of `${{ }}`. `if:` conditions on step outputs stay as-is (those are GitHub Actions expressions evaluated before any shell runs — safe and correct).
+- Validator now exits 0 against the workflow.
+
 ### Dropped xtask workflow-generator subsystem
 - The xtask `Workflows` subcommand generated 18 different `.github/workflows/*.yml` files from `gh-workflow`-based generators in `tooling/xtask/src/tasks/workflows/`. **Every** target workflow has now been deleted across PRs #13/#14/#15/#16, so the entire subsystem was producing nothing but zombies waiting to be resurrected by `cargo xtask workflows`.
 - Removed: the `Workflows` CLI subcommand, `tasks/workflows.rs` dispatcher, 26 generator files under `tasks/workflows/`, and the workspace `gh-workflow` git dependency (used only here).
