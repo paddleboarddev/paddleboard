@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-14
 
+### Rewrote README.md for PaddleBoard
+- The README was still Zed's — broken CI badge (pointing at the deleted `run_tests.yml`), Zed Industries sponsorship section, package-manager install links to a release pipeline we don't have, "we're hiring" link to Zed jobs.
+- New README leads with the PaddleBoard pitch (AI-driven dev environment forked from Zed), lists the seven feature differentiators (sandbox, forwarded ports, browser panel, sandboxed MCP, step-through, orchestration panel, LLM picker) sourced from WELCOME.md, points to FORK_HYGIENE.md for the fork model and CLAUDE.md for agent contributor rules.
+- Build section points at the still-valid upstream build docs (`docs/src/development/*.md`) with the `cargo run -p paddleboard` substitution. License section calls out the inherited tri-license.
+- Followups noted: `FORK_HYGIENE.md` says "~40 inherited workflows" but only `merge_upstream_zed.yml` remains after today's cleanup. `CONTRIBUTING.md` is still Zed-flavored (mentions the Zed CLA, etc.) — needs a separate pass.
+
 ### Pruned inherited Zed workflows
 - Removed 7 of the 8 remaining `.github/workflows/` files. Only `merge_upstream_zed.yml` (PaddleBoard's weekly upstream merge) stays.
 - Three were already hard-gated `if: github.repository_owner == 'zed-industries'` and would silently no-op forever in this fork: `pr_labeler.yml`, `randomized_tests.yml`, `stale-pr-reminder.yml`.
