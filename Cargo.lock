@@ -12781,10 +12781,12 @@ name = "paddleboard_sandbox_prereqs_ui"
 version = "0.1.0"
 dependencies = [
  "gpui",
+ "log",
  "menu",
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_state",
  "ui",
+ "which 6.0.3",
  "workspace",
 ]
 

@@ -958,6 +958,7 @@ fn run_sandbox_prereqs_check() {
         let InstallStep {
             description,
             command,
+            ..
         } = step;
         println!("{}. {description}", i + 1);
         if let Some(command) = command {
