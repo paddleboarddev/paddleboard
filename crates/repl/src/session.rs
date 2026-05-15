@@ -361,6 +361,17 @@ impl Session {
                 window,
                 cx,
             ),
+            // PaddleBoard: sandboxed Jupyter kernel running inside a Podman
+            // container (with gVisor `runsc` when registered).
+            KernelSpecification::Podman(spec) => crate::kernels::PodmanRunningKernel::new(
+                spec,
+                entity_id,
+                working_directory,
+                self.fs.clone(),
+                session_view,
+                window,
+                cx,
+            ),
         };
 
         let pending_kernel = cx

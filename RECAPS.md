@@ -4,6 +4,19 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-15
+
+### Sandboxed Jupyter kernels — PR-1 (Python only)
+- Net-new feature on top of Zed's existing `crates/repl/` (Jupyter notebook UI): a Jupyter kernel that runs inside a Podman container instead of on the host, with gVisor `runsc` when registered. Slots into the existing kernel-picker dropdown as a "Sandboxed Kernels" section. PR-1 ships Python only; PR-2 adds Node/Go/Deno.
+- Architecture: mirrored the `wsl_kernel.rs` pattern. New `crates/repl/src/kernels/podman_kernel.rs` (~400 lines) — `PodmanKernelLanguage` enum, `PodmanKernelSpecification` data struct, and `PodmanRunningKernel` implementing the existing `RunningKernel` trait. Lifecycle: snapshot prereqs on foreground thread, build image if missing, peek 5 free TCP ports on host, write `connection_info.json` with `ip: 0.0.0.0` (kernel binds wildcard inside container) and `signature_scheme: hmac-sha256`, `podman run --rm -p N:N -p N:N -p N:N -p N:N -p N:N -v <conn>:/tmp/connection.json:ro -v <wd>:/work -w /work <image>`, wait 2s for boot, create client ZMQ sockets at `127.0.0.1:N` (because Podman publishes ports 1:1), wire `start_kernel_tasks`. Drop impl `podman rm -f`s the container belt-and-braces.
+- Image: built on first use via `podman build --file - .` streaming an inline `Containerfile` over stdin. Container is `python:3.12-slim` + `pip install --no-cache-dir ipykernel==6.29.5`, with `CMD ["python", "-m", "ipykernel_launcher", "-f", "/tmp/connection.json"]`. Tag `localhost/paddleboard-repl-python:1`. Subsequent launches reuse the cached image — `podman image exists` short-circuits the build.
+- Sandbox-prereqs gating: read `SandboxPrereqs::status(cx)` on the foreground thread, then bail in the async task with a helpful message pointing to the status-bar item if Podman is Missing / InstalledNotRunning / never probed. gVisor preference: passes `--runtime=runsc` only if `status.gvisor` is `Available`; otherwise falls back to Podman's default runtime.
+- Upstream-shaped touch points (all tagged `// PaddleBoard:`): added `Podman(PodmanKernelSpecification)` variant to `KernelSpecification` enum in `crates/repl/src/kernels/mod.rs` and matching arms in seven helper methods (`name`, `type_name`, `path`, `language`, `has_ipykernel`, `environment_kind_label`, `icon`); added a sandboxed-kernels match arm + section in `crates/repl/src/components/kernel_options.rs`; added kernel-launch dispatch arm in `crates/repl/src/session.rs` and `crates/repl/src/notebook/notebook_ui.rs`; added discovery (always-listed) in `crates/repl/src/repl_store.rs::refresh_kernelspecs`. New deps on `paddleboard_sandbox_prereqs` + `_state` in `crates/repl/Cargo.toml`.
+- Verified: `cargo check -p repl` clean; full `cargo check -p paddleboard` clean (~17s). End-to-end (launch a notebook, pick Sandboxed Python, run a cell) NOT smoke-tested in this session — first launch triggers the `podman build` (~minutes pulling `python:3.12-slim`) and needs manual UI interaction. Risks for follow-up: macOS Podman machine bind-mount paths (runtime_dir + working_directory must be under a path the machine has mounted; typically home dir is fine), and ZMQ port forwarding through gVisor (untested but expected to work since published ports are userspace via rootlessport/slirp).
+- Follow-ups (PR-2+): Node (`tslab`), Go (`gophernotes`), Deno (`deno jupyter`), Ruby (`iruby`) — each is another match arm in `PodmanKernelLanguage` with a new `image_tag` + `containerfile`. Also: image registry push (so users don't pay the build cost), "Rebuild Image" command, settings surface for image overrides, and a Linux smoke test that `dirs::runtime_dir()` works under `$XDG_RUNTIME_DIR` (it should).
+
+---
+
 ## 2026-05-14
 
 ### Rebase modal-UX PR onto post-enforcement `main`

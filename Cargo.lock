@@ -15609,6 +15609,8 @@ dependencies = [
  "multi_buffer",
  "nbformat",
  "paddleboard_actions",
+ "paddleboard_sandbox_prereqs",
+ "paddleboard_sandbox_prereqs_state",
  "picker",
  "project",
  "remote",

@@ -404,6 +404,8 @@ impl NotebookEditor {
                 KernelSpecification::JupyterServer(s) => s.kernelspec.display_name.clone(),
                 KernelSpecification::SshRemote(s) => s.kernelspec.display_name.clone(),
                 KernelSpecification::WslRemote(s) => s.kernelspec.display_name.clone(),
+                // PaddleBoard: sandboxed kernel — no embedded JupyterKernelspec.
+                KernelSpecification::Podman(s) => s.display_name().to_string(),
             };
 
             let kernelspec_json = serde_json::json!({
@@ -448,6 +450,16 @@ impl NotebookEditor {
             KernelSpecification::WslRemote(spec) => {
                 WslRunningKernel::new(spec, entity_id, working_directory, fs, view, window, cx)
             }
+            // PaddleBoard: sandboxed kernel running inside a Podman container.
+            KernelSpecification::Podman(spec) => crate::kernels::PodmanRunningKernel::new(
+                spec,
+                entity_id,
+                working_directory,
+                fs,
+                view,
+                window,
+                cx,
+            ),
         };
 
         let pending_kernel = cx

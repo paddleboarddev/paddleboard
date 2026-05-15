@@ -271,6 +271,16 @@ impl ReplStore {
                 all_specs.extend(remote_specs);
             }
 
+            // PaddleBoard: append sandboxed kernel entries. Listed
+            // unconditionally — if Podman isn't installed/running, the
+            // launch path bails with a clear error pointing to the
+            // sandbox-prereqs install modal.
+            all_specs.extend(
+                crate::kernels::all_sandboxed_kernel_specifications()
+                    .into_iter()
+                    .map(KernelSpecification::Podman),
+            );
+
             anyhow::Ok(all_specs)
         });
 

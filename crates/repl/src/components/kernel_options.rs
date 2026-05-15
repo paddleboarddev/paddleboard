@@ -29,6 +29,8 @@ fn build_grouped_entries(store: &ReplStore, worktree_id: WorktreeId) -> Vec<Kern
     let mut jupyter_kernels = Vec::new();
     let mut wsl_kernels = Vec::new();
     let mut remote_kernels = Vec::new();
+    // PaddleBoard: sandboxed kernels render in their own section.
+    let mut sandboxed_kernels = Vec::new();
 
     for spec in store.kernel_specifications_for_worktree(worktree_id) {
         let is_recommended = store.is_recommended_kernel(worktree_id, spec);
@@ -68,6 +70,13 @@ fn build_grouped_entries(store: &ReplStore, worktree_id: WorktreeId) -> Vec<Kern
             }
             KernelSpecification::WslRemote(_) => {
                 wsl_kernels.push(KernelPickerEntry::Kernel {
+                    spec: spec.clone(),
+                    is_recommended,
+                });
+            }
+            // PaddleBoard: sandboxed Podman kernel.
+            KernelSpecification::Podman(_) => {
+                sandboxed_kernels.push(KernelPickerEntry::Kernel {
                     spec: spec.clone(),
                     is_recommended,
                 });
@@ -120,6 +129,12 @@ fn build_grouped_entries(store: &ReplStore, worktree_id: WorktreeId) -> Vec<Kern
     if !remote_kernels.is_empty() {
         entries.push(KernelPickerEntry::SectionHeader("Remote Servers".into()));
         entries.extend(remote_kernels);
+    }
+
+    // PaddleBoard: sandboxed kernel section.
+    if !sandboxed_kernels.is_empty() {
+        entries.push(KernelPickerEntry::SectionHeader("Sandboxed Kernels".into()));
+        entries.extend(sandboxed_kernels);
     }
 
     entries
@@ -337,6 +352,8 @@ impl PickerDelegate for KernelPickerDelegate {
                 let subtitle = match spec {
                     KernelSpecification::Jupyter(_) => None,
                     KernelSpecification::WslRemote(_) => Some(spec.path().to_string()),
+                    // PaddleBoard: surface the container image tag as the subtitle.
+                    KernelSpecification::Podman(_) => Some(spec.path().to_string()),
                     KernelSpecification::PythonEnv(_)
                     | KernelSpecification::JupyterServer(_)
                     | KernelSpecification::SshRemote(_) => {
