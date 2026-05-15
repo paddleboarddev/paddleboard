@@ -538,6 +538,23 @@ impl NotebookEditor {
     }
 
     fn execute_cell(&mut self, cell_id: CellId, cx: &mut Context<Self>) {
+        // PaddleBoard: bail before flipping the cell into "Running..." when
+        // there is no running kernel to reply. The previous flow registered
+        // the msg_id and called `start_execution()` unconditionally; if the
+        // kernel was Starting (slow podman build, mid-VM-restart) or had
+        // already errored, the request was silently dropped and the cell
+        // would wedge in "Running..." forever because nothing ever calls
+        // `finish_execution()`. The kernel-status pill at the top of the
+        // notebook surfaces the actual state (Starting / Error / Shutdown)
+        // for the user.
+        if !matches!(self.kernel, Kernel::RunningKernel(_)) {
+            log::warn!(
+                "execute_cell({cell_id:?}): kernel not ready ({}); ignoring run request",
+                self.kernel.status().to_string()
+            );
+            return;
+        }
+
         let code = if let Some(Cell::Code(cell)) = self.cell_map.get(&cell_id) {
             let editor = cell.read(cx).editor().clone();
             let buffer = editor.read(cx).buffer().read(cx);
@@ -1893,6 +1910,19 @@ impl KernelSession for NotebookEditor {
     }
 
     fn kernel_errored(&mut self, error_message: String, cx: &mut Context<Self>) {
+        // PaddleBoard: any in-flight execute_request will never see a reply
+        // now (no kernel to send it). Reset cells out of "Running..." so they
+        // don't wedge — `finish_execution()` flips `is_executing` back and
+        // records a duration so the UI stops spinning. The user sees the
+        // failure reason on the kernel-status pill.
+        for (_msg_id, cell_id) in self.execution_requests.drain() {
+            if let Some(Cell::Code(cell)) = self.cell_map.get(&cell_id) {
+                cell.update(cx, |cell, cx| {
+                    cell.finish_execution();
+                    cx.notify();
+                });
+            }
+        }
         self.kernel = Kernel::ErroredLaunch(error_message);
         cx.notify();
     }
