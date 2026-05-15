@@ -17,6 +17,8 @@ When the AI needs to run untrusted code, compile new binaries, or run tests, it 
 - It uses the `runsc` (gVisor) runtime for deep isolation.
 - Your project directory is safely mounted so builds succeed without host contamination.
 - Permission prompts still gate every command — approve, deny, or set always-allow rules.
+- Watch the **shield icon** in the status bar: green = ready, yellow = degraded, red = missing. Click it for live status + copy-paste install commands.
+- Missing prereqs are enforced, not silently swallowed. `paddleboard_sandbox.on_missing_runtime` chooses what happens: `block` (default, surface install modal), `fall_back_to_host` (run unsandboxed), or `warn_once`.
 
 ### 3. Forwarded Ports — Sandbox Services
 Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Service Tool**. Each running service appears in a **Forwarded Ports** row above the browser viewport.

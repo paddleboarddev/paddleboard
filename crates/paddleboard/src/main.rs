@@ -473,6 +473,7 @@ fn main() {
 
         release_channel::init(app_version, cx);
         gpui_tokio::init(cx);
+        paddleboard_sandbox_settings::init(cx);
         paddleboard_sandbox_prereqs_ui::init(cx);
         if let Some(app_commit_sha) = app_commit_sha {
             AppCommitSha::set_global(app_commit_sha, cx);

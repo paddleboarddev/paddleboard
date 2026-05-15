@@ -181,6 +181,8 @@ dependencies = [
  "lsp",
  "open",
  "paddleboard_env_vars",
+ "paddleboard_sandbox_prereqs_state",
+ "paddleboard_sandbox_settings",
  "parking_lot",
  "paths",
  "pretty_assertions",
@@ -12651,6 +12653,7 @@ dependencies = [
  "paddleboard_env_vars",
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_ui",
+ "paddleboard_sandbox_settings",
  "parking_lot",
  "paths",
  "picker",
@@ -12765,15 +12768,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "paddleboard_sandbox_prereqs_ui"
+name = "paddleboard_sandbox_prereqs_state"
 version = "0.1.0"
 dependencies = [
  "gpui",
  "gpui_tokio",
+ "paddleboard_sandbox_prereqs",
+]
+
+[[package]]
+name = "paddleboard_sandbox_prereqs_ui"
+version = "0.1.0"
+dependencies = [
+ "gpui",
  "menu",
  "paddleboard_sandbox_prereqs",
+ "paddleboard_sandbox_prereqs_state",
  "ui",
  "workspace",
+]
+
+[[package]]
+name = "paddleboard_sandbox_settings"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "paddleboard_sandbox_prereqs",
+ "serde",
+ "settings",
 ]
 
 [[package]]
@@ -14277,6 +14299,8 @@ dependencies = [
  "markdown",
  "node_runtime",
  "paddleboard_credentials_provider",
+ "paddleboard_sandbox_prereqs_state",
+ "paddleboard_sandbox_settings",
  "parking_lot",
  "paths",
  "percent-encoding",

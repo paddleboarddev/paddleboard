@@ -1,5 +1,5 @@
 [package]
-name = "paddleboard_sandbox_prereqs_ui"
+name = "paddleboard_sandbox_settings"
 version = "0.1.0"
 edition.workspace = true
 publish.workspace = true
@@ -9,12 +9,10 @@ license = "GPL-3.0-or-later"
 workspace = true
 
 [lib]
-path = "src/paddleboard_sandbox_prereqs_ui.rs"
+path = "src/paddleboard_sandbox_settings.rs"
 
 [dependencies]
 gpui.workspace = true
-menu.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
-paddleboard_sandbox_prereqs_state.workspace = true
-ui.workspace = true
-workspace.workspace = true
+serde.workspace = true
+settings.workspace = true

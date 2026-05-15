@@ -15,6 +15,11 @@ use futures::future::Either;
 use futures::{FutureExt as _, StreamExt as _, future::join_all};
 use gpui::{App, AsyncApp, Context, Entity, EventEmitter, Subscription, Task, WeakEntity, actions};
 use http_client::HttpClient;
+// PaddleBoard: gate sandboxed MCP transports on the host's prereq status so a
+// missing podman doesn't produce a confusing "command not found" from the
+// transport layer.
+use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
+use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_gate};
 use itertools::Itertools;
 use rand::Rng as _;
 use registry::ContextServerDescriptorRegistry;
@@ -895,14 +900,58 @@ impl ContextServerStore {
                     // session it's a remote path that can't be bind-mounted locally,
                     // so we drop it.
                     let working_directory = if is_remote_project { None } else { root_path };
-                    anyhow::Ok(Arc::new(ContextServer::sandboxed_stdio(
-                        id,
-                        command,
-                        image.clone(),
-                        forward_env.clone(),
-                        *mount_worktree,
-                        working_directory,
-                    )))
+
+                    let gate = decide_gate(
+                        SandboxPrereqs::status(cx),
+                        SandboxSettings::get_global(cx),
+                    );
+                    match gate {
+                        SandboxGateDecision::Block { reason } => anyhow::bail!(
+                            "Cannot start sandboxed MCP server: {reason}. \
+                             Open Sandbox Prerequisites from the status bar to install \
+                             Podman / gVisor, or set `paddleboard_sandbox.on_missing_runtime` \
+                             to \"fall_back_to_host\" to spawn this server unsandboxed."
+                        ),
+                        SandboxGateDecision::FallBackToHost { reason } => {
+                            log::warn!(
+                                "PaddleBoard sandbox: {reason}. Spawning MCP server `{}` \
+                                 unsandboxed (plain stdio) per \
+                                 `paddleboard_sandbox.on_missing_runtime`.",
+                                id.0
+                            );
+                            anyhow::Ok(Arc::new(ContextServer::stdio(
+                                id,
+                                command,
+                                working_directory,
+                            )))
+                        }
+                        SandboxGateDecision::WarnOnce { reason } => {
+                            if paddleboard_sandbox_settings::claim_warn_once_slot() {
+                                log::warn!(
+                                    "PaddleBoard sandbox: {reason}. Starting sandboxed MCP \
+                                     server anyway; open Sandbox Prerequisites to install."
+                                );
+                            }
+                            anyhow::Ok(Arc::new(ContextServer::sandboxed_stdio(
+                                id,
+                                command,
+                                image.clone(),
+                                forward_env.clone(),
+                                *mount_worktree,
+                                working_directory,
+                            )))
+                        }
+                        SandboxGateDecision::Allow => {
+                            anyhow::Ok(Arc::new(ContextServer::sandboxed_stdio(
+                                id,
+                                command,
+                                image.clone(),
+                                forward_env.clone(),
+                                *mount_worktree,
+                                working_directory,
+                            )))
+                        }
+                    }
                 }
                 _ => {
                     let mut command = configuration
