@@ -33,6 +33,14 @@ When the agent needs to run untrusted code, compile binaries, or execute tests, 
 
 This means an agent mistake cannot touch anything outside the container. Once the command finishes, the container is discarded.
 
+**Prerequisites are enforced.** PaddleBoard probes for Podman and gVisor on startup; the result lives in the status-bar shield icon (green = ready, yellow = degraded, red = missing). When prereqs are missing the agent can't silently fall through to a `podman: command not found` shell error — the policy in `paddleboard_sandbox.on_missing_runtime` decides:
+
+- `"block"` (default) — refuse to launch and surface the install modal. The agent gets a clear "sandbox prerequisites missing" error.
+- `"fall_back_to_host"` — run the command on the host without a container. Escape hatch for Windows or environments where the sandbox stack is genuinely unavailable.
+- `"warn_once"` — emit a one-shot toast with install guidance, then proceed sandboxed.
+
+Click the shield icon any time to see the live status and copy-paste install commands for your OS.
+
 ---
 
 ### Forwarded ports — sandbox services in the browser

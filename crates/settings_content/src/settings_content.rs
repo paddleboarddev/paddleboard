@@ -5,6 +5,8 @@ mod fallible_options;
 mod language;
 mod language_model;
 pub mod merge_from;
+// PaddleBoard: schema for the sandbox enforcement layer.
+mod paddleboard_sandbox;
 mod project;
 mod serde_helper;
 mod terminal;
@@ -19,6 +21,8 @@ pub use fallible_options::*;
 pub use language::*;
 pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
+// PaddleBoard: re-export sandbox content types alongside the rest.
+pub use paddleboard_sandbox::*;
 pub use project::*;
 use serde::de::DeserializeOwned;
 pub use serde_helper::{
@@ -212,6 +216,10 @@ pub struct SettingsContent {
     ///
     /// Default: 5
     pub modeline_lines: Option<usize>,
+
+    // PaddleBoard: configuration for the sandbox enforcement layer (policy
+    // when Podman/gVisor prereqs are missing at tool-launch time).
+    pub paddleboard_sandbox: Option<PaddleboardSandboxContent>,
 }
 
 impl SettingsContent {

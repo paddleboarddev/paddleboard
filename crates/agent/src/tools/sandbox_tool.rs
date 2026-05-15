@@ -3,6 +3,8 @@ use agent_settings::AgentSettings;
 use anyhow::Result;
 use futures::FutureExt as _;
 use gpui::{App, Entity, SharedString, Task};
+use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
+use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_gate};
 use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -88,7 +90,7 @@ impl AgentTool for SandboxTool {
                 .await
                 .map_err(|e| format!("Failed to receive tool input: {e}"))?;
 
-            let (working_dir, authorize) = cx.update(|cx| {
+            let (working_dir, authorize, gate) = cx.update(|cx| {
                 let working_dir =
                     working_dir(&input, &self.project, cx).map_err(|err| err.to_string())?;
 
@@ -115,11 +117,45 @@ impl AgentTool for SandboxTool {
                         ))
                     }
                 };
-                Ok((working_dir, authorize))
+
+                let gate = decide_gate(
+                    SandboxPrereqs::status(cx),
+                    SandboxSettings::get_global(cx),
+                );
+
+                Ok((working_dir, authorize, gate))
             })?;
             if let Some(authorize) = authorize {
                 authorize.await.map_err(|e| e.to_string())?;
             }
+
+            let run_on_host = match &gate {
+                SandboxGateDecision::Block { reason } => {
+                    return Err(format!(
+                        "Sandbox prerequisites missing: {reason}. \
+                         Open Sandbox Prerequisites from the status bar to install Podman / gVisor, \
+                         or set `paddleboard_sandbox.on_missing_runtime` to \"fall_back_to_host\" \
+                         to run on the host without a container."
+                    ));
+                }
+                SandboxGateDecision::WarnOnce { reason } => {
+                    if paddleboard_sandbox_settings::claim_warn_once_slot() {
+                        log::warn!(
+                            "PaddleBoard sandbox: {reason}. Running sandboxed anyway; \
+                             open Sandbox Prerequisites to install."
+                        );
+                    }
+                    false
+                }
+                SandboxGateDecision::FallBackToHost { reason } => {
+                    log::warn!(
+                        "PaddleBoard sandbox: {reason}. Falling back to host execution \
+                         per `paddleboard_sandbox.on_missing_runtime`."
+                    );
+                    true
+                }
+                SandboxGateDecision::Allow => false,
+            };
 
             let image = input
                 .image
@@ -136,14 +172,22 @@ impl AgentTool for SandboxTool {
             let container_wd = shell_single_quote(CONTAINER_WORKDIR);
             let image_arg = shell_single_quote(&image);
             let user_command = shell_single_quote(&input.command);
-            let podman_command = format!(
-                "podman run --rm --runtime=runsc -v {host_wd}:{container_wd} -w {container_wd} {image_arg} bash -c {user_command}",
-            );
+            let command = if run_on_host {
+                // No podman wrapper: the command runs in the host shell. The
+                // worktree is the working directory we pass to `create_terminal`,
+                // so the user's command sees the same `cd` it would have inside
+                // the container — just without isolation.
+                format!("bash -c {user_command}")
+            } else {
+                format!(
+                    "podman run --rm --runtime=runsc -v {host_wd}:{container_wd} -w {container_wd} {image_arg} bash -c {user_command}",
+                )
+            };
 
             let terminal = self
                 .environment
                 .create_terminal(
-                    podman_command.clone(),
+                    command.clone(),
                     Some(working_dir),
                     Some(COMMAND_OUTPUT_LIMIT),
                     cx,

@@ -3,6 +3,8 @@ use agent_settings::AgentSettings;
 use anyhow::Result;
 use browser::{ForwardedPort, ForwardedPorts};
 use gpui::{App, AppContext as _, Entity, SharedString, Task};
+use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
+use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_gate};
 use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -101,7 +103,7 @@ impl AgentTool for SandboxServiceTool {
                 .await
                 .map_err(|e| format!("Failed to receive tool input: {e}"))?;
 
-            let (working_dir, authorize) = cx.update(|cx| {
+            let (working_dir, authorize, gate) = cx.update(|cx| {
                 let working_dir = resolve_worktree_dir(&input.cd, &self.project, cx)
                     .map_err(|err| err.to_string())?;
 
@@ -126,12 +128,46 @@ impl AgentTool for SandboxServiceTool {
                         ))
                     }
                 };
-                Ok::<_, String>((working_dir, authorize))
+
+                let gate = decide_gate(
+                    SandboxPrereqs::status(cx),
+                    SandboxSettings::get_global(cx),
+                );
+
+                Ok::<_, String>((working_dir, authorize, gate))
             })?;
 
             if let Some(authorize) = authorize {
                 authorize.await.map_err(|e| e.to_string())?;
             }
+
+            let run_on_host = match &gate {
+                SandboxGateDecision::Block { reason } => {
+                    return Err(format!(
+                        "Sandbox prerequisites missing: {reason}. \
+                         Open Sandbox Prerequisites from the status bar to install Podman / gVisor, \
+                         or set `paddleboard_sandbox.on_missing_runtime` to \"fall_back_to_host\" \
+                         to run on the host without a container."
+                    ));
+                }
+                SandboxGateDecision::WarnOnce { reason } => {
+                    if paddleboard_sandbox_settings::claim_warn_once_slot() {
+                        log::warn!(
+                            "PaddleBoard sandbox: {reason}. Starting service sandboxed; \
+                             open Sandbox Prerequisites to install."
+                        );
+                    }
+                    false
+                }
+                SandboxGateDecision::FallBackToHost { reason } => {
+                    log::warn!(
+                        "PaddleBoard sandbox: {reason}. Starting service on the host \
+                         (no container) per `paddleboard_sandbox.on_missing_runtime`."
+                    );
+                    true
+                }
+                SandboxGateDecision::Allow => false,
+            };
 
             let image = input
                 .image
@@ -156,6 +192,49 @@ impl AgentTool for SandboxServiceTool {
             let host_wd = working_dir.to_string_lossy().to_string();
 
             let env_args = resolve_forward_env(input.forward_env.as_deref());
+
+            // Host fallback bypasses podman entirely: we spawn the service in
+            // the user's host shell. Port mapping is lost — the service binds
+            // directly to its declared port on localhost, so `host_port ==
+            // container_port`. We still register a Forwarded Ports entry so
+            // the user gets a clickable link.
+            if run_on_host {
+                let host_command_id = format!("host-{}", std::process::id());
+                let host_wd_for_spawn = working_dir.clone();
+                let user_command = input.command.clone();
+                let env_args_host = env_args.clone();
+                cx.background_spawn(async move {
+                    let mut cmd = new_command("bash");
+                    cmd.current_dir(&host_wd_for_spawn);
+                    for env_arg in &env_args_host {
+                        if let Some((name, value)) = env_arg.split_once('=') {
+                            cmd.env(name, value);
+                        }
+                    }
+                    cmd.args(["-c", &user_command]);
+                    if let Err(error) = cmd.spawn() {
+                        log::warn!(
+                            "sandbox_service_tool: host fallback spawn failed: {error}"
+                        );
+                    }
+                })
+                .detach();
+
+                let port = ForwardedPort {
+                    label: SharedString::from(label.clone()),
+                    host_port: container_port,
+                    container_id: Arc::from(host_command_id.as_str()),
+                };
+                cx.update(|cx| ForwardedPorts::register(cx, port));
+
+                let quoted = shell_single_quote(&input.command);
+                return Ok(format!(
+                    "Started service `{quoted}` on the host (sandbox prerequisites missing; \
+                     running without a container per `paddleboard_sandbox.on_missing_runtime`).\n\
+                     Listening on port {container_port}.\n\
+                     Available at http://localhost:{container_port} (registered in the browser panel as `{label}`)."
+                ));
+            }
 
             let container_id = cx
                 .background_spawn({
