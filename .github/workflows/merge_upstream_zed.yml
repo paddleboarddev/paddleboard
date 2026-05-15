@@ -57,11 +57,15 @@ jobs:
 
       - name: Create merge branch
         if: steps.meta.outputs.commits_ahead != '0'
-        run: git checkout -b "${{ steps.meta.outputs.branch }}"
+        env:
+          BRANCH: ${{ steps.meta.outputs.branch }}
+        run: git checkout -b "$BRANCH"
 
       - name: Attempt merge
         if: steps.meta.outputs.commits_ahead != '0'
         id: merge
+        env:
+          BRANCH: ${{ steps.meta.outputs.branch }}
         run: |
           set +e
           git merge --no-ff --no-edit zed/main
@@ -71,7 +75,7 @@ jobs:
             echo "conflicts=true" >> "${GITHUB_OUTPUT}"
             # Record the conflict markers as a commit so the PR diff makes them visible.
             git add -A
-            git -c commit.gpgsign=false commit -m "Merge upstream zed/main into ${{ steps.meta.outputs.branch }} (CONFLICTS)"
+            git -c commit.gpgsign=false commit -m "Merge upstream zed/main into ${BRANCH} (CONFLICTS)"
             # List files with leftover conflict markers for the PR body.
             git grep -l '^<<<<<<< ' -- ':!.git' > conflict_files.txt || true
           else
@@ -82,16 +86,22 @@ jobs:
       - name: Build PR body
         if: steps.meta.outputs.commits_ahead != '0'
         id: body
+        env:
+          UPSTREAM_SHA: ${{ steps.meta.outputs.upstream_sha }}
+          MERGE_BASE: ${{ steps.meta.outputs.merge_base }}
+          COMMITS_AHEAD: ${{ steps.meta.outputs.commits_ahead }}
+          BASE_SHA: ${{ steps.meta.outputs.base_sha }}
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
         run: |
           {
             echo "## Weekly upstream merge"
             echo ""
-            echo "- Upstream: \`zed-industries/zed@${{ steps.meta.outputs.upstream_sha }}\`"
-            echo "- Merge base: \`${{ steps.meta.outputs.merge_base }}\`"
-            echo "- Commits ahead upstream: ${{ steps.meta.outputs.commits_ahead }}"
-            echo "- Compare: https://github.com/zed-industries/zed/compare/${{ steps.meta.outputs.merge_base }}...${{ steps.meta.outputs.upstream_sha }}"
+            echo "- Upstream: \`zed-industries/zed@${UPSTREAM_SHA}\`"
+            echo "- Merge base: \`${MERGE_BASE}\`"
+            echo "- Commits ahead upstream: ${COMMITS_AHEAD}"
+            echo "- Compare: https://github.com/zed-industries/zed/compare/${MERGE_BASE}...${UPSTREAM_SHA}"
             echo ""
-            if [ "${{ steps.merge.outputs.conflicts }}" = "true" ]; then
+            if [ "${CONFLICTS}" = "true" ]; then
               echo "### ⚠️ Conflicts"
               echo ""
               echo "The merge produced conflicts. Conflict markers are committed to the branch — resolve locally before marking ready."
@@ -113,7 +123,7 @@ jobs:
             echo "Files containing \`// PaddleBoard\` divergence markers that received upstream changes (manual review recommended):"
             echo ""
             echo '```'
-            git diff --name-only ${{ steps.meta.outputs.base_sha }} HEAD -- 'crates/**/*.rs' | while read -r f; do
+            git diff --name-only "${BASE_SHA}" HEAD -- 'crates/**/*.rs' | while read -r f; do
               if [ -f "$f" ] && grep -q "PaddleBoard" "$f"; then
                 echo "$f"
               fi
@@ -130,20 +140,25 @@ jobs:
 
       - name: Push branch
         if: steps.meta.outputs.commits_ahead != '0'
-        run: git push --set-upstream origin "${{ steps.meta.outputs.branch }}"
+        env:
+          BRANCH: ${{ steps.meta.outputs.branch }}
+        run: git push --set-upstream origin "$BRANCH"
 
       - name: Open PR
         if: steps.meta.outputs.commits_ahead != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.meta.outputs.branch }}
+          DATE_TAG: ${{ steps.meta.outputs.date_tag }}
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
         run: |
           draft_flag=""
-          if [ "${{ steps.merge.outputs.conflicts }}" = "true" ]; then
+          if [ "${CONFLICTS}" = "true" ]; then
             draft_flag="--draft"
           fi
           gh pr create \
             --base main \
-            --head "${{ steps.meta.outputs.branch }}" \
-            --title "Merge upstream zed/main (${{ steps.meta.outputs.date_tag }})" \
+            --head "$BRANCH" \
+            --title "Merge upstream zed/main (${DATE_TAG})" \
             --body-file pr_body.md \
             $draft_flag
