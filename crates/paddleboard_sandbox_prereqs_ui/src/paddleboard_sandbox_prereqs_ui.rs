@@ -1,30 +1,22 @@
 //! UI surface for PaddleBoard's sandbox prerequisites (Podman + gVisor `runsc`).
 //!
-//! Three pieces hang together here:
-//! * `SandboxPrereqs` — `gpui::Global` holding the latest `SandboxStatus`.
-//!   Updated asynchronously via a Tokio-bridged probe; views observe it and
-//!   re-render on change.
+//! Two pieces live here:
 //! * `SandboxStatusItem` — a status-bar entry showing a shield icon colored
 //!   by severity. Click dispatches `OpenSandboxPrereqs`.
 //! * `SandboxPrereqsModal` — the full status + install-steps view with a
 //!   per-step copy-to-clipboard button and a Refresh control.
+//!
+//! The cached probe status lives in `paddleboard_sandbox_prereqs_state` so
+//! non-UI consumers can read it without taking a `workspace` dependency.
 
 use gpui::{
     Action, App, ClickEvent, ClipboardItem, DismissEvent, EventEmitter, FocusHandle, Focusable,
-    MouseDownEvent, Render, SharedString, actions,
+    MouseDownEvent, Render, SharedString,
 };
-use gpui_tokio::Tokio;
 use paddleboard_sandbox_prereqs::{GvisorStatus, Os, PodmanStatus, SandboxStatus};
+use paddleboard_sandbox_prereqs_state::{OpenSandboxPrereqs, SandboxPrereqs};
 use ui::{Tooltip, prelude::*};
 use workspace::{ModalView, StatusItemView, Workspace};
-
-actions!(
-    paddleboard,
-    [
-        /// Opens the sandbox prerequisites status modal.
-        OpenSandboxPrereqs
-    ]
-);
 
 /// Initialize the UI surface. Registers the `SandboxPrereqs` global, kicks
 /// off the first probe in the background, and wires the `OpenSandboxPrereqs`
@@ -38,50 +30,6 @@ pub fn init(cx: &mut App) {
         });
     })
     .detach();
-}
-
-#[derive(Default)]
-pub struct SandboxPrereqs {
-    status: Option<SandboxStatus>,
-    refreshing: bool,
-}
-
-impl gpui::Global for SandboxPrereqs {}
-
-impl SandboxPrereqs {
-    fn init(cx: &mut App) {
-        cx.set_global(SandboxPrereqs::default());
-        Self::refresh(cx);
-    }
-
-    pub fn status(cx: &App) -> Option<&SandboxStatus> {
-        cx.global::<SandboxPrereqs>().status.as_ref()
-    }
-
-    pub fn is_refreshing(cx: &App) -> bool {
-        cx.global::<SandboxPrereqs>().refreshing
-    }
-
-    pub fn refresh(cx: &mut App) {
-        cx.update_global::<SandboxPrereqs, _>(|prereqs, _| {
-            prereqs.refreshing = true;
-        });
-
-        let task = Tokio::spawn(cx, async { paddleboard_sandbox_prereqs::check().await });
-
-        cx.spawn(async move |cx| {
-            let status = task.await.ok();
-            cx.update(|cx| {
-                cx.update_global::<SandboxPrereqs, _>(|prereqs, _| {
-                    if let Some(status) = status {
-                        prereqs.status = Some(status);
-                    }
-                    prereqs.refreshing = false;
-                });
-            });
-        })
-        .detach();
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

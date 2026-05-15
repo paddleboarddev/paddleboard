@@ -2578,4 +2578,25 @@
   //
   // Example: {"log": {"client": "warn"}}
   "log": {},
+
+  // PaddleBoard: configuration for the sandbox enforcement layer.
+  // Controls what happens when a sandboxed tool (one-shot exec, long-lived
+  // service, or sandboxed MCP transport) tries to launch but the host
+  // prerequisites (Podman, gVisor `runsc`) are not satisfied.
+  "paddleboard_sandbox": {
+    // Policy applied when prereqs are missing at tool-launch time.
+    //
+    // - "block" (default): refuse to launch and surface the install modal;
+    //   the agent receives a clear error so it doesn't think the tool hung.
+    // - "fall_back_to_host": run the command directly on the host without
+    //   sandboxing. Escape hatch for environments where the sandbox stack is
+    //   unavailable (Windows) or the user has accepted the risk.
+    // - "warn_once": proceed sandboxed but emit a one-shot notification with
+    //   install guidance.
+    "on_missing_runtime": "block",
+    // Whether PaddleBoard probes the host for sandbox prerequisites at all.
+    // When false, the gate always allows tools to proceed regardless of
+    // cached state.
+    "prereq_check_enabled": true
+  },
 }
