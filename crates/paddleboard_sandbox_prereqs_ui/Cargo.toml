@@ -13,8 +13,12 @@ path = "src/paddleboard_sandbox_prereqs_ui.rs"
 
 [dependencies]
 gpui.workspace = true
+log.workspace = true
 menu.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
 ui.workspace = true
 workspace.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+which.workspace = true
