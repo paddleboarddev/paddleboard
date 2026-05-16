@@ -1,11 +1,7 @@
-; MARK: Structure
+; PaddleBoard: dropped the upstream test-prefix capture block — it produced
+; a capture name that PaddleBoard's textobjects loader rejects as unknown
+; (it only recognizes function/class/comment text objects), and the
+; same matching logic already lives in runnables.scm where it belongs.
+
 (function_declaration
   body: (_) @function.inside) @function.around
-
-; TODO: Classes/structs/enums
-; MARK: Tests
-; Only matches prefix test. Other conventions
-; might be nice to add!
-(function_declaration
-  name: (simple_identifier) @_name
-  (#match? @_name "^test"))
