@@ -18,6 +18,12 @@ pub use ssh_kernel::*;
 mod wsl_kernel;
 pub use wsl_kernel::*;
 
+// PaddleBoard: sandboxed Jupyter kernels — run the kernel process inside a
+// Podman container (with gVisor `runsc` when available) so user code is
+// isolated from the host. See `podman_kernel.rs` for the full lifecycle.
+mod podman_kernel;
+pub use podman_kernel::*;
+
 use std::collections::HashMap;
 
 use anyhow::Result;
@@ -193,6 +199,9 @@ pub enum KernelSpecification {
     PythonEnv(PythonEnvKernelSpecification),
     SshRemote(SshRemoteKernelSpecification),
     WslRemote(WslKernelSpecification),
+    // PaddleBoard: sandboxed Jupyter kernel running inside a Podman
+    // container. The data is small; logic lives in `podman_kernel.rs`.
+    Podman(PodmanKernelSpecification),
 }
 
 #[derive(Debug, Clone)]
@@ -247,6 +256,8 @@ impl KernelSpecification {
             Self::JupyterServer(spec) => spec.name.clone().into(),
             Self::SshRemote(spec) => spec.name.clone().into(),
             Self::WslRemote(spec) => spec.kernelspec.display_name.clone().into(),
+            // PaddleBoard: sandboxed kernel.
+            Self::Podman(spec) => spec.display_name().into(),
         }
     }
 
@@ -261,6 +272,8 @@ impl KernelSpecification {
             Self::JupyterServer(_) => "Jupyter Server".into(),
             Self::SshRemote(_) => "SSH Remote".into(),
             Self::WslRemote(_) => "WSL Remote".into(),
+            // PaddleBoard: sandboxed kernel.
+            Self::Podman(_) => "Sandbox".into(),
         }
     }
 
@@ -271,6 +284,9 @@ impl KernelSpecification {
             Self::JupyterServer(spec) => spec.url.to_string(),
             Self::SshRemote(spec) => spec.path.to_string(),
             Self::WslRemote(spec) => spec.distro.clone(),
+            // PaddleBoard: surface the image tag as a "path" so the picker
+            // has something to show.
+            Self::Podman(spec) => spec.language.image_tag().to_string(),
         })
     }
 
@@ -281,6 +297,8 @@ impl KernelSpecification {
             Self::JupyterServer(spec) => spec.kernelspec.language.clone(),
             Self::SshRemote(spec) => spec.kernelspec.language.clone(),
             Self::WslRemote(spec) => spec.kernelspec.language.clone(),
+            // PaddleBoard: sandboxed kernel.
+            Self::Podman(spec) => spec.language_id().to_string(),
         })
     }
 
@@ -290,6 +308,9 @@ impl KernelSpecification {
                 true
             }
             Self::PythonEnv(spec) => spec.has_ipykernel,
+            // PaddleBoard: the container image bakes in `ipykernel` so the
+            // ipykernel-present check is always true.
+            Self::Podman(_) => true,
         }
     }
 
@@ -303,6 +324,8 @@ impl KernelSpecification {
             Self::JupyterServer(_) => Some("Jupyter Server".into()),
             Self::SshRemote(_) => Some("SSH Remote".into()),
             Self::WslRemote(_) => Some("WSL Remote".into()),
+            // PaddleBoard: sandboxed kernel.
+            Self::Podman(_) => Some("Sandbox (Podman)".into()),
         }
     }
 
@@ -313,6 +336,8 @@ impl KernelSpecification {
             Self::JupyterServer(spec) => spec.kernelspec.language.clone(),
             Self::SshRemote(spec) => spec.kernelspec.language.clone(),
             Self::WslRemote(spec) => spec.kernelspec.language.clone(),
+            // PaddleBoard: sandboxed kernel.
+            Self::Podman(spec) => spec.language_id().to_string(),
         };
 
         file_icons::FileIcons::get(cx)

@@ -41,6 +41,10 @@ markdown.workspace = true
 menu.workspace = true
 multi_buffer.workspace = true
 nbformat.workspace = true
+# PaddleBoard: sandboxed Jupyter kernels (podman_kernel.rs) read the cached
+# probe + status from these crates.
+paddleboard_sandbox_prereqs.workspace = true
+paddleboard_sandbox_prereqs_state.workspace = true
 project.workspace = true
 remote.workspace = true
 runtimelib.workspace = true
