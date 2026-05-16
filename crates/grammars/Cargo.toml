@@ -29,6 +29,7 @@ tree-sitter-go-mod = { workspace = true, optional = true }
 tree-sitter-gowork = { workspace = true, optional = true }
 tree-sitter-jsdoc = { workspace = true, optional = true }
 tree-sitter-json = { workspace = true, optional = true }
+tree-sitter-kotlin-codanna = { workspace = true, optional = true }
 tree-sitter-md = { workspace = true, optional = true }
 tree-sitter-python = { workspace = true, optional = true }
 tree-sitter-regex = { workspace = true, optional = true }
@@ -51,6 +52,7 @@ load-grammars = [
     "tree-sitter-gowork",
     "tree-sitter-jsdoc",
     "tree-sitter-json",
+    "tree-sitter-kotlin-codanna",
     "tree-sitter-md",
     "tree-sitter-python",
     "tree-sitter-regex",
