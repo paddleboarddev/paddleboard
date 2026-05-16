@@ -27,7 +27,7 @@ use jupyter_protocol::{
     ExecutionState, JupyterMessage, KernelInfoReply,
     connection_info::{ConnectionInfo, Transport},
 };
-use paddleboard_sandbox_prereqs::{GvisorStatus, PodmanStatus};
+use paddleboard_sandbox_prereqs::PodmanStatus;
 use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
 use project::Fs;
 use runtimelib::dirs;
@@ -150,13 +150,20 @@ async fn ensure_image_built(language: PodmanKernelLanguage) -> Result<()> {
         return Ok(());
     }
 
+    // `podman build -` reads the Containerfile from stdin with no build
+    // context. Critical on macOS: passing `.` as the context tarballs the
+    // entire cwd (i.e. the whole PaddleBoard repo, including
+    // `target/debug/build/...`) and ships it to the Podman machine VM.
+    // The cargo build tree contains symlinks pointing out to
+    // `~/.cargo/git/checkouts/...` which are outside the context, so
+    // podman refuses the upload with "invalid symlink". Our Containerfile
+    // pulls `python:3.12-slim` and `pip install`s ipykernel — needs no
+    // files from the host repo.
     let mut child = util::command::new_command("podman")
         .arg("build")
         .arg("--tag")
         .arg(tag)
-        .arg("--file")
         .arg("-")
-        .arg(".")
         .stdin(util::command::Stdio::piped())
         .stdout(util::command::Stdio::piped())
         .stderr(util::command::Stdio::piped())
@@ -211,13 +218,17 @@ impl PodmanRunningKernel {
         cx: &mut App,
     ) -> Task<Result<Box<dyn RunningKernel>>> {
         // Snapshot the prereq state on the foreground thread so the async
-        // task can decide whether to use gVisor and whether to bail with a
-        // helpful error pointing to the sandbox-prereqs install modal.
+        // task can bail with a helpful error pointing to the sandbox-prereqs
+        // install modal if Podman isn't reachable.
+        //
+        // gVisor preference is intentionally NOT passed via `--runtime=runsc`
+        // here: Podman 5.x's remote client (which `podman` is on macOS) does
+        // not expose a `--runtime` flag at all. To use gVisor the user has
+        // to set it as the default runtime in the Podman machine's
+        // `containers.conf` — at which point every container, including
+        // ours, uses it transparently. See follow-up: surface a "Use gVisor
+        // by default" toggle in the Sandbox Prerequisites modal.
         let prereq_status = SandboxPrereqs::status(cx).cloned();
-        let use_gvisor_runtime = matches!(
-            prereq_status.as_ref().map(|status| &status.gvisor),
-            Some(GvisorStatus::Available)
-        );
 
         window.spawn(cx, async move |cx| {
             match prereq_status.as_ref().map(|status| &status.podman) {
@@ -280,9 +291,6 @@ impl PodmanRunningKernel {
 
             let mut cmd = util::command::new_command("podman");
             cmd.arg("run").arg("--rm");
-            if use_gvisor_runtime {
-                cmd.arg("--runtime").arg("runsc");
-            }
             cmd.arg("--name").arg(&container_name);
 
             for &port in &ports {

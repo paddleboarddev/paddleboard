@@ -255,11 +255,28 @@ impl ReplStore {
         let remote_kernel_specifications = self.get_remote_kernel_specifications(cx);
 
         let all_specs = cx.background_spawn(async move {
-            let mut all_specs = local_kernel_specifications
-                .await?
-                .into_iter()
-                .map(KernelSpecification::Jupyter)
-                .collect::<Vec<_>>();
+            let mut all_specs = Vec::<KernelSpecification>::new();
+
+            // PaddleBoard: sandboxed kernel entries are static — no I/O, no
+            // way to fail. List them first so they appear even when local
+            // Jupyter / WSL / remote discovery fails (e.g. no system Python
+            // installed, no `jupyter kernelspec list`).
+            all_specs.extend(
+                crate::kernels::all_sandboxed_kernel_specifications()
+                    .into_iter()
+                    .map(KernelSpecification::Podman),
+            );
+
+            match local_kernel_specifications.await {
+                Ok(specs) => {
+                    all_specs.extend(specs.into_iter().map(KernelSpecification::Jupyter));
+                }
+                Err(err) => {
+                    // PaddleBoard: previously `?` here — a failure here would
+                    // drop the whole list including sandboxed entries.
+                    log::warn!("local kernel discovery failed: {err:#}");
+                }
+            }
 
             if let Ok(wsl_specs) = wsl_kernel_specifications.await {
                 all_specs.extend(wsl_specs);
@@ -270,16 +287,6 @@ impl ReplStore {
             {
                 all_specs.extend(remote_specs);
             }
-
-            // PaddleBoard: append sandboxed kernel entries. Listed
-            // unconditionally — if Podman isn't installed/running, the
-            // launch path bails with a clear error pointing to the
-            // sandbox-prereqs install modal.
-            all_specs.extend(
-                crate::kernels::all_sandboxed_kernel_specifications()
-                    .into_iter()
-                    .map(KernelSpecification::Podman),
-            );
 
             anyhow::Ok(all_specs)
         });
