@@ -771,6 +771,7 @@ tree-sitter-jsdoc = "0.23"
 tree-sitter-json = "0.24"
 tree-sitter-kotlin-codanna = "0.3.9"
 tree-sitter-md = { git = "https://github.com/tree-sitter-grammars/tree-sitter-markdown", rev = "9a23c1a96c0513d8fc6520972beedd419a973539" }
+tree-sitter-php = "0.24.2"
 tree-sitter-python = "0.25"
 tree-sitter-regex = "0.24"
 tree-sitter-ruby = "0.23"
