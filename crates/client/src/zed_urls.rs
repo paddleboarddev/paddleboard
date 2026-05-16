@@ -18,17 +18,24 @@ pub fn account_url(cx: &App) -> String {
     format!("{server_url}/account", server_url = server_url(cx))
 }
 
-/// Returns the URL to the start trial page on zed.dev.
-pub fn start_trial_url(cx: &App) -> String {
-    format!(
-        "{server_url}/account/start-trial",
-        server_url = server_url(cx)
-    )
+/// PaddleBoard: this used to return `zed.dev/account/start-trial` so the
+/// "Start 14-day Free Pro Trial" buttons across the app would funnel users
+/// at Zed's hosted plans. PaddleBoard isn't a hosted service and has no
+/// trial concept, so the URL is replaced with a no-op that opens nothing
+/// useful (`about:blank`). Upstream call sites keep compiling and the
+/// buttons keep rendering wherever the upstream code chose to show them
+/// — we just stop sending users away. Removing the buttons themselves
+/// would require touching ~5 upstream-shaped files; this single-file fix
+/// keeps the merge surface flat.
+pub fn start_trial_url(_cx: &App) -> String {
+    "about:blank".to_string()
 }
 
-/// Returns the URL to the upgrade page on zed.dev.
-pub fn upgrade_to_zed_pro_url(cx: &App) -> String {
-    format!("{server_url}/account/upgrade", server_url = server_url(cx))
+/// PaddleBoard: see `start_trial_url` — same defang for the
+/// "Upgrade to Pro" call-to-action URL. Was
+/// `zed.dev/account/upgrade`; now `about:blank`.
+pub fn upgrade_to_zed_pro_url(_cx: &App) -> String {
+    "about:blank".to_string()
 }
 
 /// Returns the URL to Zed's terms of service.
