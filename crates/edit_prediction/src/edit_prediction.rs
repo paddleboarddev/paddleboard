@@ -1,3 +1,13 @@
+// PaddleBoard: the Zeta path (Zed's hosted edit-prediction LLM) is
+// gutted in `zeta.rs` and the default model is switched away from
+// Zeta below. That leaves a fair amount of dead code and unused
+// imports in this crate — struct fields used only by the Zeta flow,
+// helper methods that nothing now calls, etc. Suppressed crate-wide
+// rather than per-symbol so the file shape stays stable for upstream
+// merges. If/when a non-Zeta successor wants those code paths back,
+// removing this allow will re-surface the warnings.
+#![allow(dead_code, unused_imports, unused_variables)]
+
 use anyhow::Result;
 use client::{Client, EditPredictionUsage, NeedsLlmTokenRefresh, UserStore, global_llm_token};
 use cloud_api_types::{OrganizationId, SubmitEditPredictionFeedbackBody};
@@ -798,7 +808,15 @@ impl EditPredictionStore {
             llm_token,
             _fetch_experiments_task: fetch_experiments_task,
             update_required: false,
-            edit_prediction_model: EditPredictionModel::Zeta,
+            // PaddleBoard: default model used to be `EditPredictionModel::Zeta`
+            // which calls Zed Cloud. Switched to FIM with the format inferred
+            // from the user's edit-prediction provider setting. Users who
+            // configure Ollama / OpenAI-compatible / Mercury providers will
+            // hit those code paths; users who don't will simply see no inline
+            // suggestions (which is the right default for a BYO-keys editor).
+            edit_prediction_model: EditPredictionModel::Fim {
+                format: settings::EditPredictionPromptFormat::Infer,
+            },
             zeta2_raw_config: Self::zeta2_raw_config_from_env(),
             preferred_experiment: None,
             available_experiments: Vec::new(),

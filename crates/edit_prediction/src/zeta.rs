@@ -34,7 +34,33 @@ use crate::open_ai_compatible::{
     load_open_ai_compatible_api_key_if_needed, send_custom_server_request,
 };
 
+// PaddleBoard: Zeta (Zed's hosted edit-prediction LLM) is disabled.
+// Calling it without Zed Cloud credentials spams the log with
+// `no credentials provided` from cloud_api_client; we have no way
+// to provide those credentials anyway since PaddleBoard isn't a
+// hosted service. The function below is rewritten to immediately
+// return `Ok(None)` so the caller treats it as "nothing to predict"
+// and either falls back to other providers (Copilot, Codestral,
+// Ollama, Mercury, FIM-via-OpenAI-compatible) or shows no inline
+// suggestion. Function signature, name, and call sites are unchanged.
+#[allow(unused_variables)]
 pub fn request_prediction_with_zeta(
+    store: &mut EditPredictionStore,
+    input: EditPredictionModelInput,
+    capture_data: Option<Vec<StoredEvent>>,
+    cx: &mut Context<EditPredictionStore>,
+) -> Task<Result<Option<EditPredictionResult>>> {
+    cx.background_spawn(async move { anyhow::Ok(None) })
+}
+
+// PaddleBoard: original Zeta request body, kept here as dead code so
+// upstream Zed merges that touch the Zeta flow resolve cleanly. The
+// `#[cfg(any())]` attribute makes the compiler skip it entirely;
+// `cfg(any())` is "always false" so the function never participates
+// in compilation. To restore Zeta, delete the gate above and remove
+// this `#[cfg]` attribute.
+#[cfg(any())]
+fn request_prediction_with_zeta_disabled(
     store: &mut EditPredictionStore,
     EditPredictionModelInput {
         buffer,

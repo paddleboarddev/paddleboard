@@ -112,7 +112,16 @@ impl<'de> Deserialize<'de> for EditPredictionProvider {
         Ok(match Content::deserialize(deserializer)? {
             Content::None => EditPredictionProvider::None,
             Content::Copilot => EditPredictionProvider::Copilot,
-            Content::Zed => EditPredictionProvider::Zed,
+            // PaddleBoard: `"provider": "zed"` (Zed's hosted Zeta LLM) is
+            // silently mapped to `None` — we have no way to authenticate
+            // against Zed Cloud and the call path is gated to a no-op in
+            // `crates/edit_prediction/src/zeta.rs` anyway. The
+            // `EditPredictionProvider::Zed` enum variant is preserved so
+            // anything that constructs it programmatically still
+            // compiles; only the user-facing settings entry point is
+            // redirected. Same treatment for the experimental "zeta2"
+            // alias below.
+            Content::Zed => EditPredictionProvider::None,
             Content::Codestral => EditPredictionProvider::Codestral,
             Content::Ollama => EditPredictionProvider::Ollama,
             Content::OpenAiCompatibleApi => EditPredictionProvider::OpenAiCompatibleApi,
@@ -120,7 +129,8 @@ impl<'de> Deserialize<'de> for EditPredictionProvider {
             Content::Experimental(name)
                 if name == EXPERIMENTAL_ZETA2_EDIT_PREDICTION_PROVIDER_NAME =>
             {
-                EditPredictionProvider::Zed
+                // PaddleBoard: same as `Content::Zed` above.
+                EditPredictionProvider::None
             }
             Content::Experimental(name) => {
                 return Err(D::Error::custom(format!(
