@@ -1,3 +1,12 @@
+// PaddleBoard: most renders in this crate are gutted to empty elements
+// (see the `// PaddleBoard:` comments on each `impl Render`). The
+// gutted impls leave plenty of imports, struct fields, and helper
+// methods unused — we keep them on disk so upstream merges resolve
+// inside the deleted bodies cleanly rather than fighting reverted
+// hunks. Suppress the predictable lint noise crate-wide instead of
+// per-file.
+#![allow(dead_code, unused_imports, unused_variables)]
+
 mod agent_api_keys_onboarding;
 mod agent_panel_onboarding_card;
 mod agent_panel_onboarding_content;
@@ -189,20 +198,13 @@ impl ZedAiOnboarding {
     }
 }
 
+// PaddleBoard: gutted — see `young_account_banner.rs` for rationale.
+// The match-arm helpers (`render_free_plan_state`, `render_trial_state`,
+// etc.) are still defined above so upstream merges resolve cleanly into
+// their bodies; nothing calls them after this render returns empty.
 impl RenderOnce for ZedAiOnboarding {
-    fn render(self, _window: &mut ui::Window, cx: &mut App) -> impl IntoElement {
-        if matches!(self.sign_in_status, SignInStatus::SignedIn) {
-            match self.plan {
-                None => self.render_free_plan_state(cx),
-                Some(Plan::ZedFree) => self.render_free_plan_state(cx),
-                Some(Plan::ZedProTrial) => self.render_trial_state(cx),
-                Some(Plan::ZedPro) => self.render_pro_plan_state(cx),
-                Some(Plan::ZedBusiness) => self.render_business_plan_state(cx),
-                Some(Plan::ZedStudent) => self.render_student_plan_state(cx),
-            }
-        } else {
-            self.render_sign_in_disclaimer(cx)
-        }
+    fn render(self, _window: &mut ui::Window, _cx: &mut App) -> impl IntoElement {
+        div().into_any_element()
     }
 }
 
