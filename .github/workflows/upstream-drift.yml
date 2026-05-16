@@ -17,6 +17,19 @@ name: Upstream drift report
 on:
   pull_request:
     branches: [main]
+  push:
+    # Smoke-test trigger for the workflow itself. GitHub's
+    # `pull_request` trigger only registers workflows that already
+    # exist on the default branch, so a brand-new workflow added in
+    # a PR doesn't run on its own PR. This `push` trigger fires on
+    # the branch that introduces (or later modifies) the workflow,
+    # so the first run happens before merge and we can verify the
+    # script side works. After merge, the `pull_request` trigger
+    # handles future PRs and this `push` becomes a no-op for typical
+    # branches (it only matches the dashboard's own branches).
+    branches:
+      - "chore/upstream-drift-dashboard*"
+      - "fix/upstream-drift-*"
   schedule:
     # Sundays 14:00 UTC, ahead of the Monday upstream-merge action so
     # you see "this is what we're about to merge against" before the
