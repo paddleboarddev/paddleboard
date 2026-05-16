@@ -25,6 +25,8 @@ mod json;
 mod package_json;
 mod python;
 mod rust;
+// PaddleBoard: Swift language support (sourcekit-lsp on $PATH).
+mod swift;
 mod tailwind;
 mod tailwindcss;
 mod typescript;
@@ -74,6 +76,9 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     let python_toolchain_provider = Arc::new(python::PythonToolchainProvider::new(fs.clone()));
     let rust_context_provider = Arc::new(rust::RustContextProvider);
     let rust_lsp_adapter = Arc::new(rust::RustLspAdapter);
+    // PaddleBoard: Swift adapter just locates `sourcekit-lsp` on $PATH; no
+    // node runtime, no fs handle, no per-worktree state.
+    let swift_lsp_adapter = Arc::new(swift::SwiftLspAdapter);
     let tailwind_adapter = Arc::new(tailwind::TailwindLspAdapter::new(node.clone()));
     let tailwindcss_adapter = Arc::new(tailwindcss::TailwindCssLspAdapter::new(node.clone()));
     let typescript_context = Arc::new(typescript::TypeScriptContextProvider::new(fs.clone()));
@@ -172,6 +177,13 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
             context: Some(rust_context_provider),
             manifest_name: Some(SharedString::new_static("Cargo.toml").into()),
             semantic_token_rules: Some(rust::semantic_token_rules()),
+            ..Default::default()
+        },
+        // PaddleBoard: Swift entry. Bring-your-own toolchain — the adapter
+        // bails with a notification if `sourcekit-lsp` isn't on PATH.
+        LanguageInfo {
+            name: "swift",
+            adapters: vec![swift_lsp_adapter],
             ..Default::default()
         },
         LanguageInfo {
