@@ -1,0 +1,79 @@
+name: Upstream drift report
+
+# Runs `script/check-upstream-drift` on every PR and on a weekly cron.
+#
+# - PR runs post the report as a sticky comment (the marker
+#   `<!-- upstream-drift-report -->` lets the next run find and update
+#   the existing comment rather than spamming on every push).
+# - Scheduled runs write the report to the workflow summary so the
+#   trend is visible from the Actions tab without opening a PR.
+#
+# Trend interpretation: numbers climb both when PaddleBoard diverges
+# and when upstream Zed ships changes we haven't merged. A weekly
+# upstream merge (see `.github/workflows/merge_upstream_zed.yml`)
+# resets the upstream half — if numbers stay high after a merge, the
+# divergence is real.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Sundays 14:00 UTC, ahead of the Monday upstream-merge action so
+    # you see "this is what we're about to merge against" before the
+    # PR lands.
+    - cron: "0 14 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # For PRs, check out the head commit (not the merge commit
+          # GitHub synthesizes) so the diff reflects what the author
+          # actually pushed.
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Generate drift report
+        id: drift
+        run: |
+          ./script/check-upstream-drift > /tmp/drift.md
+          cat /tmp/drift.md
+
+      - name: Write workflow summary
+        run: cat /tmp/drift.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          MARKER="<!-- upstream-drift-report -->"
+          {
+            echo "$MARKER"
+            cat /tmp/drift.md
+          } > /tmp/comment.md
+
+          existing_id=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --paginate \
+            --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" \
+            | head -n1)
+
+          if [ -n "$existing_id" ]; then
+            echo "Updating existing comment $existing_id"
+            gh api -X PATCH \
+              "repos/$REPO/issues/comments/$existing_id" \
+              --field "body=@/tmp/comment.md"
+          else
+            echo "Creating new comment"
+            gh pr comment "$PR_NUMBER" --body-file /tmp/comment.md
+          fi
