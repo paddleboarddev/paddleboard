@@ -34,48 +34,14 @@ impl EditPredictionOnboarding {
     }
 }
 
+// PaddleBoard: render gutted — was a `ZedAiOnboarding` card with an
+// optional "Configure GitHub Copilot" fallback for free-plan users.
+// `ZedAiOnboarding` is itself empty now, and the Copilot affordance
+// was framed as an alternative to Zed AI, not a primary path; we
+// surface Copilot configuration through the regular settings UI
+// instead. Constructor stays so call sites compile.
 impl Render for EditPredictionOnboarding {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let is_free_plan = self
-            .user_store
-            .read(cx)
-            .plan()
-            .is_some_and(|plan| plan == Plan::ZedFree);
-
-        let github_copilot = v_flex()
-            .gap_1()
-            .child(Label::new(if self.copilot_is_configured {
-                "Alternatively, you can continue to use GitHub Copilot as that's already set up."
-            } else {
-                "Alternatively, you can use GitHub Copilot as your edit prediction provider."
-            }))
-            .child(
-                Button::new(
-                    "configure-copilot",
-                    if self.copilot_is_configured {
-                        "Use Copilot"
-                    } else {
-                        "Configure Copilot"
-                    },
-                )
-                .full_width()
-                .style(ButtonStyle::Outlined)
-                .on_click({
-                    let callback = self.continue_with_copilot.clone();
-                    move |_, window, cx| callback(window, cx)
-                }),
-            );
-
-        v_flex()
-            .gap_2()
-            .child(ZedAiOnboarding::new(
-                self.client.clone(),
-                &self.user_store,
-                self.continue_with_zed_ai.clone(),
-                cx,
-            ))
-            .when(is_free_plan, |this| {
-                this.child(ui::Divider::horizontal()).child(github_copilot)
-            })
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
     }
 }

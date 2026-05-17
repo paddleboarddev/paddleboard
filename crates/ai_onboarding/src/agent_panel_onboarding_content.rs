@@ -52,38 +52,14 @@ impl AgentPanelOnboarding {
     }
 }
 
+// PaddleBoard: render gutted — was the Zed AI onboarding card composed
+// from `AgentPanelOnboardingCard` + `ZedAiOnboarding` + optional
+// `ApiKeysWithoutProviders`. All those children are now empty too. The
+// struct and `new()` constructor stay so `should_render_onboarding`
+// in `agent_panel.rs` can still build one even though it returns false
+// and the element is never inserted into the tree.
 impl Render for AgentPanelOnboarding {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let enrolled_in_trial = self
-            .user_store
-            .read(cx)
-            .plan()
-            .is_some_and(|plan| plan == Plan::ZedProTrial);
-        let is_pro_user = self
-            .user_store
-            .read(cx)
-            .plan()
-            .is_some_and(|plan| plan == Plan::ZedPro);
-
-        AgentPanelOnboardingCard::new()
-            .child(
-                ZedAiOnboarding::new(
-                    self.client.clone(),
-                    &self.user_store,
-                    self.continue_with_zed_ai.clone(),
-                    cx,
-                )
-                .with_dismiss({
-                    let callback = self.continue_with_zed_ai.clone();
-                    move |window, cx| callback(window, cx)
-                }),
-            )
-            .map(|this| {
-                if enrolled_in_trial || is_pro_user || self.has_configured_providers {
-                    this
-                } else {
-                    this.child(ApiKeysWithoutProviders::new())
-                }
-            })
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
     }
 }
