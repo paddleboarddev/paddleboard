@@ -21,6 +21,9 @@ mod cpp;
 mod css;
 mod eslint;
 mod go;
+// PaddleBoard: Java language support ($PATH-only — delegates jdtls
+// distribution to the user's package manager).
+mod java;
 mod json;
 // PaddleBoard: Kotlin language support (kotlin-language-server, downloaded
 // from fwcd/kotlin-language-server GitHub releases).
@@ -67,6 +70,9 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     let eslint_adapter = Arc::new(eslint::EsLintLspAdapter::new(node.clone(), fs.clone()));
     let go_context_provider = Arc::new(go::GoContextProvider);
     let go_lsp_adapter = Arc::new(go::GoLspAdapter);
+    // PaddleBoard: Java adapter — $PATH lookup only; bails with a
+    // helpful notification if `jdtls` isn't installed.
+    let java_lsp_adapter = Arc::new(java::JavaLspAdapter);
     let json_context_provider = Arc::new(JsonTaskProvider);
     let json_lsp_adapter = Arc::new(json::JsonLspAdapter::new(languages.clone(), node.clone()));
     let node_version_lsp_adapter = Arc::new(json::NodeVersionAdapter);
@@ -139,6 +145,13 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
             name: "gowork",
             adapters: vec![go_lsp_adapter],
             context: Some(go_context_provider),
+            ..Default::default()
+        },
+        // PaddleBoard: Java entry. $PATH-only; bails with a notification
+        // if `jdtls` isn't installed.
+        LanguageInfo {
+            name: "java",
+            adapters: vec![java_lsp_adapter],
             ..Default::default()
         },
         LanguageInfo {
