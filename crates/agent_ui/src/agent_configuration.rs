@@ -1286,7 +1286,7 @@ impl Render for AgentConfiguration {
     }
 }
 
-fn extension_only_provides_context_server(manifest: &ExtensionManifest) -> bool {
+pub(crate) fn extension_only_provides_context_server(manifest: &ExtensionManifest) -> bool {
     manifest.context_servers.len() == 1
         && manifest.themes.is_empty()
         && manifest.icon_themes.is_empty()
@@ -1313,7 +1313,7 @@ pub(crate) fn resolve_extension_for_context_server(
 // This notification appears when trying to delete
 // an MCP server extension that not only provides
 // the server, but other things, too, like language servers and more.
-fn show_unable_to_uninstall_extension_with_context_server(
+pub(crate) fn show_unable_to_uninstall_extension_with_context_server(
     workspace: &mut Workspace,
     id: ContextServerId,
     cx: &mut App,
