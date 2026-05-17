@@ -45,6 +45,14 @@ pub fn native_grammars() -> Vec<(&'static str, tree_sitter::Language)> {
         ("kotlin", tree_sitter_kotlin_codanna::language()),
         ("markdown", tree_sitter_md::LANGUAGE.into()),
         ("markdown-inline", tree_sitter_md::INLINE_LANGUAGE.into()),
+        // PaddleBoard: PHP via canonical tree-sitter/tree-sitter-php (MIT).
+        // Like tree-sitter-java, its `tree-sitter ^0.25` dep is dev-only;
+        // runtime uses `tree-sitter-language ^0.1` which resolves cleanly
+        // against workspace `tree-sitter 0.26`. Uses `LANGUAGE_PHP` (the
+        // mixed-mode `.php` grammar) — there's also a `LANGUAGE_PHP_ONLY`
+        // for pure-PHP files but the standard `.php` registration uses
+        // the mixed-mode grammar that handles inline HTML.
+        ("php", tree_sitter_php::LANGUAGE_PHP.into()),
         ("python", tree_sitter_python::LANGUAGE.into()),
         ("regex", tree_sitter_regex::LANGUAGE.into()),
         ("rust", tree_sitter_rust::LANGUAGE.into()),
