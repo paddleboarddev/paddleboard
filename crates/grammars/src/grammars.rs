@@ -23,6 +23,11 @@ pub fn native_grammars() -> Vec<(&'static str, tree_sitter::Language)> {
         ("go", tree_sitter_go::LANGUAGE.into()),
         ("gomod", tree_sitter_go_mod::LANGUAGE.into()),
         ("gowork", tree_sitter_gowork::LANGUAGE.into()),
+        // PaddleBoard: Java via canonical tree-sitter/tree-sitter-java (MIT).
+        // The crate declares `tree-sitter ^0.24` only as a dev-dep (for
+        // its own tests); its runtime API uses `tree-sitter-language`,
+        // which resolves cleanly against workspace tree-sitter 0.26.
+        ("java", tree_sitter_java::LANGUAGE.into()),
         ("jsdoc", tree_sitter_jsdoc::LANGUAGE.into()),
         ("json", tree_sitter_json::LANGUAGE.into()),
         ("jsonc", tree_sitter_json::LANGUAGE.into()),

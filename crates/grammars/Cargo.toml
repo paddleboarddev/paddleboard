@@ -27,6 +27,7 @@ tree-sitter-gitcommit = { workspace = true, optional = true }
 tree-sitter-go = { workspace = true, optional = true }
 tree-sitter-go-mod = { workspace = true, optional = true }
 tree-sitter-gowork = { workspace = true, optional = true }
+tree-sitter-java = { workspace = true, optional = true }
 tree-sitter-jsdoc = { workspace = true, optional = true }
 tree-sitter-json = { workspace = true, optional = true }
 tree-sitter-kotlin-codanna = { workspace = true, optional = true }
@@ -50,6 +51,7 @@ load-grammars = [
     "tree-sitter-go",
     "tree-sitter-go-mod",
     "tree-sitter-gowork",
+    "tree-sitter-java",
     "tree-sitter-jsdoc",
     "tree-sitter-json",
     "tree-sitter-kotlin-codanna",
