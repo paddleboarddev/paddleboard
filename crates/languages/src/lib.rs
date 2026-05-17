@@ -29,6 +29,8 @@ mod json;
 // from fwcd/kotlin-language-server GitHub releases).
 mod kotlin;
 mod package_json;
+// PaddleBoard: PHP language support (intelephense via node_runtime).
+mod php;
 mod python;
 mod rust;
 // PaddleBoard: Swift language support (sourcekit-lsp on $PATH).
@@ -79,6 +81,10 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     // PaddleBoard: Kotlin adapter — $PATH lookup first, then download
     // `server.zip` from fwcd/kotlin-language-server GitHub releases.
     let kotlin_lsp_adapter = Arc::new(kotlin::KotlinLspAdapter);
+    // PaddleBoard: PHP adapter — `intelephense` npm package. License is
+    // proprietary (free tier); users who want OSS can override via the
+    // `language_servers` setting (phpactor/phpls).
+    let php_lsp_adapter = Arc::new(php::PhpLspAdapter::new(node.clone()));
     let py_lsp_adapter = Arc::new(python::PyLspAdapter::new());
     let ty_lsp_adapter = Arc::new(python::TyLspAdapter::new(fs.clone()));
     let python_context_provider = Arc::new(python::PythonContextProvider);
@@ -181,6 +187,14 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
         LanguageInfo {
             name: "markdown-inline",
             adapters: vec![],
+            ..Default::default()
+        },
+        // PaddleBoard: PHP entry. `composer.json` is the manifest
+        // intelephense indexes against to discover package roots.
+        LanguageInfo {
+            name: "php",
+            adapters: vec![php_lsp_adapter],
+            manifest_name: Some(SharedString::new_static("composer.json").into()),
             ..Default::default()
         },
         LanguageInfo {
