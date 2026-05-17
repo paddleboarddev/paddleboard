@@ -26,6 +26,18 @@ pub fn native_grammars() -> Vec<(&'static str, tree_sitter::Language)> {
         ("jsdoc", tree_sitter_jsdoc::LANGUAGE.into()),
         ("json", tree_sitter_json::LANGUAGE.into()),
         ("jsonc", tree_sitter_json::LANGUAGE.into()),
+        // PaddleBoard: Kotlin via `tree-sitter-kotlin-codanna` (MIT).
+        // Picked specifically because (a) it's the only published Kotlin
+        // grammar with a `tree-sitter >= 0.21` constraint open enough to
+        // resolve against the workspace's `tree-sitter 0.26`, and
+        // (b) it preserves the original `fwcd/tree-sitter-kotlin` node
+        // shape (e.g. `simple_identifier`) that the upstream
+        // `zed-extensions/kotlin` queries are written against — the
+        // newer `tree-sitter-kotlin-ng` rewrite renamed those nodes
+        // (`identifier`/`qualified_identifier`) and would require
+        // rewriting every .scm we adopted. Uses the older `language()`
+        // function API instead of the `LANGUAGE: LanguageFn` constant.
+        ("kotlin", tree_sitter_kotlin_codanna::language()),
         ("markdown", tree_sitter_md::LANGUAGE.into()),
         ("markdown-inline", tree_sitter_md::INLINE_LANGUAGE.into()),
         ("python", tree_sitter_python::LANGUAGE.into()),

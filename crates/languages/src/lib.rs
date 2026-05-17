@@ -22,6 +22,9 @@ mod css;
 mod eslint;
 mod go;
 mod json;
+// PaddleBoard: Kotlin language support (kotlin-language-server, downloaded
+// from fwcd/kotlin-language-server GitHub releases).
+mod kotlin;
 mod package_json;
 mod python;
 mod rust;
@@ -67,6 +70,9 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     let json_context_provider = Arc::new(JsonTaskProvider);
     let json_lsp_adapter = Arc::new(json::JsonLspAdapter::new(languages.clone(), node.clone()));
     let node_version_lsp_adapter = Arc::new(json::NodeVersionAdapter);
+    // PaddleBoard: Kotlin adapter — $PATH lookup first, then download
+    // `server.zip` from fwcd/kotlin-language-server GitHub releases.
+    let kotlin_lsp_adapter = Arc::new(kotlin::KotlinLspAdapter);
     let py_lsp_adapter = Arc::new(python::PyLspAdapter::new());
     let ty_lsp_adapter = Arc::new(python::TyLspAdapter::new(fs.clone()));
     let python_context_provider = Arc::new(python::PythonContextProvider);
@@ -145,6 +151,13 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
             name: "jsonc",
             adapters: vec![json_lsp_adapter],
             context: Some(json_context_provider),
+            ..Default::default()
+        },
+        // PaddleBoard: Kotlin entry. Requires a JVM on $PATH at runtime —
+        // the launcher script bails clearly if `java` isn't found.
+        LanguageInfo {
+            name: "kotlin",
+            adapters: vec![kotlin_lsp_adapter],
             ..Default::default()
         },
         LanguageInfo {
