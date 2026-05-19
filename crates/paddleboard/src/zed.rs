@@ -15,12 +15,8 @@ pub mod visual_tests;
 #[cfg(target_os = "windows")]
 pub(crate) mod windows_only_instance;
 
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-use agent_ui::{AgentDiffToolbar, OrchestrationPanel};
-=======
 use agent::{UserAgentsMdState, init_user_agents_md};
-use agent_ui::AgentDiffToolbar;
->>>>>>> zed/main:crates/zed/src/zed.rs
+use agent_ui::{AgentDiffToolbar, OrchestrationPanel};
 use anyhow::Context as _;
 pub use app_menus::*;
 use assets::Assets;
