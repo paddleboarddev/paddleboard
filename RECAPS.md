@@ -4,6 +4,19 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-18
+
+### Fix weekly upstream-Zed merge workflow push failure
+- Today's scheduled run of `.github/workflows/merge_upstream_zed.yml` failed with "All jobs have failed". Triage: the merge itself ran (1,113 commits ahead, many conflicts as expected for a multi-week drift), but the `git push` step was rejected by GitHub: `refusing to allow a GitHub App to create or update workflow .github/workflows/after_release.yml without 'workflows' permission`. The default `GITHUB_TOKEN` cannot push commits that create/update files under `.github/workflows/`, and there's no `workflows: write` key in the workflow `permissions:` block (that scope only exists on PATs/GitHub Apps).
+- Root cause: PaddleBoard deleted the full set of upstream Zed release/CI workflows during fork cleanup (`.github/workflows/{after_release,autofix_pr,bump_patch_version,cherry_pick,…}.yml`). Upstream continues to modify those files, producing **modify/delete conflicts** (`DU` — deleted by us, modified by them). Git's default leaves upstream's version in the worktree; the workflow's `git add -A` + commit then re-added them all into the "(CONFLICTS)" commit, which the push refused.
+- Fix in `.github/workflows/merge_upstream_zed.yml`: switched `git merge` to `--no-ff --no-edit --no-commit` so we can sanitize the index before any commit lands. Inserted a step that `git rm -rf --ignore-unmatch -- .github/workflows/` then `git checkout HEAD -- .github/workflows/` — net effect: PB's own workflows (`merge_upstream_zed.yml`, `upstream-drift.yml`) are restored from HEAD untouched; every upstream change to that directory (modify/delete conflicts, new files we never had, clean automerges) gets dropped. The conflict-check now reads `git ls-files --unmerged` (post-sanitize) instead of the raw merge exit code, so a week where the only conflicts were workflow files produces a clean non-draft PR.
+- Preserved: real content conflicts (`Cargo.lock`, `Cargo.toml`, `assets/settings/default.json`), modify/delete conflicts where PB has the file and upstream deleted it (`crates/agent/src/edit_agent/edit_parser.rs` etc.), and modify/delete conflicts under `tooling/xtask/src/tasks/workflows/*.rs` (Rust sources, not GitHub workflows — those go through the normal push path and remain visible to reviewers). The sanitize only touches `.github/workflows/`.
+- Considered and rejected: adding `actions: write` to the `permissions:` block — wrong permission (didn't grant the `workflows` scope), and there's no token-permission key that does. The only way for `GITHUB_TOKEN` to succeed here is to never push workflow-file changes, which is what the sanitize enforces.
+- Verified: YAML parse clean (`python3 -c "import yaml; yaml.safe_load(...)"`). NOT verified end-to-end yet — needs the change committed to `main`, then "Run workflow" on the Actions tab to re-trigger this week's run. Not committed in this session per default policy.
+- Follow-ups: (1) Once the re-triggered run produces a real (draft) PR, do the conflict-resolution pass locally — `Cargo.lock`, `Cargo.toml`, `assets/settings/default.json`, the `UD` conflicts in `crates/agent/src/edit_agent/*`, and the `tooling/xtask/src/tasks/workflows/*.rs` `DU` set will all need attention. (2) If `tooling/xtask` cleanup becomes annoying every merge, the same sanitize pattern (`git rm` + `git checkout HEAD --`) extends naturally to that path — but it's not blocked by token scope, so deferring until it's a real pain point. (3) Consider adding a `.rules` / `FORK_HYGIENE.md` note that `.github/workflows/` is PB-owned and the merge workflow auto-drops upstream changes there — keeps future contributors from being surprised.
+
+---
+
 ## 2026-05-16
 
 ### Session wrap-up
