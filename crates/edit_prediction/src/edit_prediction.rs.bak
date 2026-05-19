@@ -936,7 +936,7 @@ impl EditPredictionStore {
                                 .method(Method::GET)
                                 .uri(url.as_ref())
                                 .header("Authorization", format!("Bearer {token}"))
-                                .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
+                                .header(ZED_VERSION_HEADER_NAME, app_version.to_string())
                                 .body(Default::default())?)
                         })
                         .await?;
@@ -2760,7 +2760,7 @@ impl EditPredictionStore {
                     http_client::Request::builder()
                         .method(Method::POST)
                         .header("Content-Type", "application/json")
-                        .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
+                        .header(ZED_VERSION_HEADER_NAME, app_version.to_string())
                         .header("Authorization", format!("Bearer {token}")),
                 )
             })
@@ -3103,7 +3103,7 @@ fn is_upsell_dismissed(cx: &App) -> bool {
     // the database once the user clicked on "Accept and Enable"
     let kvp = KeyValueStore::global(cx);
     if kvp
-        .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
+        .read_kvp(ZED_PREDICT_DATA_COLLECTION_CHOICE)
         .log_err()
         .is_some_and(|s| s.is_some())
     {

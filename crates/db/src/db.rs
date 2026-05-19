@@ -171,16 +171,11 @@ pub fn db_path(db_dir: &Path, scope: impl DbScope) -> PathBuf {
 /// This will retry a couple times if there are failures. If opening fails once, the db directory
 /// is moved to a backup folder and a new one is created. If that fails, a shared in memory db is created.
 /// In either case, static variables are set so that the user can be notified.
-<<<<<<< HEAD
-pub async fn open_db<M: Migrator + 'static>(db_dir: &Path, scope: &str) -> ThreadSafeConnection {
-    if *PADDLEBOARD_STATELESS {
-=======
 pub async fn open_db<M: Migrator + 'static>(
     db_dir: &Path,
     scope: impl DbScope,
 ) -> ThreadSafeConnection {
-    if *ZED_STATELESS {
->>>>>>> zed/main
+    if *PADDLEBOARD_STATELESS {
         return open_fallback_db::<M>().await;
     }
 

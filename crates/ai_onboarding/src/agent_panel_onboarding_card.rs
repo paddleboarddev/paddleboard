@@ -24,49 +24,7 @@ impl ParentElement for AgentPanelOnboardingCard {
 // PaddleBoard: render gutted — was a decorative card wrapper around Zed
 // AI plan content. Public surface preserved so call sites compile.
 impl RenderOnce for AgentPanelOnboardingCard {
-<<<<<<< HEAD
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
-=======
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let color = cx.theme().colors();
-
-        div().min_w_0().p_2p5().bg(color.editor_background).child(
-            div()
-                .min_w_0()
-                .p(px(3.))
-                .rounded_lg()
-                .elevation_2(cx)
-                .bg(color.background.opacity(0.5))
-                .child(
-                    v_flex()
-                        .relative()
-                        .size_full()
-                        .min_w_0()
-                        .px_4()
-                        .py_3()
-                        .gap_2()
-                        .border_1()
-                        .rounded(px(5.))
-                        .border_color(color.text.opacity(0.1))
-                        .bg(color.panel_background)
-                        .overflow_hidden()
-                        .child(
-                            div()
-                                .absolute()
-                                .inset_0()
-                                .size_full()
-                                .rounded_md()
-                                .overflow_hidden()
-                                .bg(linear_gradient(
-                                    360.,
-                                    linear_color_stop(color.panel_background, 1.0),
-                                    linear_color_stop(color.editor_background, 0.45),
-                                )),
-                        )
-                        .children(self.children),
-                ),
-        )
->>>>>>> zed/main
     }
 }

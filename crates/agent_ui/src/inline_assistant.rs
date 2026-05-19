@@ -49,13 +49,8 @@ use settings::{Settings, SettingsStore};
 use terminal_view::{TerminalView, terminal_panel::TerminalPanel};
 use ui::prelude::*;
 use util::{RangeExt, ResultExt, maybe};
-<<<<<<< HEAD
 use workspace::{ItemHandle, Toast, Workspace, dock::Panel, notifications::NotificationId};
 use paddleboard_actions::agent::OpenSettings;
-=======
-use workspace::{Toast, Workspace, dock::Panel, notifications::NotificationId};
-use zed_actions::agent::OpenSettings;
->>>>>>> zed/main
 
 pub fn init(fs: Arc<dyn Fs>, prompt_builder: Arc<PromptBuilder>, cx: &mut App) {
     cx.set_global(InlineAssistant::new(fs, prompt_builder));

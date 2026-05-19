@@ -56,13 +56,9 @@ use registrar::{ForDeployed, ForDismissed, SearchActionsRegistrar};
 
 const MAX_BUFFER_SEARCH_HISTORY_SIZE: usize = 50;
 
-<<<<<<< HEAD
-pub use paddleboard_actions::buffer_search::{Deploy, DeployReplace, Dismiss, FocusEditor};
-=======
-pub use zed_actions::buffer_search::{
+pub use paddleboard_actions::buffer_search::{
     Deploy, DeployReplace, Dismiss, FocusEditor, UseSelectionForFind,
 };
->>>>>>> zed/main
 
 pub enum Event {
     UpdateLocation,

@@ -441,7 +441,6 @@ pub fn open_branches(
     open_with_tab(workspace, GitPickerTab::Branches, window, cx);
 }
 
-<<<<<<< HEAD
 pub fn open_worktrees(
     workspace: &mut Workspace,
     _: &paddleboard_actions::git::Worktree,
@@ -451,8 +450,7 @@ pub fn open_worktrees(
     open_with_tab(workspace, GitPickerTab::Worktrees, window, cx);
 }
 
-=======
->>>>>>> zed/main
+
 pub fn open_stash(
     workspace: &mut Workspace,
     _: &paddleboard_actions::git::ViewStash,
@@ -504,14 +502,10 @@ pub fn register(workspace: &mut Workspace) {
             open_with_tab(workspace, GitPickerTab::Branches, window, cx);
         },
     );
-<<<<<<< HEAD
     workspace.register_action(|workspace, _: &paddleboard_actions::git::Worktree, window, cx| {
         open_with_tab(workspace, GitPickerTab::Worktrees, window, cx);
     });
     workspace.register_action(|workspace, _: &paddleboard_actions::git::ViewStash, window, cx| {
-=======
-    workspace.register_action(|workspace, _: &zed_actions::git::ViewStash, window, cx| {
->>>>>>> zed/main
         open_with_tab(workspace, GitPickerTab::Stash, window, cx);
     });
 }

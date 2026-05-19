@@ -26,7 +26,6 @@ pub use minidumper::Client;
 const CRASH_HANDLER_PING_TIMEOUT: Duration = Duration::from_secs(60);
 const CRASH_HANDLER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
-<<<<<<< HEAD
 static PENDING_CRASH_SERVER_MESSAGES: Mutex<Vec<CrashServerMessage>> = Mutex::new(Vec::new());
 
 #[cfg(target_os = "macos")]
@@ -42,7 +41,8 @@ fn should_install_crash_handler() -> bool {
     }
 
     true
-=======
+}
+
 /// Force a backtrace to be printed on panic.
 pub fn force_backtrace() {
     let old_hook = panic::take_hook();
@@ -54,7 +54,6 @@ pub fn force_backtrace() {
             std::process::exit(1);
         }
     }));
->>>>>>> zed/main
 }
 
 /// Install crash signal handlers and spawn the crash-handler subprocess.

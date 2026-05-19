@@ -68,12 +68,8 @@ theme_settings.workspace = true
 ui.workspace = true
 util.workspace = true
 uuid.workspace = true
-<<<<<<< HEAD
 vim_mode_setting.workspace = true
 paddleboard_actions.workspace = true
-=======
-zed_actions.workspace = true
->>>>>>> zed/main
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows.workspace = true

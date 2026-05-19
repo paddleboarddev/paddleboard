@@ -655,7 +655,6 @@ impl EditPredictionButton {
                         action = "sign_in",
                         provider = "copilot",
                     );
-<<<<<<< HEAD
                     hide_copilot(fs.clone(), cx)
                 }
             })
@@ -666,32 +665,6 @@ impl EditPredictionButton {
                     set_completion_provider(fs.clone(), cx, EditPredictionProvider::Zed)
                 }
             })
-=======
-                    if let Some(copilot) = EditPredictionStore::try_global(cx).and_then(|store| {
-                        store.update(cx, |this, cx| {
-                            this.start_copilot_for_project(&project.upgrade()?, cx)
-                        })
-                    }) {
-                        copilot_ui::initiate_sign_in(copilot, window, cx);
-                    }
-                })
-                .entry("Disable Copilot", None, {
-                    let fs = fs.clone();
-                    move |_window, cx| {
-                        telemetry::event!(
-                            "Edit Prediction Menu Action",
-                            action = "disable_provider",
-                            provider = "copilot",
-                        );
-                        hide_copilot(fs.clone(), cx)
-                    }
-                });
-
-            let menu =
-                self.add_provider_switching_section(menu, EditPredictionProvider::Copilot, cx);
-            let menu = self.add_configure_providers_item(menu);
-            menu
->>>>>>> zed/main
         })
     }
 

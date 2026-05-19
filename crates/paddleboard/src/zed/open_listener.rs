@@ -13,11 +13,7 @@ use futures::future;
 
 use futures::{FutureExt, StreamExt};
 use git_ui::{file_diff_view::FileDiffView, multi_diff_view::MultiDiffView};
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-use gpui::{App, AppContext as _, AsyncApp, Global, WindowHandle};
-=======
-use gpui::{App, AsyncApp, Global, TaskExt, WindowHandle};
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
+use gpui::{App, AppContext as _, AsyncApp, Global, TaskExt, WindowHandle};
 use onboarding::FIRST_OPEN;
 use onboarding::show_onboarding_view;
 use recent_projects::{RemoteSettings, navigate_to_positions, open_remote_project};
@@ -181,13 +177,12 @@ impl OpenRequest {
                 }
             } else if let Some(agent_path) = url.strip_prefix("paddleboard://agent") {
                 this.parse_agent_url(agent_path)
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-            } else if let Some(schema_path) = url.strip_prefix("paddleboard://schemas/") {
-=======
-            } else if url == "zed://" || url == "zed://open" || url == "zed://open/" {
+            } else if url == "paddleboard://"
+                || url == "paddleboard://open"
+                || url == "paddleboard://open/"
+            {
                 this.kind = Some(OpenRequestKind::FocusApp);
-            } else if let Some(schema_path) = url.strip_prefix("zed://schemas/") {
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
+            } else if let Some(schema_path) = url.strip_prefix("paddleboard://schemas/") {
                 this.kind = Some(OpenRequestKind::BuiltinJsonSchema {
                     schema_path: schema_path.to_string(),
                 });

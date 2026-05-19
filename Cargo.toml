@@ -228,7 +228,6 @@ members = [
     "crates/worktree",
     "crates/worktree_benchmarks",
     "crates/x_ai",
-<<<<<<< HEAD
     "crates/paddleboard",
     "crates/paddleboard_actions",
     "crates/paddleboard_credentials_provider",
@@ -237,13 +236,7 @@ members = [
     "crates/paddleboard_sandbox_prereqs_state",
     "crates/paddleboard_sandbox_prereqs_ui",
     "crates/paddleboard_sandbox_settings",
-=======
-    "crates/zed",
-    "crates/zed_actions",
     "crates/windows_resources",
-    "crates/zed_credentials_provider",
-    "crates/zed_env_vars",
->>>>>>> zed/main
     "crates/zeta_prompt",
     "crates/zlog",
     "crates/zlog_settings",

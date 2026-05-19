@@ -41,17 +41,12 @@ use crate::repl_store::ReplStore;
 use picker::Picker;
 use runtimelib::{ExecuteRequest, JupyterMessage, JupyterMessageContent};
 use ui::PopoverMenuHandle;
-<<<<<<< HEAD
 use paddleboard_actions::editor::{MoveDown, MoveUp};
-use paddleboard_actions::notebook::{NotebookMoveDown, NotebookMoveUp};
-=======
-use zed_actions::editor::{MoveDown, MoveUp};
-use zed_actions::notebook::{
+use paddleboard_actions::notebook::{
     AddCodeBlock, AddMarkdownBlock, ClearOutputs, EnterCommandMode, EnterEditMode, InterruptKernel,
     MoveCellDown, MoveCellUp, NotebookMoveDown, NotebookMoveUp, OpenNotebook, RestartKernel, Run,
     RunAll, RunAndAdvance,
 };
->>>>>>> zed/main
 
 /// Whether the notebook is in command mode (navigating cells) or edit mode (editing a cell).
 #[derive(Clone, Copy, PartialEq, Eq)]

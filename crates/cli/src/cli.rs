@@ -89,12 +89,9 @@ pub enum CliResponse {
 ///
 /// Note that in the main zed binary, this variable is unset after it's read for the first time,
 /// therefore it should always be accessed through the `FORCE_CLI_MODE` static.
-<<<<<<< HEAD
 pub const FORCE_CLI_MODE_ENV_VAR_NAME: &str = "PADDLEBOARD_FORCE_CLI_MODE";
-=======
-pub const FORCE_CLI_MODE_ENV_VAR_NAME: &str = "ZED_FORCE_CLI_MODE";
 
-/// Abstracts the transport for sending CLI responses (Zed → CLI).
+/// Abstracts the transport for sending CLI responses (PaddleBoard → CLI).
 ///
 /// Production code uses `IpcSender<CliResponse>`. Tests can provide in-memory
 /// implementations to avoid OS-level IPC.
@@ -107,4 +104,3 @@ impl CliResponseSink for ipc::IpcSender<CliResponse> {
         ipc::IpcSender::send(self, response).map_err(|error| anyhow::anyhow!("{error}"))
     }
 }
->>>>>>> zed/main

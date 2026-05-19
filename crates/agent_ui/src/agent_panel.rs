@@ -20,21 +20,10 @@ use project::AgentId;
 use serde::{Deserialize, Serialize};
 use settings::{LanguageModelProviderSetting, LanguageModelSelection};
 
-<<<<<<< HEAD
 use feature_flags::{AgentV2FeatureFlag, FeatureFlagAppExt as _};
 use paddleboard_actions::agent::{
-    AddSelectionToThread, ConflictContent, ReauthenticateAgent, ResolveConflictedFilesWithAgent,
-    ResolveConflictsWithAgent, ReviewBranchDiff,
-=======
-use zed_actions::{
-    DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
-    agent::{
-        AddSelectionToThread, ConflictContent, LogoutAgent, OpenSettings, ReauthenticateAgent,
-        ResetAgentZoom, ResetOnboarding, ResolveConflictedFilesWithAgent,
-        ResolveConflictsWithAgent, ReviewBranchDiff,
-    },
-    assistant::{FocusAgent, OpenRulesLibrary, Toggle, ToggleFocus},
->>>>>>> zed/main
+    AddSelectionToThread, ConflictContent, LogoutAgent, ReauthenticateAgent,
+    ResolveConflictedFilesWithAgent, ResolveConflictsWithAgent, ReviewBranchDiff,
 };
 
 use crate::ExpandMessageEditor;
@@ -94,15 +83,12 @@ use workspace::{
     CollaboratorId, DraggedSelection, DraggedTab, MultiWorkspace, PathList, SerializedPathList,
     ToggleWorkspaceSidebar, ToggleZoom, Workspace, WorkspaceId,
     dock::{DockPosition, Panel, PanelEvent},
-<<<<<<< HEAD
+    item::ItemEvent,
 };
 use paddleboard_actions::{
     DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
     agent::{OpenAcpOnboardingModal, OpenSettings, ResetAgentZoom, ResetOnboarding},
-    assistant::{OpenRulesLibrary, Toggle, ToggleFocus},
-=======
-    item::ItemEvent,
->>>>>>> zed/main
+    assistant::{FocusAgent, OpenRulesLibrary, Toggle, ToggleFocus},
 };
 
 const AGENT_PANEL_KEY: &str = "agent_panel";
@@ -2797,7 +2783,6 @@ impl AgentPanel {
         })
     }
 
-<<<<<<< HEAD
     fn has_history_for_selected_agent(&self, cx: &App) -> bool {
         match &self.selected_agent {
             Agent::Gemini | Agent::Custom { .. } => self
@@ -2872,8 +2857,6 @@ impl AgentPanel {
         cx.notify();
     }
 
-=======
->>>>>>> zed/main
     pub fn go_back(&mut self, _: &workspace::GoBack, window: &mut Window, cx: &mut Context<Self>) {
         if self.overlay_view.is_some() {
             self.clear_overlay(true, window, cx);
@@ -4544,7 +4527,6 @@ impl AgentPanel {
                         }
 
                         menu = menu
-<<<<<<< HEAD
                             .header("MCP Servers")
                             .action(
                                 "View Server Extensions",
@@ -4559,8 +4541,6 @@ impl AgentPanel {
                             .separator()
                             .action("Rules", Box::new(OpenRulesLibrary::default()))
                             .action("Profiles", Box::new(ManageProfiles::default()))
-=======
->>>>>>> zed/main
                             .action("Settings", Box::new(OpenSettings))
                             .separator()
                             .action("Toggle Threads Sidebar", Box::new(ToggleWorkspaceSidebar));
@@ -4684,18 +4664,10 @@ impl AgentPanel {
                             }
                         })
                         .item(
-<<<<<<< HEAD
                             ContextMenuEntry::new("PaddleBoard Agent")
                                 .when(is_agent_selected(Agent::NativeAgent), |this| {
                                     this.action(Box::new(NewExternalAgentThread { agent: None }))
                                 })
-=======
-                            ContextMenuEntry::new("Zed Agent")
-                                .when(
-                                    !showing_terminal && is_agent_selected(Agent::NativeAgent),
-                                    |this| this.action(Box::new(NewThread)),
-                                )
->>>>>>> zed/main
                                 .icon(IconName::ZedAgent)
                                 .icon_color(Color::Muted)
                                 .handler({
@@ -5085,42 +5057,9 @@ impl AgentPanel {
             .child(toolbar_content)
     }
 
-<<<<<<< HEAD
     fn should_render_trial_end_upsell(&self, _cx: &mut Context<Self>) -> bool {
         // PaddleBoard: Zed Pro trial upsell is disabled.
         false
-    }
-
-    fn should_render_onboarding(&self, _cx: &mut Context<Self>) -> bool {
-        // PaddleBoard: Zed AI onboarding upsell is disabled.
-        false
-=======
-    fn should_render_trial_end_upsell(&self, cx: &mut Context<Self>) -> bool {
-        if TrialEndUpsell::dismissed(cx) {
-            return false;
-        }
-
-        match &self.base_view {
-            BaseView::AgentThread { .. } => {
-                if LanguageModelRegistry::global(cx)
-                    .read(cx)
-                    .default_model()
-                    .is_some_and(|model| {
-                        model.provider.id() != language_model::ZED_CLOUD_PROVIDER_ID
-                    })
-                {
-                    return false;
-                }
-            }
-            BaseView::Terminal { .. } | BaseView::Uninitialized => {
-                return false;
-            }
-        }
-
-        let plan = self.user_store.read(cx).plan();
-        let has_previous_trial = self.user_store.read(cx).trial_started_at().is_some();
-
-        plan.is_some_and(|plan| plan == Plan::ZedFree) && has_previous_trial
     }
 
     fn dismiss_ai_onboarding(&mut self, cx: &mut Context<Self>) {
@@ -5130,51 +5069,9 @@ impl AgentPanel {
         cx.notify();
     }
 
-    fn should_render_new_user_onboarding(&mut self, cx: &mut Context<Self>) -> bool {
-        if self
-            .new_user_onboarding_upsell_dismissed
-            .load(Ordering::Acquire)
-        {
-            return false;
-        }
-
-        let user_store = self.user_store.read(cx);
-
-        if user_store.plan().is_some_and(|plan| plan == Plan::ZedPro)
-            && user_store
-                .subscription_period()
-                .and_then(|period| period.0.checked_add_days(chrono::Days::new(1)))
-                .is_some_and(|date| date < chrono::Utc::now())
-        {
-            if !self
-                .new_user_onboarding_upsell_dismissed
-                .load(Ordering::Acquire)
-            {
-                self.dismiss_ai_onboarding(cx);
-            }
-            return false;
-        }
-
-        let has_configured_non_zed_providers = LanguageModelRegistry::read_global(cx)
-            .visible_providers()
-            .iter()
-            .any(|provider| {
-                provider.is_authenticated(cx)
-                    && provider.id() != language_model::ZED_CLOUD_PROVIDER_ID
-            });
-
-        match &self.base_view {
-            BaseView::Uninitialized | BaseView::Terminal { .. } => false,
-            BaseView::AgentThread { conversation_view } => {
-                if conversation_view.read(cx).as_native_thread(cx).is_some() {
-                    let history_is_empty = ThreadStore::global(cx).read(cx).is_empty();
-                    history_is_empty || !has_configured_non_zed_providers
-                } else {
-                    false
-                }
-            }
-        }
->>>>>>> zed/main
+    fn should_render_new_user_onboarding(&mut self, _cx: &mut Context<Self>) -> bool {
+        // PaddleBoard: Zed AI onboarding upsell is disabled.
+        false
     }
 
     fn render_new_user_onboarding(

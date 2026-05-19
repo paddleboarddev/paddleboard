@@ -376,14 +376,8 @@ impl CommitModal {
             .style(ButtonStyle::Transparent)
             .color(Color::Muted)
             .on_click(cx.listener(|_, _, window, cx| {
-<<<<<<< HEAD
                 window.dispatch_action(paddleboard_actions::git::Branch.boxed_clone(), cx);
-            }))
-            .style(ButtonStyle::Transparent);
-=======
-                window.dispatch_action(zed_actions::git::Branch.boxed_clone(), cx);
             }));
->>>>>>> zed/main
 
         let branch_picker = PopoverMenu::new("popover-button")
             .menu(move |window, cx| {

@@ -1,20 +1,12 @@
 use crate::{
-<<<<<<< HEAD
-    ContextServerRegistry, CopyPathTool, CreateDirectoryTool, DbLanguageModel, DbThread,
-    DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool, FindPathTool, GrepTool,
-    ListDirectoryTool, MovePathTool, NowTool, OpenTool, ProjectSnapshot, ReadFileTool,
-    RestoreFileFromDiskTool, SaveFileTool, SpawnAgentTool, StreamingEditFileTool,
-    SandboxServiceTool, SandboxTool, SystemPromptTemplate, Template, Templates, TerminalTool,
-    ToolPermissionDecision,
-    UpdatePlanTool, WebSearchTool, decide_permission_from_settings,
-=======
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool,
     FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
-    ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool, SpawnAgentTool,
-    SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision,
-    UpdatePlanTool, UserAgentsMd, WebSearchTool, WriteFileTool, decide_permission_from_settings,
->>>>>>> zed/main
+    ListDirectoryTool, MovePathTool, NowTool, OpenTool, ProjectSnapshot, ReadFileTool, RenameTool,
+    RestoreFileFromDiskTool, SandboxServiceTool, SandboxTool, SaveFileTool, SpawnAgentTool,
+    StreamingEditFileTool, SystemPromptTemplate, Template, Templates, TerminalTool,
+    ToolPermissionDecision, UpdatePlanTool, UserAgentsMd, WebSearchTool, WriteFileTool,
+    decide_permission_from_settings,
 };
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;
@@ -1009,12 +1001,9 @@ pub struct Thread {
     ui_scroll_position: Option<gpui::ListOffset>,
     /// Weak references to running subagent threads for cancellation propagation
     running_subagents: Vec<WeakEntity<Thread>>,
-<<<<<<< HEAD
     /// When true, every tool call requires explicit user approval before execution.
     step_mode: bool,
-=======
     inherits_parent_model_settings: bool,
->>>>>>> zed/main
 }
 
 impl Thread {
@@ -1140,11 +1129,8 @@ impl Thread {
             draft_prompt: None,
             ui_scroll_position: None,
             running_subagents: Vec::new(),
-<<<<<<< HEAD
             step_mode: false,
-=======
             inherits_parent_model_settings: true,
->>>>>>> zed/main
         }
     }
 
@@ -1401,11 +1387,8 @@ impl Thread {
                 offset_in_item: gpui::px(sp.offset_in_item),
             }),
             running_subagents: Vec::new(),
-<<<<<<< HEAD
             step_mode: false,
-=======
             inherits_parent_model_settings: true,
->>>>>>> zed/main
         }
     }
 
@@ -2503,53 +2486,6 @@ impl Thread {
     ) -> Task<LanguageModelToolResult> {
         let fs = self.project.read(cx).fs().clone();
         let supports_images = self.model().is_some_and(|model| model.supports_images());
-<<<<<<< HEAD
-=======
-        let tool_result = tool.run(tool_input, tool_event_stream, cx);
-        cx.foreground_executor().spawn(async move {
-            let (is_error, output) = match tool_result.await {
-                Ok(mut output) => {
-                    let contains_image = output
-                        .llm_output
-                        .iter()
-                        .any(|part| matches!(part, LanguageModelToolResultContent::Image(_)));
-                    if contains_image && !supports_images {
-                        // Replace each image part with an inline placeholder so
-                        // any accompanying text is still presented to the model.
-                        // If there's nothing else in the output, surface an error
-                        // to match the pre-multi-part behavior for image-only
-                        // tool results.
-                        let placeholder = LanguageModelToolResultContent::Text(Arc::from(
-                            "[Tool responded with an image, but this model doesn't support images]",
-                        ));
-                        let has_non_image = output
-                            .llm_output
-                            .iter()
-                            .any(|part| !matches!(part, LanguageModelToolResultContent::Image(_)));
-                        if has_non_image {
-                            output.llm_output = output
-                                .llm_output
-                                .into_iter()
-                                .map(|part| match part {
-                                    LanguageModelToolResultContent::Image(_) => placeholder.clone(),
-                                    other => other,
-                                })
-                                .collect();
-                            (false, output)
-                        } else {
-                            let output = anyhow::anyhow!(
-                                "Attempted to read an image, but this model doesn't support it.",
-                            )
-                            .into();
-                            (true, output)
-                        }
-                    } else {
-                        (false, output)
-                    }
-                }
-                Err(output) => (true, output),
-            };
->>>>>>> zed/main
 
         if self.step_mode {
             let tool_event_stream = ToolCallEventStream::new(

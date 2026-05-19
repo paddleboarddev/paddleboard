@@ -4,12 +4,11 @@ mod agent_diff;
 mod agent_model_selector;
 mod agent_panel;
 mod agent_registry_ui;
-<<<<<<< HEAD
 mod mcp_servers_ui;
 pub mod orchestration_panel;
 mod branch_names;
-=======
->>>>>>> zed/main
+mod thread_history;
+mod thread_history_view;
 mod buffer_codegen;
 mod completion_provider;
 mod config_options;
@@ -71,15 +70,12 @@ use std::path::{Path, PathBuf};
 use workspace::Workspace;
 
 use crate::agent_configuration::{ConfigureContextServerModal, ManageProfilesModal};
-<<<<<<< HEAD
-pub use crate::agent_panel::{AgentPanel, AgentPanelEvent, WorktreeCreationStatus};
-pub use crate::orchestration_panel::OrchestrationPanel;
-=======
 pub use crate::agent_connection_store::{ActiveAcpConnection, AgentConnectionStore};
 pub use crate::agent_panel::{
     AgentPanel, AgentPanelEvent, AgentPanelTerminalInfo, MaxIdleRetainedThreads, TerminalId,
+    WorktreeCreationStatus,
 };
->>>>>>> zed/main
+pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
 use crate::mcp_servers_ui::McpServersPage;
 pub use crate::inline_assistant::InlineAssistant;
@@ -90,19 +86,11 @@ pub use external_source_prompt::ExternalSourcePrompt;
 pub(crate) use mode_selector::ModeSelector;
 pub(crate) use model_selector::ModelSelector;
 pub(crate) use model_selector_popover::ModelSelectorPopover;
-<<<<<<< HEAD
 pub(crate) use thread_history::ThreadHistory;
 pub(crate) use thread_history_view::*;
 pub use thread_import::{AcpThreadImportOnboarding, ThreadImportModal};
 use paddleboard_actions;
-=======
-pub use thread_import::{
-    AcpThreadImportOnboarding, CrossChannelImportOnboarding, ThreadImportModal,
-    channels_with_threads, import_threads_from_other_channels,
-};
-use zed_actions;
-pub use zed_actions::{CreateWorktree, NewWorktreeBranchTarget, SwitchWorktree};
->>>>>>> zed/main
+pub use paddleboard_actions::{CreateWorktree, NewWorktreeBranchTarget, SwitchWorktree};
 
 pub(crate) fn resolve_agent_image(
     dest_url: &str,
@@ -375,17 +363,11 @@ pub enum Agent {
 
 impl From<AgentId> for Agent {
     fn from(id: AgentId) -> Self {
-<<<<<<< HEAD
         if id.as_ref() == agent::PADDLEBOARD_AGENT_ID.as_ref() {
-            Self::NativeAgent
-        } else if id.as_ref() == "gemini" {
-            Self::Gemini
-        } else {
-            Self::Custom { id }
-=======
-        if id.as_ref() == agent::ZED_AGENT_ID.as_ref() {
             return Self::NativeAgent;
->>>>>>> zed/main
+        }
+        if id.as_ref() == "gemini" {
+            return Self::Gemini;
         }
         #[cfg(any(test, feature = "test-support"))]
         if id.as_ref() == "stub" {
@@ -773,13 +755,9 @@ fn update_command_palette_filter(cx: &mut App) {
             }
 
             filter.show_namespace("zed_predict_onboarding");
-<<<<<<< HEAD
             filter.show_action_types(&[TypeId::of::<paddleboard_actions::OpenZedPredictOnboarding>()]);
-=======
-            filter.show_action_types(&[TypeId::of::<zed_actions::OpenZedPredictOnboarding>()]);
 
             filter.show_namespace("multi_workspace");
->>>>>>> zed/main
         }
 
         // Hide `assistant: open rules library` when Skills are enabled —

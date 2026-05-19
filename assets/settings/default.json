@@ -2689,7 +2689,6 @@
   // Example: {"log": {"client": "warn"}}
   "log": {},
 
-<<<<<<< HEAD
   // PaddleBoard: configuration for the sandbox enforcement layer.
   // Controls what happens when a sandboxed tool (one-shot exec, long-lived
   // service, or sandboxed MCP transport) tries to launch but the host
@@ -2709,17 +2708,17 @@
     // When false, the gate always allows tools to proceed regardless of
     // cached state.
     "prereq_check_enabled": true
-=======
+  },
+
   // Configuration for developer-oriented instrumentation tools that can be
   // toggled at runtime.
   "instrumentation": {
-    // Performance profiler, accessed via the `zed: open performance profiler`
+    // Performance profiler, accessed via the `paddleboard: open performance profiler`
     // action. Collects timing data for foreground and background executor
     // tasks. Enabling this may lead to increased memory usage, hence it's
     // disabled by default for regular builds.
     "performance_profiler": {
       "enabled": false,
     },
->>>>>>> zed/main
   },
 }

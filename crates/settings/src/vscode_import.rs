@@ -222,14 +222,11 @@ impl VsCodeSettings {
             workspace: self.workspace_settings_content(),
             which_key: None,
             modeline_lines: None,
-<<<<<<< HEAD
             // PaddleBoard: sandbox enforcement policy has no VS Code analogue;
             // leave as None so PaddleBoard's defaults apply.
             paddleboard_sandbox: None,
-=======
             feature_flags: None,
             instrumentation: None,
->>>>>>> zed/main
         }
     }
 

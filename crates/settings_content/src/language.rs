@@ -88,7 +88,6 @@ pub enum EditPredictionProvider {
     Ollama,
     OpenAiCompatibleApi,
     Mercury,
-<<<<<<< HEAD
     Experimental(&'static str),
 }
 
@@ -143,8 +142,6 @@ impl<'de> Deserialize<'de> for EditPredictionProvider {
             }
         })
     }
-=======
->>>>>>> zed/main
 }
 
 impl EditPredictionProvider {

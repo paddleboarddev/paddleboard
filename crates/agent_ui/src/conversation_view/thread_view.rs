@@ -3304,7 +3304,6 @@ impl ThreadView {
                     .justify_between()
                     .gap_2()
                     .child(
-<<<<<<< HEAD
                         h_flex()
                             .gap_0p5()
                             .child(self.render_add_context_button(cx))
@@ -3312,48 +3311,6 @@ impl ThreadView {
                             .children(self.render_fast_mode_control(cx))
                             .children(self.render_thinking_control(cx))
                             .children(self.render_step_mode_toggle(cx)),
-=======
-                        v_flex()
-                            .relative()
-                            .w_full()
-                            .min_h_0()
-                            .when(fills_container, |this| this.flex_1())
-                            .pt_1()
-                            .pr_2p5()
-                            .child(self.message_editor.clone())
-                            .when(has_messages, |this| {
-                                this.child(
-                                    h_flex()
-                                        .absolute()
-                                        .top_0()
-                                        .right_0()
-                                        .opacity(0.5)
-                                        .hover(|s| s.opacity(1.0))
-                                        .child(
-                                            IconButton::new("toggle-height", expand_icon)
-                                                .icon_size(IconSize::Small)
-                                                .icon_color(Color::Muted)
-                                                .tooltip({
-                                                    move |_window, cx| {
-                                                        Tooltip::for_action_in(
-                                                            expand_tooltip,
-                                                            &ExpandMessageEditor,
-                                                            &focus_handle,
-                                                            cx,
-                                                        )
-                                                    }
-                                                })
-                                                .on_click(cx.listener(|this, _, window, cx| {
-                                                    this.expand_message_editor(
-                                                        &ExpandMessageEditor,
-                                                        window,
-                                                        cx,
-                                                    );
-                                                })),
-                                        ),
-                                )
-                            }),
->>>>>>> zed/main
                     )
                     .child(
                         h_flex()

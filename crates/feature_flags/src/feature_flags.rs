@@ -23,17 +23,11 @@ pub static PADDLEBOARD_DISABLE_STAFF: LazyLock<bool> = LazyLock::new(|| {
 
 impl Global for FeatureFlagStore {}
 
-<<<<<<< HEAD
-        if (cfg!(debug_assertions) || self.staff) && !*PADDLEBOARD_DISABLE_STAFF && T::enabled_for_staff() {
-            return true;
-        }
-=======
 pub trait FeatureFlagValue:
     Sized + Clone + Eq + Default + std::fmt::Debug + Send + Sync + 'static
 {
     /// Every possible value for this flag, in the order the UI should display them.
     fn all_variants() -> &'static [Self];
->>>>>>> zed/main
 
     /// A stable identifier for this variant used when persisting overrides.
     fn override_key(&self) -> &'static str;
@@ -242,14 +236,6 @@ impl FeatureFlagAppExt for App {
     }
 
     fn has_flag<T: FeatureFlag>(&self) -> bool {
-<<<<<<< HEAD
-        self.try_global::<FeatureFlags>()
-            .map(|flags| flags.has_flag::<T>())
-            .unwrap_or_else(|| {
-                (cfg!(debug_assertions) && T::enabled_for_staff() && !*PADDLEBOARD_DISABLE_STAFF)
-                    || T::enabled_for_all()
-            })
-=======
         self.try_global::<FeatureFlagStore>()
             .map(|store| store.has_flag::<T>(self))
             .unwrap_or_else(|| FeatureFlagStore::has_flag_default::<T>())
@@ -259,7 +245,6 @@ impl FeatureFlagAppExt for App {
         self.try_global::<FeatureFlagStore>()
             .and_then(|store| store.try_flag_value::<T>(self))
             .unwrap_or_default()
->>>>>>> zed/main
     }
 
     fn is_staff(&self) -> bool {

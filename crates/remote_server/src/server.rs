@@ -462,22 +462,8 @@ pub fn execute_run(
     let app = gpui_platform::headless();
     let pid = std::process::id();
     let id = pid.to_string();
-<<<<<<< HEAD
-    crashes::init(
-        crashes::InitCrashHandler {
-            session_id: id,
-            zed_version: VERSION.to_owned(),
-            binary: "zed-remote-server".to_string(),
-            release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
-            commit_sha: option_env!("PADDLEBOARD_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
-        },
-        |task| {
-            app.background_executor().spawn(task).detach();
-        },
-    );
-=======
     let should_install_crash_handler = matches!(
-        env::var("ZED_GENERATE_MINIDUMPS").as_deref(),
+        env::var("PADDLEBOARD_GENERATE_MINIDUMPS").as_deref(),
         Ok("true" | "1")
     ) || *RELEASE_CHANNEL != ReleaseChannel::Dev;
 
@@ -488,7 +474,7 @@ pub fn execute_run(
                 zed_version: VERSION.to_owned(),
                 binary: "zed-remote-server".to_string(),
                 release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
-                commit_sha: option_env!("ZED_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
+                commit_sha: option_env!("PADDLEBOARD_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
             },
             {
                 let background_executor = app.background_executor();
@@ -505,7 +491,6 @@ pub fn execute_run(
         crashes::force_backtrace();
         None
     };
->>>>>>> zed/main
     let log_rx = init_logging_server(&log_file)?;
     log::info!(
         "starting up with PID {}:\npid_file: {:?}, log_file: {:?}, stdin_socket: {:?}, stdout_socket: {:?}, stderr_socket: {:?}",
@@ -756,25 +741,10 @@ pub(crate) fn execute_proxy(
     let server_paths = ServerPaths::new(&identifier)?;
 
     let id = std::process::id().to_string();
-<<<<<<< HEAD
-    crashes::init(
-        crashes::InitCrashHandler {
-            session_id: id,
-            zed_version: VERSION.to_owned(),
-            binary: "zed-remote-server".to_string(),
-            release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
-            commit_sha: option_env!("PADDLEBOARD_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
-        },
-        |task| {
-            smol::spawn(task).detach();
-        },
-    );
-=======
     let should_install_crash_handler = matches!(
-        env::var("ZED_GENERATE_MINIDUMPS").as_deref(),
+        env::var("PADDLEBOARD_GENERATE_MINIDUMPS").as_deref(),
         Ok("true" | "1")
     ) || *RELEASE_CHANNEL != ReleaseChannel::Dev;
->>>>>>> zed/main
 
     if should_install_crash_handler {
         smol::spawn(crashes::init(
@@ -783,7 +753,7 @@ pub(crate) fn execute_proxy(
                 zed_version: VERSION.to_owned(),
                 binary: "zed-remote-proxy".to_string(),
                 release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
-                commit_sha: option_env!("ZED_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
+                commit_sha: option_env!("PADDLEBOARD_COMMIT_SHA").unwrap_or("no_sha").to_owned(),
             },
             |task| {
                 smol::spawn(task).detach();

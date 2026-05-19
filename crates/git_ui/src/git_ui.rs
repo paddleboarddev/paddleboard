@@ -24,13 +24,8 @@ use project::git_store::Repository;
 use project_diff::ProjectDiff;
 use time::OffsetDateTime;
 use ui::prelude::*;
-<<<<<<< HEAD
-use workspace::{ModalView, Workspace, notifications::DetachAndPromptErr};
-use paddleboard_actions;
-=======
 use workspace::{ModalView, OpenMode, Workspace, notifications::DetachAndPromptErr};
-use zed_actions;
->>>>>>> zed/main
+use paddleboard_actions;
 
 use crate::{commit_view::CommitView, git_panel::GitPanel, text_diff_view::TextDiffView};
 

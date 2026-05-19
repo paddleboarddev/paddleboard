@@ -38,7 +38,6 @@ actions!(
     ]
 );
 
-<<<<<<< HEAD
 pub fn open(
     workspace: &mut Workspace,
     _: &paddleboard_actions::git::Worktree,
@@ -50,12 +49,12 @@ pub fn open(
     workspace.toggle_modal(window, cx, |window, cx| {
         WorktreeList::new(repository, workspace_handle, rems(34.), window, cx)
     })
-=======
+}
+
 pub struct WorktreePicker {
     picker: Entity<Picker<WorktreePickerDelegate>>,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
->>>>>>> zed/main
 }
 
 impl WorktreePicker {

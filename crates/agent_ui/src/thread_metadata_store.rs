@@ -3,14 +3,9 @@ use std::{
     sync::Arc,
 };
 
-<<<<<<< HEAD
 use acp_thread::AcpThreadEvent;
-use agent::{ThreadStore, PADDLEBOARD_AGENT_ID};
-use agent_client_protocol as acp;
-=======
-use agent::{ThreadStore, ZED_AGENT_ID};
+use agent::{PADDLEBOARD_AGENT_ID, ThreadStore};
 use agent_client_protocol::schema as acp;
->>>>>>> zed/main
 use anyhow::Context as _;
 use chrono::{DateTime, Utc};
 use collections::{HashMap, HashSet};
@@ -131,14 +126,9 @@ fn migrate_thread_metadata(cx: &mut App) -> Task<anyhow::Result<()>> {
                     }
 
                     Some(ThreadMetadata {
-<<<<<<< HEAD
-                        session_id: entry.id,
-                        agent_id: PADDLEBOARD_AGENT_ID.clone(),
-                        title: entry.title,
-=======
                         thread_id: ThreadId::new(),
                         session_id: Some(entry.id),
-                        agent_id: ZED_AGENT_ID.clone(),
+                        agent_id: PADDLEBOARD_AGENT_ID.clone(),
                         title: if entry.title.is_empty()
                             || entry.title.as_ref() == DEFAULT_THREAD_TITLE
                         {
@@ -147,7 +137,6 @@ fn migrate_thread_metadata(cx: &mut App) -> Task<anyhow::Result<()>> {
                             Some(entry.title)
                         },
                         title_override: None,
->>>>>>> zed/main
                         updated_at: entry.updated_at,
                         created_at: entry.created_at,
                         interacted_at: None,
@@ -1442,13 +1431,8 @@ impl ThreadMetadataDb {
     /// session_id on promotion (when the first message is sent) and
     /// then flow through this same upsert path.
     pub async fn save(&self, row: ThreadMetadata) -> anyhow::Result<()> {
-<<<<<<< HEAD
-        let id = row.session_id.0.clone();
-        let agent_id = if row.agent_id.as_ref() == PADDLEBOARD_AGENT_ID.as_ref() {
-=======
         let session_id = row.session_id.as_ref().map(|s| s.0.clone());
-        let agent_id = if row.agent_id.as_ref() == ZED_AGENT_ID.as_ref() {
->>>>>>> zed/main
+        let agent_id = if row.agent_id.as_ref() == PADDLEBOARD_AGENT_ID.as_ref() {
             None
         } else {
             Some(row.agent_id.to_string())
@@ -1815,20 +1799,14 @@ mod tests {
         ThreadMetadata {
             thread_id: ThreadId::new(),
             archived: false,
-<<<<<<< HEAD
-            session_id: acp::SessionId::new(session_id),
-            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-            title: title.to_string().into(),
-=======
             session_id: Some(acp::SessionId::new(session_id)),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: if title.is_empty() {
                 None
             } else {
                 Some(title.to_string().into())
             },
             title_override: None,
->>>>>>> zed/main
             updated_at,
             created_at: Some(updated_at),
             interacted_at: None,
@@ -2086,7 +2064,7 @@ mod tests {
         let moved_metadata = ThreadMetadata {
             thread_id: session1_thread_id,
             session_id: Some(acp::SessionId::new("session-1")),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("First Thread".into()),
             title_override: None,
             updated_at: updated_time,
@@ -2169,17 +2147,11 @@ mod tests {
         let now = Utc::now();
 
         let existing_metadata = ThreadMetadata {
-<<<<<<< HEAD
-            session_id: acp::SessionId::new("a-session-0"),
-            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-            title: "Existing Metadata".into(),
-=======
             thread_id: ThreadId::new(),
             session_id: Some(acp::SessionId::new("a-session-0")),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Existing Metadata".into()),
             title_override: None,
->>>>>>> zed/main
             updated_at: now - chrono::Duration::seconds(10),
             created_at: Some(now - chrono::Duration::seconds(10)),
             interacted_at: None,
@@ -2301,17 +2273,11 @@ mod tests {
         let existing_updated_at = Utc::now();
 
         let existing_metadata = ThreadMetadata {
-<<<<<<< HEAD
-            session_id: acp::SessionId::new("existing-session"),
-            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-            title: "Existing Metadata".into(),
-=======
             thread_id: ThreadId::new(),
             session_id: Some(acp::SessionId::new("existing-session")),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Existing Metadata".into()),
             title_override: None,
->>>>>>> zed/main
             updated_at: existing_updated_at,
             created_at: Some(existing_updated_at),
             interacted_at: None,
@@ -3054,7 +3020,7 @@ mod tests {
             thread_id: ThreadId::new(),
             archived: false,
             session_id: Some(acp::SessionId::new("local-linked")),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Local Linked".into()),
             title_override: None,
             updated_at: now,
@@ -3068,7 +3034,7 @@ mod tests {
             thread_id: ThreadId::new(),
             archived: false,
             session_id: Some(acp::SessionId::new("remote-linked")),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Remote Linked".into()),
             title_override: None,
             updated_at: now - chrono::Duration::seconds(1),
