@@ -1,4 +1,5 @@
 use ai_onboarding::YoungAccountBanner;
+<<<<<<< HEAD
 use anthropic::AnthropicModelMode;
 use anyhow::{Context as _, Result, anyhow};
 use client::{
@@ -29,24 +30,32 @@ use language_model::{
     LanguageModelToolChoice, LanguageModelToolSchemaFormat, LlmApiToken, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
     PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
+=======
+use anyhow::Result;
+use client::{Client, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls};
+use cloud_api_client::LlmApiToken;
+use cloud_api_types::OrganizationId;
+use cloud_api_types::Plan;
+use futures::FutureExt;
+use futures::StreamExt;
+use futures::future::BoxFuture;
+use gpui::{AnyElement, AnyView, App, AppContext, Context, Entity, Subscription, Task, TaskExt};
+use language_model::{
+    AuthenticateError, IconOrSvg, LanguageModel, LanguageModelProvider, LanguageModelProviderId,
+    LanguageModelProviderName, LanguageModelProviderState, ZED_CLOUD_PROVIDER_ID,
+    ZED_CLOUD_PROVIDER_NAME,
+>>>>>>> zed/main
 };
+use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use release_channel::AppVersion;
-use schemars::JsonSchema;
-use semver::Version;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+
 use settings::SettingsStore;
 pub use settings::ZedDotDevAvailableModel as AvailableModel;
 pub use settings::ZedDotDevAvailableProvider as AvailableProvider;
-use smol::io::{AsyncReadExt, BufReader};
-use std::collections::VecDeque;
-use std::pin::Pin;
-use std::str::FromStr;
 use std::sync::Arc;
-use std::task::Poll;
-use std::time::Duration;
-use thiserror::Error;
 use ui::{TintColor, prelude::*};
 
+<<<<<<< HEAD
 use crate::provider::anthropic::{
     AnthropicEventMapper, count_anthropic_tokens_with_tiktoken, into_anthropic,
 };
@@ -59,49 +68,74 @@ use crate::provider::x_ai::count_xai_tokens;
 
 const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
 const PROVIDER_NAME: LanguageModelProviderName = PADDLEBOARD_CLOUD_PROVIDER_NAME;
+=======
+const PROVIDER_ID: LanguageModelProviderId = ZED_CLOUD_PROVIDER_ID;
+const PROVIDER_NAME: LanguageModelProviderName = ZED_CLOUD_PROVIDER_NAME;
+>>>>>>> zed/main
+
+struct ClientTokenProvider {
+    client: Arc<Client>,
+    llm_api_token: LlmApiToken,
+    user_store: Entity<UserStore>,
+}
+
+impl CloudLlmTokenProvider for ClientTokenProvider {
+    type AuthContext = Option<OrganizationId>;
+
+    fn auth_context(&self, cx: &impl AppContext) -> Self::AuthContext {
+        self.user_store.read_with(cx, |user_store, _| {
+            user_store
+                .current_organization()
+                .map(|organization| organization.id.clone())
+        })
+    }
+
+    fn cached_token(
+        &self,
+        organization_id: Self::AuthContext,
+    ) -> BoxFuture<'static, Result<String>> {
+        let client = self.client.clone();
+        let llm_api_token = self.llm_api_token.clone();
+        Box::pin(async move {
+            client
+                .cached_llm_token(&llm_api_token, organization_id)
+                .await
+        })
+    }
+
+    fn refresh_token(
+        &self,
+        organization_id: Self::AuthContext,
+    ) -> BoxFuture<'static, Result<String>> {
+        let client = self.client.clone();
+        let llm_api_token = self.llm_api_token.clone();
+        Box::pin(async move {
+            client
+                .refresh_llm_token(&llm_api_token, organization_id)
+                .await
+        })
+    }
+}
 
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct ZedDotDevSettings {
     pub available_models: Vec<AvailableModel>,
 }
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum ModelMode {
-    #[default]
-    Default,
-    Thinking {
-        /// The maximum number of tokens to use for reasoning. Must be lower than the model's `max_output_tokens`.
-        budget_tokens: Option<u32>,
-    },
-}
-
-impl From<ModelMode> for AnthropicModelMode {
-    fn from(value: ModelMode) -> Self {
-        match value {
-            ModelMode::Default => AnthropicModelMode::Default,
-            ModelMode::Thinking { budget_tokens } => AnthropicModelMode::Thinking { budget_tokens },
-        }
-    }
-}
 
 pub struct CloudLanguageModelProvider {
-    client: Arc<Client>,
     state: Entity<State>,
     _maintain_client_status: Task<()>,
 }
 
 pub struct State {
     client: Arc<Client>,
-    llm_api_token: LlmApiToken,
     user_store: Entity<UserStore>,
     status: client::Status,
-    models: Vec<Arc<cloud_llm_client::LanguageModel>>,
-    default_model: Option<Arc<cloud_llm_client::LanguageModel>>,
-    default_fast_model: Option<Arc<cloud_llm_client::LanguageModel>>,
-    recommended_models: Vec<Arc<cloud_llm_client::LanguageModel>>,
+    provider: Entity<CloudModelProvider<ClientTokenProvider>>,
     _user_store_subscription: Subscription,
     _settings_subscription: Subscription,
     _llm_token_subscription: Subscription,
+    _provider_subscription: Subscription,
 }
 
 impl State {
@@ -112,16 +146,26 @@ impl State {
         cx: &mut Context<Self>,
     ) -> Self {
         let refresh_llm_token_listener = RefreshLlmTokenListener::global(cx);
-        let llm_api_token = global_llm_token(cx);
+        let token_provider = Arc::new(ClientTokenProvider {
+            client: client.clone(),
+            llm_api_token: global_llm_token(cx),
+            user_store: user_store.clone(),
+        });
+
+        let provider = cx.new(|cx| {
+            CloudModelProvider::new(
+                token_provider.clone(),
+                client.http_client(),
+                Some(AppVersion::global(cx)),
+            )
+        });
+
         Self {
             client: client.clone(),
-            llm_api_token,
             user_store: user_store.clone(),
             status,
-            models: Vec::new(),
-            default_model: None,
-            default_fast_model: None,
-            recommended_models: Vec::new(),
+            _provider_subscription: cx.observe(&provider, |_, _, cx| cx.notify()),
+            provider,
             _user_store_subscription: cx.subscribe(
                 &user_store,
                 move |this, _user_store, event, cx| match event {
@@ -131,19 +175,7 @@ impl State {
                             return;
                         }
 
-                        let client = this.client.clone();
-                        let llm_api_token = this.llm_api_token.clone();
-                        let organization_id = this
-                            .user_store
-                            .read(cx)
-                            .current_organization()
-                            .map(|organization| organization.id.clone());
-                        cx.spawn(async move |this, cx| {
-                            let response =
-                                Self::fetch_models(client, llm_api_token, organization_id).await?;
-                            this.update(cx, |this, cx| this.update_models(response, cx))
-                        })
-                        .detach_and_log_err(cx);
+                        this.refresh_models(cx);
                     }
                     _ => {}
                 },
@@ -154,21 +186,7 @@ impl State {
             _llm_token_subscription: cx.subscribe(
                 &refresh_llm_token_listener,
                 move |this, _listener, _event, cx| {
-                    let client = this.client.clone();
-                    let llm_api_token = this.llm_api_token.clone();
-                    let organization_id = this
-                        .user_store
-                        .read(cx)
-                        .current_organization()
-                        .map(|organization| organization.id.clone());
-                    cx.spawn(async move |this, cx| {
-                        let response =
-                            Self::fetch_models(client, llm_api_token, organization_id).await?;
-                        this.update(cx, |this, cx| {
-                            this.update_models(response, cx);
-                        })
-                    })
-                    .detach_and_log_err(cx);
+                    this.refresh_models(cx);
                 },
             ),
         }
@@ -178,82 +196,24 @@ impl State {
         self.user_store.read(cx).current_user().is_none()
     }
 
-    fn authenticate(&self, cx: &mut Context<Self>) -> Task<Result<()>> {
+    fn sign_in(&self, cx: &mut Context<Self>) -> Task<Result<()>> {
         let client = self.client.clone();
+        let mut current_user = self.user_store.read(cx).watch_current_user();
         cx.spawn(async move |state, cx| {
             client.sign_in_with_optional_connect(true, cx).await?;
-            state.update(cx, |_, cx| cx.notify())
+            while current_user.borrow().is_none() {
+                current_user.next().await;
+            }
+            state.update(cx, |_, cx| {
+                cx.notify();
+            })
         })
     }
 
-    fn update_models(&mut self, response: ListModelsResponse, cx: &mut Context<Self>) {
-        let mut models = Vec::new();
-
-        for model in response.models {
-            models.push(Arc::new(model.clone()));
-        }
-
-        self.default_model = models
-            .iter()
-            .find(|model| {
-                response
-                    .default_model
-                    .as_ref()
-                    .is_some_and(|default_model_id| &model.id == default_model_id)
-            })
-            .cloned();
-        self.default_fast_model = models
-            .iter()
-            .find(|model| {
-                response
-                    .default_fast_model
-                    .as_ref()
-                    .is_some_and(|default_fast_model_id| &model.id == default_fast_model_id)
-            })
-            .cloned();
-        self.recommended_models = response
-            .recommended_models
-            .iter()
-            .filter_map(|id| models.iter().find(|model| &model.id == id))
-            .cloned()
-            .collect();
-        self.models = models;
-        cx.notify();
-    }
-
-    async fn fetch_models(
-        client: Arc<Client>,
-        llm_api_token: LlmApiToken,
-        organization_id: Option<OrganizationId>,
-    ) -> Result<ListModelsResponse> {
-        let http_client = &client.http_client();
-        let token = client
-            .acquire_llm_token(&llm_api_token, organization_id)
-            .await?;
-
-        let request = http_client::Request::builder()
-            .method(Method::GET)
-            .header(CLIENT_SUPPORTS_X_AI_HEADER_NAME, "true")
-            .uri(http_client.build_zed_llm_url("/models", &[])?.as_ref())
-            .header("Authorization", format!("Bearer {token}"))
-            .body(AsyncBody::empty())?;
-        let mut response = http_client
-            .send(request)
-            .await
-            .context("failed to send list models request")?;
-
-        if response.status().is_success() {
-            let mut body = String::new();
-            response.body_mut().read_to_string(&mut body).await?;
-            Ok(serde_json::from_str(&body)?)
-        } else {
-            let mut body = String::new();
-            response.body_mut().read_to_string(&mut body).await?;
-            anyhow::bail!(
-                "error listing models.\nStatus: {:?}\nBody: {body}",
-                response.status(),
-            );
-        }
+    fn refresh_models(&mut self, cx: &mut Context<Self>) {
+        self.provider.update(cx, |provider, cx| {
+            provider.refresh_models(cx).detach_and_log_err(cx);
+        });
     }
 }
 
@@ -281,26 +241,9 @@ impl CloudLanguageModelProvider {
         });
 
         Self {
-            client,
             state,
             _maintain_client_status: maintain_client_status,
         }
-    }
-
-    fn create_language_model(
-        &self,
-        model: Arc<cloud_llm_client::LanguageModel>,
-        llm_api_token: LlmApiToken,
-        user_store: Entity<UserStore>,
-    ) -> Arc<dyn LanguageModel> {
-        Arc::new(CloudLanguageModel {
-            id: LanguageModelId(SharedString::from(model.id.0.clone())),
-            model,
-            llm_api_token,
-            user_store,
-            client: self.client.clone(),
-            request_limiter: RateLimiter::new(4),
-        })
     }
 }
 
@@ -327,45 +270,35 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
 
     fn default_model(&self, cx: &App) -> Option<Arc<dyn LanguageModel>> {
         let state = self.state.read(cx);
-        let default_model = state.default_model.clone()?;
-        let llm_api_token = state.llm_api_token.clone();
-        let user_store = state.user_store.clone();
-        Some(self.create_language_model(default_model, llm_api_token, user_store))
+        let provider = state.provider.read(cx);
+        let model = provider.default_model()?;
+        Some(provider.create_model(model))
     }
 
     fn default_fast_model(&self, cx: &App) -> Option<Arc<dyn LanguageModel>> {
         let state = self.state.read(cx);
-        let default_fast_model = state.default_fast_model.clone()?;
-        let llm_api_token = state.llm_api_token.clone();
-        let user_store = state.user_store.clone();
-        Some(self.create_language_model(default_fast_model, llm_api_token, user_store))
+        let provider = state.provider.read(cx);
+        let model = provider.default_fast_model()?;
+        Some(provider.create_model(model))
     }
 
     fn recommended_models(&self, cx: &App) -> Vec<Arc<dyn LanguageModel>> {
         let state = self.state.read(cx);
-        let llm_api_token = state.llm_api_token.clone();
-        let user_store = state.user_store.clone();
-        state
-            .recommended_models
+        let provider = state.provider.read(cx);
+        provider
+            .recommended_models()
             .iter()
-            .cloned()
-            .map(|model| {
-                self.create_language_model(model, llm_api_token.clone(), user_store.clone())
-            })
+            .map(|model| provider.create_model(model))
             .collect()
     }
 
     fn provided_models(&self, cx: &App) -> Vec<Arc<dyn LanguageModel>> {
         let state = self.state.read(cx);
-        let llm_api_token = state.llm_api_token.clone();
-        let user_store = state.user_store.clone();
-        state
-            .models
+        let provider = state.provider.read(cx);
+        provider
+            .models()
             .iter()
-            .cloned()
-            .map(|model| {
-                self.create_language_model(model, llm_api_token.clone(), user_store.clone())
-            })
+            .map(|model| provider.create_model(model))
             .collect()
     }
 
@@ -374,8 +307,38 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
         !state.is_signed_out(cx)
     }
 
-    fn authenticate(&self, _cx: &mut App) -> Task<Result<(), AuthenticateError>> {
-        Task::ready(Ok(()))
+    fn authenticate(&self, cx: &mut App) -> Task<Result<(), AuthenticateError>> {
+        if self.is_authenticated(cx) {
+            return Task::ready(Ok(()));
+        }
+        let mut status = self.state.read(cx).client.status();
+        let mut current_user = self.state.read(cx).user_store.read(cx).watch_current_user();
+        if !status.borrow().is_signing_in() {
+            return Task::ready(Ok(()));
+        }
+        cx.background_spawn(async move {
+            while status.borrow().is_signing_in() {
+                status.next().await;
+            }
+            while current_user.borrow().is_none() {
+                let current_status = *status.borrow();
+                if !matches!(
+                    current_status,
+                    client::Status::Authenticated
+                        | client::Status::Reauthenticated
+                        | client::Status::Connected { .. }
+                ) {
+                    return Err(AuthenticateError::Other(anyhow::anyhow!(
+                        "sign-in did not complete: {current_status:?}"
+                    )));
+                }
+                futures::select_biased! {
+                    _ = current_user.next().fuse() => {},
+                    _ = status.next().fuse() => {},
+                }
+            }
+            Ok(())
+        })
     }
 
     fn configuration_view(
@@ -393,6 +356,7 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
     }
 }
 
+<<<<<<< HEAD
 pub struct CloudLanguageModel {
     id: LanguageModelId,
     model: Arc<cloud_llm_client::LanguageModel>,
@@ -1087,10 +1051,13 @@ fn response_lines<T: DeserializeOwned>(
     )
 }
 
+=======
+>>>>>>> zed/main
 #[derive(IntoElement, RegisterComponent)]
 struct ZedAiConfiguration {
     is_connected: bool,
     plan: Option<Plan>,
+    is_zed_model_provider_enabled: bool,
     eligible_for_trial: bool,
     account_too_young: bool,
     sign_in_callback: Arc<dyn Fn(&mut Window, &mut App) + Send + Sync>,
@@ -1112,7 +1079,11 @@ impl RenderOnce for ZedAiConfiguration {
                 true,
             ),
             Some(Plan::ZedBusiness) => (
-                "You have access to Zed's hosted models through your Organization.",
+                if self.is_zed_model_provider_enabled {
+                    "You have access to Zed's hosted models through your organization."
+                } else {
+                    "Zed's hosted models are disabled by your organization's configuration."
+                },
                 true,
             ),
             Some(Plan::ZedFree) | None => (
@@ -1189,7 +1160,7 @@ impl ConfigurationView {
             let state = state.clone();
             move |_window: &mut Window, cx: &mut App| {
                 state.update(cx, |state, cx| {
-                    state.authenticate(cx).detach_and_log_err(cx);
+                    state.sign_in(cx).detach_and_log_err(cx);
                 });
             }
         });
@@ -1206,13 +1177,223 @@ impl Render for ConfigurationView {
         let state = self.state.read(cx);
         let user_store = state.user_store.read(cx);
 
+        let is_zed_model_provider_enabled = user_store
+            .current_organization_configuration()
+            .map_or(true, |config| config.is_zed_model_provider_enabled);
+
         ZedAiConfiguration {
             is_connected: !state.is_signed_out(cx),
             plan: user_store.plan(),
+            is_zed_model_provider_enabled,
             eligible_for_trial: user_store.trial_started_at().is_none(),
             account_too_young: user_store.account_too_young(),
             sign_in_callback: self.sign_in_callback.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use client::{Credentials, test::make_get_authenticated_user_response};
+    use clock::FakeSystemClock;
+    use feature_flags::FeatureFlagAppExt as _;
+    use gpui::TestAppContext;
+    use http_client::{FakeHttpClient, Method, Response};
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    const TEST_USER_ID: u64 = 42;
+
+    fn init_test(cx: &mut App) -> (Arc<Client>, Entity<UserStore>, CloudLanguageModelProvider) {
+        let settings_store = SettingsStore::test(cx);
+        cx.set_global(settings_store);
+        cx.set_global(db::AppDatabase::test_new());
+        let app_version = AppVersion::global(cx);
+        release_channel::init_test(app_version, release_channel::ReleaseChannel::Dev, cx);
+        gpui_tokio::init(cx);
+        cx.update_flags(false, Vec::new());
+
+        let client = Client::new(
+            Arc::new(FakeSystemClock::new()),
+            FakeHttpClient::with_404_response(),
+            cx,
+        );
+        let user_store = cx.new(|cx| UserStore::new(client.clone(), cx));
+        RefreshLlmTokenListener::register(client.clone(), user_store.clone(), cx);
+        let provider = CloudLanguageModelProvider::new(user_store.clone(), client.clone(), cx);
+
+        (client, user_store, provider)
+    }
+
+    fn override_authenticate(
+        client: &Arc<Client>,
+        authenticate_rx: futures::channel::oneshot::Receiver<anyhow::Result<Credentials>>,
+    ) {
+        let authenticate_rx = Arc::new(Mutex::new(Some(authenticate_rx)));
+        client.override_authenticate(move |cx| {
+            let authenticate_rx = authenticate_rx.clone();
+            cx.background_spawn(async move {
+                let authenticate_rx = authenticate_rx
+                    .lock()
+                    .expect("authenticate receiver lock poisoned")
+                    .take()
+                    .expect("authenticate receiver already used");
+                authenticate_rx.await?
+            })
+        });
+    }
+
+    fn respond_to_authenticated_user_after(
+        client: &Arc<Client>,
+        authenticated_user_rx: futures::channel::oneshot::Receiver<()>,
+    ) {
+        let authenticated_user_rx = Arc::new(Mutex::new(Some(authenticated_user_rx)));
+        client
+            .http_client()
+            .as_fake()
+            .replace_handler(move |old_handler, request| {
+                let authenticated_user_rx = authenticated_user_rx.clone();
+                async move {
+                    if request.method() == Method::GET && request.uri().path() == "/client/users/me"
+                    {
+                        let authenticated_user_rx = authenticated_user_rx
+                            .lock()
+                            .expect("authenticated user receiver lock poisoned")
+                            .take();
+                        if let Some(authenticated_user_rx) = authenticated_user_rx {
+                            authenticated_user_rx.await.ok();
+                        }
+
+                        return Ok(Response::builder()
+                            .status(200)
+                            .body(
+                                serde_json::to_string(&make_get_authenticated_user_response(
+                                    TEST_USER_ID as i32,
+                                    format!("user-{TEST_USER_ID}"),
+                                ))
+                                .expect("failed to serialize authenticated user response")
+                                .into(),
+                            )
+                            .expect("failed to build authenticated user response"));
+                    }
+
+                    old_handler(request).await
+                }
+            });
+    }
+
+    async fn sign_in_until_authenticating(
+        client: Arc<Client>,
+        cx: &mut TestAppContext,
+    ) -> Task<anyhow::Result<Credentials>> {
+        let mut status = client.status();
+        let sign_in_task = cx.update(|cx| {
+            cx.spawn({
+                let client = client.clone();
+                async move |cx| client.sign_in(false, cx).await
+            })
+        });
+
+        while !status.borrow().is_signing_in() {
+            status.next().await;
+        }
+
+        sign_in_task
+    }
+
+    #[gpui::test]
+    async fn provider_authenticate_does_not_start_sign_in_when_signed_out(cx: &mut TestAppContext) {
+        let (client, _user_store, provider) = cx.update(init_test);
+        let authenticate_calls = Arc::new(AtomicUsize::new(0));
+        client.override_authenticate({
+            let authenticate_calls = authenticate_calls.clone();
+            move |_| {
+                authenticate_calls.fetch_add(1, Ordering::SeqCst);
+                Task::ready(Err(anyhow::anyhow!(
+                    "provider authenticate should not start sign-in"
+                )))
+            }
+        });
+
+        assert!(!cx.read(|cx| provider.is_authenticated(cx)));
+        assert!(matches!(
+            *client.status().borrow(),
+            client::Status::SignedOut
+        ));
+
+        cx.update(|cx| provider.authenticate(cx))
+            .now_or_never()
+            .expect("authenticate should return immediately when signed out")
+            .expect("authenticate should not fail when no sign-in is in progress");
+        cx.executor().run_until_parked();
+
+        assert_eq!(authenticate_calls.load(Ordering::SeqCst), 0);
+        assert!(matches!(
+            *client.status().borrow(),
+            client::Status::SignedOut
+        ));
+        assert!(!cx.read(|cx| provider.is_authenticated(cx)));
+    }
+
+    #[gpui::test]
+    async fn provider_authenticate_waits_for_current_user(cx: &mut TestAppContext) {
+        let (client, _user_store, provider) = cx.update(init_test);
+        let (authenticate_tx, authenticate_rx) = futures::channel::oneshot::channel();
+        let (authenticated_user_tx, authenticated_user_rx) = futures::channel::oneshot::channel();
+        override_authenticate(&client, authenticate_rx);
+        respond_to_authenticated_user_after(&client, authenticated_user_rx);
+
+        let sign_in_task = sign_in_until_authenticating(client.clone(), cx).await;
+        let authenticate_task = cx.update(|cx| provider.authenticate(cx));
+        authenticate_tx
+            .send(Ok(Credentials {
+                user_id: TEST_USER_ID,
+                access_token: "token".to_string(),
+            }))
+            .expect("authenticate receiver dropped");
+
+        cx.executor().run_until_parked();
+        assert!(!cx.read(|cx| provider.is_authenticated(cx)));
+
+        authenticated_user_tx
+            .send(())
+            .expect("authenticated user receiver dropped");
+        sign_in_task
+            .await
+            .expect("sign-in should complete after user response");
+        authenticate_task
+            .await
+            .expect("provider authentication should complete after current user is populated");
+        assert!(cx.read(|cx| provider.is_authenticated(cx)));
+
+        cx.update(|cx| provider.authenticate(cx))
+            .now_or_never()
+            .expect("already-authenticated provider should authenticate immediately")
+            .unwrap();
+    }
+
+    #[gpui::test]
+    async fn provider_authenticate_returns_error_when_sign_in_fails(cx: &mut TestAppContext) {
+        let (client, _user_store, provider) = cx.update(init_test);
+        let (authenticate_tx, authenticate_rx) = futures::channel::oneshot::channel();
+        override_authenticate(&client, authenticate_rx);
+
+        let sign_in_task = sign_in_until_authenticating(client.clone(), cx).await;
+        let authenticate_task = cx.update(|cx| provider.authenticate(cx));
+        authenticate_tx
+            .send(Err(anyhow::anyhow!("test authentication failed")))
+            .expect("authenticate receiver dropped");
+
+        sign_in_task
+            .await
+            .expect_err("sign-in should report authentication failure");
+        let error = authenticate_task
+            .await
+            .expect_err("provider authentication should fail when sign-in fails");
+        assert!(error.to_string().contains("AuthenticationError"));
     }
 }
 
@@ -1230,206 +1411,113 @@ impl Component for ZedAiConfiguration {
     }
 
     fn preview(_window: &mut Window, _cx: &mut App) -> Option<AnyElement> {
-        fn configuration(
-            is_connected: bool,
+        struct PreviewConfiguration {
             plan: Option<Plan>,
+            is_connected: bool,
+            is_zed_model_provider_enabled: bool,
             eligible_for_trial: bool,
-            account_too_young: bool,
-        ) -> AnyElement {
+        }
+
+        let configuration = |config: PreviewConfiguration| -> AnyElement {
             ZedAiConfiguration {
-                is_connected,
-                plan,
-                eligible_for_trial,
-                account_too_young,
+                is_connected: config.is_connected,
+                plan: config.plan,
+                is_zed_model_provider_enabled: config.is_zed_model_provider_enabled,
+                eligible_for_trial: config.eligible_for_trial,
+                account_too_young: false,
                 sign_in_callback: Arc::new(|_, _| {}),
             }
             .into_any_element()
-        }
+        };
 
         Some(
             v_flex()
                 .p_4()
                 .gap_4()
                 .children(vec![
-                    single_example("Not connected", configuration(false, None, false, false)),
+                    single_example(
+                        "Not connected",
+                        configuration(PreviewConfiguration {
+                            plan: None,
+                            is_connected: false,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: false,
+                        }),
+                    ),
                     single_example(
                         "Accept Terms of Service",
-                        configuration(true, None, true, false),
+                        configuration(PreviewConfiguration {
+                            plan: None,
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: true,
+                        }),
                     ),
                     single_example(
                         "No Plan - Not eligible for trial",
-                        configuration(true, None, false, false),
+                        configuration(PreviewConfiguration {
+                            plan: None,
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: false,
+                        }),
                     ),
                     single_example(
                         "No Plan - Eligible for trial",
-                        configuration(true, None, true, false),
+                        configuration(PreviewConfiguration {
+                            plan: None,
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: true,
+                        }),
                     ),
                     single_example(
                         "Free Plan",
-                        configuration(true, Some(Plan::ZedFree), true, false),
+                        configuration(PreviewConfiguration {
+                            plan: Some(Plan::ZedFree),
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: true,
+                        }),
                     ),
                     single_example(
                         "Zed Pro Trial Plan",
-                        configuration(true, Some(Plan::ZedProTrial), true, false),
+                        configuration(PreviewConfiguration {
+                            plan: Some(Plan::ZedProTrial),
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: true,
+                        }),
                     ),
                     single_example(
                         "Zed Pro Plan",
-                        configuration(true, Some(Plan::ZedPro), true, false),
+                        configuration(PreviewConfiguration {
+                            plan: Some(Plan::ZedPro),
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: true,
+                        }),
+                    ),
+                    single_example(
+                        "Business Plan - Zed models enabled",
+                        configuration(PreviewConfiguration {
+                            plan: Some(Plan::ZedBusiness),
+                            is_connected: true,
+                            is_zed_model_provider_enabled: true,
+                            eligible_for_trial: false,
+                        }),
+                    ),
+                    single_example(
+                        "Business Plan - Zed models disabled",
+                        configuration(PreviewConfiguration {
+                            plan: Some(Plan::ZedBusiness),
+                            is_connected: true,
+                            is_zed_model_provider_enabled: false,
+                            eligible_for_trial: false,
+                        }),
                     ),
                 ])
                 .into_any_element(),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use http_client::http::{HeaderMap, StatusCode};
-    use language_model::LanguageModelCompletionError;
-
-    #[test]
-    fn test_api_error_conversion_with_upstream_http_error() {
-        // upstream_http_error with 503 status should become ServerOverloaded
-        let error_body = r#"{"code":"upstream_http_error","message":"Received an error from the Anthropic API: upstream connect error or disconnect/reset before headers, reset reason: connection timeout","upstream_status":503}"#;
-
-        let api_error = ApiError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: error_body.to_string(),
-            headers: HeaderMap::new(),
-        };
-
-        let completion_error: LanguageModelCompletionError = api_error.into();
-
-        match completion_error {
-            LanguageModelCompletionError::UpstreamProviderError { message, .. } => {
-                assert_eq!(
-                    message,
-                    "Received an error from the Anthropic API: upstream connect error or disconnect/reset before headers, reset reason: connection timeout"
-                );
-            }
-            _ => panic!(
-                "Expected UpstreamProviderError for upstream 503, got: {:?}",
-                completion_error
-            ),
-        }
-
-        // upstream_http_error with 500 status should become ApiInternalServerError
-        let error_body = r#"{"code":"upstream_http_error","message":"Received an error from the OpenAI API: internal server error","upstream_status":500}"#;
-
-        let api_error = ApiError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: error_body.to_string(),
-            headers: HeaderMap::new(),
-        };
-
-        let completion_error: LanguageModelCompletionError = api_error.into();
-
-        match completion_error {
-            LanguageModelCompletionError::UpstreamProviderError { message, .. } => {
-                assert_eq!(
-                    message,
-                    "Received an error from the OpenAI API: internal server error"
-                );
-            }
-            _ => panic!(
-                "Expected UpstreamProviderError for upstream 500, got: {:?}",
-                completion_error
-            ),
-        }
-
-        // upstream_http_error with 429 status should become RateLimitExceeded
-        let error_body = r#"{"code":"upstream_http_error","message":"Received an error from the Google API: rate limit exceeded","upstream_status":429}"#;
-
-        let api_error = ApiError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: error_body.to_string(),
-            headers: HeaderMap::new(),
-        };
-
-        let completion_error: LanguageModelCompletionError = api_error.into();
-
-        match completion_error {
-            LanguageModelCompletionError::UpstreamProviderError { message, .. } => {
-                assert_eq!(
-                    message,
-                    "Received an error from the Google API: rate limit exceeded"
-                );
-            }
-            _ => panic!(
-                "Expected UpstreamProviderError for upstream 429, got: {:?}",
-                completion_error
-            ),
-        }
-
-        // Regular 500 error without upstream_http_error should remain ApiInternalServerError for Zed
-        let error_body = "Regular internal server error";
-
-        let api_error = ApiError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: error_body.to_string(),
-            headers: HeaderMap::new(),
-        };
-
-        let completion_error: LanguageModelCompletionError = api_error.into();
-
-        match completion_error {
-            LanguageModelCompletionError::ApiInternalServerError { provider, message } => {
-                assert_eq!(provider, PROVIDER_NAME);
-                assert_eq!(message, "Regular internal server error");
-            }
-            _ => panic!(
-                "Expected ApiInternalServerError for regular 500, got: {:?}",
-                completion_error
-            ),
-        }
-
-        // upstream_http_429 format should be converted to UpstreamProviderError
-        let error_body = r#"{"code":"upstream_http_429","message":"Upstream Anthropic rate limit exceeded.","retry_after":30.5}"#;
-
-        let api_error = ApiError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: error_body.to_string(),
-            headers: HeaderMap::new(),
-        };
-
-        let completion_error: LanguageModelCompletionError = api_error.into();
-
-        match completion_error {
-            LanguageModelCompletionError::UpstreamProviderError {
-                message,
-                status,
-                retry_after,
-            } => {
-                assert_eq!(message, "Upstream Anthropic rate limit exceeded.");
-                assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
-                assert_eq!(retry_after, Some(Duration::from_secs_f64(30.5)));
-            }
-            _ => panic!(
-                "Expected UpstreamProviderError for upstream_http_429, got: {:?}",
-                completion_error
-            ),
-        }
-
-        // Invalid JSON in error body should fall back to regular error handling
-        let error_body = "Not JSON at all";
-
-        let api_error = ApiError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: error_body.to_string(),
-            headers: HeaderMap::new(),
-        };
-
-        let completion_error: LanguageModelCompletionError = api_error.into();
-
-        match completion_error {
-            LanguageModelCompletionError::ApiInternalServerError { provider, .. } => {
-                assert_eq!(provider, PROVIDER_NAME);
-            }
-            _ => panic!(
-                "Expected ApiInternalServerError for invalid JSON, got: {:?}",
-                completion_error
-            ),
-        }
     }
 }
