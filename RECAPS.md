@@ -4,6 +4,22 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-19
+
+### PR #37 weekly upstream merge: partial conflict resolution
+- Re-ran `merge_upstream_zed.yml` (post the PR #36 sanitize fix). It now succeeds end-to-end: clean push, draft PR #37 opened against `chore/merge-upstream-zed-2026-05-19` with 1,228 files changed (+205K / -98K) and **zero `.github/workflows/` paths** in the diff — confirms the sanitize step works. Bot's `(CONFLICTS)` commit landed 62 files with `<<<<<<<` markers.
+- **Cleanly resolved this session (4 file clusters):**
+  - `tooling/xtask/`: re-deleted `setup_webrtc.rs`, `workflows.rs`, and the `workflows/` directory (19 files) that the merge restored from upstream as DU resolutions; dropped the auto-merged `pub mod setup_webrtc;` line in `tasks.rs` and the `SetupWebrtc` CliCommand wiring in `main.rs`. Three-way merge had cleanly picked up upstream's `setup_webrtc` addition because PB had never had the module declaration in `tasks.rs` to begin with — it removed `workflows` but kept everything else as-was at the merge base.
+  - `crates/paddleboard/Cargo.toml`: kept PB's `name = "paddleboard" / version = "0.232.0"` over upstream's `zed / 1.4.0` in the rename conflict region.
+  - `crates/paddleboard/build.rs`: kept PB's inline `winresource::WindowsResource` block over upstream's new `windows_resources::compile(false)` helper, preserving `FileDescription/ProductName = "PaddleBoard"` and the `PADDLEBOARD_RC_TOOLKIT_PATH` env var. Tagged with a `// PaddleBoard:` divergence comment. The `windows_resources` dep upstream added to `Cargo.toml` is still present as a build-dep but unused — deferring removal as drive-by.
+  - `crates/paddleboard/src/zed.rs`: combined the two competing import lines — kept PB's `agent_ui::{AgentDiffToolbar, OrchestrationPanel}` AND upstream's new `agent::{UserAgentsMdState, init_user_agents_md}` (both are referenced later in the file, at the `orchestration_panel = OrchestrationPanel::load(...)` site and the `init_user_agents_md(...)` call site respectively).
+- **Not committed / still unresolved (59 files):** the heavier ones include `crates/paddleboard/src/main.rs::restore_or_create_workspace` (competing multi-workspace restore designs: PB has `(multi_workspaces, remote_workspaces)` tuple-bucket with separate loops + `join_all`; upstream refactored to a unified `match SerializedWorkspaceLocation::Local/Remote` loop with a new `apply_restored_multiworkspace_state` step), `assets/settings/default.json` (PB telemetry/Zeta-disable defaults must survive upstream's new keys), all 4 `crates/ai_onboarding/*` files (PB deliberately gutted to `div()`/`List::new()` — conflicts are between PB stubs and upstream's new code), all the `crates/edit_prediction/*`, `crates/agent_ui/{agent_panel,conversation_view*,inline_assistant,thread_metadata_store}.rs`, `crates/editor/src/editor.rs`, the `Cargo.lock` (170 hunks — regen path), and ~40 others. Honest estimate: multi-hour interactive work spanning real PB-intent decisions on each file.
+- **Surfaced to user (not yet picked):** three options for continuing — (a) pair through inline, (b) parallelize via subagents per file cluster (risk: agents lack PB-intent context), (c) abandon PR #37 and switch to smaller-bites cadence so the weekly merge isn't a 1,113-commit drift next time.
+- Branch `chore/merge-upstream-zed-2026-05-19` pushed with the WIP commit (`29b7562e7e`); PR #37 still draft pending the remaining 59 files.
+- Follow-ups: (1) Decide direction on the remaining 59. (2) Once resolved, do the build pass (`cargo check -p paddleboard` + `script/clippy`) before flipping the PR out of draft. (3) Audit upstream's `windows_resources` build helper crate — if it's pulling in dependencies, can be removed from PB's `Cargo.toml` since we kept the inline winresource path. (4) Going forward, consider running `merge_upstream_zed.yml` more frequently (e.g., every 2-3 days during heavy upstream activity) so any one merge doesn't compound to 1,000+ commits worth of drift.
+
+---
+
 ## 2026-05-18
 
 ### Fix weekly upstream-Zed merge workflow push failure
