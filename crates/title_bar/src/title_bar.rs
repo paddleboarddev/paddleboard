@@ -52,11 +52,8 @@ use ui::{
 use update_version::UpdateVersion;
 use util::ResultExt;
 use workspace::{
-<<<<<<< HEAD
     MultiWorkspace, ToggleWorktreeSecurity, Workspace, WorkspaceId,
-=======
-    MultiWorkspace, ToggleWorktreeSecurity, Workspace, notifications::NotifyResultExt,
->>>>>>> zed/main
+    notifications::NotifyResultExt,
 };
 
 use paddleboard_actions::OpenRemote;
@@ -972,15 +969,9 @@ impl TitleBar {
                         ),
                     move |_window, cx| {
                         Tooltip::with_meta(
-<<<<<<< HEAD
                             "Git Switcher",
                             Some(&paddleboard_actions::git::Branch),
                             "Worktrees, Branches, and Stashes",
-=======
-                            "Worktree",
-                            Some(&zed_actions::git::Worktree),
-                            format!("Currently In Use: {}", worktree_label),
->>>>>>> zed/main
                             cx,
                         )
                     },

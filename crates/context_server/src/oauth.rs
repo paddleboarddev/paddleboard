@@ -1855,16 +1855,10 @@ mod tests {
     // -- DCR body test -------------------------------------------------------
 
     #[test]
-<<<<<<< HEAD
-    fn test_dcr_registration_body_shape() {
-        let body = dcr_registration_body("http://127.0.0.1:12345/callback");
-        assert_eq!(body["client_name"], "PaddleBoard");
-=======
     fn test_dcr_registration_body_without_server_metadata() {
         // When server metadata is unavailable, include all supported grant types.
         let body = dcr_registration_body("http://127.0.0.1:12345/callback", None);
-        assert_eq!(body["client_name"], "Zed");
->>>>>>> zed/main
+        assert_eq!(body["client_name"], "PaddleBoard");
         assert_eq!(body["redirect_uris"][0], "http://127.0.0.1:12345/callback");
         assert_eq!(body["grant_types"][0], "authorization_code");
         assert_eq!(body["grant_types"][1], "refresh_token");

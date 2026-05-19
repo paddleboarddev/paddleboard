@@ -17,11 +17,7 @@ use std::path::PathBuf;
 use ui::prelude::*;
 use util::ResultExt;
 use util::path_list::PathList;
-<<<<<<< HEAD
 use paddleboard_actions::agents_sidebar::{MoveWorkspaceToNewWindow, ToggleThreadSwitcher};
-=======
-use zed_actions::agents_sidebar::ToggleThreadSwitcher;
->>>>>>> zed/main
 
 use agent_settings::AgentSettings;
 use settings::SidebarDockPosition;

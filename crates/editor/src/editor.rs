@@ -7423,7 +7423,6 @@ impl Editor {
         }
     }
 
-<<<<<<< HEAD
     pub fn move_to_previous_word_start(
         &mut self,
         _: &MoveToPreviousWordStart,
@@ -11674,8 +11673,6 @@ impl Editor {
         Some((editor, pane))
     }
 
-=======
->>>>>>> zed/main
     pub fn rename(
         &mut self,
         _: &Rename,
@@ -16359,7 +16356,6 @@ impl Focusable for BreakpointPromptEditor {
     }
 }
 
-<<<<<<< HEAD
 fn all_edits_insertions_or_deletions(
     edits: &Vec<(Range<Anchor>, Arc<str>)>,
     snapshot: &MultiBufferSnapshot,
@@ -16422,8 +16418,6 @@ impl Render for MissingEditPredictionKeybindingTooltip {
     }
 }
 
-=======
->>>>>>> zed/main
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineHighlight {
     pub background: Background,

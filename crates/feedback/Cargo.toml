@@ -21,10 +21,6 @@ system_specs.workspace = true
 urlencoding.workspace = true
 util.workspace = true
 workspace.workspace = true
-<<<<<<< HEAD
 paddleboard_actions.workspace = true
-
-=======
-zed_actions.workspace = true
 client.workspace = true
->>>>>>> zed/main
+

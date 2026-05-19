@@ -1244,17 +1244,8 @@ fn render_settings_item_link(
     settings_window: &SettingsWindow,
     cx: &mut Context<'_, SettingsWindow>,
 ) -> impl IntoElement {
-<<<<<<< HEAD
-    let clipboard_has_link = cx
-        .read_from_clipboard()
-        .and_then(|entry| entry.text())
-        .map_or(false, |maybe_url| {
-            json_path.is_some() && maybe_url.strip_prefix("paddleboard://settings/") == json_path
-        });
-=======
     let copied_link_matches =
         json_path.is_some() && json_path == settings_window.last_copied_link_path;
->>>>>>> zed/main
 
     let (link_icon, link_icon_color) = if copied_link_matches {
         (IconName::Check, Color::Success)
@@ -1281,13 +1272,8 @@ fn render_settings_item_link(
                 .shape(IconButtonShape::Square)
                 .tooltip(Tooltip::text("Copy Link"))
                 .when_some(json_path, |this, path| {
-<<<<<<< HEAD
-                    this.on_click(cx.listener(move |_, _, _, cx| {
-                        let link = format!("paddleboard://settings/{}", path);
-=======
                     this.on_click(cx.listener(move |this, _, _, cx| {
-                        let link = format!("zed://settings/{}", path);
->>>>>>> zed/main
+                        let link = format!("paddleboard://settings/{}", path);
                         cx.write_to_clipboard(ClipboardItem::new_string(link));
                         this.last_copied_link_path = Some(path);
                         cx.notify();

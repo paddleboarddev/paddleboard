@@ -22,12 +22,9 @@ mod skill_tool;
 mod spawn_agent_tool;
 mod symbol_locator;
 mod terminal_tool;
-<<<<<<< HEAD
 mod sandbox_tool;
 mod sandbox_service_tool;
 mod tool_edit_parser;
-=======
->>>>>>> zed/main
 mod tool_permissions;
 mod update_plan_tool;
 mod web_search_tool;

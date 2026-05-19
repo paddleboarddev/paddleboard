@@ -1547,7 +1547,6 @@ pub(crate) async fn restore_or_create_workspace(
     cx: &mut AsyncApp,
 ) -> Result<()> {
     let kvp = cx.update(|cx| KeyValueStore::global(cx));
-<<<<<<< HEAD:crates/paddleboard/src/main.rs
     if let Some((multi_workspaces, remote_workspaces)) = restorable_workspaces(cx, &app_state).await
     {
         let mut results: Vec<Result<(), Error>> = Vec::new();
@@ -1592,58 +1591,10 @@ pub(crate) async fn restore_or_create_workspace(
         results.extend(future::join_all(tasks).await);
 
         // Show notifications for any errors that occurred
-=======
-    if let Some(multi_workspaces) = restorable_workspaces(cx, &app_state).await {
->>>>>>> zed/main:crates/zed/src/main.rs
         let mut error_count = 0;
-        for multi_workspace in multi_workspaces {
-            let result = match &multi_workspace.active_workspace.location {
-                SerializedWorkspaceLocation::Local => {
-                    restore_multiworkspace(multi_workspace, app_state.clone(), cx)
-                        .await
-                        .map(|_| ())
-                }
-                SerializedWorkspaceLocation::Remote(connection_options) => {
-                    let mut connection_options = connection_options.clone();
-                    if let RemoteConnectionOptions::Ssh(options) = &mut connection_options {
-                        cx.update(|cx| {
-                            RemoteSettings::get_global(cx)
-                                .fill_connection_options_from_settings(options)
-                        });
-                    }
-
-                    let paths = multi_workspace
-                        .active_workspace
-                        .paths
-                        .paths()
-                        .iter()
-                        .map(PathBuf::from)
-                        .collect::<Vec<_>>();
-                    let state = multi_workspace.state.clone();
-                    async {
-                        let window = open_remote_project(
-                            connection_options,
-                            paths,
-                            app_state.clone(),
-                            workspace::OpenOptions::default(),
-                            cx,
-                        )
-                        .await?;
-                        workspace::apply_restored_multiworkspace_state(
-                            window,
-                            &state,
-                            app_state.fs.clone(),
-                            cx,
-                        )
-                        .await;
-                        Ok::<(), anyhow::Error>(())
-                    }
-                    .await
-                }
-            };
-
-            if let Err(error) = result {
-                log::error!("Failed to restore workspace: {error:#}");
+        for result in results {
+            if let Err(e) = result {
+                log::error!("Failed to restore workspace: {}", e);
                 error_count += 1;
             }
         }
@@ -1775,9 +1726,17 @@ pub(crate) async fn restore_or_create_workspace(
 async fn restorable_workspaces(
     cx: &mut AsyncApp,
     app_state: &Arc<AppState>,
-) -> Option<Vec<workspace::SerializedMultiWorkspace>> {
+) -> Option<(
+    Vec<workspace::SerializedMultiWorkspace>,
+    Vec<SessionWorkspace>,
+)> {
     let locations = restorable_workspace_locations(cx, app_state).await?;
-    Some(cx.update(|cx| workspace::read_serialized_multi_workspaces(locations, cx)))
+    let (remote_workspaces, local_workspaces) = locations
+        .into_iter()
+        .partition(|sw| matches!(sw.location, SerializedWorkspaceLocation::Remote(_)));
+    let multi_workspaces =
+        cx.update(|cx| workspace::read_serialized_multi_workspaces(local_workspaces, cx));
+    Some((multi_workspaces, remote_workspaces))
 }
 
 pub(crate) async fn restorable_workspace_locations(

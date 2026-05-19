@@ -15,7 +15,7 @@ pub const EDITORCONFIG_NAME: &str = ".editorconfig";
 /// and state directory paths.
 ///
 /// Forks should change this to avoid colliding with Zed's user data.
-pub const APP_NAME: &str = "Zed";
+pub const APP_NAME: &str = "PaddleBoard";
 
 /// Lowercased form of [`APP_NAME`], for use in XDG-style paths on
 /// Linux/FreeBSD and the macOS `~/.config` fallback.
@@ -126,26 +126,16 @@ pub fn config_dir() -> &'static PathBuf {
         } else if cfg!(target_os = "windows") {
             dirs::config_dir()
                 .expect("failed to determine RoamingAppData directory")
-<<<<<<< HEAD
-                .join("PaddleBoard")
-=======
                 .join(APP_NAME)
->>>>>>> zed/main
         } else if cfg!(any(target_os = "linux", target_os = "freebsd")) {
             if let Ok(flatpak_xdg_config) = std::env::var("FLATPAK_XDG_CONFIG_HOME") {
                 flatpak_xdg_config.into()
             } else {
                 dirs::config_dir().expect("failed to determine XDG_CONFIG_HOME directory")
             }
-<<<<<<< HEAD
-            .join("paddleboard")
-        } else {
-            home_dir().join(".config").join("paddleboard")
-=======
             .join(APP_NAME_LOWERCASE)
         } else {
             home_dir().join(".config").join(APP_NAME_LOWERCASE)
->>>>>>> zed/main
         }
     })
 }
@@ -165,19 +155,11 @@ pub fn data_dir() -> &'static PathBuf {
             } else {
                 dirs::data_local_dir().expect("failed to determine XDG_DATA_HOME directory")
             }
-<<<<<<< HEAD
-            .join("paddleboard")
-        } else if cfg!(target_os = "windows") {
-            dirs::data_local_dir()
-                .expect("failed to determine LocalAppData directory")
-                .join("PaddleBoard")
-=======
             .join(APP_NAME_LOWERCASE)
         } else if cfg!(target_os = "windows") {
             dirs::data_local_dir()
                 .expect("failed to determine LocalAppData directory")
                 .join(APP_NAME)
->>>>>>> zed/main
         } else {
             config_dir().clone() // Fallback
         }
@@ -188,11 +170,7 @@ pub fn state_dir() -> &'static PathBuf {
     static STATE_DIR: OnceLock<PathBuf> = OnceLock::new();
     STATE_DIR.get_or_init(|| {
         if cfg!(target_os = "macos") {
-<<<<<<< HEAD
-            return home_dir().join(".local").join("state").join("PaddleBoard");
-=======
             return home_dir().join(".local").join("state").join(APP_NAME);
->>>>>>> zed/main
         }
 
         if cfg!(any(target_os = "linux", target_os = "freebsd")) {
@@ -201,20 +179,12 @@ pub fn state_dir() -> &'static PathBuf {
             } else {
                 dirs::state_dir().expect("failed to determine XDG_STATE_HOME directory")
             }
-<<<<<<< HEAD
-            .join("paddleboard");
-=======
             .join(APP_NAME_LOWERCASE);
->>>>>>> zed/main
         } else {
             // Windows
             return dirs::data_local_dir()
                 .expect("failed to determine LocalAppData directory")
-<<<<<<< HEAD
-                .join("PaddleBoard");
-=======
                 .join(APP_NAME);
->>>>>>> zed/main
         }
     })
 }
@@ -226,21 +196,13 @@ pub fn temp_dir() -> &'static PathBuf {
         if cfg!(target_os = "macos") {
             return dirs::cache_dir()
                 .expect("failed to determine cachesDirectory directory")
-<<<<<<< HEAD
-                .join("PaddleBoard");
-=======
                 .join(APP_NAME);
->>>>>>> zed/main
         }
 
         if cfg!(target_os = "windows") {
             return dirs::cache_dir()
                 .expect("failed to determine LocalAppData directory")
-<<<<<<< HEAD
-                .join("PaddleBoard");
-=======
                 .join(APP_NAME);
->>>>>>> zed/main
         }
 
         if cfg!(any(target_os = "linux", target_os = "freebsd")) {
@@ -249,17 +211,10 @@ pub fn temp_dir() -> &'static PathBuf {
             } else {
                 dirs::cache_dir().expect("failed to determine XDG_CACHE_HOME directory")
             }
-<<<<<<< HEAD
-            .join("paddleboard");
-        }
-
-        home_dir().join(".cache").join("paddleboard")
-=======
             .join(APP_NAME_LOWERCASE);
         }
 
         home_dir().join(".cache").join(APP_NAME_LOWERCASE)
->>>>>>> zed/main
     })
 }
 
@@ -290,21 +245,13 @@ pub fn remote_server_state_dir() -> &'static PathBuf {
 /// Returns the path to the `Zed.log` file.
 pub fn log_file() -> &'static PathBuf {
     static LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
-<<<<<<< HEAD
-    LOG_FILE.get_or_init(|| logs_dir().join("PaddleBoard.log"))
-=======
     LOG_FILE.get_or_init(|| logs_dir().join(format!("{}.log", APP_NAME)))
->>>>>>> zed/main
 }
 
 /// Returns the path to the `Zed.log.old` file.
 pub fn old_log_file() -> &'static PathBuf {
     static OLD_LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
-<<<<<<< HEAD
-    OLD_LOG_FILE.get_or_init(|| logs_dir().join("PaddleBoard.log.old"))
-=======
     OLD_LOG_FILE.get_or_init(|| logs_dir().join(format!("{}.log.old", APP_NAME)))
->>>>>>> zed/main
 }
 
 /// Returns the path to the database directory.

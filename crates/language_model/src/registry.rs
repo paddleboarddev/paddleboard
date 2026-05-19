@@ -102,11 +102,7 @@ impl ConfiguredModel {
     }
 
     pub fn is_provided_by_zed(&self) -> bool {
-<<<<<<< HEAD
         self.provider.id() == crate::provider::PADDLEBOARD_CLOUD_PROVIDER_ID
-=======
-        self.provider.id() == ZED_CLOUD_PROVIDER_ID
->>>>>>> zed/main
     }
 }
 

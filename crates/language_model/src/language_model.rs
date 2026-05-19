@@ -1,32 +1,48 @@
 mod api_key;
 mod model;
+mod provider;
+mod rate_limiter;
 mod registry;
 mod request;
+mod role;
+pub mod tool_schema;
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod fake_provider;
 
 pub use language_model_core::*;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
+use cloud_llm_client::CompletionRequestStatus;
 use futures::FutureExt;
 use futures::{StreamExt, future::BoxFuture, stream::BoxStream};
-use gpui::{AnyView, App, AsyncApp, Task, Window};
+use gpui::{AnyView, App, AsyncApp, SharedString, Task, Window};
+use http_client::{StatusCode, http};
 use icons::IconName;
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
+use std::ops::{Add, Sub};
+use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
+use std::{fmt, io};
+use thiserror::Error;
+use util::serde::is_default;
 
 pub use crate::api_key::{ApiKey, ApiKeyState};
 pub use crate::model::*;
+pub use crate::rate_limiter::*;
 pub use crate::registry::*;
 pub use crate::request::{LanguageModelImageExt, gpui_size_to_image_size, image_size_to_gpui};
+pub use crate::role::*;
+pub use crate::tool_schema::LanguageModelToolSchemaFormat;
 pub use env_var::{EnvVar, env_var};
+pub use provider::*;
 
 pub fn init(cx: &mut App) {
     registry::init(cx);
 }
 
-<<<<<<< HEAD
 #[derive(Clone, Debug)]
 pub struct LanguageModelCacheConfiguration {
     pub max_cache_anchors: usize,
@@ -361,8 +377,6 @@ pub struct LanguageModelToolUse {
     pub thought_signature: Option<String>,
 }
 
-=======
->>>>>>> zed/main
 pub struct LanguageModelTextStream {
     pub message_id: Option<String>,
     pub stream: BoxStream<'static, Result<String, LanguageModelCompletionError>>,

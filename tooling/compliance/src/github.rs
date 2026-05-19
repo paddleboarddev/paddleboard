@@ -494,7 +494,6 @@ mod octo_client {
             Ok(Self { client })
         }
 
-<<<<<<< HEAD
         fn build_co_authors_query<'a>(shas: impl IntoIterator<Item = &'a CommitSha>) -> String {
             const FRAGMENT: &str = r#"
                 ... on Commit {
@@ -532,13 +531,6 @@ mod octo_client {
             query: &serde_json::Value,
         ) -> octocrab::Result<R> {
             self.client.graphql(query).await
-=======
-        async fn graphql<R: DeserializeOwned>(&self, query: &serde_json::Value) -> Result<R> {
-            let response: serde_json::Value = self.client.graphql(query).await?;
-            let parsed: graph_ql::GraphQLResponse<R> = serde_json::from_value(response)
-                .context("Failed to parse GraphQL response envelope")?;
-            parsed.into_data()
->>>>>>> zed/main
         }
 
         async fn get_all<T: DeserializeOwned + 'static>(

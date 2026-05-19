@@ -3000,16 +3000,8 @@ fn native_available_skills(
 }
 
 fn placeholder_text(agent_name: &str, has_commands: bool) -> String {
-<<<<<<< HEAD
     if agent_name == agent::PADDLEBOARD_AGENT_ID.as_ref() {
         format!("Message the {} — @ to include context", agent_name)
-=======
-    if agent_name == agent::ZED_AGENT_ID.as_ref() {
-        format!(
-            "Message the {}, @ to include context, / for commands",
-            agent_name
-        )
->>>>>>> zed/main
     } else if has_commands {
         format!(
             "Message {} — @ to include context, / for commands",

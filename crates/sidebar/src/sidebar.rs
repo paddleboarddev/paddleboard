@@ -2400,7 +2400,6 @@ impl Sidebar {
                         };
 
                         let project_group_key = project_group_key.clone();
-<<<<<<< HEAD
                         let multi_workspace = multi_workspace.clone();
                         menu.entry(
                             "Move to New Window",
@@ -2409,12 +2408,6 @@ impl Sidebar {
                             )),
                             move |window, cx| {
                                 multi_workspace
-=======
-                        let remove_multi_workspace = multi_workspace.clone();
-                        menu.separator()
-                            .entry("Remove Project", None, move |window, cx| {
-                                remove_multi_workspace
->>>>>>> zed/main
                                     .update(cx, |multi_workspace, cx| {
                                         multi_workspace
                                             .remove_project_group(&project_group_key, window, cx)

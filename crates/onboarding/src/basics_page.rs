@@ -1,12 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-<<<<<<< HEAD
-=======
 use client::{Client, TelemetrySettings, UserStore, zed_urls};
 use cloud_api_types::Plan;
 use collections::HashMap;
->>>>>>> zed/main
 use fs::Fs;
 use gpui::{Action, Animation, AnimationExt, App, Entity, IntoElement, TaskExt, pulsating_between};
 use project::agent_server_store::AllAgentServersSettings;
@@ -18,14 +15,9 @@ use settings::{
 use theme::{Appearance, SystemAppearance, ThemeRegistry};
 use theme_settings::{ThemeAppearanceMode, ThemeName, ThemeSelection, ThemeSettings};
 use ui::{
-<<<<<<< HEAD
-    StatefulInteractiveElement, SwitchField, TintColor, ToggleButtonGroup, ToggleButtonGroupSize,
-    ToggleButtonSimple, ToggleButtonWithIcon, Tooltip, prelude::*,
-=======
     AgentSetupButton, Divider, StatefulInteractiveElement, SwitchField, TintColor,
     ToggleButtonGroup, ToggleButtonGroupSize, ToggleButtonSimple, ToggleButtonWithIcon, Tooltip,
     prelude::*,
->>>>>>> zed/main
 };
 use vim_mode_setting::VimModeSetting;
 

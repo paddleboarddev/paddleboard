@@ -1,5 +1,4 @@
 use ai_onboarding::YoungAccountBanner;
-<<<<<<< HEAD
 use anthropic::AnthropicModelMode;
 use anyhow::{Context as _, Result, anyhow};
 use client::{
@@ -30,21 +29,6 @@ use language_model::{
     LanguageModelToolChoice, LanguageModelToolSchemaFormat, LlmApiToken, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
     PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
-=======
-use anyhow::Result;
-use client::{Client, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls};
-use cloud_api_client::LlmApiToken;
-use cloud_api_types::OrganizationId;
-use cloud_api_types::Plan;
-use futures::FutureExt;
-use futures::StreamExt;
-use futures::future::BoxFuture;
-use gpui::{AnyElement, AnyView, App, AppContext, Context, Entity, Subscription, Task, TaskExt};
-use language_model::{
-    AuthenticateError, IconOrSvg, LanguageModel, LanguageModelProvider, LanguageModelProviderId,
-    LanguageModelProviderName, LanguageModelProviderState, ZED_CLOUD_PROVIDER_ID,
-    ZED_CLOUD_PROVIDER_NAME,
->>>>>>> zed/main
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use release_channel::AppVersion;
@@ -55,7 +39,6 @@ pub use settings::ZedDotDevAvailableProvider as AvailableProvider;
 use std::sync::Arc;
 use ui::{TintColor, prelude::*};
 
-<<<<<<< HEAD
 use crate::provider::anthropic::{
     AnthropicEventMapper, count_anthropic_tokens_with_tiktoken, into_anthropic,
 };
@@ -68,10 +51,6 @@ use crate::provider::x_ai::count_xai_tokens;
 
 const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
 const PROVIDER_NAME: LanguageModelProviderName = PADDLEBOARD_CLOUD_PROVIDER_NAME;
-=======
-const PROVIDER_ID: LanguageModelProviderId = ZED_CLOUD_PROVIDER_ID;
-const PROVIDER_NAME: LanguageModelProviderName = ZED_CLOUD_PROVIDER_NAME;
->>>>>>> zed/main
 
 struct ClientTokenProvider {
     client: Arc<Client>,
@@ -356,7 +335,6 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
     }
 }
 
-<<<<<<< HEAD
 pub struct CloudLanguageModel {
     id: LanguageModelId,
     model: Arc<cloud_llm_client::LanguageModel>,
@@ -1051,8 +1029,6 @@ fn response_lines<T: DeserializeOwned>(
     )
 }
 
-=======
->>>>>>> zed/main
 #[derive(IntoElement, RegisterComponent)]
 struct ZedAiConfiguration {
     is_connected: bool,

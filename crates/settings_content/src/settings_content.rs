@@ -261,11 +261,10 @@ pub struct SettingsContent {
     /// Default: 5
     pub modeline_lines: Option<usize>,
 
-<<<<<<< HEAD
     // PaddleBoard: configuration for the sandbox enforcement layer (policy
     // when Podman/gVisor prereqs are missing at tool-launch time).
     pub paddleboard_sandbox: Option<PaddleboardSandboxContent>,
-=======
+
     /// Local overrides for feature flags, keyed by flag name.
     pub feature_flags: Option<FeatureFlagsMap>,
 
@@ -280,7 +279,7 @@ pub struct SettingsContent {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema, MergeFrom)]
 pub struct InstrumentationSettingsContent {
     /// Configuration for the performance profiler, accessed via the
-    /// `zed: open performance profiler` action.
+    /// `paddleboard: open performance profiler` action.
     pub performance_profiler: Option<PerformanceProfilerSettingsContent>,
 }
 
@@ -331,7 +330,6 @@ impl std::ops::DerefMut for FeatureFlagsMap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
->>>>>>> zed/main
 }
 
 impl SettingsContent {

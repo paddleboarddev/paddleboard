@@ -29,9 +29,6 @@ impl WgpuContext {
         surface: &wgpu::Surface<'_>,
         compositor_gpu: Option<CompositorGpuHint>,
     ) -> anyhow::Result<Self> {
-<<<<<<< HEAD
-        let device_id_filter = match std::env::var("PADDLEBOARD_DEVICE_ID") {
-=======
         Self::new_with_options(instance, surface, compositor_gpu, false)
     }
 
@@ -51,8 +48,7 @@ impl WgpuContext {
         compositor_gpu: Option<CompositorGpuHint>,
         reject_software: bool,
     ) -> anyhow::Result<Self> {
-        let device_id_filter = match std::env::var("ZED_DEVICE_ID") {
->>>>>>> zed/main
+        let device_id_filter = match std::env::var("PADDLEBOARD_DEVICE_ID") {
             Ok(val) => parse_pci_id(&val)
                 .context("Failed to parse device ID from `PADDLEBOARD_DEVICE_ID` environment variable")
                 .log_err(),

@@ -661,12 +661,8 @@ pub(crate) fn edit_prediction_accepted(
     current_prediction: CurrentEditPrediction,
     cx: &App,
 ) {
-<<<<<<< HEAD
     let custom_accept_url = env::var("PADDLEBOARD_ACCEPT_PREDICTION_URL").ok();
     if store.zeta2_raw_config().is_some() && custom_accept_url.is_none() {
-=======
-    if store.zeta2_raw_config().is_some() {
->>>>>>> zed/main
         return;
     }
 

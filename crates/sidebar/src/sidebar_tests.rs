@@ -372,14 +372,9 @@ fn save_thread_metadata(
             .map(|e| e.thread_id)
             .unwrap_or_else(ThreadId::new);
         let metadata = ThreadMetadata {
-<<<<<<< HEAD
-            session_id,
-            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-=======
             thread_id,
             session_id: Some(session_id),
-            agent_id: agent::ZED_AGENT_ID.clone(),
->>>>>>> zed/main
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title,
             title_override: None,
             updated_at,
@@ -415,7 +410,7 @@ fn save_thread_metadata_with_main_paths(
     let metadata = ThreadMetadata {
         thread_id,
         session_id: Some(session_id),
-        agent_id: agent::ZED_AGENT_ID.clone(),
+        agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
         title: Some(title),
         title_override: None,
         updated_at,
@@ -3815,25 +3810,7 @@ async fn test_focused_thread_tracks_user_intent(cx: &mut TestAppContext) {
             .expect("session_id_a should exist in metadata store")
     });
     sidebar.update_in(cx, |sidebar, window, cx| {
-<<<<<<< HEAD
-        sidebar.activate_thread(
-            ThreadMetadata {
-                session_id: session_id_a.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Test".into(),
-                updated_at: Utc::now(),
-                created_at: None,
-                folder_paths: PathList::default(),
-                main_worktree_paths: PathList::default(),
-                archived: false,
-            },
-            &workspace_a,
-            window,
-            cx,
-        );
-=======
         sidebar.activate_thread(thread_metadata_a, &workspace_a, false, window, cx);
->>>>>>> zed/main
     });
     cx.run_until_parked();
 
@@ -3881,25 +3858,7 @@ async fn test_focused_thread_tracks_user_intent(cx: &mut TestAppContext) {
             .expect("session_id_b should exist in metadata store")
     });
     sidebar.update_in(cx, |sidebar, window, cx| {
-<<<<<<< HEAD
-        sidebar.activate_thread(
-            ThreadMetadata {
-                session_id: session_id_b.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Thread B".into(),
-                updated_at: Utc::now(),
-                created_at: None,
-                folder_paths: PathList::default(),
-                main_worktree_paths: PathList::default(),
-                archived: false,
-            },
-            &workspace_b,
-            window,
-            cx,
-        );
-=======
         sidebar.activate_thread(thread_metadata_b, &workspace_b, false, window, cx);
->>>>>>> zed/main
     });
     cx.run_until_parked();
 
@@ -5986,7 +5945,7 @@ async fn test_sidebar_keeps_multi_root_thread_with_stale_main_paths(cx: &mut Tes
                 ThreadMetadata {
                     thread_id,
                     session_id: Some(session_id.clone()),
-                    agent_id: agent::ZED_AGENT_ID.clone(),
+                    agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                     title: Some("Stale Multi-Root Thread".into()),
                     title_override: None,
                     updated_at: Utc::now(),
@@ -6065,17 +6024,11 @@ async fn test_activate_archived_thread_with_saved_paths_activates_matching_works
     sidebar.update_in(cx, |sidebar, window, cx| {
         sidebar.open_thread_from_archive(
             ThreadMetadata {
-<<<<<<< HEAD
-                session_id: session_id.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Archived Thread".into(),
-=======
                 thread_id: ThreadId::new(),
                 session_id: Some(session_id.clone()),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: Some("Archived Thread".into()),
                 title_override: None,
->>>>>>> zed/main
                 updated_at: Utc::now(),
                 created_at: None,
                 interacted_at: None,
@@ -6141,17 +6094,11 @@ async fn test_activate_archived_thread_cwd_fallback_with_matching_workspace(
     sidebar.update_in(cx, |sidebar, window, cx| {
         sidebar.open_thread_from_archive(
             ThreadMetadata {
-<<<<<<< HEAD
-                session_id: acp::SessionId::new(Arc::from("unknown-session")),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "CWD Thread".into(),
-=======
                 thread_id: ThreadId::new(),
                 session_id: Some(acp::SessionId::new(Arc::from("unknown-session"))),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: Some("CWD Thread".into()),
                 title_override: None,
->>>>>>> zed/main
                 updated_at: Utc::now(),
                 created_at: None,
                 interacted_at: None,
@@ -6215,17 +6162,11 @@ async fn test_activate_archived_thread_no_paths_no_cwd_uses_active_workspace(
     sidebar.update_in(cx, |sidebar, window, cx| {
         sidebar.open_thread_from_archive(
             ThreadMetadata {
-<<<<<<< HEAD
-                session_id: acp::SessionId::new(Arc::from("no-context-session")),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Contextless Thread".into(),
-=======
                 thread_id: ThreadId::new(),
                 session_id: Some(acp::SessionId::new(Arc::from("no-context-session"))),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: Some("Contextless Thread".into()),
                 title_override: None,
->>>>>>> zed/main
                 updated_at: Utc::now(),
                 created_at: None,
                 interacted_at: None,
@@ -6279,17 +6220,11 @@ async fn test_activate_archived_thread_saved_paths_opens_new_workspace(cx: &mut 
     sidebar.update_in(cx, |sidebar, window, cx| {
         sidebar.open_thread_from_archive(
             ThreadMetadata {
-<<<<<<< HEAD
-                session_id: session_id.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "New WS Thread".into(),
-=======
                 thread_id: ThreadId::new(),
                 session_id: Some(session_id.clone()),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: Some("New WS Thread".into()),
                 title_override: None,
->>>>>>> zed/main
                 updated_at: Utc::now(),
                 created_at: None,
                 interacted_at: None,
@@ -6342,17 +6277,11 @@ async fn test_activate_archived_thread_reuses_workspace_in_another_window(cx: &m
     sidebar.update_in(cx_a, |sidebar, window, cx| {
         sidebar.open_thread_from_archive(
             ThreadMetadata {
-<<<<<<< HEAD
-                session_id: session_id.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Cross Window Thread".into(),
-=======
                 thread_id: ThreadId::new(),
                 session_id: Some(session_id.clone()),
-                agent_id: agent::ZED_AGENT_ID.clone(),
+                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                 title: Some("Cross Window Thread".into()),
                 title_override: None,
->>>>>>> zed/main
                 updated_at: Utc::now(),
                 created_at: None,
                 interacted_at: None,
@@ -6429,7 +6358,7 @@ async fn test_activate_archived_thread_reuses_workspace_in_another_window_with_t
     let metadata = ThreadMetadata {
         thread_id: ThreadId::new(),
         session_id: Some(session_id.clone()),
-        agent_id: agent::ZED_AGENT_ID.clone(),
+        agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
         title: Some("Cross Window Thread".into()),
         title_override: None,
         updated_at: Utc::now(),
@@ -6444,24 +6373,7 @@ async fn test_activate_archived_thread_reuses_workspace_in_another_window_with_t
     seed_thread_metadata(metadata.clone(), cx_a);
 
     sidebar_a.update_in(cx_a, |sidebar, window, cx| {
-<<<<<<< HEAD
-        sidebar.activate_archived_thread(
-            ThreadMetadata {
-                session_id: session_id.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Cross Window Thread".into(),
-                updated_at: Utc::now(),
-                created_at: None,
-                folder_paths: PathList::new(&[PathBuf::from("/project-b")]),
-                main_worktree_paths: PathList::default(),
-                archived: false,
-            },
-            window,
-            cx,
-        );
-=======
         sidebar.open_thread_from_archive(metadata, window, cx);
->>>>>>> zed/main
     });
     cx_a.run_until_parked();
 
@@ -6529,7 +6441,7 @@ async fn test_activate_archived_thread_prefers_current_window_for_matching_paths
     let metadata = ThreadMetadata {
         thread_id: ThreadId::new(),
         session_id: Some(session_id.clone()),
-        agent_id: agent::ZED_AGENT_ID.clone(),
+        agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
         title: Some("Current Window Thread".into()),
         title_override: None,
         updated_at: Utc::now(),
@@ -6544,24 +6456,7 @@ async fn test_activate_archived_thread_prefers_current_window_for_matching_paths
     seed_thread_metadata(metadata.clone(), cx_a);
 
     sidebar_a.update_in(cx_a, |sidebar, window, cx| {
-<<<<<<< HEAD
-        sidebar.activate_archived_thread(
-            ThreadMetadata {
-                session_id: session_id.clone(),
-                agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-                title: "Current Window Thread".into(),
-                updated_at: Utc::now(),
-                created_at: None,
-                folder_paths: PathList::new(&[PathBuf::from("/project-a")]),
-                main_worktree_paths: PathList::default(),
-                archived: false,
-            },
-            window,
-            cx,
-        );
-=======
         sidebar.open_thread_from_archive(metadata, window, cx);
->>>>>>> zed/main
     });
     cx_a.run_until_parked();
 
@@ -7484,7 +7379,7 @@ async fn test_archive_last_worktree_thread_not_blocked_by_remote_thread_at_same_
         let metadata = ThreadMetadata {
             thread_id: ThreadId::new(),
             session_id: Some(acp::SessionId::new(Arc::from("remote-wt-thread"))),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Remote Worktree Thread".into()),
             title_override: None,
             updated_at: chrono::TimeZone::with_ymd_and_hms(&Utc, 2024, 1, 1, 0, 0, 0).unwrap(),
@@ -8299,7 +8194,7 @@ async fn test_unarchive_first_thread_in_group_does_not_create_spurious_draft(
                 ThreadMetadata {
                     thread_id,
                     session_id: Some(session_id.clone()),
-                    agent_id: agent::ZED_AGENT_ID.clone(),
+                    agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                     title: Some("Unarchived Thread".into()),
                     title_override: None,
                     updated_at: Utc::now(),
@@ -8393,7 +8288,7 @@ async fn test_unarchive_into_new_workspace_does_not_create_duplicate_real_thread
                 ThreadMetadata {
                     thread_id: original_thread_id,
                     session_id: Some(session_id.clone()),
-                    agent_id: agent::ZED_AGENT_ID.clone(),
+                    agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                     title: Some("Unarchived Thread".into()),
                     title_override: None,
                     updated_at: Utc::now(),
@@ -8620,7 +8515,7 @@ async fn test_unarchive_into_inactive_existing_workspace_does_not_leave_active_d
                 ThreadMetadata {
                     thread_id,
                     session_id: Some(session_id.clone()),
-                    agent_id: agent::ZED_AGENT_ID.clone(),
+                    agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                     title: Some("Restored In Inactive Workspace".into()),
                     title_override: None,
                     updated_at: Utc::now(),
@@ -9471,7 +9366,7 @@ async fn test_unarchive_linked_worktree_thread_into_project_group_shows_only_res
                 ThreadMetadata {
                     thread_id: original_thread_id,
                     session_id: Some(session_id.clone()),
-                    agent_id: agent::ZED_AGENT_ID.clone(),
+                    agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
                     title: Some("Unarchived Linked Thread".into()),
                     title_override: None,
                     updated_at: Utc::now(),
@@ -10020,17 +9915,11 @@ async fn test_legacy_thread_with_canonical_path_opens_main_repo_workspace(cx: &m
     let legacy_session = acp::SessionId::new(Arc::from("legacy-main-thread"));
     cx.update(|_, cx| {
         let metadata = ThreadMetadata {
-<<<<<<< HEAD
-            session_id: legacy_session.clone(),
-            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-            title: "Legacy Main Thread".into(),
-=======
             thread_id: ThreadId::new(),
             session_id: Some(legacy_session.clone()),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Legacy Main Thread".into()),
             title_override: None,
->>>>>>> zed/main
             updated_at: chrono::TimeZone::with_ymd_and_hms(&Utc, 2024, 1, 1, 0, 0, 0).unwrap(),
             created_at: None,
             interacted_at: None,
@@ -11016,17 +10905,11 @@ mod property_test {
             .unwrap()
             + chrono::Duration::seconds(state.thread_counter as i64);
         let metadata = ThreadMetadata {
-<<<<<<< HEAD
-            session_id,
-            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
-            title,
-=======
             thread_id: ThreadId::new(),
             session_id: Some(session_id),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some(title),
             title_override: None,
->>>>>>> zed/main
             updated_at,
             created_at: None,
             interacted_at: None,
@@ -11960,7 +11843,7 @@ async fn test_remote_project_integration_does_not_briefly_render_as_separate_pro
         let metadata = ThreadMetadata {
             thread_id: ThreadId::new(),
             session_id: Some(remote_thread_id.clone()),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Worktree Thread".into()),
             title_override: None,
             updated_at: chrono::TimeZone::with_ymd_and_hms(&Utc, 2024, 1, 1, 0, 0, 1).unwrap(),
@@ -12682,7 +12565,7 @@ async fn test_remote_archive_thread_with_active_connection(
         let metadata = ThreadMetadata {
             thread_id: ThreadId::new(),
             session_id: Some(wt_thread_id.clone()),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Worktree Thread".into()),
             title_override: None,
             updated_at: chrono::TimeZone::with_ymd_and_hms(&chrono::Utc, 2024, 1, 1, 0, 0, 0)

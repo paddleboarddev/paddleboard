@@ -23,12 +23,8 @@ use cloud_llm_client::predict_edits_v3::{
 use cloud_llm_client::{
     EditPredictionRejectReason, EditPredictionRejection,
     MAX_EDIT_PREDICTION_REJECTIONS_PER_REQUEST, MINIMUM_REQUIRED_VERSION_HEADER_NAME,
-<<<<<<< HEAD
-    PredictEditsRequestTrigger, RejectEditPredictionsBodyRef, PADDLEBOARD_VERSION_HEADER_NAME,
-=======
-    PREFERRED_EXPERIMENT_HEADER_NAME, PredictEditsRequestTrigger, RejectEditPredictionsBodyRef,
-    ZED_VERSION_HEADER_NAME,
->>>>>>> zed/main
+    PADDLEBOARD_VERSION_HEADER_NAME, PREFERRED_EXPERIMENT_HEADER_NAME, PredictEditsRequestTrigger,
+    RejectEditPredictionsBodyRef,
 };
 use collections::{HashMap, HashSet};
 use copilot::{Copilot, Reinstall, SignIn, SignOut};
@@ -940,11 +936,10 @@ impl EditPredictionStore {
                                 .method(Method::GET)
                                 .uri(url.as_ref())
                                 .header("Authorization", format!("Bearer {token}"))
-                                .header(ZED_VERSION_HEADER_NAME, app_version.to_string())
+                                .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
                                 .body(Default::default())?)
                         })
                         .await?;
-<<<<<<< HEAD
                     let url = http_client.build_zed_llm_url("/edit_prediction_experiments", &[])?;
                     let request = http_client::Request::builder()
                         .method(Method::GET)
@@ -953,8 +948,6 @@ impl EditPredictionStore {
                         .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
                         .body(Default::default())?;
                     let mut response = http_client.send(request).await?;
-=======
->>>>>>> zed/main
                     if response.status().is_success() {
                         let mut body = Vec::new();
                         response.body_mut().read_to_end(&mut body).await?;
@@ -2767,7 +2760,7 @@ impl EditPredictionStore {
                     http_client::Request::builder()
                         .method(Method::POST)
                         .header("Content-Type", "application/json")
-                        .header(ZED_VERSION_HEADER_NAME, app_version.to_string())
+                        .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
                         .header("Authorization", format!("Bearer {token}")),
                 )
             })
@@ -2802,72 +2795,10 @@ impl EditPredictionStore {
             response.body_mut().read_to_end(&mut body).await?;
             Ok((serde_json::from_slice(&body)?, usage))
         } else {
-<<<<<<< HEAD
-            client
-                .acquire_llm_token(&llm_token, organization_id.clone())
-                .await
-                .ok()
-        };
-        let mut did_retry = false;
-
-        loop {
-            let request_builder = http_client::Request::builder().method(Method::POST);
-
-            let mut request_builder = request_builder
-                .header("Content-Type", "application/json")
-                .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string());
-
-            // Only add Authorization header if we have a token
-            if let Some(ref token_value) = token {
-                request_builder =
-                    request_builder.header("Authorization", format!("Bearer {}", token_value));
-            }
-
-            let request = build(request_builder)?;
-
-            let mut response = http_client.send(request).await?;
-
-            if let Some(minimum_required_version) = response
-                .headers()
-                .get(MINIMUM_REQUIRED_VERSION_HEADER_NAME)
-                .and_then(|version| Version::from_str(version.to_str().ok()?).ok())
-            {
-                anyhow::ensure!(
-                    app_version >= minimum_required_version,
-                    ZedUpdateRequiredError {
-                        minimum_version: minimum_required_version
-                    }
-                );
-            }
-
-            if response.status().is_success() {
-                let usage = EditPredictionUsage::from_headers(response.headers()).ok();
-
-                let mut body = Vec::new();
-                response.body_mut().read_to_end(&mut body).await?;
-                return Ok((serde_json::from_slice(&body)?, usage));
-            } else if !did_retry && token.is_some() && response.needs_llm_token_refresh() {
-                did_retry = true;
-                token = Some(
-                    client
-                        .refresh_llm_token(&llm_token, organization_id.clone())
-                        .await?,
-                );
-            } else {
-                let mut body = String::new();
-                response.body_mut().read_to_string(&mut body).await?;
-                anyhow::bail!(
-                    "Request failed with status: {:?}\nBody: {}",
-                    response.status(),
-                    body
-                );
-            }
-=======
             let status = response.status();
             let mut body = String::new();
             response.body_mut().read_to_string(&mut body).await?;
             anyhow::bail!("Request failed with status: {status:?}\nBody: {body}");
->>>>>>> zed/main
         }
     }
 
@@ -2934,37 +2865,6 @@ impl EditPredictionStore {
             return false;
         }
 
-<<<<<<< HEAD
-    fn load_data_collection_choice(cx: &App) -> DataCollectionChoice {
-        let choice = KeyValueStore::global(cx)
-            .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
-            .log_err()
-            .flatten();
-
-        match choice.as_deref() {
-            Some("true") => DataCollectionChoice::Enabled,
-            Some("false") => DataCollectionChoice::Disabled,
-            Some(_) => {
-                log::error!("unknown value in '{PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE}'");
-                DataCollectionChoice::NotAnswered
-            }
-            None => DataCollectionChoice::NotAnswered,
-        }
-    }
-
-    fn toggle_data_collection_choice(&mut self, cx: &mut Context<Self>) {
-        self.data_collection_choice = self.data_collection_choice.toggle();
-        let new_choice = self.data_collection_choice;
-        let is_enabled = new_choice.is_enabled(cx);
-        let kvp = KeyValueStore::global(cx);
-        db::write_and_log(cx, move || async move {
-            kvp.write_kvp(
-                PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE.into(),
-                is_enabled.to_string(),
-            )
-            .await
-        });
-=======
         if cx.is_staff() {
             return true;
         }
@@ -2984,7 +2884,7 @@ impl EditPredictionStore {
 
     fn load_legacy_data_collection_enabled(cx: &App) -> bool {
         KeyValueStore::global(cx)
-            .read_kvp(ZED_PREDICT_DATA_COLLECTION_CHOICE)
+            .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
             .log_err()
             .flatten()
             .as_deref()
@@ -3000,7 +2900,6 @@ impl EditPredictionStore {
                     .edit_prediction
                     .is_feedback_enabled
             })
->>>>>>> zed/main
     }
 
     pub fn shown_predictions(&self) -> impl DoubleEndedIterator<Item = &EditPrediction> {
@@ -3204,7 +3103,7 @@ fn is_upsell_dismissed(cx: &App) -> bool {
     // the database once the user clicked on "Accept and Enable"
     let kvp = KeyValueStore::global(cx);
     if kvp
-        .read_kvp(ZED_PREDICT_DATA_COLLECTION_CHOICE)
+        .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
         .log_err()
         .is_some_and(|s| s.is_some())
     {
@@ -3220,26 +3119,7 @@ impl Dismissable for ZedPredictUpsell {
     const KEY: &'static str = "dismissed-edit-predict-upsell";
 
     fn dismissed(cx: &App) -> bool {
-<<<<<<< HEAD
-        // To make this backwards compatible with older versions of Zed, we
-        // check if the user has seen the previous Edit Prediction Onboarding
-        // before, by checking the data collection choice which was written to
-        // the database once the user clicked on "Accept and Enable"
-        let kvp = KeyValueStore::global(cx);
-        if kvp
-            .read_kvp(PADDLEBOARD_PREDICT_DATA_COLLECTION_CHOICE)
-            .log_err()
-            .is_some_and(|s| s.is_some())
-        {
-            return true;
-        }
-
-        kvp.read_kvp(Self::KEY)
-            .log_err()
-            .is_some_and(|s| s.is_some())
-=======
         is_upsell_dismissed(cx)
->>>>>>> zed/main
     }
 }
 

@@ -18,13 +18,10 @@ use serde::{Deserialize, Serialize};
 use settings::Settings;
 use ui::{ButtonLike, Divider, DividerColor, KeyBinding, Vector, VectorName, prelude::*};
 use util::ResultExt;
-<<<<<<< HEAD
-use paddleboard_actions::{Extensions, OpenOnboarding, OpenSettings, agent, command_palette};
-=======
-use zed_actions::{
-    Extensions, OpenKeymap, OpenOnboarding, OpenSettings, assistant::ToggleFocus, command_palette,
+use paddleboard_actions::{
+    Extensions, OpenKeymap, OpenOnboarding, OpenSettings, agent, assistant::ToggleFocus,
+    command_palette,
 };
->>>>>>> zed/main
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize, JsonSchema, Action)]
 #[action(namespace = welcome)]
