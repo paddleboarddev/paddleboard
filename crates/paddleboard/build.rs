@@ -207,7 +207,9 @@ fn main() {
 
         #[cfg(windows)]
         {
-<<<<<<< HEAD:crates/paddleboard/build.rs
+            // PaddleBoard: keep inline winresource setup so we control PaddleBoard branding
+            // and the PADDLEBOARD_RC_TOOLKIT_PATH env var name. Upstream refactored this into
+            // a `windows_resources` helper crate that hardcodes Zed branding.
             let mut res = winresource::WindowsResource::new();
 
             // Depending on the security applied to the computer, winresource might fail
@@ -224,9 +226,6 @@ fn main() {
                 eprintln!("{}", e);
                 std::process::exit(1);
             }
-=======
-            windows_resources::compile(false).expect("failed to compile Windows resources");
->>>>>>> zed/main:crates/zed/build.rs
         }
     }
 
