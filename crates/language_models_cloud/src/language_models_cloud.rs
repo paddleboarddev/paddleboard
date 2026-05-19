@@ -4,7 +4,7 @@ use cloud_llm_client::{
     CLIENT_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, CLIENT_SUPPORTS_STATUS_STREAM_ENDED_HEADER_NAME,
     CLIENT_SUPPORTS_X_AI_HEADER_NAME, CompletionBody, CompletionEvent, CompletionRequestStatus,
     EXPIRED_LLM_TOKEN_HEADER_NAME, ListModelsResponse, OUTDATED_LLM_TOKEN_HEADER_NAME,
-    SERVER_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, ZED_VERSION_HEADER_NAME,
+    SERVER_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, PADDLEBOARD_VERSION_HEADER_NAME,
 };
 use futures::{
     AsyncBufReadExt, AsyncReadExt as _, FutureExt, Stream, StreamExt,
@@ -127,7 +127,7 @@ impl<TP: CloudLlmTokenProvider> CloudLanguageModel<TP> {
                     .method(Method::POST)
                     .uri(url.as_ref())
                     .when_some(app_version.as_ref(), |builder, app_version| {
-                        builder.header(ZED_VERSION_HEADER_NAME, app_version.to_string())
+                        builder.header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
                     })
                     .header("Content-Type", "application/json")
                     .header("Authorization", format!("Bearer {token}"))

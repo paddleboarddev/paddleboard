@@ -422,6 +422,7 @@ pub mod graph_ql {
 mod octo_client {
     use anyhow::{Context, Result};
     use futures::TryStreamExt as _;
+    use itertools::Itertools as _;
     use jsonwebtoken::EncodingKey;
     use octocrab::{
         Octocrab, Page,
@@ -461,6 +462,8 @@ mod octo_client {
     }
 
     const PAGE_SIZE: u8 = 100;
+    const ORG: &str = "zed-industries";
+    const REPO: &str = "zed";
 
     pub struct OctocrabClient {
         client: Octocrab,
@@ -652,6 +655,7 @@ mod octo_client {
             self.graphql::<graph_ql::CommitMetadataResponse>(&query)
                 .await
                 .map(|response| response.repository)
+                .map_err(|err| anyhow::anyhow!(err))
         }
 
         async fn get_commit_files(

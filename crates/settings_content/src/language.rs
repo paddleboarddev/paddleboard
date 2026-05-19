@@ -75,9 +75,7 @@ impl merge_from::MergeFrom for AllLanguageSettingsContent {
 }
 
 /// The provider that supplies edit predictions.
-#[derive(
-    Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize, JsonSchema, MergeFrom,
-)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, JsonSchema, MergeFrom)]
 #[serde(rename_all = "snake_case")]
 pub enum EditPredictionProvider {
     None,
@@ -98,6 +96,8 @@ impl<'de> Deserialize<'de> for EditPredictionProvider {
     where
         D: serde::Deserializer<'de>,
     {
+        use serde::de::Error as _;
+
         #[derive(Deserialize)]
         #[serde(rename_all = "snake_case")]
         pub enum Content {
@@ -153,7 +153,8 @@ impl EditPredictionProvider {
             | EditPredictionProvider::Codestral
             | EditPredictionProvider::Ollama
             | EditPredictionProvider::OpenAiCompatibleApi
-            | EditPredictionProvider::Mercury => false,
+            | EditPredictionProvider::Mercury
+            | EditPredictionProvider::Experimental(_) => false,
         }
     }
 
@@ -166,6 +167,7 @@ impl EditPredictionProvider {
             EditPredictionProvider::None => None,
             EditPredictionProvider::Ollama => Some("Ollama"),
             EditPredictionProvider::OpenAiCompatibleApi => Some("OpenAI-Compatible API"),
+            EditPredictionProvider::Experimental(name) => Some(name),
         }
     }
 }

@@ -118,7 +118,7 @@ impl CloudApiClient {
                     .as_ref(),
             )
             .when_some(system_id, |builder, system_id| {
-                builder.header(ZED_SYSTEM_ID_HEADER_NAME, system_id)
+                builder.header(PADDLEBOARD_SYSTEM_ID_HEADER_NAME, system_id)
             });
 
         let request = self.build_request(request_builder, AsyncBody::default())?;
@@ -253,7 +253,7 @@ impl CloudApiClient {
                     .map_err(ClientApiError::RequestBuildFailed)?
                     .as_ref(),
             )
-            .header(ZED_SYSTEM_ID_HEADER_NAME, system_id);
+            .header(PADDLEBOARD_SYSTEM_ID_HEADER_NAME, system_id);
 
         let request = self.build_request(request_builder, Json(body))?;
 
