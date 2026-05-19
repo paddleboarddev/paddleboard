@@ -2,11 +2,14 @@ use crash_handler::{CrashEventResult, CrashHandler};
 use log::info;
 use minidumper::{LoopAction, MinidumpBinary, Server, SocketName};
 use parking_lot::Mutex;
+use release_channel::{RELEASE_CHANNEL, ReleaseChannel};
 use serde::{Deserialize, Serialize};
 use std::{panic::Location, pin::Pin};
 
 use system_specs::GpuSpecs;
 
+#[cfg(target_os = "macos")]
+use std::sync::atomic::AtomicU32;
 use std::{
     env,
     fs::{self, File},

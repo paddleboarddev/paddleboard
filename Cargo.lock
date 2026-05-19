@@ -3779,6 +3779,7 @@ dependencies = [
  "settings",
  "sha2 0.10.9",
  "slotmap",
+ "smol",
  "tempfile",
  "url",
  "util",
@@ -4320,13 +4321,18 @@ name = "crashes"
 version = "0.1.0"
 dependencies = [
  "async-process",
+ "cfg-if",
  "crash-handler",
+ "futures 0.3.32",
  "log",
  "mach2 0.5.0",
  "minidumper",
  "parking_lot",
+ "paths",
+ "release_channel",
  "serde",
  "serde_json",
+ "smol",
  "system_specs",
  "windows 0.61.3",
  "zstd",
@@ -10138,8 +10144,12 @@ dependencies = [
 name = "language_model"
 version = "0.1.0"
 dependencies = [
+ "anthropic",
  "anyhow",
  "base64 0.22.1",
+ "cloud_api_client",
+ "cloud_api_types",
+ "cloud_llm_client",
  "collections",
  "credentials_provider",
  "env_var",
@@ -10150,9 +10160,13 @@ dependencies = [
  "image",
  "language_model_core",
  "log",
+ "open_ai",
+ "open_router",
  "parking_lot",
+ "schemars 1.2.1",
  "serde",
  "serde_json",
+ "smol",
  "thiserror 2.0.18",
  "util",
 ]

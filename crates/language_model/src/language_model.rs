@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, io};
 use thiserror::Error;
-use util::serde::is_default;
+use ::util::serde::is_default;
 
 pub use crate::api_key::{ApiKey, ApiKeyState};
 pub use crate::model::*;
