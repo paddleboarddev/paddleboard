@@ -1,6 +1,6 @@
 use crate::item::ItemHandle;
-use crate::{OpenPaddleBoardTour, StatusItemView};
-use gpui::{Context, IntoElement, Render, Window};
+use crate::{HideStatusItem, OpenPaddleBoardTour, StatusItemView};
+use gpui::{App, Context, IntoElement, Render, Window};
 use ui::{Button, Tooltip, prelude::*};
 
 pub struct TourStatusItem;
@@ -18,6 +18,10 @@ impl StatusItemView for TourStatusItem {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
+    }
+
+    fn hide_setting(&self, _cx: &App) -> Option<HideStatusItem> {
+        None
     }
 }
 

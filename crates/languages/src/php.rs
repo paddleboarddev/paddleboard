@@ -1,3 +1,4 @@
+use std::sync::Arc;
 // PaddleBoard: PHP language adapter.
 //
 // Uses `intelephense` (https://intelephense.com), distributed as a
@@ -87,7 +88,7 @@ impl LspInstaller for PhpLspAdapter {
         &self,
         version: &Version,
         container_dir: &PathBuf,
-        _: &dyn LspAdapterDelegate,
+        _: &Arc<dyn LspAdapterDelegate>,
     ) -> Option<LanguageServerBinary> {
         let server_path = container_dir.join(Self::SERVER_PATH);
         if self
@@ -113,7 +114,7 @@ impl LspInstaller for PhpLspAdapter {
         &self,
         latest_version: Version,
         container_dir: PathBuf,
-        _: &dyn LspAdapterDelegate,
+        _: &Arc<dyn LspAdapterDelegate>,
     ) -> Result<LanguageServerBinary> {
         let server_path = container_dir.join(Self::SERVER_PATH);
         self.node
