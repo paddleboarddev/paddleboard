@@ -68,18 +68,32 @@ jobs:
           BRANCH: ${{ steps.meta.outputs.branch }}
         run: |
           set +e
-          git merge --no-ff --no-edit zed/main
+          git merge --no-ff --no-edit --no-commit zed/main
           merge_status=$?
           set -e
-          if [ "${merge_status}" -ne 0 ]; then
+
+          # PaddleBoard owns .github/workflows/. The default GITHUB_TOKEN cannot
+          # push commits that create or update workflow files, so any upstream
+          # churn there — modify/delete conflicts (DU), new workflows we never
+          # had, or clean automerges of upstream-modified workflows — would block
+          # the push. Since PB deleted all upstream workflows during fork cleanup,
+          # the correct resolution is to discard upstream's view of this directory
+          # and restore exactly what HEAD had.
+          git rm -rf --ignore-unmatch --quiet -- .github/workflows/ >/dev/null 2>&1 || true
+          git checkout HEAD -- .github/workflows/ >/dev/null 2>&1 || true
+
+          if git ls-files --unmerged | grep -q .; then
             echo "conflicts=true" >> "${GITHUB_OUTPUT}"
-            # Record the conflict markers as a commit so the PR diff makes them visible.
+            # Record the remaining conflict markers as a commit so the PR diff makes them visible.
             git add -A
             git -c commit.gpgsign=false commit -m "Merge upstream zed/main into ${BRANCH} (CONFLICTS)"
             # List files with leftover conflict markers for the PR body.
             git grep -l '^<<<<<<< ' -- ':!.git' > conflict_files.txt || true
           else
             echo "conflicts=false" >> "${GITHUB_OUTPUT}"
+            # Either a fully clean merge or the only conflicts were workflow files we just dropped.
+            git add -A
+            git -c commit.gpgsign=false commit --no-edit -m "Merge upstream zed/main into ${BRANCH}"
             : > conflict_files.txt
           fi
 
