@@ -16,7 +16,10 @@ use language::{LspAdapterDelegate, LspInstaller, Toolchain};
 use lsp::{LanguageServerBinary, LanguageServerName};
 use std::{
     path::PathBuf,
-    sync::atomic::{AtomicBool, Ordering::SeqCst},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering::SeqCst},
+    },
 };
 
 pub struct SwiftLspAdapter;
@@ -71,7 +74,7 @@ impl LspInstaller for SwiftLspAdapter {
         &self,
         _: (),
         _container_dir: PathBuf,
-        _delegate: &dyn LspAdapterDelegate,
+        _delegate: &Arc<dyn LspAdapterDelegate>,
     ) -> Result<LanguageServerBinary> {
         bail!("{}", Self::MISSING_TOOLCHAIN_NOTIFICATION);
     }
