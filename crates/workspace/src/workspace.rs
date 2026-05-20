@@ -793,9 +793,16 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
             let config_dir = paths::config_dir();
             let tour_path = config_dir.join("PaddleBoard_Tour.md");
             let marker_path = config_dir.join(".tour_seen");
+            let embedded_tour = include_str!("tour.md");
 
-            if !tour_path.exists() {
-                std::fs::write(&tour_path, include_str!("tour.md")).log_err();
+            // PaddleBoard: rewrite the on-disk tour whenever the embedded
+            // source has changed, so existing users see tour updates after
+            // upgrading without having to delete the file by hand.
+            let needs_write = std::fs::read_to_string(&tour_path)
+                .map(|existing| existing != embedded_tour)
+                .unwrap_or(true);
+            if needs_write {
+                std::fs::write(&tour_path, embedded_tour).log_err();
             }
             if !marker_path.exists() {
                 std::fs::write(&marker_path, "seen").log_err();

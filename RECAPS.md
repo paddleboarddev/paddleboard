@@ -6,6 +6,16 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-19
 
+### Fix sticky-file gate on the in-app tour
+- Replaced the two existence-only gates that controlled writing `~/.config/paddleboard/PaddleBoard_Tour.md` with content-comparison gates. Now whenever the embedded `tour.md` source differs from what's on disk, PB rewrites the file. **Existing users see tour updates after upgrade without having to delete the file by hand.**
+- Two sites fixed (both tagged with `// PaddleBoard:` comments explaining the divergence from the existence-only original):
+  - **`crates/workspace/src/workspace.rs:791-812`** — the `OpenPaddleBoardTour` action handler that fires when the user invokes the tour via command palette.
+  - **`crates/paddleboard/src/main.rs:1711-1731`** — the startup hook that auto-opens the tour on first launch. Separated the "refresh-if-stale" check (now runs every launch) from the "auto-open on first launch" check (still gated on `.tour_seen` marker existence, so existing users don't get the tour popping open after every upgrade).
+- Logic: `std::fs::read_to_string(&tour_path).map(|existing| existing != embedded_tour).unwrap_or(true)` — true if the file is missing OR if its contents differ from the embedded source. Doesn't need a hash function or a sidecar marker; the full content comparison is fast enough (the tour is ~3KB) and avoids any hash-format-stability concerns.
+- **Verified.** `cargo check -p workspace -p paddleboard` finishes successfully.
+- **Preserved.** The `.tour_seen` marker semantics for the first-launch auto-open (existing users with the marker still don't get the tour popping open on launch — they have to invoke it). Both `// PaddleBoard:` divergence comments per fork-hygiene policy.
+- **Followup considered, not done.** Could keep a sidecar `.tour_version` file with a SHA256 to skip the read-and-compare on every launch, but the byte-comparison on a 3KB file is well under 1ms — not worth the added complexity.
+
 ### WELCOME.md + tour.md mirror of README refresh (b8f45de989)
 - Mirrored the four README additions into the in-app deep-dive (`WELCOME.md`) and the first-launch tour (`crates/workspace/src/tour.md`). New sections in WELCOME: extended `Sandboxed MCP servers` with the `zed: Mcp Servers` settings page (filters All/Running/Stopped/Error, Add Server popover, live status), new `Multi-workspace` section after orchestration panel (worktree picker via `git: Worktree`, switch/create/open-in-new-window flows, auto-generated branch names like `dusty-pelican`), extended `LLM provider picker panel` with ChatGPT Subscription OAuth (sign in with ChatGPT Plus/Pro, no API key, OAuth flow in embedded browser, token persisted in credential store), new `Built-in language servers` section at the end (jdtls/kotlin-language-server/intelephense/sourcekit-lsp, downloaded on first file open, no extension required).
 - Added two rows to the WELCOME.md quick-start tips table: `Configure MCP servers` → `zed: Mcp Servers`; `Switch / create a worktree` → `git: Worktree`.
