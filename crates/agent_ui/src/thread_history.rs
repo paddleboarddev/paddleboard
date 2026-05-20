@@ -1,5 +1,5 @@
 use acp_thread::{AgentSessionInfo, AgentSessionList, AgentSessionListRequest, SessionListUpdate};
-use agent_client_protocol as acp;
+use agent_client_protocol::schema as acp;
 use gpui::{App, Task};
 use std::rc::Rc;
 use ui::prelude::*;
