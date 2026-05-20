@@ -78,7 +78,9 @@ Most editors run **MCP (Model Context Protocol) servers** directly on your host.
 
 PaddleBoard adds a fourth context-server transport, `sandboxed_stdio`, that runs the MCP server inside a `podman run -i --rm --runtime=runsc` container. Stdin and stdout are proxied transparently, so the JSON-RPC framing keeps working without any change on the agent side.
 
-For now you opt in by hand-editing `settings.json`:
+**The MCP Servers settings page** (command palette → `zed: Mcp Servers`) gives you a UI for adding, filtering (All / Running / Stopped / Error), and inspecting servers without hand-editing JSON. Use the "Add Server" popover to declare a new server; the page surfaces live status as the connection comes up.
+
+You can still configure servers by hand in `settings.json` if you prefer:
 
 ```json
 "context_servers": {
@@ -97,7 +99,7 @@ For now you opt in by hand-editing `settings.json`:
 - `forward_env` is a list of host env var **names**; values are read by PaddleBoard at run time and passed via `podman run -e`, never serialized into the agent's context (same shape as the Sandbox Service Tool).
 - `mount_worktree: true` (default) binds the active worktree at `/workspace` so filesystem-touching MCP servers work the way users expect; set to `false` for servers that shouldn't see your code.
 
-The original `stdio` transport (which runs the binary directly on your host) is unchanged — sandboxing is opt-in per server until the configure modal grows controls for it.
+The original `stdio` transport (which runs the binary directly on your host) is unchanged — sandboxing is opt-in per server.
 
 ---
 
@@ -133,9 +135,38 @@ The tree updates in real time as threads start, finish, or spawn subagents.
 
 ---
 
+### Multi-workspace
+
+PaddleBoard lets you keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads. Designed for running parallel agent sessions against different projects without window-juggling.
+
+**How to use it:** Open the worktree picker via `git: Worktree`. From there you can:
+
+- **Switch** to an existing worktree — PB persists which workspaces are open and reopens them on relaunch.
+- **Create a new worktree** — provide a branch name (or accept the auto-generated one, like `dusty-pelican`) and PB sets up a git worktree alongside your repo, then opens it as a new workspace in the same window.
+- **Open in new window** — for when you want the new worktree to live in its own window.
+
+The worktree picker integrates with the agent orchestration panel: every workspace's agent threads show up in the live tree, so you can see what's running across all your projects at once.
+
+---
+
 ### LLM provider picker panel
 
 A dedicated panel for configuring and switching your active language model provider without opening settings. Dock it wherever is convenient and change providers as you work.
+
+**ChatGPT Subscription auth.** Alongside the usual API-key providers, PaddleBoard includes a ChatGPT Subscription provider that authenticates via OAuth — sign in once with your ChatGPT Plus or Pro account and PB uses your subscription's OpenAI access, no API key needed. The OAuth flow opens in the embedded browser panel; tokens persist in PB's credential store.
+
+---
+
+### Built-in language servers
+
+PaddleBoard ships with built-in support for four languages that Zed historically punts to extensions:
+
+- **Java** via [jdtls](https://github.com/eclipse/eclipse.jdt.ls) (Eclipse JDT Language Server)
+- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server)
+- **PHP** via [intelephense](https://intelephense.com/)
+- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp)
+
+Open a `.java`/`.kt`/`.php`/`.swift` file and the LSP attaches automatically — no extension installation required. The first time you open a file in one of these languages, PB downloads the appropriate language server binary and caches it for subsequent sessions.
 
 ---
 
@@ -154,6 +185,8 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 | Enable step-through mode | Click the ⏭ icon in the agent thread toolbar |
 | See all agent threads | Click the list-tree icon in the panel bar |
 | Switch LLM provider | Open the LLM Picker panel from the panel bar |
+| Configure MCP servers | `Cmd-Shift-P` → `zed: Mcp Servers` |
+| Switch / create a worktree | `Cmd-Shift-P` → `git: Worktree` |
 | Run code in a sandbox | Ask the agent to run a command — it uses the Sandbox Tool automatically |
 | Run a service in a sandbox | Ask the agent to start a server (e.g. `python3 -m http.server 8000`) — it uses the Sandbox Service Tool, and the URL appears in the Forwarded Ports row of the browser panel |
 
