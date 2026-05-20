@@ -24,7 +24,7 @@ use workspace::{
 };
 
 use crate::git_panel::show_error_toast;
-use zed_actions::{
+use paddleboard_actions::{
     CreateWorktree, NewWorktreeBranchTarget, OpenWorktreeInNewWindow, SwitchWorktree,
 };
 
@@ -44,10 +44,10 @@ pub fn open(
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
-    let repository = workspace.project().read(cx).active_repository(cx);
+    let project = workspace.project().clone();
     let workspace_handle = workspace.weak_handle();
     workspace.toggle_modal(window, cx, |window, cx| {
-        WorktreeList::new(repository, workspace_handle, rems(34.), window, cx)
+        WorktreePicker::new(project, workspace_handle, window, cx)
     })
 }
 

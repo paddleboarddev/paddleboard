@@ -606,7 +606,7 @@ mod tests {
         workspace: &Entity<workspace::Workspace>,
         cx: &mut VisualTestContext,
     ) -> Entity<Picker<ThemeSelectorDelegate>> {
-        cx.dispatch_action(zed_actions::theme_selector::Toggle {
+        cx.dispatch_action(paddleboard_actions::theme_selector::Toggle {
             themes_filter: None,
         });
         cx.run_until_parked();

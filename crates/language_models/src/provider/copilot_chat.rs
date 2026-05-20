@@ -16,7 +16,7 @@ use copilot_chat::{
 use futures::future::BoxFuture;
 use futures::stream::BoxStream;
 use futures::{FutureExt, Stream, StreamExt};
-use gpui::{AnyView, App, AsyncApp, Entity, Subscription, Task};
+use gpui::{AnyView, App, AsyncApp, Entity, SharedString, Subscription, Task};
 use http_client::StatusCode;
 use language::language_settings::all_language_settings;
 use language_model::{
@@ -254,11 +254,11 @@ impl LanguageModel for CopilotChatLanguageModel {
                     "medium" => "Medium".into(),
                     "high" => "High".into(),
                     "xhigh" => "Extra High".into(),
-                    _ => language_model::SharedString::from(level.clone()),
+                    _ => SharedString::from(level.clone()),
                 };
                 LanguageModelEffortLevel {
                     name,
-                    value: language_model::SharedString::from(level.clone()),
+                    value: SharedString::from(level.clone()),
                     is_default: level == "high",
                 }
             })

@@ -16,7 +16,7 @@ use gpui::{
 use paddleboard_sandbox_prereqs::{CommandKind, GvisorStatus, Os, PodmanStatus, SandboxStatus};
 use paddleboard_sandbox_prereqs_state::{OpenSandboxPrereqs, SandboxPrereqs};
 use ui::{Tooltip, prelude::*};
-use workspace::{ModalView, StatusItemView, Workspace};
+use workspace::{HideStatusItem, ModalView, StatusItemView, Workspace};
 
 /// Initialize the UI surface. Registers the `SandboxPrereqs` global, kicks
 /// off the first probe in the background, and wires the `OpenSandboxPrereqs`
@@ -82,6 +82,10 @@ impl StatusItemView for SandboxStatusItem {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
+    }
+
+    fn hide_setting(&self, _cx: &App) -> Option<HideStatusItem> {
+        None
     }
 }
 

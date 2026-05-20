@@ -508,7 +508,9 @@ impl Render for EditPredictionButton {
                 div().child(popover_menu.into_any_element())
             }
 
-            EditPredictionProvider::None => div().hidden(),
+            EditPredictionProvider::None | EditPredictionProvider::Experimental(_) => {
+                div().hidden()
+            }
         }
     }
 }
@@ -648,11 +650,26 @@ impl EditPredictionButton {
         let fs = self.fs.clone();
         let project = self.project.clone();
         ContextMenu::build(window, cx, |menu, _, cx| {
-            let menu = menu
-                .entry("Sign In to Copilot", None, move |window, cx| {
+            menu.entry("Sign In to Copilot", None, move |window, cx| {
+                telemetry::event!(
+                    "Edit Prediction Menu Action",
+                    action = "sign_in",
+                    provider = "copilot",
+                );
+                if let Some(copilot) = EditPredictionStore::try_global(cx).and_then(|store| {
+                    store.update(cx, |this, cx| {
+                        this.start_copilot_for_project(&project.upgrade()?, cx)
+                    })
+                }) {
+                    copilot_ui::initiate_sign_in(copilot, window, cx);
+                }
+            })
+            .entry("Disable Copilot", None, {
+                let fs = fs.clone();
+                move |_window, cx| {
                     telemetry::event!(
                         "Edit Prediction Menu Action",
-                        action = "sign_in",
+                        action = "disable_provider",
                         provider = "copilot",
                     );
                     hide_copilot(fs.clone(), cx)

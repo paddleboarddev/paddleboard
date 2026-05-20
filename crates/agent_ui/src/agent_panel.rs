@@ -4509,9 +4509,9 @@ impl AgentPanel {
                                 .header("MCP Servers")
                                 .action(
                                     "View Server Extensions",
-                                    Box::new(zed_actions::Extensions {
+                                    Box::new(paddleboard_actions::Extensions {
                                         category_filter: Some(
-                                            zed_actions::ExtensionCategoryFilter::ContextServers,
+                                            paddleboard_actions::ExtensionCategoryFilter::ContextServers,
                                         ),
                                         id: None,
                                     }),

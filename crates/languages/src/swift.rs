@@ -70,13 +70,13 @@ impl LspInstaller for SwiftLspAdapter {
         bail!("{}", Self::MISSING_TOOLCHAIN_NOTIFICATION);
     }
 
-    async fn fetch_server_binary(
+    fn fetch_server_binary(
         &self,
         _: (),
         _container_dir: PathBuf,
         _delegate: &Arc<dyn LspAdapterDelegate>,
-    ) -> Result<LanguageServerBinary> {
-        bail!("{}", Self::MISSING_TOOLCHAIN_NOTIFICATION);
+    ) -> impl Send + std::future::Future<Output = Result<LanguageServerBinary>> + use<> {
+        async move { bail!("{}", Self::MISSING_TOOLCHAIN_NOTIFICATION) }
     }
 
     async fn cached_server_binary(

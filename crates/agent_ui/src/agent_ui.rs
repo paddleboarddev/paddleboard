@@ -591,7 +591,7 @@ pub fn init(
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
         workspace.register_action(
             |workspace: &mut Workspace,
-             _: &zed_actions::agent::OpenRulesToSkillsMigrationInfo,
+             _: &paddleboard_actions::agent::OpenRulesToSkillsMigrationInfo,
              window: &mut Window,
              cx: &mut Context<Workspace>| {
                 // The banner is the only intended entry point and is
@@ -709,7 +709,7 @@ fn update_command_palette_filter(cx: &mut App) {
             TypeId::of::<ToggleEditPrediction>(),
         ];
 
-        let open_rules_library_action = [TypeId::of::<zed_actions::assistant::OpenRulesLibrary>()];
+        let open_rules_library_action = [TypeId::of::<paddleboard_actions::assistant::OpenRulesLibrary>()];
 
         if disable_ai {
             filter.hide_namespace("agent");
