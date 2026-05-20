@@ -6,6 +6,9 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-19
 
+### PR #37 merged to main (65aa3f5b04)
+- Jay merged PR #37 (`Merge upstream zed/main (2026-05-19)`) into main. Local main fast-forwarded 1136 commits to `65aa3f5b04`. **The week's upstream merge has officially landed.**
+
 ### PR #37 pushed + flipped to ready-for-review
 - Pushed branch `chore/merge-upstream-zed-2026-05-19` (e04151391f → ff0e40c5b8, 5 commits).
 - `gh pr ready 37` flipped PR #37 from draft to ready-for-review. URL: https://github.com/jasonsmithio/paddleboard/pull/37.
