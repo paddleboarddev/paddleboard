@@ -51,6 +51,10 @@ impl AgentConnectionEntry {
             AgentConnectionEntry::Error { .. } => AgentConnectionStatus::Disconnected,
         }
     }
+
+    pub fn history(&self) -> Option<Entity<crate::thread_history::ThreadHistory>> {
+        None
+    }
 }
 
 pub enum AgentConnectionEntryEvent {

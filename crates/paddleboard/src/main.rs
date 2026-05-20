@@ -17,7 +17,7 @@ const _: () = assert!(
 use agent::{SharedThread, ThreadStore};
 use agent_client_protocol::schema as acp;
 use agent_ui::AgentPanel;
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Error, Result};
 use clap::Parser;
 use cli::FORCE_CLI_MODE_ENV_VAR_NAME;
 use client::{Client, ProxySettings, RefreshLlmTokenListener, UserStore, parse_zed_link};
@@ -25,6 +25,7 @@ use collab_ui::channel_view::ChannelView;
 use collections::HashMap;
 use crashes::InitCrashHandler;
 use db::kvp::{GlobalKeyValueStore, KeyValueStore};
+use editor::Editor;
 use workspace::welcome::WelcomePage;
 use extension::ExtensionHostProxy;
 use fs::{Fs, RealFs};
@@ -1588,7 +1589,12 @@ pub(crate) async fn restore_or_create_workspace(
         }
 
         // Wait for all window groups and remote workspaces to open concurrently
-        results.extend(future::join_all(tasks).await);
+        results.extend(
+            future::join_all(tasks)
+                .await
+                .into_iter()
+                .map(|result| result.map(|_| ())),
+        );
 
         // Show notifications for any errors that occurred
         let mut error_count = 0;

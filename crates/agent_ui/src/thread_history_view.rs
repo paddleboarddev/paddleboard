@@ -332,7 +332,7 @@ impl ThreadHistoryView {
         let Some(entry) = self.get_history_entry(visible_item_ix) else {
             return;
         };
-        if !self.history.read(cx).supports_delete() {
+        if !self.history.read(cx).supports_delete(cx) {
             return;
         }
         let session_id = entry.session_id.clone();
@@ -344,7 +344,7 @@ impl ThreadHistoryView {
     }
 
     fn remove_history(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        if !self.history.read(cx).supports_delete() {
+        if !self.history.read(cx).supports_delete(cx) {
             return;
         }
         self.history.update(cx, |history, cx| {
@@ -436,7 +436,7 @@ impl ThreadHistoryView {
             })
             .unwrap_or_else(|| "Unknown".to_string());
 
-        let supports_delete = self.history.read(cx).supports_delete();
+        let supports_delete = self.history.read(cx).supports_delete(cx);
 
         h_flex()
             .w_full()
@@ -506,7 +506,7 @@ impl Focusable for ThreadHistoryView {
 impl Render for ThreadHistoryView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let has_no_history = self.history.read(cx).is_empty();
-        let supports_delete = self.history.read(cx).supports_delete();
+        let supports_delete = self.history.read(cx).supports_delete(cx);
 
         v_flex()
             .key_context("ThreadHistory")
@@ -744,27 +744,12 @@ impl RenderOnce for HistoryEntryElement {
                 let conversation_view = self.conversation_view.clone();
                 let entry = self.entry;
 
-                move |_event, window, cx| {
-                    if let Some(workspace) = conversation_view
-                        .upgrade()
-                        .and_then(|view| view.read(cx).workspace().upgrade())
-                    {
-                        if let Some(panel) = workspace.read(cx).panel::<AgentPanel>(cx) {
-                            panel.update(cx, |panel, cx| {
-                                if let Some(agent) = panel.selected_agent() {
-                                    panel.load_agent_thread(
-                                        agent,
-                                        entry.session_id.clone(),
-                                        entry.work_dirs.clone(),
-                                        entry.title.clone(),
-                                        true,
-                                        window,
-                                        cx,
-                                    );
-                                }
-                            });
-                        }
-                    }
+                move |_event, _window, _cx| {
+                    let _ = (&conversation_view, &entry);
+                    log::warn!(
+                        "Opening a thread from per-agent history is currently disabled — see \
+                         cluster #7 in RECAPS.md."
+                    );
                 }
             })
     }
