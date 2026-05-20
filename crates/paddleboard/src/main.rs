@@ -1709,21 +1709,33 @@ pub(crate) async fn restore_or_create_workspace(
     }
 
     let marker_path = paths::config_dir().join(".tour_seen");
+    let tour_path = paths::config_dir().join("PaddleBoard_Tour.md");
+    let embedded_tour = include_str!("../../workspace/src/tour.md");
+
+    // PaddleBoard: refresh the on-disk tour whenever the embedded source has
+    // changed, so existing users see tour updates after upgrading. The
+    // marker_path gate below still controls whether the tour auto-opens on
+    // first launch only.
+    let needs_write = std::fs::read_to_string(&tour_path)
+        .map(|existing| existing != embedded_tour)
+        .unwrap_or(true);
+    if needs_write {
+        let _ = std::fs::write(&tour_path, embedded_tour);
+    }
+
     if !marker_path.exists() {
-        let tour_path = paths::config_dir().join("PaddleBoard_Tour.md");
-        let _ = std::fs::write(&tour_path, include_str!("../../workspace/src/tour.md"));
         let _ = std::fs::write(&marker_path, "seen");
-        
+
         let app_state_clone = app_state.clone();
         let task = cx.update(|cx| {
             workspace::open_paths(
                 &[tour_path],
                 app_state_clone,
                 workspace::OpenOptions::default(),
-                cx
+                cx,
             )
         });
-        
+
         let _ = task.await;
     }
     Ok(())
