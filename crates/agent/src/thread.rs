@@ -2,11 +2,10 @@ use crate::{
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool,
     FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
-    ListDirectoryTool, MovePathTool, NowTool, OpenTool, ProjectSnapshot, ReadFileTool, RenameTool,
-    RestoreFileFromDiskTool, SandboxServiceTool, SandboxTool, SaveFileTool, SpawnAgentTool,
-    StreamingEditFileTool, SystemPromptTemplate, Template, Templates, TerminalTool,
-    ToolPermissionDecision, UpdatePlanTool, UserAgentsMd, WebSearchTool, WriteFileTool,
-    decide_permission_from_settings,
+    ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool,
+    SandboxServiceTool, SandboxTool, SpawnAgentTool, SystemPromptTemplate, Template, Templates,
+    TerminalTool, ToolPermissionDecision, UpdatePlanTool, UserAgentsMd, WebSearchTool,
+    WriteFileTool, decide_permission_from_settings,
 };
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;
@@ -2512,6 +2511,7 @@ impl Thread {
                         options,
                         response: response_tx,
                         context: None,
+                        kind: acp_thread::AuthorizationKind::PermissionGrant,
                     },
                 )))
                 .ok();
@@ -2524,9 +2524,9 @@ impl Thread {
                             tool_use_id,
                             tool_name,
                             is_error: true,
-                            content: LanguageModelToolResultContent::Text(Arc::from(
+                            content: vec![LanguageModelToolResultContent::Text(Arc::from(
                                 "Step mode authorization canceled",
-                            )),
+                            ))],
                             output: None,
                         }
                     }
@@ -2542,9 +2542,9 @@ impl Thread {
                         tool_use_id,
                         tool_name,
                         is_error: true,
-                        content: LanguageModelToolResultContent::Text(Arc::from(
+                        content: vec![LanguageModelToolResultContent::Text(Arc::from(
                             "Tool skipped in step mode",
-                        )),
+                        ))],
                         output: Some("Tool skipped in step mode".into()),
                     };
                 }
@@ -2557,12 +2557,14 @@ impl Thread {
 
                 let (is_error, output) = match tool_result.await {
                     Ok(mut output) => {
-                        if let LanguageModelToolResultContent::Image(_) = &output.llm_output
-                            && !supports_images
-                        {
-                            output = AgentToolOutput::from_error(
-                                "Attempted to read an image, but this model doesn't support it.",
-                            );
+                        let has_image = output
+                            .llm_output
+                            .iter()
+                            .any(|c| matches!(c, LanguageModelToolResultContent::Image(_)));
+                        if has_image && !supports_images {
+                            output = AgentToolOutput::from(anyhow::anyhow!(
+                                "Attempted to read an image, but this model doesn't support it."
+                            ));
                             (true, output)
                         } else {
                             (false, output)
@@ -2593,12 +2595,14 @@ impl Thread {
             cx.foreground_executor().spawn(async move {
                 let (is_error, output) = match tool_result.await {
                     Ok(mut output) => {
-                        if let LanguageModelToolResultContent::Image(_) = &output.llm_output
-                            && !supports_images
-                        {
-                            output = AgentToolOutput::from_error(
-                                "Attempted to read an image, but this model doesn't support it.",
-                            );
+                        let has_image = output
+                            .llm_output
+                            .iter()
+                            .any(|c| matches!(c, LanguageModelToolResultContent::Image(_)));
+                        if has_image && !supports_images {
+                            output = AgentToolOutput::from(anyhow::anyhow!(
+                                "Attempted to read an image, but this model doesn't support it."
+                            ));
                             (true, output)
                         } else {
                             (false, output)
