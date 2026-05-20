@@ -20,7 +20,7 @@ use project::AgentId;
 use serde::{Deserialize, Serialize};
 use settings::{LanguageModelProviderSetting, LanguageModelSelection};
 
-use feature_flags::{AgentV2FeatureFlag, FeatureFlagAppExt as _};
+use feature_flags::FeatureFlagAppExt as _;
 use paddleboard_actions::agent::{
     AddSelectionToThread, ConflictContent, LogoutAgent, ReauthenticateAgent,
     ResolveConflictedFilesWithAgent, ResolveConflictsWithAgent, ReviewBranchDiff,
@@ -87,7 +87,7 @@ use workspace::{
 };
 use paddleboard_actions::{
     DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
-    agent::{OpenAcpOnboardingModal, OpenSettings, ResetAgentZoom, ResetOnboarding},
+    agent::{OpenOnboardingModal, OpenSettings, ResetAgentZoom, ResetOnboarding},
     assistant::{FocusAgent, OpenRulesLibrary, Toggle, ToggleFocus},
 };
 
@@ -5734,7 +5734,7 @@ mod tests {
 
     impl AgentConnection for SessionTrackingConnection {
         fn agent_id(&self) -> AgentId {
-            agent::ZED_AGENT_ID.clone()
+            agent::PADDLEBOARD_AGENT_ID.clone()
         }
 
         fn telemetry_id(&self) -> SharedString {
@@ -9793,7 +9793,7 @@ mod tests {
 
     impl AgentConnection for DisassociationTrackingConnection {
         fn agent_id(&self) -> AgentId {
-            agent::ZED_AGENT_ID.clone()
+            agent::PADDLEBOARD_AGENT_ID.clone()
         }
 
         fn telemetry_id(&self) -> SharedString {

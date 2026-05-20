@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use agent_client_protocol as acp;
+use agent_client_protocol::schema as acp;
 use acp_thread::ThreadStatus;
 use gpui::{
     Action, App, AsyncWindowContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
@@ -109,7 +109,7 @@ impl OrchestrationPanel {
         for conv_view in conv_views {
             let thread_views = conv_view.read(cx).all_thread_views();
             for thread_view in thread_views {
-                let session_id = thread_view.read(cx).id.clone();
+                let session_id = thread_view.read(cx).session_id.clone();
                 live_ids.insert(session_id.clone());
                 self.thread_subscriptions
                     .entry(session_id)
@@ -162,14 +162,14 @@ impl OrchestrationPanel {
             // Build a map of session_id → thread_view for hierarchy resolution.
             let view_map: HashMap<acp::SessionId, Entity<ThreadView>> = thread_views
                 .iter()
-                .map(|tv| (tv.read(cx).id.clone(), tv.clone()))
+                .map(|tv| (tv.read(cx).session_id.clone(), tv.clone()))
                 .collect();
 
             // Collect root threads (those with no parent in this conversation).
             let roots: Vec<Entity<ThreadView>> = thread_views
                 .iter()
                 .filter(|tv| {
-                    let parent = tv.read(cx).parent_id.clone();
+                    let parent = tv.read(cx).parent_session_id.clone();
                     parent.is_none() || !view_map.contains_key(&parent.unwrap())
                 })
                 .cloned()
@@ -211,7 +211,7 @@ impl OrchestrationPanel {
         cx: &mut Context<Self>,
     ) {
         let thread_data = thread_view.read(cx);
-        let session_id = thread_data.id.clone();
+        let session_id = thread_data.session_id.clone();
         let status = thread_data.thread.read(cx).status();
 
         let title: SharedString = thread_data
@@ -276,7 +276,7 @@ impl OrchestrationPanel {
         // Collect and render child threads (subagents).
         let children: Vec<Entity<ThreadView>> = view_map
             .values()
-            .filter(|tv| tv.read(cx).parent_id.as_ref() == Some(&session_id))
+            .filter(|tv| tv.read(cx).parent_session_id.as_ref() == Some(&session_id))
             .cloned()
             .collect();
 
