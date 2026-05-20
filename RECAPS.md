@@ -6,6 +6,16 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-19
 
+### README refresh: multi-workspace, MCP Servers page, ChatGPT OAuth, built-in LSPs (2f025f58bf)
+- Added/extended four bullets in the "What's different from Zed" section of `README.md` to reflect features that landed after the README was last rewritten: (1) extended the existing **Sandboxed MCP servers** bullet to mention the dedicated MCP Servers settings page reachable via `zed: Mcp Servers`; (2) new **Multi-workspace** bullet describing multiple projects in one window with worktree-backed workspaces and auto-generated branch names; (3) extended the **LLM provider picker panel** bullet with the ChatGPT Subscription provider that authenticates via OAuth (sign in with ChatGPT Plus/Pro instead of an API key); (4) new **Built-in language servers for Java, Kotlin, PHP, and Swift** bullet (jdtls, kotlin-language-server, intelephense, sourcekit-lsp).
+- **Verified action surface:** `zed: Mcp Servers` (not `workspace:` — the `McpServers` action is declared in the `zed` namespace at `paddleboard_actions/src/lib.rs:118`). The other features were confirmed shipped via grep: `workspace::MultiWorkspace` persistence at `crates/workspace/src/persistence.rs`, `language_models/src/provider/openai_subscribed.rs` for the ChatGPT provider, and `crates/languages/src/{java,kotlin,php,swift}.rs` for the LSPs.
+- **Preserved.** Existing voice and tone, the "every Zed feature still works" framing, the WELCOME.md cross-reference, and the FORK_HYGIENE.md cross-reference. Didn't touch WELCOME.md in this pass — the in-app tour already documents most of these features at depth.
+- **Followups.** Mirror the new features into WELCOME.md where the deep-dive lives. Run `/update-tour` once WELCOME.md is updated so the in-app first-launch tour stays in sync.
+
+### Memory: upstream-merge cleanup patterns
+- Added `feedback_upstream_merge_cleanup.md` to user memory with 9 battle-tested patterns from the PR #37 cleanup (510 → 0 errors across 5 sessions): treat errors as waves; audit dropped PB files via `cargo check | grep "file not found"`; `use agent_client_protocol::schema as acp` (not `as acp`); bridge PB customizations to upstream shape instead of restoring; cargo version-mismatch tells; clippy as a separate gate from `cargo check`; dead-code allows for deferred PB infrastructure; commit per cluster; push + ready-flip only after all gates pass.
+- Indexed in `MEMORY.md` with a one-line hook. Linked back to `[[project-fork-hygiene]]`.
+
 ### PR #37 merged to main (65aa3f5b04)
 - Jay merged PR #37 (`Merge upstream zed/main (2026-05-19)`) into main. Local main fast-forwarded 1136 commits to `65aa3f5b04`. **The week's upstream merge has officially landed.**
 
