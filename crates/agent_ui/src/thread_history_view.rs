@@ -1,7 +1,9 @@
+// PaddleBoard: dead-code allows until the per-agent history feature is rewired
+// (see cluster #7 followup in RECAPS.md).
+#![allow(dead_code)]
+
 use crate::thread_history::ThreadHistory;
-use crate::{
-    AgentPanel, ConversationView, DEFAULT_THREAD_TITLE, RemoveHistory, RemoveSelectedThread,
-};
+use crate::{ConversationView, DEFAULT_THREAD_TITLE, RemoveHistory, RemoveSelectedThread};
 use acp_thread::AgentSessionInfo;
 use chrono::{Datelike as _, Local, NaiveDate, TimeDelta, Utc};
 use editor::{Editor, EditorEvent};

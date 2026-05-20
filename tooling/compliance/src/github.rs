@@ -462,7 +462,9 @@ mod octo_client {
     }
 
     const PAGE_SIZE: u8 = 100;
+    #[allow(dead_code)]
     const ORG: &str = "zed-industries";
+    #[allow(dead_code)]
     const REPO: &str = "zed";
 
     pub struct OctocrabClient {
@@ -497,6 +499,7 @@ mod octo_client {
             Ok(Self { client })
         }
 
+        #[allow(dead_code)]
         fn build_co_authors_query<'a>(shas: impl IntoIterator<Item = &'a CommitSha>) -> String {
             const FRAGMENT: &str = r#"
                 ... on Commit {

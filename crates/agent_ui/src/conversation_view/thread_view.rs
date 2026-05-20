@@ -3266,11 +3266,11 @@ impl ThreadView {
             return div().into_any_element();
         }
 
-        let focus_handle = self.message_editor.focus_handle(cx);
+        let _focus_handle = self.message_editor.focus_handle(cx);
         let editor_bg_color = cx.theme().colors().editor_background;
 
         let editor_expanded = self.editor_expanded;
-        let (expand_icon, expand_tooltip) = if editor_expanded {
+        let (_expand_icon, _expand_tooltip) = if editor_expanded {
             (IconName::Minimize, "Minimize Message Editor")
         } else {
             (IconName::Maximize, "Expand Message Editor")

@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use acp_thread::AcpThreadEvent;
 use agent::{PADDLEBOARD_AGENT_ID, ThreadStore};
 use agent_client_protocol::schema as acp;
 use anyhow::Context as _;

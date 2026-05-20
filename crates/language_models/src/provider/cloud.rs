@@ -1,6 +1,6 @@
 use ai_onboarding::YoungAccountBanner;
 use anthropic::AnthropicModelMode;
-use anyhow::{Context as _, Result, anyhow};
+use anyhow::{Result, anyhow};
 use client::{
     Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls,
 };
@@ -8,9 +8,8 @@ use cloud_api_client::LlmApiToken;
 use cloud_api_types::{OrganizationId, Plan};
 use cloud_llm_client::{
     CLIENT_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, CLIENT_SUPPORTS_STATUS_STREAM_ENDED_HEADER_NAME,
-    CLIENT_SUPPORTS_X_AI_HEADER_NAME, CompletionBody, CompletionEvent, CompletionRequestStatus,
-    ListModelsResponse, SERVER_SUPPORTS_STATUS_MESSAGES_HEADER_NAME,
-    PADDLEBOARD_VERSION_HEADER_NAME,
+    CompletionBody, CompletionEvent, CompletionRequestStatus,
+    PADDLEBOARD_VERSION_HEADER_NAME, SERVER_SUPPORTS_STATUS_MESSAGES_HEADER_NAME,
 };
 use futures::{
     AsyncBufReadExt, AsyncReadExt, FutureExt, Stream, StreamExt,

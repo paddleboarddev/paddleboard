@@ -29,11 +29,14 @@ pub use minidumper::Client;
 const CRASH_HANDLER_PING_TIMEOUT: Duration = Duration::from_secs(60);
 const CRASH_HANDLER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
+#[allow(dead_code)]
 static PENDING_CRASH_SERVER_MESSAGES: Mutex<Vec<CrashServerMessage>> = Mutex::new(Vec::new());
 
 #[cfg(target_os = "macos")]
+#[allow(dead_code)]
 static PANIC_THREAD_ID: AtomicU32 = AtomicU32::new(0);
 
+#[allow(dead_code)]
 fn should_install_crash_handler() -> bool {
     if let Ok(value) = env::var("PADDLEBOARD_GENERATE_MINIDUMPS") {
         return value == "true" || value == "1";

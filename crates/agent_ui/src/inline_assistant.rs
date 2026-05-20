@@ -49,7 +49,7 @@ use settings::{Settings, SettingsStore};
 use terminal_view::{TerminalView, terminal_panel::TerminalPanel};
 use ui::prelude::*;
 use util::{RangeExt, ResultExt, maybe};
-use workspace::{ItemHandle, Toast, Workspace, dock::Panel, notifications::NotificationId};
+use workspace::{Toast, Workspace, dock::Panel, notifications::NotificationId};
 use paddleboard_actions::agent::OpenSettings;
 
 pub fn init(fs: Arc<dyn Fs>, prompt_builder: Arc<PromptBuilder>, cx: &mut App) {

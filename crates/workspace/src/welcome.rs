@@ -19,8 +19,7 @@ use settings::Settings;
 use ui::{ButtonLike, Divider, DividerColor, KeyBinding, Vector, VectorName, prelude::*};
 use util::ResultExt;
 use paddleboard_actions::{
-    Extensions, OpenKeymap, OpenOnboarding, OpenSettings, agent, assistant::ToggleFocus,
-    command_palette,
+    Extensions, OpenKeymap, OpenOnboarding, OpenSettings, assistant::ToggleFocus, command_palette,
 };
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize, JsonSchema, Action)]

@@ -51,10 +51,7 @@ use ui::{
 };
 use update_version::UpdateVersion;
 use util::ResultExt;
-use workspace::{
-    MultiWorkspace, ToggleWorktreeSecurity, Workspace, WorkspaceId,
-    notifications::NotifyResultExt,
-};
+use workspace::{MultiWorkspace, ToggleWorktreeSecurity, Workspace};
 
 use paddleboard_actions::OpenRemote;
 
@@ -941,7 +938,7 @@ impl TitleBar {
                 format!("Creating {}…", name).into()
             }
         } else {
-            worktree_label.clone()
+            worktree_label
         };
 
         let worktree_button = {

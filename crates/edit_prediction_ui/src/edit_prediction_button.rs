@@ -649,7 +649,7 @@ impl EditPredictionButton {
     ) -> Entity<ContextMenu> {
         let fs = self.fs.clone();
         let project = self.project.clone();
-        ContextMenu::build(window, cx, |menu, _, cx| {
+        ContextMenu::build(window, cx, |menu, _, _cx| {
             menu.entry("Sign In to Copilot", None, move |window, cx| {
                 telemetry::event!(
                     "Edit Prediction Menu Action",

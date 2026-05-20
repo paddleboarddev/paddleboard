@@ -1065,7 +1065,7 @@ mod tests {
     use cli::CliResponse;
     use editor::Editor;
     use futures::poll;
-    use gpui::{AppContext as _, TestAppContext};
+    use gpui::TestAppContext;
     use language::LineEnding;
     use remote::SshConnectionOptions;
     use rope::Rope;
