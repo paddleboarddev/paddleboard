@@ -1,3 +1,4 @@
+use std::sync::Arc;
 // PaddleBoard: Java language adapter.
 //
 // `jdtls` (Eclipse JDT Language Server) is the de-facto Java LSP, but
@@ -82,13 +83,13 @@ impl LspInstaller for JavaLspAdapter {
         bail!("{}", Self::MISSING_JDTLS_NOTIFICATION);
     }
 
-    async fn fetch_server_binary(
+    fn fetch_server_binary(
         &self,
         _: (),
         _container_dir: PathBuf,
-        _delegate: &dyn LspAdapterDelegate,
-    ) -> Result<LanguageServerBinary> {
-        bail!("{}", Self::MISSING_JDTLS_NOTIFICATION);
+        _delegate: &Arc<dyn LspAdapterDelegate>,
+    ) -> impl Send + std::future::Future<Output = Result<LanguageServerBinary>> + use<> {
+        async move { bail!("{}", Self::MISSING_JDTLS_NOTIFICATION) }
     }
 
     async fn cached_server_binary(

@@ -1,4 +1,4 @@
-use gpui::{App, AppContext as _, Global, SharedString};
+use gpui::{App, AppContext as _, Global, SharedString, TaskExt};
 use std::sync::Arc;
 use util::command::new_command;
 

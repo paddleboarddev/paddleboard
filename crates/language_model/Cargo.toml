@@ -30,6 +30,7 @@ gpui.workspace = true
 http_client.workspace = true
 icons.workspace = true
 image.workspace = true
+language_model_core.workspace = true
 log.workspace = true
 open_ai = { workspace = true, features = ["schemars"] }
 open_router.workspace = true

@@ -504,8 +504,10 @@ impl Drop for PodmanRunningKernel {
     fn drop(&mut self) {
         // Belt and braces: `podman run --rm` handles cleanup on a clean exit,
         // but if the editor crashed mid-session we explicitly remove the
-        // container so it doesn't linger.
-        std::process::Command::new("podman")
+        // container so it doesn't linger. We use the sync `output()` here
+        // because Drop can't await — accepted on this rare cleanup path.
+        #[allow(clippy::disallowed_methods)]
+        util::command::new_std_command("podman")
             .args(["rm", "-f", &self.container_name])
             .output()
             .ok();

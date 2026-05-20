@@ -1,5 +1,9 @@
+// PaddleBoard: dead-code allows until the per-agent history feature is rewired
+// (see cluster #7 followup in RECAPS.md).
+#![allow(dead_code)]
+
 use acp_thread::{AgentSessionInfo, AgentSessionList, AgentSessionListRequest, SessionListUpdate};
-use agent_client_protocol as acp;
+use agent_client_protocol::schema as acp;
 use gpui::{App, Task};
 use std::rc::Rc;
 use ui::prelude::*;
@@ -201,8 +205,8 @@ impl ThreadHistory {
         self.sessions.iter().take(limit).cloned().collect()
     }
 
-    pub fn supports_delete(&self) -> bool {
-        self.session_list.supports_delete()
+    pub fn supports_delete(&self, cx: &App) -> bool {
+        self.session_list.supports_delete(cx)
     }
 
     pub(crate) fn delete_session(

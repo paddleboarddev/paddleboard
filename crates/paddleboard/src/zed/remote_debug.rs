@@ -1,5 +1,6 @@
-use workspace::Workspace;
+use gpui::TaskExt;
 use paddleboard_actions::remote_debug::{SimulateDisconnect, SimulateTimeout, SimulateTimeoutExhausted};
+use workspace::Workspace;
 
 pub fn init(cx: &mut gpui::App) {
     cx.observe_new(|workspace: &mut Workspace, _, cx| {
