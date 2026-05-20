@@ -25,7 +25,7 @@ use workspace::{
         simple_message_notification::MessageNotification,
     },
 };
-use zed_actions::{ShowUpdateNotification, assistant::FocusAgent};
+use paddleboard_actions::{ShowUpdateNotification, assistant::FocusAgent};
 
 actions!(
     auto_update,

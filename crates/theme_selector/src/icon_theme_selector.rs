@@ -419,7 +419,7 @@ mod tests {
         workspace: &Entity<workspace::Workspace>,
         cx: &mut VisualTestContext,
     ) -> Entity<Picker<IconThemeSelectorDelegate>> {
-        cx.dispatch_action(zed_actions::icon_theme_selector::Toggle {
+        cx.dispatch_action(paddleboard_actions::icon_theme_selector::Toggle {
             themes_filter: None,
         });
         cx.run_until_parked();

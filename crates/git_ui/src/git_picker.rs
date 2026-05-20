@@ -441,16 +441,6 @@ pub fn open_branches(
     open_with_tab(workspace, GitPickerTab::Branches, window, cx);
 }
 
-pub fn open_worktrees(
-    workspace: &mut Workspace,
-    _: &paddleboard_actions::git::Worktree,
-    window: &mut Window,
-    cx: &mut Context<Workspace>,
-) {
-    open_with_tab(workspace, GitPickerTab::Worktrees, window, cx);
-}
-
-
 pub fn open_stash(
     workspace: &mut Workspace,
     _: &paddleboard_actions::git::ViewStash,
@@ -502,9 +492,6 @@ pub fn register(workspace: &mut Workspace) {
             open_with_tab(workspace, GitPickerTab::Branches, window, cx);
         },
     );
-    workspace.register_action(|workspace, _: &paddleboard_actions::git::Worktree, window, cx| {
-        open_with_tab(workspace, GitPickerTab::Worktrees, window, cx);
-    });
     workspace.register_action(|workspace, _: &paddleboard_actions::git::ViewStash, window, cx| {
         open_with_tab(workspace, GitPickerTab::Stash, window, cx);
     });

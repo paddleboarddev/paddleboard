@@ -6,6 +6,7 @@ use crate::{
     prediction::EditPredictionResult,
 };
 use anyhow::Result;
+use std::env;
 use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };

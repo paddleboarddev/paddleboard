@@ -84,50 +84,56 @@ impl LspInstaller for PhpLspAdapter {
         })
     }
 
-    async fn check_if_version_installed(
+    fn check_if_version_installed(
         &self,
         version: &Version,
         container_dir: &PathBuf,
         _: &Arc<dyn LspAdapterDelegate>,
-    ) -> Option<LanguageServerBinary> {
-        let server_path = container_dir.join(Self::SERVER_PATH);
-        if self
-            .node
-            .should_install_npm_package(
-                Self::PACKAGE_NAME,
-                &server_path,
-                container_dir,
-                VersionStrategy::Latest(version),
-            )
-            .await
-        {
-            return None;
+    ) -> impl Send + std::future::Future<Output = Option<LanguageServerBinary>> + use<> {
+        let node = self.node.clone();
+        let version = version.clone();
+        let container_dir = container_dir.clone();
+        async move {
+            let server_path = container_dir.join(Self::SERVER_PATH);
+            if node
+                .should_install_npm_package(
+                    Self::PACKAGE_NAME,
+                    &server_path,
+                    &container_dir,
+                    VersionStrategy::Latest(&version),
+                )
+                .await
+            {
+                return None;
+            }
+            Some(LanguageServerBinary {
+                path: node.binary_path().await.ok()?,
+                env: None,
+                arguments: intelephense_server_binary_arguments(&server_path),
+            })
         }
-        Some(LanguageServerBinary {
-            path: self.node.binary_path().await.ok()?,
-            env: None,
-            arguments: intelephense_server_binary_arguments(&server_path),
-        })
     }
 
-    async fn fetch_server_binary(
+    fn fetch_server_binary(
         &self,
         latest_version: Version,
         container_dir: PathBuf,
         _: &Arc<dyn LspAdapterDelegate>,
-    ) -> Result<LanguageServerBinary> {
-        let server_path = container_dir.join(Self::SERVER_PATH);
-        self.node
-            .npm_install_packages(
+    ) -> impl Send + std::future::Future<Output = Result<LanguageServerBinary>> + use<> {
+        let node = self.node.clone();
+        async move {
+            let server_path = container_dir.join(Self::SERVER_PATH);
+            node.npm_install_packages(
                 &container_dir,
                 &[(Self::PACKAGE_NAME, &latest_version.to_string())],
             )
             .await?;
-        Ok(LanguageServerBinary {
-            path: self.node.binary_path().await?,
-            env: None,
-            arguments: intelephense_server_binary_arguments(&server_path),
-        })
+            Ok(LanguageServerBinary {
+                path: node.binary_path().await?,
+                env: None,
+                arguments: intelephense_server_binary_arguments(&server_path),
+            })
+        }
     }
 
     async fn cached_server_binary(

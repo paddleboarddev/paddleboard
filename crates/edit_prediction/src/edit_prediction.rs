@@ -848,7 +848,7 @@ impl EditPredictionStore {
             // hit those code paths; users who don't will simply see no inline
             // suggestions (which is the right default for a BYO-keys editor).
             edit_prediction_model: EditPredictionModel::Fim {
-                format: settings::EditPredictionPromptFormat::Infer,
+                format: EditPredictionPromptFormat::Infer,
             },
             zeta2_raw_config: Self::zeta2_raw_config_from_env(),
             preferred_experiment: None,
@@ -940,14 +940,6 @@ impl EditPredictionStore {
                                 .body(Default::default())?)
                         })
                         .await?;
-                    let url = http_client.build_zed_llm_url("/edit_prediction_experiments", &[])?;
-                    let request = http_client::Request::builder()
-                        .method(Method::GET)
-                        .uri(url.as_ref())
-                        .header("Authorization", format!("Bearer {}", token))
-                        .header(PADDLEBOARD_VERSION_HEADER_NAME, app_version.to_string())
-                        .body(Default::default())?;
-                    let mut response = http_client.send(request).await?;
                     if response.status().is_success() {
                         let mut body = Vec::new();
                         response.body_mut().read_to_end(&mut body).await?;
@@ -2228,7 +2220,8 @@ fn is_ep_store_provider(provider: EditPredictionProvider) -> bool {
         | EditPredictionProvider::OpenAiCompatibleApi => true,
         EditPredictionProvider::None
         | EditPredictionProvider::Copilot
-        | EditPredictionProvider::Codestral => false,
+        | EditPredictionProvider::Codestral
+        | EditPredictionProvider::Experimental(_) => false,
     }
 }
 
@@ -2265,7 +2258,8 @@ impl EditPredictionStore {
                 EditPredictionProvider::OpenAiCompatibleApi => (false, 2),
                 EditPredictionProvider::None
                 | EditPredictionProvider::Copilot
-                | EditPredictionProvider::Codestral => {
+                | EditPredictionProvider::Codestral
+                | EditPredictionProvider::Experimental(_) => {
                     log::error!("queue_prediction_refresh called with non-store provider");
                     return;
                 }

@@ -4,50 +4,59 @@ use anyhow::{Context as _, Result, anyhow};
 use client::{
     Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls,
 };
+use cloud_api_client::LlmApiToken;
 use cloud_api_types::{OrganizationId, Plan};
 use cloud_llm_client::{
     CLIENT_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, CLIENT_SUPPORTS_STATUS_STREAM_ENDED_HEADER_NAME,
     CLIENT_SUPPORTS_X_AI_HEADER_NAME, CompletionBody, CompletionEvent, CompletionRequestStatus,
-    CountTokensBody, CountTokensResponse, ListModelsResponse,
-    SERVER_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, PADDLEBOARD_VERSION_HEADER_NAME,
+    ListModelsResponse, SERVER_SUPPORTS_STATUS_MESSAGES_HEADER_NAME,
+    PADDLEBOARD_VERSION_HEADER_NAME,
 };
 use futures::{
-    AsyncBufReadExt, FutureExt, Stream, StreamExt,
+    AsyncBufReadExt, AsyncReadExt, FutureExt, Stream, StreamExt,
     future::BoxFuture,
+    io::BufReader,
     stream::{self, BoxStream},
 };
 use google_ai::GoogleModelMode;
-use gpui::{AnyElement, AnyView, App, AsyncApp, Context, Entity, Subscription, Task};
+use gpui::{
+    AnyElement, AnyView, App, AppContext, AsyncApp, Context, Entity, Subscription, Task, TaskExt,
+};
 use http_client::http::{HeaderMap, HeaderValue};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Response, StatusCode};
 use language_model::{
     ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, GOOGLE_PROVIDER_ID,
-    GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel, LanguageModelCacheConfiguration,
-    LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
-    LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
-    LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
-    LanguageModelToolChoice, LanguageModelToolSchemaFormat, LlmApiToken, OPEN_AI_PROVIDER_ID,
-    OPEN_AI_PROVIDER_NAME, PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
+    GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel, LanguageModelCompletionError,
+    LanguageModelCompletionEvent, LanguageModelEffortLevel, LanguageModelId, LanguageModelName,
+    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
+    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
+    LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID, OPEN_AI_PROVIDER_NAME,
+    PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
     PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use release_channel::AppVersion;
+use semver::Version;
+use serde::de::DeserializeOwned;
 
 use settings::SettingsStore;
 pub use settings::ZedDotDevAvailableModel as AvailableModel;
 pub use settings::ZedDotDevAvailableProvider as AvailableProvider;
+use serde::Deserialize;
+use std::collections::VecDeque;
+use std::pin::Pin;
+use std::str::FromStr;
 use std::sync::Arc;
+use std::task::Poll;
+use std::time::Duration;
+use thiserror::Error;
 use ui::{TintColor, prelude::*};
 
-use crate::provider::anthropic::{
-    AnthropicEventMapper, count_anthropic_tokens_with_tiktoken, into_anthropic,
-};
+use crate::provider::anthropic::{AnthropicEventMapper, AnthropicPromptCacheMode, into_anthropic};
 use crate::provider::google::{GoogleEventMapper, into_google};
 use crate::provider::open_ai::{
-    OpenAiEventMapper, OpenAiResponseEventMapper, count_open_ai_tokens, into_open_ai,
-    into_open_ai_response,
+    OpenAiEventMapper, OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
 };
-use crate::provider::x_ai::count_xai_tokens;
 
 const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
 const PROVIDER_NAME: LanguageModelProviderName = PADDLEBOARD_CLOUD_PROVIDER_NAME;
@@ -360,7 +369,7 @@ impl CloudLanguageModel {
         let http_client = &client.http_client();
 
         let mut token = client
-            .acquire_llm_token(&llm_api_token, organization_id.clone())
+            .cached_llm_token(&llm_api_token, organization_id.clone())
             .await?;
         let mut refreshed_token = false;
 
@@ -607,105 +616,6 @@ impl LanguageModel for CloudLanguageModel {
         Some(self.model.max_output_tokens as u64)
     }
 
-    fn cache_configuration(&self) -> Option<LanguageModelCacheConfiguration> {
-        match &self.model.provider {
-            cloud_llm_client::LanguageModelProvider::Anthropic => {
-                Some(LanguageModelCacheConfiguration {
-                    min_total_token: 2_048,
-                    should_speculate: true,
-                    max_cache_anchors: 4,
-                })
-            }
-            cloud_llm_client::LanguageModelProvider::OpenAi
-            | cloud_llm_client::LanguageModelProvider::XAi
-            | cloud_llm_client::LanguageModelProvider::Google => None,
-        }
-    }
-
-    fn count_tokens(
-        &self,
-        request: LanguageModelRequest,
-        cx: &App,
-    ) -> BoxFuture<'static, Result<u64>> {
-        match self.model.provider {
-            cloud_llm_client::LanguageModelProvider::Anthropic => cx
-                .background_spawn(async move { count_anthropic_tokens_with_tiktoken(request) })
-                .boxed(),
-            cloud_llm_client::LanguageModelProvider::OpenAi => {
-                let model = match open_ai::Model::from_id(&self.model.id.0) {
-                    Ok(model) => model,
-                    Err(err) => return async move { Err(anyhow!(err)) }.boxed(),
-                };
-                count_open_ai_tokens(request, model, cx)
-            }
-            cloud_llm_client::LanguageModelProvider::XAi => {
-                let model = match x_ai::Model::from_id(&self.model.id.0) {
-                    Ok(model) => model,
-                    Err(err) => return async move { Err(anyhow!(err)) }.boxed(),
-                };
-                count_xai_tokens(request, model, cx)
-            }
-            cloud_llm_client::LanguageModelProvider::Google => {
-                let client = self.client.clone();
-                let llm_api_token = self.llm_api_token.clone();
-                let organization_id = self
-                    .user_store
-                    .read(cx)
-                    .current_organization()
-                    .map(|organization| organization.id.clone());
-                let model_id = self.model.id.to_string();
-                let generate_content_request =
-                    into_google(request, model_id.clone(), GoogleModelMode::Default);
-                async move {
-                    let http_client = &client.http_client();
-                    let token = client
-                        .acquire_llm_token(&llm_api_token, organization_id)
-                        .await?;
-
-                    let request_body = CountTokensBody {
-                        provider: cloud_llm_client::LanguageModelProvider::Google,
-                        model: model_id,
-                        provider_request: serde_json::to_value(&google_ai::CountTokensRequest {
-                            generate_content_request,
-                        })?,
-                    };
-                    let request = http_client::Request::builder()
-                        .method(Method::POST)
-                        .uri(
-                            http_client
-                                .build_zed_llm_url("/count_tokens", &[])?
-                                .as_ref(),
-                        )
-                        .header("Content-Type", "application/json")
-                        .header("Authorization", format!("Bearer {token}"))
-                        .body(serde_json::to_string(&request_body)?.into())?;
-                    let mut response = http_client.send(request).await?;
-                    let status = response.status();
-                    let headers = response.headers().clone();
-                    let mut response_body = String::new();
-                    response
-                        .body_mut()
-                        .read_to_string(&mut response_body)
-                        .await?;
-
-                    if status.is_success() {
-                        let response_body: CountTokensResponse =
-                            serde_json::from_str(&response_body)?;
-
-                        Ok(response_body.tokens as u64)
-                    } else {
-                        Err(anyhow!(ApiError {
-                            status,
-                            body: response_body,
-                            headers
-                        }))
-                    }
-                }
-                .boxed()
-            }
-        }
-    }
-
     fn stream_completion(
         &self,
         request: LanguageModelRequest,
@@ -749,10 +659,13 @@ impl LanguageModel for CloudLanguageModel {
                     } else {
                         AnthropicModelMode::Default
                     },
+                    AnthropicPromptCacheMode::Automatic,
                 );
 
                 if enable_thinking && effort.is_some() {
-                    request.thinking = Some(anthropic::Thinking::Adaptive);
+                    request.thinking = Some(anthropic::Thinking::Adaptive {
+                        display: Some(anthropic::AdaptiveThinkingDisplay::Summarized),
+                    });
                     request.output_config = Some(anthropic::OutputConfig { effort });
                 }
 
@@ -799,7 +712,13 @@ impl LanguageModel for CloudLanguageModel {
                 let effort = request
                     .thinking_effort
                     .as_ref()
-                    .and_then(|effort| open_ai::ReasoningEffort::from_str(effort).ok());
+                    .and_then(|effort| open_ai::ReasoningEffort::from_str(effort).ok())
+                    .filter(|effort| *effort != open_ai::ReasoningEffort::None);
+                let supports_none_reasoning_effort =
+                    self.model.supported_effort_levels.iter().any(|effort| {
+                        open_ai::ReasoningEffort::from_str(&effort.value)
+                            .is_ok_and(|effort| effort == open_ai::ReasoningEffort::None)
+                    });
 
                 let mut request = into_open_ai_response(
                     request,
@@ -808,6 +727,7 @@ impl LanguageModel for CloudLanguageModel {
                     true,
                     None,
                     None,
+                    supports_none_reasoning_effort,
                 );
 
                 if enable_thinking && let Some(effort) = effort {
@@ -855,6 +775,7 @@ impl LanguageModel for CloudLanguageModel {
                     false,
                     None,
                     None,
+                    false,
                 );
                 let llm_api_token = self.llm_api_token.clone();
                 let organization_id = organization_id.clone();

@@ -467,7 +467,7 @@ impl TitleBar {
                 IconName::Sparkle,
                 "Skills",
                 Some("Introducing:".into()),
-                zed_actions::agent::OpenRulesToSkillsMigrationInfo.boxed_clone(),
+                paddleboard_actions::agent::OpenRulesToSkillsMigrationInfo.boxed_clone(),
                 cx,
             )
             .visible_when(|cx| cx.has_flag::<SkillsFeatureFlag>())
@@ -1028,7 +1028,7 @@ impl TitleBar {
                         };
                         Tooltip::with_meta(
                             "Branch & Stash",
-                            Some(&zed_actions::git::Branch),
+                            Some(&paddleboard_actions::git::Branch),
                             meta,
                             cx,
                         )
