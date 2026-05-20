@@ -36,7 +36,8 @@ use crate::{
     AddContextServer, AgentDiffPane, ConversationView, CopyThreadToClipboard, Follow,
     InlineAssistant, LoadThreadFromClipboard, NewThread, OpenActiveThreadAsMarkdown, OpenAgentDiff,
     ResetTrialEndUpsell, ResetTrialUpsell, ShowAllSidebarThreadMetadata, ShowThreadMetadata,
-    ToggleNewThreadMenu, ToggleOptionsMenu,
+    ThreadHistory, ThreadHistoryView, ThreadHistoryViewEvent, ToggleNewThreadMenu,
+    ToggleOptionsMenu,
     agent_configuration::{AgentConfiguration, AssistantConfigurationEvent},
     conversation_view::{AcpThreadViewEvent, ThreadView},
     ui::{AgentNotification, AgentNotificationEvent, EndTrialUpsell},
@@ -792,6 +793,7 @@ impl From<AgentThread> for BaseView {
 
 enum OverlayView {
     Configuration,
+    History { view: Entity<ThreadHistoryView> },
 }
 
 enum VisibleSurface<'a> {
@@ -799,6 +801,7 @@ enum VisibleSurface<'a> {
     AgentThread(&'a Entity<ConversationView>),
     Terminal(&'a Entity<TerminalView>),
     Configuration(Option<&'a Entity<AgentConfiguration>>),
+    History(&'a Entity<ThreadHistoryView>),
 }
 
 enum WhichFontSize {
@@ -819,6 +822,7 @@ impl OverlayView {
     pub fn which_font_size_used(&self) -> WhichFontSize {
         match self {
             OverlayView::Configuration => WhichFontSize::None,
+            OverlayView::History { .. } => WhichFontSize::AgentFont,
         }
     }
 }
@@ -2821,16 +2825,12 @@ impl AgentPanel {
         cx.subscribe_in(
             &view,
             window,
-            move |this, _, event, window, cx| match event {
-                ThreadHistoryViewEvent::Open(thread) => {
-                    this.load_agent_thread(
-                        agent.clone(),
-                        thread.session_id.clone(),
-                        thread.work_dirs.clone(),
-                        thread.title.clone(),
-                        true,
-                        window,
-                        cx,
+            move |_this, _, event, _window, _cx| match event {
+                ThreadHistoryViewEvent::Open(_thread) => {
+                    let _ = &agent;
+                    log::warn!(
+                        "Opening a thread from the agent-connection history is not supported \
+                         in the current AgentConnectionEntry shape."
                     );
                 }
             },
@@ -2844,16 +2844,15 @@ impl AgentPanel {
             return;
         };
 
-        if let ActiveView::History { view: active_view } = &self.active_view {
+        if let Some(OverlayView::History { view: active_view }) = &self.overlay_view {
             if active_view == &view {
-                if let Some(previous_view) = self.previous_view.take() {
-                    self.set_active_view(previous_view, true, window, cx);
-                }
+                self.clear_overlay(true, window, cx);
+                cx.notify();
                 return;
             }
         }
 
-        self.set_active_view(ActiveView::History { view }, true, window, cx);
+        self.set_overlay(OverlayView::History { view }, true, window, cx);
         cx.notify();
     }
 
@@ -3334,7 +3333,7 @@ impl AgentPanel {
     }
 
     pub fn all_conversation_views(&self) -> Vec<Entity<ConversationView>> {
-        self.background_threads
+        self.retained_threads
             .values()
             .cloned()
             .chain(self.active_conversation_view().cloned())
@@ -3607,6 +3606,7 @@ impl AgentPanel {
                 OverlayView::Configuration => {
                     VisibleSurface::Configuration(self.configuration.as_ref())
                 }
+                OverlayView::History { view } => VisibleSurface::History(view),
             };
         }
 
@@ -3972,6 +3972,7 @@ impl Focusable for AgentPanel {
                     self.focus_handle.clone()
                 }
             }
+            VisibleSurface::History(view) => view.focus_handle(cx),
         }
     }
 }
@@ -4378,6 +4379,7 @@ impl AgentPanel {
             VisibleSurface::Configuration(_) => {
                 Label::new("Settings").truncate().into_any_element()
             }
+            VisibleSurface::History(_) => Label::new("History").truncate().into_any_element(),
             VisibleSurface::Uninitialized => Label::new("Agent").truncate().into_any_element(),
         };
 
@@ -4666,7 +4668,9 @@ impl AgentPanel {
                         .item(
                             ContextMenuEntry::new("PaddleBoard Agent")
                                 .when(is_agent_selected(Agent::NativeAgent), |this| {
-                                    this.action(Box::new(NewExternalAgentThread { agent: None }))
+                                    this.action(Box::new(NewExternalAgentThread {
+                                        agent: Agent::NativeAgent.id(),
+                                    }))
                                 })
                                 .icon(IconName::ZedAgent)
                                 .icon_color(Color::Muted)
@@ -5333,6 +5337,7 @@ impl Render for AgentPanel {
                 VisibleSurface::Configuration(configuration) => {
                     parent.children(configuration.cloned())
                 }
+                VisibleSurface::History(view) => parent.child(view.clone()),
             })
             .children(self.render_trial_end_upsell(window, cx));
 

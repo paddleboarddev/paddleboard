@@ -73,7 +73,6 @@ use crate::agent_configuration::{ConfigureContextServerModal, ManageProfilesModa
 pub use crate::agent_connection_store::{ActiveAcpConnection, AgentConnectionStore};
 pub use crate::agent_panel::{
     AgentPanel, AgentPanelEvent, AgentPanelTerminalInfo, MaxIdleRetainedThreads, TerminalId,
-    WorktreeCreationStatus,
 };
 pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
@@ -88,7 +87,10 @@ pub(crate) use model_selector::ModelSelector;
 pub(crate) use model_selector_popover::ModelSelectorPopover;
 pub(crate) use thread_history::ThreadHistory;
 pub(crate) use thread_history_view::*;
-pub use thread_import::{AcpThreadImportOnboarding, ThreadImportModal};
+pub use thread_import::{
+    AcpThreadImportOnboarding, CrossChannelImportOnboarding, ThreadImportModal,
+    channels_with_threads, import_threads_from_other_channels,
+};
 use paddleboard_actions;
 pub use paddleboard_actions::{CreateWorktree, NewWorktreeBranchTarget, SwitchWorktree};
 
@@ -161,6 +163,8 @@ actions!(
         CycleFavoriteModels,
         /// Expands the message editor to full size.
         ExpandMessageEditor,
+        /// Removes all thread history.
+        RemoveHistory,
         /// Adds a context server to the configuration.
         AddContextServer,
         /// Archives the currently selected thread.
@@ -331,7 +335,8 @@ where
     match AgentIdOrLegacyAgent::deserialize(deserializer)? {
         AgentIdOrLegacyAgent::AgentId(agent_id) => Ok(agent_id),
         AgentIdOrLegacyAgent::LegacyAgent(Agent::Custom { id }) => Ok(id),
-        AgentIdOrLegacyAgent::LegacyAgent(Agent::NativeAgent) => Ok(Agent::NativeAgent.id()),
+        AgentIdOrLegacyAgent::LegacyAgent(Agent::NativeAgent)
+        | AgentIdOrLegacyAgent::LegacyAgent(Agent::Gemini) => Ok(Agent::NativeAgent.id()),
         #[cfg(any(test, feature = "test-support"))]
         AgentIdOrLegacyAgent::LegacyAgent(Agent::Stub) => Ok(Agent::Stub.id()),
     }
@@ -733,7 +738,7 @@ fn update_command_palette_filter(cx: &mut App) {
             }
 
             match edit_prediction_provider {
-                EditPredictionProvider::None => {
+                EditPredictionProvider::None | EditPredictionProvider::Experimental(_) => {
                     filter.hide_namespace("edit_prediction");
                     filter.hide_namespace("copilot");
                     filter.hide_action_types(&edit_prediction_actions);

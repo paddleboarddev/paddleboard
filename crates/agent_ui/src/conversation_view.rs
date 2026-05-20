@@ -513,6 +513,31 @@ pub struct ConversationView {
 }
 
 impl ConversationView {
+    pub fn workspace(&self) -> &WeakEntity<Workspace> {
+        &self.workspace
+    }
+
+    pub fn delete_history_entry(
+        &mut self,
+        _session_id: &acp::SessionId,
+        _cx: &mut Context<Self>,
+    ) {
+        // History-entry deletion via AgentConnectionEntry::history() is currently
+        // disabled (returns None) — left as a stub for the per-agent history
+        // followup. See cluster #7 in RECAPS.md.
+    }
+
+    pub fn navigate_to_session(
+        &mut self,
+        _session_id: acp::SessionId,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+        // Per-session navigation through orchestration panel is currently
+        // unsupported — left as a stub for the per-agent history followup.
+        // See cluster #7 in RECAPS.md.
+    }
+
     pub fn has_auth_methods(&self) -> bool {
         self.as_connected().map_or(false, |connected| {
             !connected.connection.auth_methods().is_empty()

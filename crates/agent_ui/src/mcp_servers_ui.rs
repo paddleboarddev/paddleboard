@@ -7,7 +7,8 @@ use editor::{Editor, EditorElement, EditorStyle};
 use extension_host::ExtensionStore;
 use fs::Fs;
 use gpui::{
-    Action, AnyElement, App, Context, Corner, Entity, EventEmitter, Focusable, KeyContext,
+    Action, Anchor as Corner, AnyElement, App, Context, Entity, EventEmitter, Focusable,
+    KeyContext,
     ParentElement, Render, RenderOnce, SharedString, Styled, Task, TextStyle,
     UniformListScrollHandle, WeakEntity, Window, point, uniform_list,
 };
