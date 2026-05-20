@@ -168,7 +168,7 @@ impl Render for LlmPicker {
                 .filter(|p| p.id() != PADDLEBOARD_CLOUD_PROVIDER_ID)
                 .map(|p| {
                     let id = p.id();
-                    let name = p.name().0.clone();
+                    let name = p.name().0;
                     let icon = p.icon();
                     let is_authenticated = p.is_authenticated(cx);
                     (id, name, icon, is_authenticated)
@@ -221,7 +221,6 @@ impl Render for LlmPicker {
                                         this.hover(|this| this.bg(colors.element_hover))
                                     })
                                     .on_click(cx.listener({
-                                        let provider_id = provider_id.clone();
                                         move |this, _, window, cx| {
                                             this.select_provider(
                                                 provider_id.clone(),

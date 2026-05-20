@@ -18,6 +18,7 @@ menu.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
 ui.workspace = true
+util.workspace = true
 workspace.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]

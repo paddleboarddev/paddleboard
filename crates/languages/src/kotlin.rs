@@ -1,3 +1,4 @@
+use std::sync::Arc;
 // PaddleBoard: Kotlin language adapter.
 //
 // Uses fwcd/kotlin-language-server, distributed as a single `server.zip`
@@ -90,12 +91,14 @@ impl LspInstaller for KotlinLspAdapter {
         })
     }
 
-    async fn fetch_server_binary(
+    fn fetch_server_binary(
         &self,
         version: GitHubLspBinaryVersion,
         container_dir: PathBuf,
-        delegate: &dyn LspAdapterDelegate,
-    ) -> Result<LanguageServerBinary> {
+        delegate: &Arc<dyn LspAdapterDelegate>,
+    ) -> impl Send + std::future::Future<Output = Result<LanguageServerBinary>> + use<> {
+        let delegate = delegate.clone();
+        async move {
         let GitHubLspBinaryVersion {
             name,
             url,
@@ -178,6 +181,7 @@ impl LspInstaller for KotlinLspAdapter {
         }
 
         Ok(binary)
+        }
     }
 
     async fn cached_server_binary(
