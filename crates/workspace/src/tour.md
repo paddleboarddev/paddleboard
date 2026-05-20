@@ -28,7 +28,8 @@ Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Servi
 
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
-- Use `"source": "sandboxed_stdio"` in `settings.json` instead of plain `"stdio"`.
+- Configure them via `Cmd-Shift-P` → **`zed: Mcp Servers`** — filter by status (All / Running / Stopped / Error), add new servers, or inspect live state.
+- Or use `"source": "sandboxed_stdio"` in `settings.json` directly.
 - Forward only the host env vars you need by name — values stay out of the agent's context.
 - The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.
 
@@ -45,13 +46,23 @@ A live tree view of every active agent session, including subagents.
 - Status dot shows generating vs. idle; click any row to jump to that thread.
 
 ### 7. LLM Provider Picker Panel
-A dedicated panel for switching the active language model provider without opening settings. Dock it wherever is convenient and change providers as you work.
+A dedicated panel for switching the active language model provider without opening settings.
+- Dock it wherever is convenient and change providers as you work.
+- **ChatGPT Subscription auth**: sign in with your ChatGPT Plus or Pro account via OAuth — no API key needed. The flow opens in the embedded browser panel; tokens persist in PB's credential store.
 
-### 4. Sandboxed MCP Servers
-PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
-- Use `"source": "sandboxed_stdio"` in `settings.json` instead of plain `"stdio"`.
-- Forward only the host env vars you need by name — values stay out of the agent's context.
-- The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.
+### 8. Multi-Workspace
+Keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads.
+- Open the worktree picker: `Cmd-Shift-P` → **`git: Worktree`**.
+- **Switch** between existing worktrees, **create** a new worktree-backed workspace (accept the auto-generated branch name like `dusty-pelican` or supply your own), or **open in new window**.
+- The orchestration panel shows agent threads from every workspace at once — perfect for parallel agent sessions against different projects.
+
+### 9. Built-in Language Servers
+PaddleBoard ships built-in LSP support for four languages that Zed historically punts to extensions — **no extension installation required**.
+- **Java** via [jdtls](https://github.com/eclipse/eclipse.jdt.ls)
+- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server)
+- **PHP** via [intelephense](https://intelephense.com/)
+- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp)
+- Open a `.java`/`.kt`/`.php`/`.swift` file; PB downloads the language server on first use and caches it.
 
 ---
 
