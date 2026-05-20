@@ -6,6 +6,11 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-19
 
+### PR #37 pushed + flipped to ready-for-review
+- Pushed branch `chore/merge-upstream-zed-2026-05-19` (e04151391f → ff0e40c5b8, 5 commits).
+- `gh pr ready 37` flipped PR #37 from draft to ready-for-review. URL: https://github.com/jasonsmithio/paddleboard/pull/37.
+- Branch state at flip: workspace `cargo check` green, `./script/clippy` green, debug build links, `--system-specs` smoke test boots cleanly.
+
 ### PR #37 cluster #9: script/clippy green + debug build + smoke test (PR #37 ready for review)
 - Followup to clusters #7 + #8. With `cargo check --workspace` already green, the next gates were `./script/clippy` (clippy --workspace --release --all-targets --all-features --deny warnings) and a debug build of the paddleboard binary. Both pass cleanly. **PR #37 is now ready to flip from draft to ready-for-review.**
 - **Deleted three dead PB-shadow modules in language_model crate:** `rate_limiter.rs` and `role.rs`. These were PB-restored copies of `RateLimiter`/`Role` that shadowed the canonical `language_model_core::*` re-exports (causing the long-standing `Role`/`RateLimiter` glob-ambiguity warnings noted in earlier cluster recaps). Confirmed via grep that no code in the workspace references the PB versions — everything flows through `language_model_core::*`. Net: -100 LOC, glob-ambiguity warnings gone across ~10 provider files. Also dropped the `mod` declarations and `pub use` lines + the 7 now-unused imports (`anyhow::anyhow`, `cloud_llm_client::CompletionRequestStatus`, `http_client::{StatusCode, http}`, `serde::{Deserialize, Serialize}`, `std::ops::{Add, Sub}`, `std::str::FromStr`, `std::time::Duration`, `std::{fmt, io}`, `thiserror::Error`, `::util::serde::is_default`, `SharedString` from gpui). The latter was a `hidden_glob_reexports` warning because `gpui::SharedString` shadowed the public re-export from `language_model_core`.
