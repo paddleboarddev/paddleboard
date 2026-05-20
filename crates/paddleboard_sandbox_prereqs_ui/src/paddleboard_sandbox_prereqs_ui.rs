@@ -386,7 +386,7 @@ fn open_in_terminal(command: &str) -> std::io::Result<()> {
         let path = write_wrapper_script(command)?;
         #[cfg(target_os = "macos")]
         {
-            std::process::Command::new("open")
+            util::command::new_command("open")
                 .arg("-a")
                 .arg("Terminal")
                 .arg(&path)

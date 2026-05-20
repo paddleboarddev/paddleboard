@@ -12110,6 +12110,7 @@ impl Focusable for BreakpointPromptEditor {
     }
 }
 
+#[allow(dead_code)]
 fn all_edits_insertions_or_deletions(
     edits: &Vec<(Range<Anchor>, Arc<str>)>,
     snapshot: &MultiBufferSnapshot,
@@ -12138,6 +12139,7 @@ fn all_edits_insertions_or_deletions(
     all_insertions || all_deletions
 }
 
+#[allow(dead_code)]
 struct MissingEditPredictionKeybindingTooltip;
 
 impl Render for MissingEditPredictionKeybindingTooltip {

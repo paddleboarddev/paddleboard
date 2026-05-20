@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use ui::prelude::*;
 use util::ResultExt;
 use util::path_list::PathList;
-use paddleboard_actions::agents_sidebar::{MoveWorkspaceToNewWindow, ToggleThreadSwitcher};
+use paddleboard_actions::agents_sidebar::ToggleThreadSwitcher;
 
 use agent_settings::AgentSettings;
 use settings::SidebarDockPosition;

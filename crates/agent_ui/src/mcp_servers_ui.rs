@@ -156,7 +156,7 @@ impl McpServersPage {
     fn reload_servers(&mut self, cx: &mut Context<Self>) {
         let store = self.context_server_store.read(cx);
         let mut ids = store.server_ids().to_vec();
-        ids.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+        ids.sort_by_key(|a| a.0.to_lowercase());
         self.server_ids = ids;
         self.filter_servers(cx);
     }

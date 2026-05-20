@@ -20,7 +20,6 @@ use project::AgentId;
 use serde::{Deserialize, Serialize};
 use settings::{LanguageModelProviderSetting, LanguageModelSelection};
 
-use feature_flags::FeatureFlagAppExt as _;
 use paddleboard_actions::agent::{
     AddSelectionToThread, ConflictContent, LogoutAgent, ReauthenticateAgent,
     ResolveConflictedFilesWithAgent, ResolveConflictsWithAgent, ReviewBranchDiff,
@@ -57,7 +56,7 @@ use collections::HashMap;
 use editor::{Editor, MultiBuffer};
 use extension::ExtensionEvents;
 use extension_host::ExtensionStore;
-use feature_flags::{FeatureFlagAppExt as _, SkillsFeatureFlag};
+use feature_flags::{FeatureFlagAppExt, SkillsFeatureFlag};
 use fs::Fs;
 use gpui::{
     Action, Anchor, Animation, AnimationExt, AnyElement, App, AsyncWindowContext, ClipboardItem,
@@ -88,7 +87,7 @@ use workspace::{
 };
 use paddleboard_actions::{
     DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
-    agent::{OpenOnboardingModal, OpenSettings, ResetAgentZoom, ResetOnboarding},
+    agent::{OpenSettings, ResetAgentZoom, ResetOnboarding},
     assistant::{FocusAgent, OpenRulesLibrary, Toggle, ToggleFocus},
 };
 
@@ -793,6 +792,7 @@ impl From<AgentThread> for BaseView {
 
 enum OverlayView {
     Configuration,
+    #[allow(dead_code)]
     History { view: Entity<ThreadHistoryView> },
 }
 
@@ -2787,6 +2787,7 @@ impl AgentPanel {
         })
     }
 
+    #[allow(dead_code)]
     fn has_history_for_selected_agent(&self, cx: &App) -> bool {
         match &self.selected_agent {
             Agent::Gemini | Agent::Custom { .. } => self
@@ -2795,9 +2796,12 @@ impl AgentPanel {
                 .entry(&self.selected_agent)
                 .map_or(false, |entry| entry.read(cx).history().is_some()),
             Agent::NativeAgent => true,
+            #[cfg(any(test, feature = "test-support"))]
+            Agent::Stub => false,
         }
     }
 
+    #[allow(dead_code)]
     fn history_for_selected_agent(
         &self,
         window: &mut Window,
@@ -2809,11 +2813,11 @@ impl AgentPanel {
             .read(cx)
             .entry(&agent)?
             .read(cx)
-            .history()?
-            .clone();
+            .history()?;
         Some(self.create_thread_history_view(agent, history, window, cx))
     }
 
+    #[allow(dead_code)]
     fn create_thread_history_view(
         &self,
         agent: Agent,
@@ -2839,6 +2843,7 @@ impl AgentPanel {
         view
     }
 
+    #[allow(dead_code)]
     fn open_history(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(view) = self.history_for_selected_agent(window, cx) else {
             return;

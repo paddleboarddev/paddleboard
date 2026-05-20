@@ -442,6 +442,7 @@ dependencies = [
  "serde_json",
  "serde_json_lenient",
  "settings",
+ "smol",
  "streaming_diff",
  "task",
  "telemetry",
@@ -13001,6 +13002,7 @@ dependencies = [
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_state",
  "ui",
+ "util",
  "which 6.0.3",
  "workspace",
 ]

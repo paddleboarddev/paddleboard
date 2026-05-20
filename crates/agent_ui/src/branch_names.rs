@@ -1,3 +1,7 @@
+// PaddleBoard: dead-code allows until the per-agent history feature is rewired
+// (see cluster #7 followup in RECAPS.md).
+#![allow(dead_code)]
+
 use collections::HashSet;
 use rand::Rng;
 
