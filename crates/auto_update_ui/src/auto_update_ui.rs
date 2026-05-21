@@ -3,25 +3,19 @@ use std::sync::Arc;
 use agent_settings::{AgentSettings, WindowLayout};
 use auto_update::{AutoUpdater, release_notes_url};
 use db::kvp::Dismissable;
-use editor::{Editor, MultiBuffer};
 use fs::Fs;
 use gpui::{
-    App, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, TaskExt, Window, actions,
-    prelude::*,
+    App, DismissEvent, EventEmitter, FocusHandle, Focusable, TaskExt, Window, actions, prelude::*,
 };
-use markdown_preview::markdown_preview_view::{MarkdownPreviewMode, MarkdownPreviewView};
 use notifications::status_toast::StatusToast;
-use release_channel::{AppVersion, ReleaseChannel};
+use release_channel::ReleaseChannel;
 use semver::Version;
-use serde::Deserialize;
 use settings::Settings as _;
-use smol::io::AsyncReadExt;
 use ui::{AnnouncementToast, ListBulletItem, ParallelAgentsIllustration, prelude::*};
-use util::{ResultExt as _, maybe};
 use workspace::{
     FocusWorkspaceSidebar, Workspace,
     notifications::{
-        ErrorMessagePrompt, Notification, NotificationId, SuppressEvent, show_app_notification,
+        Notification, NotificationId, SuppressEvent, show_app_notification,
         simple_message_notification::MessageNotification,
     },
 };
@@ -36,7 +30,9 @@ actions!(
 );
 
 pub fn init(cx: &mut App) {
-    notify_if_app_was_updated(cx);
+    // PaddleBoard: skip `notify_if_app_was_updated`. Upstream surfaces a "you updated to vX" toast
+    // driven by a KV-store flag set during the install step; we never install through this path,
+    // and we don't want a stale or externally-set flag to surface a phantom toast.
     cx.observe_new(|workspace: &mut Workspace, _window, cx| {
         workspace.register_action(|workspace, _: &ViewReleaseNotesLocally, window, cx| {
             view_release_notes_locally(workspace, window, cx);
@@ -54,130 +50,20 @@ pub fn init(cx: &mut App) {
     .detach();
 }
 
-#[derive(Deserialize)]
-struct ReleaseNotesBody {
-    title: String,
-    release_notes: String,
-}
-
-fn notify_release_notes_failed_to_show(
-    workspace: &mut Workspace,
+// PaddleBoard: `ReleaseNotesBody` (a serde DTO for zed.dev's /api/release_notes/v2 response)
+// and `notify_release_notes_failed_to_show` (the error-toast for that fetch) were dropped
+// alongside the inline-render path in `view_release_notes_locally`.
+fn view_release_notes_locally(
+    _workspace: &mut Workspace,
     _window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
-    struct ViewReleaseNotesError;
-    workspace.show_notification(
-        NotificationId::unique::<ViewReleaseNotesError>(),
-        cx,
-        |cx| {
-            cx.new(move |cx| {
-                let url = release_notes_url(cx);
-                let mut prompt = ErrorMessagePrompt::new("Couldn't load release notes", cx);
-                if let Some(url) = url {
-                    prompt = prompt.with_link_button("View in Browser".to_string(), url);
-                }
-                prompt
-            })
-        },
-    );
-}
-
-fn view_release_notes_locally(
-    workspace: &mut Workspace,
-    window: &mut Window,
-    cx: &mut Context<Workspace>,
-) {
-    let release_channel = ReleaseChannel::global(cx);
-
-    if matches!(
-        release_channel,
-        ReleaseChannel::Nightly | ReleaseChannel::Dev
-    ) {
-        if let Some(url) = release_notes_url(cx) {
-            cx.open_url(&url);
-        }
-        return;
+    // PaddleBoard: the upstream Stable/Preview path fetched release notes from zed.dev and rendered
+    // them inline as a markdown buffer. We don't run that API, so collapse every channel to "open
+    // the PaddleBoard releases page in a browser" — the same URL `release_notes_url` now returns.
+    if let Some(url) = release_notes_url(cx) {
+        cx.open_url(&url);
     }
-
-    let version = AppVersion::global(cx).to_string();
-
-    let client = client::Client::global(cx).http_client();
-    let url = client.build_url(&format!(
-        "/api/release_notes/v2/{}/{}",
-        release_channel.dev_name(),
-        version
-    ));
-
-    let markdown = workspace
-        .app_state()
-        .languages
-        .language_for_name("Markdown");
-
-    cx.spawn_in(window, async move |workspace, cx| {
-        let markdown = markdown.await.log_err();
-        let response = client.get(&url, Default::default(), true).await;
-        let Some(mut response) = response.log_err() else {
-            workspace
-                .update_in(cx, notify_release_notes_failed_to_show)
-                .log_err();
-            return;
-        };
-
-        let mut body = Vec::new();
-        response.body_mut().read_to_end(&mut body).await.ok();
-
-        let body: serde_json::Result<ReleaseNotesBody> = serde_json::from_slice(body.as_slice());
-
-        let res: Option<()> = maybe!(async {
-            let body = body.ok()?;
-            let project = workspace
-                .read_with(cx, |workspace, _| workspace.project().clone())
-                .ok()?;
-            let (language_registry, buffer) = project.update(cx, |project, cx| {
-                (
-                    project.languages().clone(),
-                    project.create_buffer(markdown, false, cx),
-                )
-            });
-            let buffer = buffer.await.ok()?;
-            buffer.update(cx, |buffer, cx| {
-                buffer.edit([(0..0, body.release_notes)], None, cx)
-            });
-
-            let buffer = cx.new(|cx| MultiBuffer::singleton(buffer, cx).with_title(body.title));
-
-            let ws_handle = workspace.clone();
-            workspace
-                .update_in(cx, |workspace, window, cx| {
-                    let editor =
-                        cx.new(|cx| Editor::for_multibuffer(buffer, Some(project), window, cx));
-                    let markdown_preview: Entity<MarkdownPreviewView> = MarkdownPreviewView::new(
-                        MarkdownPreviewMode::Default,
-                        editor,
-                        ws_handle,
-                        language_registry,
-                        window,
-                        cx,
-                    );
-                    workspace.add_item_to_active_pane(
-                        Box::new(markdown_preview),
-                        None,
-                        true,
-                        window,
-                        cx,
-                    );
-                    cx.notify();
-                })
-                .ok()
-        })
-        .await;
-        if res.is_none() {
-            workspace
-                .update_in(cx, notify_release_notes_failed_to_show)
-                .log_err();
-        }
-    })
-    .detach();
 }
 
 #[derive(Clone)]
