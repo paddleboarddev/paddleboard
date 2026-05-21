@@ -4,6 +4,41 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-20
+
+### Auto-update no-op (the last visible Zed Cloud surface)
+- Disabled the auto-update polling loop and re-pointed every Zed-Cloud-flavored URL at PaddleBoard's GitHub releases page. **PaddleBoard now makes zero requests to zed.dev for update-related reasons.** Net diff: +41 / −199 across two crates, all tagged with `// PaddleBoard:` divergence comments per fork hygiene.
+- **`crates/auto_update/src/auto_update.rs`** (the local-update flow):
+  - **`init`**: dropped the entire polling subscription block (the `if option_env!("PADDLEBOARD_UPDATE_EXPLANATION").is_none() && ... && poll_for_updates { ... }` body that wired up `updater.start_polling(cx)` + the `SettingsStore` observer). The bare `AutoUpdater` entity is still constructed and stored as a global so that `AutoUpdater::download_remote_server_release` (SSH-remote binary fetch — still functional, still needed) and existing `AutoUpdater::get(cx)` call sites in `title_bar.rs` see a stable `Idle` status. **Don't no-op the whole init** — that breaks SSH-remote.
+  - **`check`** (the menu-bar "Check for Updates" action handler): replaced the channel-gated `updater.poll(UpdateCheckType::Manual, cx)` fall-through with an unconditional `window.prompt` showing "Auto-updates are disabled in PaddleBoard — track new releases at https://github.com/jasonsmithio/paddleboard/releases". The pre-existing `PADDLEBOARD_UPDATE_EXPLANATION` package-manager escape hatch (which shows a custom message when the env var is set) is preserved and runs first.
+  - **`release_notes_url`**: collapsed all four channel cases to a single `Some("https://github.com/jasonsmithio/paddleboard/releases".to_string())`. Was: Stable/Preview built a URL through the cloud LLM API host (zed.dev), Nightly hardcoded `github.com/zed-industries/zed/commits/nightly/`, Dev hardcoded the `main` branch's commit page. All four were wrong for PaddleBoard.
+  - **`AutoUpdateSetting`**: tagged the tuple field with `#[allow(dead_code)]` since it's only read by the test now; the runtime polling that previously read `AutoUpdateSetting::get_global(cx).0` is gone. Kept the `RegisterSetting` impl so user settings.json + the workspace test still validate the schema.
+  - Moved `SettingsStore` out of the top-level `use settings::{...}` (no longer used at module scope) and into the test module's `use settings::{SettingsStore, default_settings};` — kept the test green.
+- **`crates/auto_update_ui/src/auto_update_ui.rs`** (the UI side):
+  - **`init`**: dropped the `notify_if_app_was_updated(cx)` call. Upstream surfaced a "you updated to vX" toast keyed off `should_show_update_notification` (a KV-store flag set during install). With polling/install disabled, the flag is never set legitimately — but a stale or externally-set flag could surface a phantom toast. Defense in depth.
+  - **`view_release_notes_locally`**: gutted the Stable/Preview path (which fetched `/api/release_notes/v2/{channel}/{version}` from `client::Client::global(cx).http_client()` — i.e. zed.dev's API — and rendered the response as an inline markdown buffer). Collapsed every channel to `if let Some(url) = release_notes_url(cx) { cx.open_url(&url); }` — same URL the Nightly/Dev path used.
+  - **Removed dead helpers** alongside the gutted path: `ReleaseNotesBody` (serde DTO for the zed.dev response) and `notify_release_notes_failed_to_show` (the "couldn't load release notes" toast that fired when the fetch failed). Tagged the deletion site with a `// PaddleBoard:` breadcrumb.
+  - **Cleaned orphaned imports**: dropped `editor::{Editor, MultiBuffer}`, `gpui::Entity`, `markdown_preview::{MarkdownPreviewMode, MarkdownPreviewView}`, `release_channel::AppVersion`, `serde::Deserialize`, `smol::io::AsyncReadExt`, `util::{ResultExt as _, maybe}`, `workspace::notifications::ErrorMessagePrompt`. Left the corresponding entries in `auto_update_ui/Cargo.toml` (per fork hygiene "keep upstream-file diffs minimal" — Cargo doesn't warn on unused deps and removing them adds merge surface).
+- **`notify_if_app_was_updated`** kept defined-but-uncalled (`pub fn`, no caller). Per fork hygiene, leaving a `pub fn` orphaned costs nothing at runtime (no dead-code warning since it's public) and keeps the merge cost low if upstream renames or reworks the function.
+- **Verified.**
+  - `cargo check -p auto_update -p auto_update_ui` green (28.79s).
+  - `cargo check -p title_bar -p remote_connection -p activity_indicator -p paddleboard` green — all the downstream `AutoUpdater::get(cx)` / `auto_update::check` / `AutoUpdater::download_remote_server_release` consumers still compile.
+  - `cargo test -p auto_update test_auto_update_defaults_to_true` passes (the test that asserts `auto_update: true` is the default — preserved because the setting is now vestigial, not flipped; flipping the default would have rippled into the test and added unnecessary diff surface).
+  - `./script/clippy` (workspace-wide release-mode clippy with `--deny warnings`) green in 1m 01s.
+- **Preserved.**
+  - `auto_update::AutoUpdater::download_remote_server_release` (SSH-remote-server binary fetch) still works because the bare `AutoUpdater` global is still constructed in `init`. **This was the trap that ruled out a full `init()` no-op** — the static method calls `cx.default_global::<GlobalAutoUpdate>().0.clone().context("auto-update not initialized")?` and would fail if init returned early.
+  - `PADDLEBOARD_UPDATE_EXPLANATION` env var path in `check` — still handled first, still shows the package-manager-specific message when set. PB distributions that ship via package managers can keep using it.
+  - `title_bar::UpdateVersion` widget — renders `Empty` when `AutoUpdateStatus::Idle`, which is the only status the bare (non-polling) AutoUpdater ever reaches. So the title-bar update button never shows. No code change needed there.
+  - `client::Status::UpgradeRequired` branch in `title_bar.rs:1122` (which calls `auto_update::check`) — unreachable in PaddleBoard because Zed collab service is dead. Left alone.
+  - The `Check` and `ViewReleaseNotes` workspace actions are still registered, so menu items in `app_menus.rs` ("Check for Updates", "View Release Notes") still respond — they just dispatch into the new PB-flavored bodies.
+- **Default setting NOT flipped.** Considered changing `"auto_update": true` → `false` in `assets/settings/default.json` for defense-in-depth, decided against because the polling is unconditionally skipped at the call site regardless of the setting value, and flipping the default would have broken `test_auto_update_defaults_to_true` (creating drift surface in a test that's likely to be touched on upstream merge). Setting is vestigial either way.
+- **Followups.**
+  - The `crates/auto_update/` (1555 LOC) + `crates/auto_update_ui/` (~280 LOC after this pass) bodies are still 90%+ upstream-flavored code that's now dead at runtime. A future PR could carve out a `paddleboard_auto_update` crate and `#[cfg(any())]`-gate the upstream bodies — but the merge cost benefit is small and the current minimal-diff shape is fine.
+  - The `assets/settings/default.json` line for `"auto_update": true` is now misleading — could add a comment. Not done in this pass.
+  - The `notify_if_app_was_updated` orphan + `view_release_notes_locally`'s now-trivial body are candidates for future cleanup once upstream Zed reshapes that flow.
+
+---
+
 ## 2026-05-19
 
 ### Fix sticky-file gate on the in-app tour
