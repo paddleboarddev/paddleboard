@@ -6,6 +6,20 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-20
 
+### `/build bundle` — debug `.app` with the paddle icon
+- Triggered by user observation that `cargo build -p paddleboard` produces a binary that macOS shows in the dock as a generic "exec" entry with no logo. Root cause: the raw `target/debug/paddleboard` binary has no `.app` wrapper, so there's no `Info.plist` / `CFBundleName` / `CFBundleIconFile` / `AppIcon.icns` for macOS to read.
+- Extended `.claude/commands/build.md` (the `/build` slash command) with three new arguments:
+  - **`bundle`** → `./script/bundle-mac -d -o` (debug `.app`, auto-opens via `-o`).
+  - **`bundle install`** → `./script/bundle-mac -d -o -i` (also installs to `/Applications`).
+  - **`bundle release`** → `./script/bundle-mac -o` (release `.app` + DMG, auto-opens).
+- Added a "When to use `bundle`" section calling out the **cache caveat**: `bundle-mac` builds with `--target $host_triple`, putting artifacts in `target/aarch64-apple-darwin/debug/` (or `x86_64-…`), so they do **not** share Cargo cache with a default `/build` (which omits `--target` and writes to `target/debug/`). First `bundle` run on a clean tree is a full rebuild. Also documented that `bundle-mac` additionally builds `cli` + `remote_server`, downloads a `git` binary from `dugite-native` releases on every run, and ad-hoc-codesigns — so it's noticeably heavier than `cargo build`. Skill notes recommend background execution (`run_in_background: true` + Monitor) for `bundle`.
+- Updated the **"After the build"** section so the `bundle` success branch reports the `.app` path printed by `bundle-mac` and skips the "do not auto-run" rule, since `-o` already opens the result.
+- **Not done (and not recommended unless iteration speed becomes a real pain):**
+  - Patching `script/bundle-mac` to drop `--target $target_triple` in debug mode so artifacts share `target/debug/` with default `/build`. Smaller change, but touches an upstream-shaped script and creates fork-hygiene drift.
+  - A leaner custom dev-bundling path that skips `cli`/`remote_server`/git/codesign. Fast, but would break the `paddleboard` CLI shim, URL-scheme handling, and SSH-remote — and reinvents bundling logic that the official script already gets right.
+- **Why option 1 (just expose the official script):** Smallest change. Uses official tooling — anything that works in `bundle-mac` for production also works through `/build bundle`. Drift surface is zero (the skill is a thin documentation wrapper). Costs: slower than a custom path, and the cache mismatch with `/build` is a real ergonomics hit for tight iteration loops. If that becomes painful, revisit the cache-share patch as a follow-up.
+- **Followup considered, not done.** Test-drive `./script/bundle-mac -d -o` end-to-end to confirm the new `bundle` arg actually produces a working `.app` from a cold tree. Skipped in-session because the script makes external network calls (downloads `git`, hits dugite-native releases) and ad-hoc-codesigns binaries, which felt heavier than a documentation-only PR warranted. Worth a manual run before the next session that touches bundling.
+
 ### Auto-update no-op (the last visible Zed Cloud surface)
 - Disabled the auto-update polling loop and re-pointed every Zed-Cloud-flavored URL at PaddleBoard's GitHub releases page. **PaddleBoard now makes zero requests to zed.dev for update-related reasons.** Net diff: +41 / −199 across two crates, all tagged with `// PaddleBoard:` divergence comments per fork hygiene.
 - **`crates/auto_update/src/auto_update.rs`** (the local-update flow):
