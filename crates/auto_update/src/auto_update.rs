@@ -11,7 +11,7 @@ use paths::remote_servers_dir;
 use release_channel::{AppCommitSha, ReleaseChannel};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use settings::{RegisterSetting, Settings, SettingsStore};
+use settings::{RegisterSetting, Settings};
 use smol::fs::File;
 use smol::{fs, io::AsyncReadExt};
 use std::mem;
@@ -212,8 +212,11 @@ impl Drop for MacOsUnmounter<'_> {
     }
 }
 
+// PaddleBoard: the setting is now vestigial — auto-update polling is unconditionally disabled in
+// `init`, so this value isn't read at runtime. Kept registered for upstream-merge stability and
+// because the test below exercises its `Settings` impl.
 #[derive(Clone, Copy, Debug, RegisterSetting)]
-struct AutoUpdateSetting(bool);
+struct AutoUpdateSetting(#[allow(dead_code)] bool);
 
 /// Whether or not to automatically check for updates.
 ///
@@ -239,36 +242,12 @@ pub fn init(client: Arc<Client>, cx: &mut App) {
     })
     .detach();
 
+    // PaddleBoard: skip polling for updates. The upstream poll loop hits zed.dev, which is
+    // not a PaddleBoard surface. The bare AutoUpdater is still created so that
+    // `AutoUpdater::download_remote_server_release` (SSH-remote binary fetch) keeps working,
+    // and so existing `AutoUpdater::get(cx)` call sites in the title bar see a stable Idle status.
     let version = release_channel::AppVersion::global(cx);
-    let auto_updater = cx.new(|cx| {
-        let updater = AutoUpdater::new(version, client, cx);
-
-        let poll_for_updates = ReleaseChannel::try_global(cx)
-            .map(|channel| channel.poll_for_updates())
-            .unwrap_or(false);
-
-        if option_env!("PADDLEBOARD_UPDATE_EXPLANATION").is_none()
-            && env::var("PADDLEBOARD_UPDATE_EXPLANATION").is_err()
-            && poll_for_updates
-        {
-            let mut update_subscription = AutoUpdateSetting::get_global(cx)
-                .0
-                .then(|| updater.start_polling(cx));
-
-            cx.observe_global::<SettingsStore>(move |updater: &mut AutoUpdater, cx| {
-                if AutoUpdateSetting::get_global(cx).0 {
-                    if update_subscription.is_none() {
-                        update_subscription = Some(updater.start_polling(cx))
-                    }
-                } else {
-                    update_subscription.take();
-                }
-            })
-            .detach();
-        }
-
-        updater
-    });
+    let auto_updater = cx.new(|cx| AutoUpdater::new(version, client, cx));
     cx.set_global(GlobalAutoUpdate(Some(auto_updater)));
 }
 
@@ -287,45 +266,22 @@ pub fn check(_: &Check, window: &mut Window, cx: &mut App) {
         return;
     }
 
-    if !ReleaseChannel::try_global(cx)
-        .map(|channel| channel.poll_for_updates())
-        .unwrap_or(false)
-    {
-        return;
-    }
-
-    if let Some(updater) = AutoUpdater::get(cx) {
-        updater.update(cx, |updater, cx| updater.poll(UpdateCheckType::Manual, cx));
-    } else {
-        drop(window.prompt(
-            gpui::PromptLevel::Info,
-            "Could not check for updates",
-            Some("Auto-updates disabled for non-bundled app."),
-            &["Ok"],
-            cx,
-        ));
-    }
+    // PaddleBoard: do not poll for updates. The upstream path hits zed.dev; PaddleBoard releases
+    // are tracked on GitHub. Point users at the releases page instead of running the poll.
+    drop(window.prompt(
+        gpui::PromptLevel::Info,
+        "Auto-updates are disabled in PaddleBoard",
+        Some("Track new releases at https://github.com/jasonsmithio/paddleboard/releases."),
+        &["Ok"],
+        cx,
+    ));
 }
 
-pub fn release_notes_url(cx: &mut App) -> Option<String> {
-    let release_channel = ReleaseChannel::try_global(cx)?;
-    let url = match release_channel {
-        ReleaseChannel::Stable | ReleaseChannel::Preview => {
-            let auto_updater = AutoUpdater::get(cx)?;
-            let auto_updater = auto_updater.read(cx);
-            let mut current_version = auto_updater.current_version.clone();
-            current_version.pre = semver::Prerelease::EMPTY;
-            current_version.build = semver::BuildMetadata::EMPTY;
-            let release_channel = release_channel.dev_name();
-            let path = format!("/releases/{release_channel}/{current_version}");
-            auto_updater.client.http_client().build_url(&path)
-        }
-        ReleaseChannel::Nightly => {
-            "https://github.com/zed-industries/zed/commits/nightly/".to_string()
-        }
-        ReleaseChannel::Dev => "https://github.com/zed-industries/zed/commits/main/".to_string(),
-    };
-    Some(url)
+pub fn release_notes_url(_cx: &mut App) -> Option<String> {
+    // PaddleBoard: the upstream Stable/Preview path built a URL through the cloud LLM API host
+    // (zed.dev), and the Nightly/Dev paths hardcoded zed-industries/zed commit pages. All four
+    // are wrong for PaddleBoard. Point every channel at PaddleBoard's GitHub releases page.
+    Some("https://github.com/jasonsmithio/paddleboard/releases".to_string())
 }
 
 pub fn view_release_notes(_: &ViewReleaseNotes, cx: &mut App) -> Option<()> {
@@ -1165,7 +1121,7 @@ mod tests {
     use futures::channel::oneshot;
     use gpui::TestAppContext;
     use http_client::{FakeHttpClient, Response};
-    use settings::default_settings;
+    use settings::{SettingsStore, default_settings};
     use std::{
         rc::Rc,
         sync::{
