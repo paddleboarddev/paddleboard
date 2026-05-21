@@ -18,10 +18,19 @@ Parse `$ARGUMENTS` (text the user typed after `/build`) and map to a command:
 | `run`                      | `cargo run -p paddleboard`                                              |
 | `run release`              | `cargo run --release -p paddleboard`                                    |
 | `check`                    | `cargo check -p paddleboard`                                            |
+| `bundle`                   | `./script/bundle-mac -d -o` (macOS only — debug `.app` with icon, auto-opens) |
+| `bundle install`           | `./script/bundle-mac -d -o -i` (also installs to `/Applications`)       |
+| `bundle release`           | `./script/bundle-mac -o` (release `.app` + DMG, auto-opens)             |
 | starts with `-p ` or `--`  | Pass through verbatim after `cargo build` (e.g. `/build -p agent_ui`)   |
 | anything else              | Treat as extra cargo flags appended after `cargo build -p paddleboard`  |
 
 If `$ARGUMENTS` is ambiguous, do the most reasonable thing and tell the user what you ran.
+
+## When to use `bundle`
+
+Reach for `bundle` when you want the proper PaddleBoard.app — the right name in the dock, the paddle icon, URL-scheme registration. A raw `cargo build` produces `target/debug/paddleboard`, which macOS shows as a generic "exec" entry with no logo.
+
+Caveats: `bundle` builds with `--target <host-triple>` (artifacts in `target/<triple>/debug/`), so it does **not** share Cargo cache with a default `/build`. First `bundle` run on a clean tree is a full rebuild. It also builds `cli` + `remote_server` and downloads a `git` binary on every run, so it's heavier than a plain `cargo build`. Use background execution (`run_in_background: true` + Monitor).
 
 ## Execution
 
@@ -31,7 +40,8 @@ If `$ARGUMENTS` is ambiguous, do the most reasonable thing and tell the user wha
 
 ## After the build
 
-- **Success**: report elapsed time and binary location (e.g. `target/debug/paddleboard`). Do **not** auto-run the binary unless the user said `run`.
+- **Success (cargo)**: report elapsed time and binary location (e.g. `target/debug/paddleboard`). Do **not** auto-run the binary unless the user said `run`.
+- **Success (bundle)**: report the `.app` path that `bundle-mac` printed. `bundle-mac -o` already opens the result — don't re-open it.
 - **Failure**: surface the first compiler error verbatim — do not paraphrase. Offer to investigate, but don't start fixing things unless asked.
 
 ## Notes
