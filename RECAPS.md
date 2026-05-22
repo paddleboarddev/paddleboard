@@ -4,7 +4,42 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-21
+
+### AI Dock — built, McpServersPage absorbed
+- Promoted yesterday's "Store" sketch into a shipping feature. **Renamed `Store` → `AI Dock` mid-session** at the user's request (no one's buying anything; "Dock" plays off the PaddleBoard theme). The rename was total: crate `paddleboard_store` → `paddleboard_ai_dock`, action `paddleboard_actions::store::OpenStore` → `paddleboard_actions::ai_dock::Open`, types `StoreModal`/`StoreTab` → `AiDock`/`AiDockTab`, catalog path `assets/store/catalog.json` → `assets/ai_dock/catalog.json`, plus every UI string. Nothing was committed under the old name, so it's clean.
+- New crate `paddleboard_ai_dock` with an `AiDock` modal that ships three tabs (Agents / Skills / MCP Servers), backed by a static in-repo catalog (5 agents, 6 skills, 5 MCP servers — adds are PRs, not fetches).
+- **Two open questions from yesterday locked in:**
+  - Panel home → **modal** (transient browse-then-leave; doesn't eat persistent dock space). Note: it's called "AI Dock" semantically but renders as a `ModalView`. The name is a paddleboard metaphor, not the GPUI dock concept.
+  - `McpServersPage` → **absorbed**, not linked. Pragmatic absorb: renamed `McpServersPage` → `McpServersView` in `crates/agent_ui/src/mcp_servers_ui.rs`, dropped the `Item`/`EventEmitter<ItemEvent>` impls + tab metadata, kept `Render`+`Focusable`, made it `pub` via re-export. The AI Dock's MCP tab hosts an `Entity<McpServersView>` constructed lazily on first activation, so the existing `crate::agent_configuration::*` modal wiring keeps working without lifting it into the new crate.
+- **Action plumbing**: kept the legacy `paddleboard_actions::McpServers` working — `paddleboard_ai_dock::init` now owns that handler and opens the dock on the MCP tab. Removed the old `agent_ui.rs:575-593` pane-item handler entirely (replaced with a PaddleBoard divergence comment). Added one new action, `paddleboard_actions::ai_dock::Open`, which lands on the Agents tab.
+- **Welcome row swap**: `crates/onboarding/src/basics_page.rs::render_ai_section` no longer renders the 5-card grid; it's a single **Open the AI Dock** button (with the `ArrowUpRight` end-icon) dispatching the new action. `FEATURED_AGENT_IDS` stayed because telemetry in `onboarding.rs:245` still counts it, but the helpers (`render_zed_agent_button`, `render_registry_agent_button`) and ~6 now-unused imports were deleted.
+- **Detection per tab** (no generic strategy yet — each tab does what fits):
+  - Agents → cross-reference `project::agent_server_store::AllAgentServersSettings` from `SettingsStore`. Install button writes `settings::CustomAgentServerSettings::Registry { … }` via `update_settings_file` — same shape as the old onboarding card.
+  - Skills → `cwd/.claude/commands/<id>.md` (project) and `~/.claude/commands/<id>.md` (user); shows scope label. No bundled content yet, so "not installed" routes to homepage when the catalog entry has one.
+  - MCP → defers entirely to the absorbed `McpServersView`.
+- **Docs + tour**: added a new "AI Dock" section to `WELCOME.md` (between Sandboxed MCP Servers and Step-Through Mode), updated the MCP section to mention the new entry point, and synced `crates/workspace/src/tour.md` with the same section as `### 5. AI Dock`. Renumbered downstream tour sections (6–10).
+- **Verification**: `./script/clippy` (release, all targets, deny warnings) clean. `cargo check -p paddleboard` clean after the rename. **No UI smoke test yet** — the binary builds but the modal hasn't been clicked through in the running app; that's the next step for the user (or a `/verify` invocation).
+- **Yesterday's `script/bundle-mac` side note still stands** — debug builds exit 1 on the unguarded `gzip target/.../remote_server`. Untouched this session.
+
+---
+
 ## 2026-05-20
+
+### PaddleBoard Store panel — design sketched, implementation deferred
+- User reviewed `paddleboard-5.png` (the hardcoded "Agent Setup" 5-card row on the Welcome screen — Zed Agent / Claude Agent / Codex CLI / GitHub Copilot / Cursor) and proposed replacing it with a unified "agent store" or "skills store."
+- Agreed framing: one panel, three tabs (**Agents / Skills / MCP Servers**), backed by a static in-repo catalog. Solves the discoverability gap that the MCP orchestrator already hit (it's buried in the command palette), and consolidates three surfaces that drift apart today (agents = long-lived processes, skills = markdown files, MCP = subprocess+config).
+- **Sketched in conversation, not yet built.** Captured in `project_store_idea.md` memory. Key choices already made:
+  - New crate `paddleboard_store` (fork hygiene — net-new feature, no upstream-file edits).
+  - Catalog at `assets/store/catalog.json` in-repo. PR-reviewed adds, not fetched. Can graduate to a hosted catalog later if community contributions outgrow PR review.
+  - Per-tab action verbs diverge intentionally because "install" means different things: Agents → Install/Sign in/Open/Configure; Skills → Add to user/Add to project/Remove; MCP → Add Server (delegate to existing `McpServersPage`).
+  - `enum StoreItem { Agent(AgentManifest), Skill(SkillManifest), Mcp(McpManifest) }` with per-item `detect: DetectStrategy` (`BinaryOnPath` / `FileExists`) driving the Installed/Available badge.
+  - Welcome screen replaces the 5-card row with a single "Browse the Store →" button plus a small Featured strip for first-run.
+- **Three open questions left for user to decide** before any code:
+  1. Panel home: modal vs. dock panel vs. top-level workspace item. Claude leaned modal (discrete interactions, not "always docked").
+  2. Catalog source: in-repo JSON to start; revisit fetched later if needed.
+  3. `McpServersPage`: absorb into the Store's MCP tab, or stay separate and just be linked? Absorb = cleaner but real refactor; link = cheaper but two surfaces.
+- **Side observation, not acted on:** `./script/bundle-mac -d -o -i` (the `/build bundle install` path) exits with code 1 on debug builds because the script tries to `gzip target/.../release/remote_server` after the install step — a release-only operation that runs unconditionally. The install + open both succeed before the failure, so it's cosmetic, but a real fix would be a one-liner guarding the gzip with the same `if [ -z "$DEBUG_BUILD" ]` check used elsewhere in the script. Not done; flagging for whoever next touches `script/bundle-mac`.
 
 ### `/build bundle` — debug `.app` with the paddle icon
 - Triggered by user observation that `cargo build -p paddleboard` produces a binary that macOS shows in the dock as a generic "exec" entry with no logo. Root cause: the raw `target/debug/paddleboard` binary has no `.app` wrapper, so there's no `Info.plist` / `CFBundleName` / `CFBundleIconFile` / `AppIcon.icns` for macOS to read.

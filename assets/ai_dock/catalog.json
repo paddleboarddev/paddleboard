@@ -1,0 +1,132 @@
+{
+  "$schema_note": "PaddleBoard Store catalog. Edit via PR. See crates/paddleboard_store/src/catalog.rs for the schema.",
+  "agents": [
+    {
+      "id": "zed-agent",
+      "name": "Zed Agent",
+      "description": "First-party agent backed by Anthropic, OpenAI, and Google models. Sign in to use.",
+      "homepage": "https://zed.dev/agent",
+      "featured": true,
+      "builtin_zed": true
+    },
+    {
+      "id": "claude-acp",
+      "name": "Claude Agent",
+      "description": "Anthropic's Claude agent over ACP. Streaming tool use, persistent threads, multi-modal.",
+      "homepage": "https://docs.claude.com/en/docs/claude-code/overview",
+      "featured": true
+    },
+    {
+      "id": "codex-acp",
+      "name": "Codex CLI",
+      "description": "OpenAI's terminal coding agent. Runs locally; bring your own API key.",
+      "homepage": "https://github.com/openai/codex",
+      "featured": true
+    },
+    {
+      "id": "github-copilot-cli",
+      "name": "GitHub Copilot",
+      "description": "GitHub's coding assistant. Sign in with your GitHub account.",
+      "homepage": "https://github.com/features/copilot",
+      "featured": true
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "description": "Cursor's agent over ACP. Connects to the Cursor backend.",
+      "homepage": "https://www.cursor.com/",
+      "featured": false
+    }
+  ],
+  "skills": [
+    {
+      "id": "build",
+      "name": "/build",
+      "description": "Build PaddleBoard via cargo. Use `bundle` for a macOS .app, `install` to drop it into /Applications.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "update-tour",
+      "name": "/update-tour",
+      "description": "Sync the in-app first-launch tour with the latest WELCOME.md after a user-facing change.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "verify",
+      "name": "/verify",
+      "description": "Run the app and confirm a change actually does what it's supposed to do.",
+      "homepage": null,
+      "featured": false
+    },
+    {
+      "id": "simplify",
+      "name": "/simplify",
+      "description": "Review changed code for reuse, quality, and efficiency, then fix any issues found.",
+      "homepage": null,
+      "featured": false
+    },
+    {
+      "id": "review",
+      "name": "/review",
+      "description": "Review a pull request.",
+      "homepage": null,
+      "featured": false
+    },
+    {
+      "id": "security-review",
+      "name": "/security-review",
+      "description": "Run a complete security review of pending changes on the current branch.",
+      "homepage": null,
+      "featured": false
+    }
+  ],
+  "mcp_servers": [
+    {
+      "id": "filesystem",
+      "name": "Filesystem",
+      "description": "Read, write, and list files under a directory you allow.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "featured": true
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch",
+      "description": "HTTP fetch for URLs, returning markdown-converted text.",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+      "featured": true
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "description": "Inspect git history, branches, diffs, and blame for a repository.",
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "."],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/git",
+      "featured": true
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "description": "Read and write to GitHub repos, issues, and PRs via the GitHub API.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
+      "featured": false
+    },
+    {
+      "id": "puppeteer",
+      "name": "Puppeteer",
+      "description": "Headless browser automation: navigate pages, take screenshots, scrape content.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer",
+      "featured": false
+    }
+  ]
+}

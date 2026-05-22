@@ -7,8 +7,7 @@ use editor::{Editor, EditorElement, EditorStyle};
 use extension_host::ExtensionStore;
 use fs::Fs;
 use gpui::{
-    Action, Anchor as Corner, AnyElement, App, Context, Entity, EventEmitter, Focusable,
-    KeyContext,
+    Action, Anchor as Corner, AnyElement, App, Context, Entity, Focusable, KeyContext,
     ParentElement, Render, RenderOnce, SharedString, Styled, Task, TextStyle,
     UniformListScrollHandle, WeakEntity, Window, point, uniform_list,
 };
@@ -24,10 +23,7 @@ use ui::{
     WithScrollbar, prelude::*,
 };
 use util::ResultExt as _;
-use workspace::{
-    Workspace,
-    item::{Item, ItemEvent},
-};
+use workspace::Workspace;
 
 use crate::agent_configuration::{
     ConfigureContextServerModal, ConfigureContextServerToolsModal,
@@ -81,7 +77,7 @@ impl RenderOnce for McpServerCard {
     }
 }
 
-pub struct McpServersPage {
+pub struct McpServersView {
     fs: Arc<dyn Fs>,
     language_registry: Arc<LanguageRegistry>,
     workspace: WeakEntity<Workspace>,
@@ -95,7 +91,7 @@ pub struct McpServersPage {
     _subscriptions: Vec<gpui::Subscription>,
 }
 
-impl McpServersPage {
+impl McpServersView {
     pub fn new(
         workspace: &Workspace,
         window: &mut Window,
@@ -751,7 +747,7 @@ impl McpServersPage {
     }
 }
 
-impl Render for McpServersPage {
+impl Render for McpServersView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let total = self.server_ids.len();
         let running = self
@@ -864,34 +860,8 @@ impl Render for McpServersPage {
     }
 }
 
-impl EventEmitter<ItemEvent> for McpServersPage {}
-
-impl Focusable for McpServersPage {
+impl Focusable for McpServersView {
     fn focus_handle(&self, cx: &App) -> gpui::FocusHandle {
         self.query_editor.read(cx).focus_handle(cx)
-    }
-}
-
-impl Item for McpServersPage {
-    type Event = ItemEvent;
-
-    fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
-        "MCP Servers".into()
-    }
-
-    fn tab_icon(&self, _window: &Window, _cx: &App) -> Option<Icon> {
-        Some(Icon::new(IconName::Server))
-    }
-
-    fn telemetry_event_text(&self) -> Option<&'static str> {
-        Some("MCP Servers Page Opened")
-    }
-
-    fn show_toolbar(&self) -> bool {
-        false
-    }
-
-    fn to_item_events(event: &Self::Event, f: &mut dyn FnMut(workspace::item::ItemEvent)) {
-        f(*event)
     }
 }
