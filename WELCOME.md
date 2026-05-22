@@ -78,7 +78,7 @@ Most editors run **MCP (Model Context Protocol) servers** directly on your host.
 
 PaddleBoard adds a fourth context-server transport, `sandboxed_stdio`, that runs the MCP server inside a `podman run -i --rm --runtime=runsc` container. Stdin and stdout are proxied transparently, so the JSON-RPC framing keeps working without any change on the agent side.
 
-**The MCP Servers settings page** (command palette → `zed: Mcp Servers`) gives you a UI for adding, filtering (All / Running / Stopped / Error), and inspecting servers without hand-editing JSON. Use the "Add Server" popover to declare a new server; the page surfaces live status as the connection comes up.
+**Manage servers in the AI Dock** — `zed: Mcp Servers` (or `ai_dock: Open` then the **MCP Servers** tab) opens the PaddleBoard AI Dock with the absorbed server view. You get the full add/filter (All / Running / Stopped / Error) / inspect surface plus a side-by-side **Available** catalog of well-known servers without hand-editing JSON.
 
 You can still configure servers by hand in `settings.json` if you prefer:
 
@@ -100,6 +100,19 @@ You can still configure servers by hand in `settings.json` if you prefer:
 - `mount_worktree: true` (default) binds the active worktree at `/workspace` so filesystem-touching MCP servers work the way users expect; set to `false` for servers that shouldn't see your code.
 
 The original `stdio` transport (which runs the binary directly on your host) is unchanged — sandboxing is opt-in per server.
+
+---
+
+### AI Dock
+
+One place to browse and install everything the agent talks to. Think of it as the marina where every external collaborator your PaddleBoard talks to ties up.
+
+- Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen.
+- Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), and **MCP Servers** (the absorbed management page plus a catalog of common servers).
+- Installed items show a green badge; missing ones show an **Install / Sign In / Learn More** action that does the right thing for the category — agent installs are a one-click settings write, sign-in flows route to your existing identity, and MCP server adds delegate to the existing setup machinery.
+- The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
+
+The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome screen and the standalone MCP Servers pane — both routes now land here.
 
 ---
 

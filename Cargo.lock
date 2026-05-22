@@ -12866,6 +12866,7 @@ dependencies = [
  "outline",
  "outline_panel",
  "paddleboard_actions",
+ "paddleboard_ai_dock",
  "paddleboard_env_vars",
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_ui",
@@ -12951,6 +12952,31 @@ dependencies = [
  "serde",
  "util",
  "uuid",
+]
+
+[[package]]
+name = "paddleboard_ai_dock"
+version = "0.1.0"
+dependencies = [
+ "agent_settings",
+ "agent_ui",
+ "anyhow",
+ "client",
+ "collections",
+ "fs",
+ "gpui",
+ "language",
+ "log",
+ "menu",
+ "paddleboard_actions",
+ "project",
+ "serde",
+ "serde_json",
+ "settings",
+ "ui",
+ "util",
+ "which 6.0.3",
+ "workspace",
 ]
 
 [[package]]
