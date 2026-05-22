@@ -15,6 +15,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
   - **Cosmetic, not acted on**: in `aidock-2.png` the welcome screen text is visible *below* the modal — scrim doesn't extend full-height, or modal floats inside the workspace pane rather than the window.
   - **Terminology asymmetry**: Agents tab uses "Installed" badge + "Install" button; Skills tab uses "Installed (Project)" / "Not installed" badge only. Picking one pattern would help.
 
+### Session commits + `.gitignore` for smoke-test artifacts
+- Today's work shipped as **two commits**, not one, so the workspace-wide cosmetic rename stays orthogonal to the AI Dock feature work — either can be reverted without touching the other:
+  - `9669d4b587 command_palette: rename `zed:` to `paddleboard:` in palette display` (1 file, +17)
+  - `a8fd95efe4 paddleboard_ai_dock: install bundled skills, add Welcome featured strip, drop /simplify` (8 files, +278/-34)
+- The smoke-test artifacts (`aidock-1.png` … `aidock-7.png`) were *not* committed. Instead `.gitignore` got a new entry `aidock-*.png` so the screenshots stay locally as verification evidence but `git status` stops listing them. Pattern is reusable for any future per-feature smoke runs.
+- Followup #1 (the AI Dock smoke test) intentionally had **no code change** — it surfaced findings (MCP catalog gap, `/simplify` phantom, terminology asymmetry) that fed into followup #2, but produced no diff of its own. RECAPS captures the findings; nothing to commit for #1 in isolation.
+
 ### AI Dock — Welcome Featured strip (followup #3) + docs/tour sync
 - Added a small **Featured** strip to the Welcome screen's AI Dock section: four compact outlined pills labeled `Claude` / `Codex` / `Copilot` / `Cursor`, rendered below the existing full-width "Open the AI Dock" button via a new `render_welcome_featured_strip()` helper in `crates/onboarding/src/basics_page.rs`. Each pill dispatches the same `paddleboard_actions::ai_dock::Open` action — they're editorial discoverability, not separate destinations. A future polish could pre-scroll the dock to the matching agent card; out of scope for v1 (would need a new action variant carrying the target id).
 - **Why a parallel constant instead of upgrading `FEATURED_AGENT_IDS`**: the existing `FEATURED_AGENT_IDS: &[&str]` is referenced by `onboarding.rs:245` for telemetry (`.iter().filter().copied()`) and a tuple-ification would have required updating that call site too. Adding `WELCOME_FEATURED_AGENT_LABELS: &[(&str, &str)]` alongside it keeps the upstream-shaped telemetry path zero-touch. The two arrays must stay in id-sync; a future test could enforce that, but four entries felt below the threshold for now.
