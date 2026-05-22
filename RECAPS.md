@@ -15,6 +15,18 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
   - **Cosmetic, not acted on**: in `aidock-2.png` the welcome screen text is visible *below* the modal — scrim doesn't extend full-height, or modal floats inside the workspace pane rather than the window.
   - **Terminology asymmetry**: Agents tab uses "Installed" badge + "Install" button; Skills tab uses "Installed (Project)" / "Not installed" badge only. Picking one pattern would help.
 
+### AI Dock — add Gemini to the Welcome Featured strip
+- User asked to surface Google Gemini in the Welcome Featured pills alongside Claude / Codex / Copilot / Cursor. The agent server already integrates Gemini CLI: `crates/agent_servers/src/custom.rs:17` defines `pub const GEMINI_ID: &str = "gemini"` and `acp.rs` ships the `--experimental-acp` / `--acp` spawn path, so there was a real underlying agent to point the pill at (not just a label).
+- **What landed**:
+  - New catalog entry in `assets/ai_dock/catalog.json` (id `gemini`, name "Gemini", description "Google's Gemini CLI over ACP. Sign in with your Google account or bring your own API key.", homepage `https://github.com/google-gemini/gemini-cli`, `featured: true`).
+  - `FEATURED_AGENT_IDS` in `crates/onboarding/src/basics_page.rs` gained `"gemini"` (5 → 6 entries) so the existing telemetry path (`onboarding.rs:245`) tracks Gemini install adoption alongside the others.
+  - `WELCOME_FEATURED_AGENT_LABELS` parallel const gained `("gemini", "Gemini")` so the pill renders.
+  - `WELCOME.md` and `crates/workspace/src/tour.md` updated to list Gemini in the "Featured" strip description (Claude / Codex / Copilot / Cursor / Gemini).
+- **What auto-updates**: the AI Dock modal subtitle now reads "6 agents · 5 skills · 5 MCP servers" because counts derive from `catalog.agents.len()` etc. — no code change needed.
+- **What was intentionally NOT done**: didn't run `/update-tour` as a separate step since the tour edit was a one-line list append; the skill exists for larger syncs. Also didn't kill + relaunch the running app to visually verify the 5th pill — the change is a single tuple appended to an array that renders inside a horizontal flex container already visually confirmed (`aidock-7.png` in the prior session). Mechanical add; trusted.
+- **Verified**: `cargo check -p paddleboard_ai_dock -p onboarding` clean, `./script/clippy -p paddleboard_ai_dock -p onboarding` (release, all targets, deny warnings) clean, `python3 -c "import json; json.load(open('assets/ai_dock/catalog.json'))"` parses.
+- **Open follow-ups**: catalog now has 6 agents; the Agents tab list grew one row but still fits in the 36rem default modal height. Worth a glance if more featured agents land. The catalog description references "Sign in with your Google account" which depends on the actual auth flow (`spawn-gemini-cli` per `acp.rs:43`); verify against current Gemini CLI behavior when someone next touches that integration.
+
 ### AI Dock — expandable modal
 - Added a maximize/minimize toggle to the AI Dock modal header so users can grow the dock when there's more content to scan (catalog rows, install lists) than the default size comfortably fits. `crates/paddleboard_ai_dock/src/ai_dock.rs` gained an `expanded: bool` field on `AiDock` (defaults to `false`), a `toggle_expanded` method, and a new `IconButton` in `render_header` placed left of the close button.
 - **Two-state, not free-resize.** Normal: `56rem × 36rem` (~896×576 px, unchanged from before). Expanded: `80rem × 54rem` (~1280×864 px) — about 2.1× the area. Chose preset sizes over drag-to-resize because GPUI doesn't have a built-in resizable-modal primitive and rolling one would be a much bigger lift than the user's "minor change" framing implied.
