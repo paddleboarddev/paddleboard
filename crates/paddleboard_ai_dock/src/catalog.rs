@@ -103,3 +103,59 @@ impl CatalogGlobal {
 pub fn catalog(cx: &App) -> Arc<Catalog> {
     CatalogGlobal::get(cx)
 }
+
+/// Bundled markdown body for catalog skills we ship in-tree. Returning `Some`
+/// turns on the Skills tab's "Add to project" / "Add to user" buttons for
+/// that entry; returning `None` falls back to the homepage / disabled state.
+///
+/// The `include_str!` paths point at the canonical files under
+/// `.claude/commands/`, not a duplicated copy under `assets/ai_dock/skills/`,
+/// so the slash command used in this repo and the bundled install copy can
+/// never drift.
+pub fn bundled_skill_content(id: &str) -> Option<&'static str> {
+    match id {
+        "build" => Some(include_str!("../../../.claude/commands/build.md")),
+        "update-tour" => Some(include_str!("../../../.claude/commands/update-tour.md")),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bundled_skill_content_returns_known_skills() {
+        let build = bundled_skill_content("build").expect("build is bundled");
+        assert!(
+            build.contains("/build"),
+            "bundled `build.md` should mention `/build`: got {build:?}"
+        );
+
+        let update_tour = bundled_skill_content("update-tour").expect("update-tour is bundled");
+        assert!(
+            update_tour.contains("WELCOME.md") || update_tour.contains("tour"),
+            "bundled `update-tour.md` should reference WELCOME.md or `tour`: got {update_tour:?}"
+        );
+    }
+
+    #[test]
+    fn bundled_skill_content_returns_none_for_unbundled() {
+        assert!(bundled_skill_content("review").is_none());
+        assert!(bundled_skill_content("verify").is_none());
+        assert!(bundled_skill_content("nonexistent").is_none());
+    }
+
+    #[test]
+    fn every_bundled_id_is_in_catalog() {
+        let catalog = Catalog::load();
+        let bundled_ids = ["build", "update-tour"];
+        for id in bundled_ids {
+            assert!(
+                catalog.skills.iter().any(|s| s.id == id),
+                "bundled skill `{id}` must have a matching catalog entry; \
+                 otherwise the install buttons never render"
+            );
+        }
+    }
+}
