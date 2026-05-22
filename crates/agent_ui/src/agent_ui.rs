@@ -76,7 +76,7 @@ pub use crate::agent_panel::{
 };
 pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
-use crate::mcp_servers_ui::McpServersPage;
+pub use crate::mcp_servers_ui::McpServersView;
 pub use crate::inline_assistant::InlineAssistant;
 pub use crate::thread_metadata_store::ThreadId;
 pub use agent_diff::{AgentDiffPane, AgentDiffToolbar};
@@ -572,25 +572,9 @@ pub fn init(
                 }
             },
         );
-        workspace.register_action(
-            move |workspace: &mut Workspace,
-                  _: &paddleboard_actions::McpServers,
-                  window: &mut Window,
-                  cx: &mut Context<Workspace>| {
-                let existing = workspace
-                    .active_pane()
-                    .read(cx)
-                    .items()
-                    .find_map(|item| item.downcast::<McpServersPage>());
-
-                if let Some(existing) = existing {
-                    workspace.activate_item(&existing, true, true, window, cx);
-                } else {
-                    let page = McpServersPage::new(workspace, window, cx);
-                    workspace.add_item_to_active_pane(Box::new(page), None, true, window, cx);
-                }
-            },
-        );
+        // PaddleBoard: `McpServers` is registered by `paddleboard_store::init`
+        // — opening the MCP Servers UI now routes through the Store modal, so
+        // the legacy pane-item handler that used to live here has moved.
     })
     .detach();
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {

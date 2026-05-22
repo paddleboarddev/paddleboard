@@ -889,3 +889,17 @@ pub mod notebook {
         ]
     );
 }
+
+pub mod ai_dock {
+    use gpui::actions;
+
+    actions!(
+        ai_dock,
+        [
+            /// Opens the PaddleBoard AI Dock on the Agents tab. The existing
+            /// `zed::McpServers` action opens it directly on the MCP tab,
+            /// so old keybindings keep working.
+            Open,
+        ]
+    );
+}
