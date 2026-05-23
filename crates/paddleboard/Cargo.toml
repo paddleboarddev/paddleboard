@@ -227,6 +227,7 @@ paddleboard_env_vars.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_ui.workspace = true
 paddleboard_sandbox_settings.workspace = true
+paddleboard_ai_dock.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 zlog.workspace = true
 zlog_settings.workspace = true

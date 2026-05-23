@@ -236,6 +236,7 @@ members = [
     "crates/paddleboard_sandbox_prereqs_state",
     "crates/paddleboard_sandbox_prereqs_ui",
     "crates/paddleboard_sandbox_settings",
+    "crates/paddleboard_ai_dock",
     "crates/windows_resources",
     "crates/zeta_prompt",
     "crates/zlog",
@@ -501,6 +502,7 @@ paddleboard_sandbox_prereqs = { path = "crates/paddleboard_sandbox_prereqs" }
 paddleboard_sandbox_prereqs_state = { path = "crates/paddleboard_sandbox_prereqs_state" }
 paddleboard_sandbox_prereqs_ui = { path = "crates/paddleboard_sandbox_prereqs_ui" }
 paddleboard_sandbox_settings = { path = "crates/paddleboard_sandbox_settings" }
+paddleboard_ai_dock = { path = "crates/paddleboard_ai_dock" }
 edit_prediction = { path = "crates/edit_prediction" }
 edit_prediction_metrics = { path = "crates/edit_prediction_metrics" }
 zeta_prompt = { path = "crates/zeta_prompt" }

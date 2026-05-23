@@ -28,35 +28,42 @@ Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Servi
 
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
-- Configure them via `Cmd-Shift-P` → **`zed: Mcp Servers`** — filter by status (All / Running / Stopped / Error), add new servers, or inspect live state.
+- Manage them in the AI Dock: `Cmd-Shift-P` → **`paddleboard: Mcp Servers`** opens the dock on the MCP tab (filter All / Running / Stopped / Error, add servers, browse the catalog of common ones).
 - Or use `"source": "sandboxed_stdio"` in `settings.json` directly.
 - Forward only the host env vars you need by name — values stay out of the agent's context.
 - The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.
 
-### 5. Step-Through Mode
+### 5. AI Dock
+One place to browse and install everything the agent talks to — the marina where every external collaborator ties up.
+- Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or hit **Open the AI Dock** on the Welcome screen. The Welcome screen also surfaces a **Featured** strip (Claude / Codex / Copilot / Cursor pills) so first-run users have recognizable names to click.
+- Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI).
+- Installed items show a green badge; missing ones get a one-click **Install / Sign In / Learn More** that does the category-appropriate thing. Bundled skills (currently `/build` and `/update-tour`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
+- The catalog is `assets/ai_dock/catalog.json` in-repo — adds are PRs, not fetches.
+
+### 6. Step-Through Mode
 Approve every tool call before the agent executes it.
 - Click the **⏭** icon in the agent thread toolbar to enable (it turns accent-colored).
 - Each tool call pauses with **Step** (run it) or **Skip** (return empty and move on).
 - Only the root thread is gated — subagents run without interruption.
 
-### 6. Agent Orchestration Panel
+### 7. Agent Orchestration Panel
 A live tree view of every active agent session, including subagents.
 - Open it: panel bar `ListTree` icon, or `Cmd-Shift-P` → **`orchestration_panel: Toggle Focus`**.
 - Subagents nest under the thread that spawned them.
 - Status dot shows generating vs. idle; click any row to jump to that thread.
 
-### 7. LLM Provider Picker Panel
+### 8. LLM Provider Picker Panel
 A dedicated panel for switching the active language model provider without opening settings.
 - Dock it wherever is convenient and change providers as you work.
 - **ChatGPT Subscription auth**: sign in with your ChatGPT Plus or Pro account via OAuth — no API key needed. The flow opens in the embedded browser panel; tokens persist in PB's credential store.
 
-### 8. Multi-Workspace
+### 9. Multi-Workspace
 Keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads.
 - Open the worktree picker: `Cmd-Shift-P` → **`git: Worktree`**.
 - **Switch** between existing worktrees, **create** a new worktree-backed workspace (accept the auto-generated branch name like `dusty-pelican` or supply your own), or **open in new window**.
 - The orchestration panel shows agent threads from every workspace at once — perfect for parallel agent sessions against different projects.
 
-### 9. Built-in Language Servers
+### 10. Built-in Language Servers
 PaddleBoard ships built-in LSP support for four languages that Zed historically punts to extensions — **no extension installation required**.
 - **Java** via [jdtls](https://github.com/eclipse/eclipse.jdt.ls)
 - **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server)
