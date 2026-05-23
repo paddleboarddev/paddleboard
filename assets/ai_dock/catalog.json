@@ -36,6 +36,13 @@
       "description": "Cursor's agent over ACP. Connects to the Cursor backend.",
       "homepage": "https://www.cursor.com/",
       "featured": false
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "description": "Google's Gemini CLI over ACP. Sign in with your Google account or bring your own API key.",
+      "homepage": "https://github.com/google-gemini/gemini-cli",
+      "featured": true
     }
   ],
   "skills": [
