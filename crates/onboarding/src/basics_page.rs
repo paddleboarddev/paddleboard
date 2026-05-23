@@ -435,9 +435,23 @@ fn render_import_settings_section(tab_index: &mut isize, cx: &mut App) -> impl I
 pub(crate) const FEATURED_AGENT_IDS: &[&str] =
     &["claude-acp", "codex-acp", "github-copilot-cli", "cursor"];
 
+// PaddleBoard: parallel display labels for the welcome-screen featured strip.
+// Kept separate from FEATURED_AGENT_IDS so the telemetry constant stays a
+// plain `&[&str]` (its `.iter().filter()` usage in onboarding.rs doesn't need
+// to learn about tuples). Pills all dispatch the same `ai_dock::Open` action;
+// the editorial value is the names being visible on the Welcome screen, not
+// a per-pill action.
+const WELCOME_FEATURED_AGENT_LABELS: &[(&str, &str)] = &[
+    ("claude-acp", "Claude"),
+    ("codex-acp", "Codex"),
+    ("github-copilot-cli", "Copilot"),
+    ("cursor", "Cursor"),
+];
+
 // PaddleBoard: replaces the upstream 5-card "Agent Setup" row with a single
-// entry point into the AI Dock. The dock consolidates agents, skills, and
-// MCP servers; onboarding stays terse and defers detailed browsing.
+// entry point into the AI Dock plus a small featured strip. The dock
+// consolidates agents, skills, and MCP servers; the pills surface a few
+// well-known names so first-run users have something concrete to recognize.
 fn render_ai_section(_user_store: &Entity<UserStore>, _cx: &mut App) -> impl IntoElement {
     v_flex()
         .gap_0p5()
@@ -460,6 +474,38 @@ fn render_ai_section(_user_store: &Entity<UserStore>, _cx: &mut App) -> impl Int
                         );
                     }),
             ),
+        )
+        .child(render_welcome_featured_strip())
+}
+
+fn render_welcome_featured_strip() -> impl IntoElement {
+    v_flex()
+        .mt_2()
+        .gap_1()
+        .child(
+            Label::new("Featured")
+                .size(LabelSize::Small)
+                .color(Color::Muted),
+        )
+        .child(
+            h_flex()
+                .gap_1()
+                .children(WELCOME_FEATURED_AGENT_LABELS.iter().map(|(id, label)| {
+                    let id = *id;
+                    Button::new(
+                        SharedString::from(format!("welcome-featured-{id}")),
+                        SharedString::from(*label),
+                    )
+                    .style(ButtonStyle::Outlined)
+                    .label_size(LabelSize::Small)
+                    .on_click(move |_, window, cx| {
+                        telemetry::event!("Welcome Featured Agent Clicked", agent = id);
+                        window.dispatch_action(
+                            paddleboard_actions::ai_dock::Open.boxed_clone(),
+                            cx,
+                        );
+                    })
+                })),
         )
 }
 

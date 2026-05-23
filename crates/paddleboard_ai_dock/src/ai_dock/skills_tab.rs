@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use gpui::ClickEvent;
 use ui::prelude::*;
 
-use crate::catalog::SkillEntry;
 use crate::ai_dock::AiDock;
+use crate::catalog::{SkillEntry, bundled_skill_content};
 
 pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoElement {
     let catalog = modal.catalog.clone();
@@ -34,16 +34,19 @@ pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
         .p_4()
         .gap_2()
         .overflow_y_scroll()
-        .children(
-            catalog
-                .skills
-                .iter()
-                .map(|entry| render_skill_row(entry, scope_of(&entry.id), cx)),
-        )
+        .children(catalog.skills.iter().map(|entry| {
+            render_skill_row(
+                entry,
+                scope_of(&entry.id),
+                project_dir.is_some(),
+                user_dir.is_some(),
+                cx,
+            )
+        }))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SkillScope {
+pub(crate) enum SkillScope {
     Project,
     User,
 }
@@ -55,13 +58,28 @@ impl SkillScope {
             SkillScope::User => "User",
         }
     }
+
+    fn resolve_dir(self, modal: &AiDock, cx: &App) -> Option<PathBuf> {
+        match self {
+            SkillScope::Project => project_skills_dir(modal, cx),
+            SkillScope::User => user_skills_dir(),
+        }
+    }
 }
 
-fn project_skills_dir(_modal: &AiDock, _cx: &App) -> Option<PathBuf> {
-    // For v1, use the current working directory's `.claude/commands/`.
-    // A future polish pass can read this from the active workspace's
-    // first worktree instead, since modals don't track which workspace
-    // they belong to as cleanly as panel items do.
+fn project_skills_dir(modal: &AiDock, cx: &App) -> Option<PathBuf> {
+    // Prefer the active workspace's first visible worktree — that's the
+    // "project" the user thinks they're in. Fall back to the process CWD
+    // when there's no workspace (e.g. an empty PaddleBoard window) so the
+    // detection still picks up `.claude/commands/` in the launch dir.
+    if let Some(workspace) = modal.workspace.upgrade() {
+        let workspace = workspace.read(cx);
+        let project = workspace.project().read(cx);
+        if let Some(worktree) = project.visible_worktrees(cx).next() {
+            let root = worktree.read(cx).abs_path();
+            return Some(root.join(".claude").join("commands"));
+        }
+    }
     let cwd = std::env::current_dir().ok()?;
     Some(cwd.join(".claude").join("commands"))
 }
@@ -74,13 +92,17 @@ fn user_skills_dir() -> Option<PathBuf> {
 fn render_skill_row(
     entry: &SkillEntry,
     scope: Option<SkillScope>,
+    has_project_dir: bool,
+    has_user_dir: bool,
     cx: &mut Context<AiDock>,
 ) -> AnyElement {
     let icon = Icon::new(IconName::Sparkle)
         .size(IconSize::Small)
         .color(Color::Muted);
 
-    let action_button: AnyElement = if let Some(scope) = scope {
+    let bundled = bundled_skill_content(&entry.id).is_some();
+
+    let action_area: AnyElement = if let Some(scope) = scope {
         Button::new(
             SharedString::from(format!("ai-dock-skill-installed-{}", entry.id)),
             format!("Installed ({})", scope.label()),
@@ -89,9 +111,45 @@ fn render_skill_row(
         .label_size(LabelSize::Small)
         .disabled(true)
         .into_any_element()
+    } else if bundled {
+        // Install buttons — one per scope. Disable a button when its target
+        // directory can't be resolved (no workspace open for project; no
+        // $HOME for user) so the user still sees what *would* be possible.
+        let entry_id = entry.id.clone();
+        let project_btn = {
+            let id = entry_id.clone();
+            Button::new(
+                SharedString::from(format!("ai-dock-skill-add-project-{}", entry.id)),
+                "Add to project",
+            )
+            .style(ButtonStyle::Outlined)
+            .label_size(LabelSize::Small)
+            .disabled(!has_project_dir)
+            .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+                install_skill(this, &id, SkillScope::Project, window, cx);
+            }))
+        };
+        let user_btn = {
+            let id = entry_id;
+            Button::new(
+                SharedString::from(format!("ai-dock-skill-add-user-{}", entry.id)),
+                "Add to user",
+            )
+            .style(ButtonStyle::Outlined)
+            .label_size(LabelSize::Small)
+            .disabled(!has_user_dir)
+            .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+                install_skill(this, &id, SkillScope::User, window, cx);
+            }))
+        };
+        h_flex()
+            .gap_1()
+            .child(project_btn)
+            .child(user_btn)
+            .into_any_element()
     } else {
-        // No bundled content yet — direct to homepage if present, otherwise
-        // surface a disabled button so users see the skill exists.
+        // No bundled content — direct to homepage if present, else surface a
+        // disabled "Not installed" pill so users see the skill exists.
         match entry.homepage.clone() {
             Some(url) => Button::new(
                 SharedString::from(format!("ai-dock-skill-info-{}", entry.id)),
@@ -136,6 +194,54 @@ fn render_skill_row(
                         .color(Color::Muted),
                 ),
         )
-        .child(action_button)
+        .child(action_area)
         .into_any_element()
+}
+
+fn install_skill(
+    modal: &mut AiDock,
+    id: &str,
+    scope: SkillScope,
+    _window: &mut Window,
+    cx: &mut Context<AiDock>,
+) {
+    let Some(content) = bundled_skill_content(id) else {
+        log::error!("paddleboard_ai_dock: install_skill called for unbundled id `{id}`");
+        return;
+    };
+    let Some(dir) = scope.resolve_dir(modal, cx) else {
+        report_install_error(
+            modal,
+            format!("Could not resolve the {} skills directory.", scope.label()),
+            cx,
+        );
+        return;
+    };
+
+    if let Err(err) = write_skill_file(&dir, id, content) {
+        log::error!("paddleboard_ai_dock: failed to install skill `{id}`: {err}");
+        report_install_error(
+            modal,
+            format!("Failed to install /{id}: {err}"),
+            cx,
+        );
+        return;
+    }
+
+    cx.notify();
+}
+
+fn write_skill_file(dir: &PathBuf, id: &str, content: &str) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(dir.join(format!("{id}.md")), content)
+}
+
+fn report_install_error(modal: &AiDock, message: String, cx: &mut Context<AiDock>) {
+    if let Some(workspace) = modal.workspace.upgrade() {
+        workspace.update(cx, |workspace, cx| {
+            workspace.show_error(&anyhow::anyhow!(message), cx);
+        });
+    } else {
+        log::error!("paddleboard_ai_dock: install error (no workspace to notify): {message}");
+    }
 }

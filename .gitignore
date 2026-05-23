@@ -57,3 +57,6 @@ crates/docs_preprocessor/actions.json
 /december-2025-releases.md
 /docs/december-2025-documentation-gaps.md
 site/
+
+# AI Dock smoke-test screenshots (verification evidence — local only)
+aidock-*.png

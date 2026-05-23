@@ -1,5 +1,5 @@
 {
-  "$schema_note": "PaddleBoard Store catalog. Edit via PR. See crates/paddleboard_store/src/catalog.rs for the schema.",
+  "$schema_note": "PaddleBoard AI Dock catalog. Edit via PR. See crates/paddleboard_ai_dock/src/catalog.rs for the schema.",
   "agents": [
     {
       "id": "zed-agent",
@@ -57,13 +57,6 @@
       "id": "verify",
       "name": "/verify",
       "description": "Run the app and confirm a change actually does what it's supposed to do.",
-      "homepage": null,
-      "featured": false
-    },
-    {
-      "id": "simplify",
-      "name": "/simplify",
-      "description": "Review changed code for reuse, quality, and efficiency, then fix any issues found.",
       "homepage": null,
       "featured": false
     },
