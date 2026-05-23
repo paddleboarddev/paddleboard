@@ -7689,7 +7689,6 @@ dependencies = [
  "anyhow",
  "askpass",
  "buffer_diff",
- "call",
  "collections",
  "component",
  "ctor",
