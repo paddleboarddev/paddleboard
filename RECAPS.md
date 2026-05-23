@@ -4,6 +4,33 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-23
+
+### Unwire collab_ui from the paddleboard binary
+- Continuation of the `rip-collab-livekit` branch. Previous commits stripped per-surface consumers (`title_bar`, `file_finder`, `notifications`, `git_ui`); this session targeted the next layer: the `collab_ui` crate itself. Resumed from a session that had been cut off mid-flight — only artifact in the worktree was a one-line stale doc-comment removal in `workspace.rs:8150` referring to `call::RemoteParticipant`.
+- **Initial plan was wrong, course-corrected.** First attempt was "surgical inside workspace.rs only" — strip `AutoWatch` / `open_shared_screen` / `shared_screen_for_peer` / `ScreenShare` action / `LocalScreenShare*` & `RemoteVideoTracksChanged` event arms + the matching `AnyActiveCall` trait methods. Audit revealed those all still have live external consumers in `collab_ui::collab_panel` (3 sites: `auto_watch_state()`, `toggle_auto_watch`, `open_shared_screen`) plus the `collab/tests/integration/auto_watch_tests.rs` and `following_tests.rs` test files. And `collab_ui::init` was still being called at boot from `paddleboard/src/main.rs:783` and `crates/paddleboard/src/zed.rs:5514`, with `CollabPanel::load` registering the panel in `paddleboard/src/zed.rs:736`. So `workspace.rs` looked dead but actually had compile-time consumers ghost-pinning it. Re-scoped to unwire `collab_ui` first; the workspace surgery becomes truly self-contained in a follow-up.
+- **What landed (commit `ef44a0298c`):**
+  - Dropped `collab_ui.workspace = true` from `crates/paddleboard/Cargo.toml`.
+  - `main.rs`: removed `use collab_ui::channel_view::ChannelView;`, the `collab_ui::init(&app_state, cx);` boot line, and the entire ~60-line `if !request.open_channel_notes.is_empty() || request.join_channel.is_some() { ... }` block that handled zed:// channel URLs via `workspace::join_channel` and `ChannelView::open`. Simplified the trailing `else if let Some(task) = task` to `if let Some(task) = task`.
+  - `zed.rs`: removed `collab_ui::collab_panel::CollabPanel::load(...)` from `initialize_panels` (and its `channels_panel` slot in the `futures::join!`), the `ToggleFocus` `register_action` block at line 1199, and the test-bootstrap `collab_ui::init(&app_state, cx);` at line 5514.
+  - `zed/app_menus.rs`: dropped `use collab_ui::collab_panel;` and the `MenuItem::action("Collab Panel", collab_panel::ToggleFocus)` entry in View.
+  - `zed/open_listener.rs`: dropped the `ZedLink` / `parse_zed_link` import, the `open_channel_notes` and `join_channel` fields on `OpenRequest` (and their checks in `is_focus_app_only`), and the whole `else if let Some(zed_link) = parse_zed_link(&url, cx)` URL arm. zed:// channel URLs now fall through to the existing "unhandled url" log.
+  - Cleaned two `notifications::init(...)` calls in `main.rs:782` and `zed.rs:5498` that were already broken (function was deleted in commit `9099e043e4`) — apparently nothing built end-to-end since that commit landed, or the failures were ignored.
+  - Bonus cleanup: removed `maybe` from the `use util::{ResultExt, TryFutureExt, maybe};` import (no longer used) and then `TryFutureExt` (also unused after the channel block went).
+  - Kept the stale doc-comment removal in `workspace.rs:8150` rolled into the same commit since it points at the same surface being torn out.
+- **Intentionally preserved:**
+  - The `collab_ui` crate itself stays in the workspace tree. It already had pre-existing compile errors (unresolved `notifications::Notification*` imports from the prior NotificationStore deletion, missing `title_bar::collab` after the title-bar strip, and four `u64` deref errors); none of those are my problem to fix here. Crate-level deletion is the natural next step after the workspace.rs surgery, not before.
+  - Workspace's `AnyActiveCall` trait, `GlobalAnyActiveCall`, `ActiveCallEvent` enum, `RemoteCollaborator` struct, the entire `follower_states` + leader-following protocol, `WorkspaceStore`'s `handle_follow` / `handle_update_followers` request handlers, the `join_channel` / `join_channel_internal` / `get_any_active_multi_workspace` flow, `prepare_to_close`'s "leave the call" prompt, and the namespace allowlist entries for `channel_modal` / `collab_panel` / `collab` in `zed.rs` keybind validation. All of these still have either intra-`workspace.rs` consumers or live `call` / `channel` crate consumers (`call::init` is still wired at boot at `main.rs:781` and `zed.rs:5497`). Leaving them costs nothing and gives the next commit a coherent rip target.
+  - `parse_zed_link` import in `main.rs` — still used at line 2005 by `parse_url_arg` to test which CLI args are URL-shaped.
+- **Verified:** `cargo check -p paddleboard` clean (only inactive-code diagnostics from cross-platform `#[cfg]` blocks, no errors). `./script/clippy -p paddleboard` (release, all targets, deny warnings) clean — no warnings, `cargo-machete` happy. Did not run the full workspace check (`cargo check --workspace` would still fail on `collab_ui` and `collab` test files, which are now expected and unblocking).
+- **Open follow-ups:**
+  - **workspace.rs surgical rip is now possible.** With `collab_ui` un-linked, `AutoWatch` / `auto_watch_state` / `toggle_auto_watch` / `open_shared_screen` / `shared_screen_for_peer` / `next_watched_peer` / `handle_auto_watch_*` / `ScreenShare` action / `LocalScreenShare*` & `RemoteVideoTracksChanged` event variants + the 3 trait methods only they used (`create_shared_screen`, `peer_ids_with_video_tracks`, `is_sharing_screen`) can come out in one commit. The matching `impl AnyActiveCall for ActiveCallEntity` methods in `crates/call/src/call_impl/mod.rs:67+` need to be trimmed in lockstep to keep that crate building.
+  - **collab_ui crate deletion.** The crate is unreferenced; ripping the directory + its workspace member entry is a tight follow-up after the workspace.rs cut.
+  - **collab / livekit / call crate deletion.** Bigger swing — `call::init` is still wired and `WorkspaceStore`'s `update_followers` calls `GlobalAnyActiveCall::try_global`. Order: rip workspace's follower protocol → rip `call` crate → rip `livekit` deps → rip `collab` tests.
+  - **Namespace allowlist tuning.** `zed.rs:5259/5263` keybind validation still expects `channel_modal` and `collab_panel` namespaces. Removing them when those actions stop being declared is a one-line touch but tied to the action-definition deletions in `workspace.rs`.
+
+---
+
 ## 2026-05-22
 
 ### Auto-update: stop pointing remaining zed.dev surfaces at Zed
