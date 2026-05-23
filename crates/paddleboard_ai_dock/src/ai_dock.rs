@@ -29,6 +29,7 @@ pub struct AiDock {
     tab: AiDockTab,
     catalog: Arc<Catalog>,
     mcp_view: Option<Entity<agent_ui::McpServersView>>,
+    expanded: bool,
 }
 
 impl AiDock {
@@ -45,7 +46,13 @@ impl AiDock {
             tab,
             catalog: CatalogGlobal::get(cx),
             mcp_view: None,
+            expanded: false,
         });
+    }
+
+    fn toggle_expanded(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.expanded = !self.expanded;
+        cx.notify();
     }
 
     fn cancel(&mut self, _: &menu::Cancel, _window: &mut Window, cx: &mut Context<Self>) {
@@ -118,6 +125,11 @@ impl AiDock {
             self.catalog.skills.len(),
             self.catalog.mcp_servers.len(),
         );
+        let (expand_icon, expand_tooltip) = if self.expanded {
+            (IconName::Minimize, "Collapse")
+        } else {
+            (IconName::Maximize, "Expand")
+        };
         h_flex()
             .w_full()
             .justify_between()
@@ -136,11 +148,22 @@ impl AiDock {
                     ),
             )
             .child(
-                IconButton::new("ai-dock-close", IconName::Close)
-                    .tooltip(Tooltip::text("Close"))
-                    .on_click(cx.listener(|_, _: &ClickEvent, _window, cx| {
-                        cx.emit(DismissEvent);
-                    })),
+                h_flex()
+                    .gap_1()
+                    .child(
+                        IconButton::new("ai-dock-expand", expand_icon)
+                            .tooltip(Tooltip::text(expand_tooltip))
+                            .on_click(cx.listener(|this, _: &ClickEvent, window, cx| {
+                                this.toggle_expanded(window, cx);
+                            })),
+                    )
+                    .child(
+                        IconButton::new("ai-dock-close", IconName::Close)
+                            .tooltip(Tooltip::text("Close"))
+                            .on_click(cx.listener(|_, _: &ClickEvent, _window, cx| {
+                                cx.emit(DismissEvent);
+                            })),
+                    ),
             )
             .into_any_element()
     }
@@ -175,12 +198,18 @@ impl Render for AiDock {
         let tab_switcher = self.render_tab_switcher(cx);
         let body = self.render_tab_body(window, cx);
 
+        let (width, height) = if self.expanded {
+            (rems(80.), rems(54.))
+        } else {
+            (rems(56.), rems(36.))
+        };
+
         v_flex()
             .id("ai-dock")
             .key_context("AiDock")
             .elevation_3(cx)
-            .w(rems(56.))
-            .h(rems(36.))
+            .w(width)
+            .h(height)
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::cancel))
             .on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, window, cx| {
