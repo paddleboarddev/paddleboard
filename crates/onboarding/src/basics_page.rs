@@ -432,8 +432,13 @@ fn render_import_settings_section(tab_index: &mut isize, cx: &mut App) -> impl I
         .child(h_flex().gap_1().child(vscode).child(cursor))
 }
 
-pub(crate) const FEATURED_AGENT_IDS: &[&str] =
-    &["claude-acp", "codex-acp", "github-copilot-cli", "cursor"];
+pub(crate) const FEATURED_AGENT_IDS: &[&str] = &[
+    "claude-acp",
+    "codex-acp",
+    "github-copilot-cli",
+    "cursor",
+    "gemini",
+];
 
 // PaddleBoard: parallel display labels for the welcome-screen featured strip.
 // Kept separate from FEATURED_AGENT_IDS so the telemetry constant stays a
@@ -446,6 +451,7 @@ const WELCOME_FEATURED_AGENT_LABELS: &[(&str, &str)] = &[
     ("codex-acp", "Codex"),
     ("github-copilot-cli", "Copilot"),
     ("cursor", "Cursor"),
+    ("gemini", "Gemini"),
 ];
 
 // PaddleBoard: replaces the upstream 5-card "Agent Setup" row with a single
