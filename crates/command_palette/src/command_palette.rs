@@ -695,6 +695,18 @@ impl PickerDelegate for CommandPaletteDelegate {
 }
 
 pub fn humanize_action_name(name: &str) -> String {
+    // PaddleBoard: rename the `zed` action namespace to `paddleboard` for
+    // user-facing display (command palette, which-key, keymap editor, menus).
+    // The underlying action name returned by `Action::name()` is still
+    // `zed::...`, so every binding in `assets/keymaps/` keeps resolving — this
+    // is presentation-only, not a real namespace rename.
+    let renamed;
+    let name = if let Some(rest) = name.strip_prefix("zed::") {
+        renamed = format!("paddleboard::{rest}");
+        renamed.as_str()
+    } else {
+        name
+    };
     let capacity = name.len() + name.chars().filter(|c| c.is_uppercase()).count();
     let mut result = String::with_capacity(capacity);
     for char in name.chars() {
@@ -752,6 +764,11 @@ mod tests {
         assert_eq!(
             humanize_action_name("go_to_line::Deploy"),
             "go to line: deploy"
+        );
+        // PaddleBoard: `zed::` namespace is remapped to `paddleboard:` for display.
+        assert_eq!(
+            humanize_action_name("zed::OpenOnboarding"),
+            "paddleboard: open onboarding"
         );
     }
 
