@@ -4,6 +4,31 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-24
+
+### PR #41 + workspace surgical rip of AutoWatch / ScreenShare / video-track plumbing
+- Opened PR #41 (`rip-collab-livekit`) covering the 6 commits from the 2026-05-23 session that unwired `collab_ui`, `notifications`, `title_bar`, `file_finder`, and `git_ui` from the paddleboard binary. Net -1,549 lines across 20 files.
+- **Workspace surgical rip (commit `7835e92d5b`):** With `collab_ui` unlinked from the binary, the workspace.rs screen-sharing surface was now self-contained. Removed:
+  - `AutoWatch` enum + impl, `auto_watch` field on `Workspace`, all auto-watch methods (`toggle_auto_watch`, `handle_auto_watch_video_tracks_changed`, `handle_auto_watch_local_share_stopped`, `next_watched_peer`, `auto_watch_state`).
+  - `open_shared_screen`, `shared_screen_for_peer` methods.
+  - `ScreenShare` action from the `collab` namespace actions macro.
+  - `is_sharing_screen`, `create_shared_screen`, `peer_ids_with_video_tracks` from the `AnyActiveCall` trait definition.
+  - `RemoteVideoTracksChanged`, `LocalScreenShareStarted`, `LocalScreenShareStopped` variants from `ActiveCallEvent`.
+  - Matching trait impl methods and event-mapping arms in `crates/call/src/call_impl/mod.rs` (~110 LOC including the `create_shared_screen` impl with its livekit `RemoteVideoTrackView` construction).
+  - `AutoWatchFeatureFlag` from `crates/feature_flags/src/flags.rs` (only consumer was the already-unlinked `collab_ui`).
+  - Cleaned unused imports (`AnyView`, `Pane`, `SharedScreen`) from call_impl.
+- **Intentionally preserved:** `shared_screen.rs` module and its `pub use` re-export in workspace.rs (harmless, and removing it is a separate concern). The `follower_states` / leader-following protocol, `WorkspaceStore`'s follow/update_followers handlers, `call::init` wiring, and the `collab`/`livekit`/`call` crates themselves — all still have intra-workspace or cross-crate consumers. The `pub use livekit_client::{RemoteVideoTrack, ...}` re-exports in call_impl stayed (no external consumers, but they're re-exports from a crate we haven't ripped yet).
+- **Verified:** `cargo check -p paddleboard -p call -p workspace -p feature_flags` clean. `./script/clippy -p paddleboard -p call -p workspace -p feature_flags` (release, all targets, deny warnings) clean. Net -279 lines across 3 files.
+- **Open follow-ups:**
+  - **Follower protocol rip.** `follower_states`, `last_leaders_by_pane`, `leader_updates_tx`, `_apply_leader_updates`, the entire leader/follower negotiation (`start_following`, `follow_next_collaborator`, `unfollow`, `leader_updated`, `update_followers`, etc.), `WorkspaceStore`'s `handle_follow`/`handle_update_followers` request handlers. This is the heaviest remaining workspace.rs surgery (~500+ LOC).
+  - **`call::init` unwiring.** Still wired at boot in `main.rs` and `zed.rs`. Prerequisite: rip the follower protocol first (it calls `GlobalAnyActiveCall::try_global`).
+  - **`collab_ui` crate deletion.** Directory + workspace member entry — trivial once the above are done.
+  - **`collab` / `livekit_*` / `call` crate deletion.** Biggest swing, deferred until the protocol is fully excised from workspace.
+  - **`shared_screen.rs` module removal.** Can be done any time after `create_shared_screen` is gone from call_impl (already done this session) — just needs the `pub mod` + `pub use` lines dropped from workspace.rs.
+  - **Namespace allowlist tuning.** `zed.rs` keybind validation still expects `collab_panel` / `channel_modal` / `collab` namespaces — tied to action-definition deletions.
+
+---
+
 ## 2026-05-23
 
 ### Unwire collab_ui from the paddleboard binary
