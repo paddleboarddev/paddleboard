@@ -1396,7 +1396,7 @@ pub struct Workspace {
     project: Entity<Project>,
     follower_states: HashMap<CollaboratorId, FollowerState>,
     last_leaders_by_pane: HashMap<WeakEntity<Pane>, CollaboratorId>,
-    auto_watch: AutoWatch,
+
     window_edited: bool,
     last_window_title: Option<String>,
     dirty_items: HashMap<EntityId, Subscription>,
@@ -1449,18 +1449,6 @@ pub struct FollowerState {
     items_by_leader_view_id: HashMap<ViewId, FollowerView>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AutoWatch {
-    Off,
-    Active { watched_peer: Option<PeerId> },
-    Paused,
-}
-
-impl AutoWatch {
-    pub fn enabled(&self) -> bool {
-        matches!(self, AutoWatch::Active { .. } | AutoWatch::Paused)
-    }
-}
 
 struct FollowerView {
     view: Box<dyn FollowableItemHandle>,
@@ -1842,7 +1830,7 @@ impl Workspace {
             project: project.clone(),
             follower_states: Default::default(),
             last_leaders_by_pane: Default::default(),
-            auto_watch: AutoWatch::Off,
+
             dispatching_keystrokes: Default::default(),
             window_edited: false,
             last_window_title: None,
@@ -4854,108 +4842,6 @@ impl Workspace {
         item
     }
 
-    pub fn open_shared_screen(
-        &mut self,
-        peer_id: PeerId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(shared_screen) =
-            self.shared_screen_for_peer(peer_id, &self.active_pane, window, cx)
-        {
-            self.active_pane.update(cx, |pane, cx| {
-                pane.add_item(Box::new(shared_screen), false, true, None, window, cx)
-            });
-        }
-    }
-
-    pub fn auto_watch_state(&self) -> &AutoWatch {
-        &self.auto_watch
-    }
-
-    fn next_watched_peer(&self, cx: &App) -> Option<PeerId> {
-        self.active_call()
-            .and_then(|call| call.peer_ids_with_video_tracks(cx).first().copied())
-    }
-
-    pub fn toggle_auto_watch(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.auto_watch.enabled() {
-            self.auto_watch = AutoWatch::Off;
-            cx.notify();
-            return;
-        }
-
-        let active_pane = self.active_pane.clone();
-        self.unfollow_in_pane(&active_pane, window, cx);
-
-        let local_is_sharing = self
-            .active_call()
-            .map_or(false, |call| call.is_sharing_screen(cx));
-
-        if local_is_sharing {
-            self.auto_watch = AutoWatch::Paused;
-        } else {
-            let watched_peer = self.next_watched_peer(cx);
-            self.auto_watch = AutoWatch::Active { watched_peer };
-
-            if let Some(peer_id) = watched_peer {
-                self.open_shared_screen(peer_id, window, cx);
-            }
-        }
-
-        cx.notify();
-    }
-
-    fn handle_auto_watch_video_tracks_changed(
-        &mut self,
-        peer_id: PeerId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let AutoWatch::Active { watched_peer } = self.auto_watch else {
-            return;
-        };
-
-        let peer_is_sharing = self.active_call().map_or(false, |call| {
-            call.peer_ids_with_video_tracks(cx).contains(&peer_id)
-        });
-        let should_watch_peer = peer_is_sharing && watched_peer.is_none();
-        let watched_peer_stopped_sharing = watched_peer == Some(peer_id) && !peer_is_sharing;
-
-        if should_watch_peer || watched_peer_stopped_sharing {
-            let next_watched_peer = if should_watch_peer {
-                Some(peer_id)
-            } else {
-                self.next_watched_peer(cx)
-            };
-
-            self.auto_watch = AutoWatch::Active {
-                watched_peer: next_watched_peer,
-            };
-
-            if let Some(next_watched_peer) = next_watched_peer {
-                self.open_shared_screen(next_watched_peer, window, cx);
-            }
-        }
-    }
-
-    fn handle_auto_watch_local_share_stopped(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let AutoWatch::Paused = self.auto_watch else {
-            return;
-        };
-
-        let watched_peer = self.next_watched_peer(cx);
-        self.auto_watch = AutoWatch::Active { watched_peer };
-
-        if let Some(peer_id) = watched_peer {
-            self.open_shared_screen(peer_id, window, cx);
-        }
-    }
-
     pub fn activate_item(
         &mut self,
         item: &dyn ItemHandle,
@@ -5786,7 +5672,6 @@ impl Workspace {
             .insert(pane.downgrade(), leader_id);
         self.unfollow(leader_id, window, cx);
         self.unfollow_in_pane(&pane, window, cx);
-        self.auto_watch = AutoWatch::Off;
         self.follower_states.insert(
             leader_id,
             FollowerState {
@@ -6629,23 +6514,8 @@ impl Workspace {
             {
                 item_to_activate = Some((item.location, item.view.boxed_clone()));
             }
-        } else if let Some(shared_screen) =
-            self.shared_screen_for_peer(peer_id, &state.center_pane, window, cx)
-        {
-            item_to_activate = Some((None, Box::new(shared_screen)));
         }
         item_to_activate
-    }
-
-    fn shared_screen_for_peer(
-        &self,
-        peer_id: PeerId,
-        pane: &Entity<Pane>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> Option<Entity<SharedScreen>> {
-        self.active_call()?
-            .create_shared_screen(peer_id, pane, window, cx)
     }
 
     pub fn on_window_activation_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -6696,19 +6566,6 @@ impl Workspace {
         match event {
             ActiveCallEvent::ParticipantLocationChanged { participant_id } => {
                 self.leader_updated(participant_id, window, cx);
-            }
-            ActiveCallEvent::RemoteVideoTracksChanged { participant_id } => {
-                self.leader_updated(participant_id, window, cx);
-                self.handle_auto_watch_video_tracks_changed(*participant_id, window, cx);
-            }
-            ActiveCallEvent::LocalScreenShareStarted => {
-                if let AutoWatch::Active { .. } = self.auto_watch {
-                    self.auto_watch = AutoWatch::Paused;
-                    cx.notify();
-                }
-            }
-            ActiveCallEvent::LocalScreenShareStopped => {
-                self.handle_auto_watch_local_share_stopped(window, cx);
             }
         }
     }
@@ -8075,7 +7932,6 @@ pub trait AnyActiveCall {
     fn unshare_project(&self, _: Entity<Project>, _: &mut App) -> Result<()>;
     fn remote_participant_for_peer_id(&self, _: PeerId, _: &App) -> Option<RemoteCollaborator>;
     fn is_sharing_project(&self, _: &App) -> bool;
-    fn is_sharing_screen(&self, _: &App) -> bool;
     fn has_remote_participants(&self, _: &App) -> bool;
     fn local_participant_is_guest(&self, _: &App) -> bool;
     fn client(&self, _: &App) -> Arc<Client>;
@@ -8098,14 +7954,6 @@ pub trait AnyActiveCall {
         _: &mut Context<Workspace>,
         _: Box<dyn Fn(&mut Workspace, &ActiveCallEvent, &mut Window, &mut Context<Workspace>)>,
     ) -> Subscription;
-    fn create_shared_screen(
-        &self,
-        _: PeerId,
-        _: &Entity<Pane>,
-        _: &mut Window,
-        _: &mut App,
-    ) -> Option<Entity<SharedScreen>>;
-    fn peer_ids_with_video_tracks(&self, _: &App) -> Vec<PeerId>;
 }
 
 #[derive(Clone)]
@@ -8147,7 +7995,6 @@ impl ParticipantLocation {
     }
 }
 /// Workspace-local view of a remote collaborator's state.
-/// This is the subset of `call::RemoteParticipant` that workspace needs.
 #[derive(Clone)]
 pub struct RemoteCollaborator {
     pub user: Arc<User>,
@@ -8158,9 +8005,6 @@ pub struct RemoteCollaborator {
 
 pub enum ActiveCallEvent {
     ParticipantLocationChanged { participant_id: PeerId },
-    RemoteVideoTracksChanged { participant_id: PeerId },
-    LocalScreenShareStarted,
-    LocalScreenShareStopped,
 }
 
 fn leader_border_for_pane(
@@ -9213,7 +9057,6 @@ actions!(
         /// Shares the current project with collaborators.
         ShareProject,
         /// Shares your screen with collaborators.
-        ScreenShare,
         /// Copies the current room name and session id for debugging purposes.
         CopyRoomId,
     ]
