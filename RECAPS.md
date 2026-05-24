@@ -6,6 +6,11 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-24
 
+### PR #42: Delete shared_screen module
+- Removed `pub mod shared_screen` and `pub use shared_screen::SharedScreen` from workspace.rs, deleted `crates/workspace/src/shared_screen.rs` (-126 lines).
+- Last consumer (`create_shared_screen` on `AnyActiveCall`) was removed in PR #41; no crate outside the already-unlinked `collab_ui`/`collab`/`call` referenced `SharedScreen`.
+- **Verified:** `cargo check -p workspace -p paddleboard` and `./script/clippy -p workspace -p paddleboard` both clean.
+
 ### PR #41 + workspace surgical rip of AutoWatch / ScreenShare / video-track plumbing
 - Opened PR #41 (`rip-collab-livekit`) covering the 6 commits from the 2026-05-23 session that unwired `collab_ui`, `notifications`, `title_bar`, `file_finder`, and `git_ui` from the paddleboard binary. Net -1,549 lines across 20 files.
 - **Workspace surgical rip (commit `7835e92d5b`):** With `collab_ui` unlinked from the binary, the workspace.rs screen-sharing surface was now self-contained. Removed:
