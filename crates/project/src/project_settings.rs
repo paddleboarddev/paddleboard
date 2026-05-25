@@ -217,6 +217,10 @@ pub enum ContextServerSettings {
         headers: HashMap<String, String>,
         /// Timeout for tool calls in milliseconds.
         timeout: Option<u64>,
+        /// Pre-registered OAuth client credentials for authorization servers that
+        /// require out-of-band client registration.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        oauth: Option<OAuthClientSettings>,
     },
     Extension {
         /// Whether the context server is enabled.
@@ -272,11 +276,16 @@ impl From<settings::ContextServerSettingsContent> for ContextServerSettings {
                 url,
                 headers,
                 timeout,
+                oauth,
             } => ContextServerSettings::Http {
                 enabled,
                 url,
                 headers,
                 timeout,
+                oauth: oauth.map(|o| OAuthClientSettings {
+                    client_id: o.client_id,
+                    client_secret: o.client_secret,
+                }),
             },
         }
     }
@@ -320,14 +329,33 @@ impl Into<settings::ContextServerSettingsContent> for ContextServerSettings {
                 url,
                 headers,
                 timeout,
+                oauth,
             } => settings::ContextServerSettingsContent::Http {
                 enabled,
                 url,
                 headers,
                 timeout,
+                oauth: oauth.map(|o| settings::OAuthClientSettings {
+                    client_id: o.client_id,
+                    client_secret: o.client_secret,
+                }),
             },
         }
     }
+}
+
+/// Pre-registered OAuth client credentials for MCP servers that don't support
+/// Dynamic Client Registration.
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
+pub struct OAuthClientSettings {
+    /// The OAuth client ID obtained from out-of-band registration with the
+    /// authorization server.
+    pub client_id: String,
+    /// The OAuth client secret, if this is a confidential client. For security,
+    /// prefer providing this interactively; we will prompt and store it in
+    /// the system keychain.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_secret: Option<String>,
 }
 
 impl ContextServerSettings {

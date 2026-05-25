@@ -26,6 +26,7 @@ mod sandbox_tool;
 mod sandbox_service_tool;
 mod tool_permissions;
 mod update_plan_tool;
+mod update_title_tool;
 mod web_search_tool;
 mod write_file_tool;
 
@@ -84,6 +85,7 @@ pub use sandbox_tool::*;
 pub use sandbox_service_tool::*;
 pub use tool_permissions::*;
 pub use update_plan_tool::*;
+pub use update_title_tool::*;
 pub use web_search_tool::*;
 pub use write_file_tool::*;
 
@@ -178,6 +180,7 @@ tools! {
     SandboxTool,
     SandboxServiceTool,
     UpdatePlanTool,
+    UpdateTitleTool,
     WebSearchTool,
     WriteFileTool,
 }
