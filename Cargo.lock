@@ -6513,14 +6513,11 @@ name = "file_finder"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "channel",
- "client",
  "collections",
  "ctor",
  "editor",
  "file_icons",
  "futures 0.3.32",
- "fuzzy",
  "fuzzy_nucleo",
  "gpui",
  "language",
@@ -7692,7 +7689,6 @@ dependencies = [
  "anyhow",
  "askpass",
  "buffer_diff",
- "call",
  "collections",
  "component",
  "ctor",
@@ -11801,18 +11797,10 @@ dependencies = [
 name = "notifications"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "channel",
- "client",
  "component",
- "futures-lite 1.13.0",
  "gpui",
  "paddleboard_actions",
- "rpc",
- "sum_tree",
- "time",
  "ui",
- "util",
  "workspace",
 ]
 
@@ -12793,7 +12781,6 @@ dependencies = [
  "client",
  "clock",
  "codestral",
- "collab_ui",
  "collections",
  "command_palette",
  "component",
@@ -19422,8 +19409,6 @@ dependencies = [
  "anyhow",
  "arrayvec",
  "auto_update",
- "call",
- "channel",
  "chrono",
  "client",
  "cloud_api_types",
@@ -19433,7 +19418,6 @@ dependencies = [
  "git_ui",
  "gpui",
  "icons",
- "livekit_client",
  "notifications",
  "paddleboard_actions",
  "platform_title_bar",
