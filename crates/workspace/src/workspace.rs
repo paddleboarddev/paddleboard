@@ -13,9 +13,16 @@ pub mod pane_group;
 pub mod path_list {
     pub use util::path_list::{PathList, SerializedPathList};
 }
+pub mod path_link;
 mod persistence;
 pub mod searchable;
+<<<<<<< HEAD
 mod security_modal;
+=======
+pub mod security_modal;
+pub mod shared_screen;
+pub use shared_screen::SharedScreen;
+>>>>>>> zed/main
 pub mod focus_follows_mouse;
 mod status_bar;
 pub mod tasks;
@@ -5865,7 +5872,7 @@ impl Workspace {
         self.follower_states.contains_key(&id.into())
     }
 
-    fn active_item_path_changed(
+    pub(crate) fn active_item_path_changed(
         &mut self,
         focus_changed: bool,
         window: &mut Window,
@@ -6565,6 +6572,28 @@ impl Workspace {
             ActiveCallEvent::ParticipantLocationChanged { participant_id } => {
                 self.leader_updated(participant_id, window, cx);
             }
+<<<<<<< HEAD
+=======
+            ActiveCallEvent::RemoteVideoTracksChanged { participant_id } => {
+                self.leader_updated(participant_id, window, cx);
+                self.handle_auto_watch_video_tracks_changed(*participant_id, window, cx);
+            }
+            ActiveCallEvent::LocalScreenShareStarted => {
+                if let AutoWatch::Active { .. } = self.auto_watch {
+                    self.auto_watch = AutoWatch::Paused;
+                    cx.notify();
+                }
+            }
+            ActiveCallEvent::LocalScreenShareStopped => {
+                self.handle_auto_watch_local_share_stopped(window, cx);
+            }
+            ActiveCallEvent::RoomLeft => {
+                if self.auto_watch.enabled() {
+                    self.auto_watch = AutoWatch::Off;
+                    cx.notify();
+                }
+            }
+>>>>>>> zed/main
         }
     }
 
@@ -8003,6 +8032,13 @@ pub struct RemoteCollaborator {
 
 pub enum ActiveCallEvent {
     ParticipantLocationChanged { participant_id: PeerId },
+<<<<<<< HEAD
+=======
+    RemoteVideoTracksChanged { participant_id: PeerId },
+    LocalScreenShareStarted,
+    LocalScreenShareStopped,
+    RoomLeft,
+>>>>>>> zed/main
 }
 
 fn leader_border_for_pane(
