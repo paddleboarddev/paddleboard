@@ -1,8 +1,13 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 name = "paddleboard"
 version = "0.232.0"
+=======
+name = "zed"
+version = "1.5.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
