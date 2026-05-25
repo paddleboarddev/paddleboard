@@ -2051,10 +2051,6 @@ impl EditPredictionStore {
             return;
         }
 
-        if currently_following(&project, cx) {
-            return;
-        }
-
         let Some(project_state) = self.projects.get_mut(&project.entity_id()) else {
             return;
         };
@@ -2191,25 +2187,6 @@ impl EditPredictionStore {
     }
 
     pub const THROTTLE_TIMEOUT: Duration = Duration::from_millis(300);
-}
-
-fn currently_following(project: &Entity<Project>, cx: &App) -> bool {
-    let Some(app_state) = AppState::try_global(cx) else {
-        return false;
-    };
-
-    app_state
-        .workspace_store
-        .read(cx)
-        .workspaces()
-        .filter_map(|workspace| workspace.upgrade())
-        .any(|workspace| {
-            workspace.read(cx).project().entity_id() == project.entity_id()
-                && workspace
-                    .read(cx)
-                    .leader_for_pane(workspace.read(cx).active_pane())
-                    .is_some()
-        })
 }
 
 fn is_ep_store_provider(provider: EditPredictionProvider) -> bool {

@@ -1036,12 +1036,7 @@ impl TitleBar {
         )
     }
 
-    fn window_activation_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.workspace
-            .update(cx, |workspace, cx| {
-                workspace.update_active_view_for_followers(window, cx);
-            })
-            .ok();
+    fn window_activation_changed(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
     }
 
     fn render_connection_status(
