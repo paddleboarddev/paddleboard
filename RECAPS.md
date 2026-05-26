@@ -6,6 +6,9 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Namespace allowlist tuning
+- Removed `channel_modal`, `collab`, `collab_panel` from the keybind namespace allowlist in `zed.rs`. These namespaces no longer have action definitions after the collab crate deletions.
+
 ### Delete `call`, `collab`, `livekit_client`, `livekit_api` crates
 - Deleted 4 crate directories (-56,306 lines across 137 files). Removed workspace member entries, dep definitions from root `Cargo.toml`, and `call` dep from `crates/paddleboard/Cargo.toml`.
 - **Intentionally preserved:** `channel` crate (provides `ChannelId` and types used across the entire codebase — not collab-specific).
