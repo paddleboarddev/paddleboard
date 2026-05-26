@@ -41,6 +41,17 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Verified:** `cargo check`, `cargo test` (81 pass), `./script/clippy` all clean. Local machine has JDK 14 — probe would correctly fire for both Kotlin (needs 17+) and Java (needs 21+).
 - **Not yet smoke-tested live:** Neither `kotlin-language-server` nor `intelephense` installed on this machine. Full live spawn test deferred to when the LSP binaries are available.
 
+### paddleboard_scion foundation crate
+
+- **New crate:** `paddleboard_scion` — pure Rust wrapper around the `scion` CLI for managing deep-agent orchestration. No UI deps (no GPUI). Shells out to the `scion` binary with `--format json --non-interactive`.
+- **Types module (`types.rs`):** Serde types matching Scion's JSON output — `ScionVersion`, `AgentPhase` (9 variants + Unknown), `AgentActivity` (10 variants + Unknown), `AgentDetail`, `AgentInfo`, `TemplateInfo`, `StartAgentOptions`. All enums have `#[serde(other)] Unknown` for forward compatibility. All optional fields use `#[serde(default)]`.
+- **Compat module (`compat.rs`):** `TESTED_VERSION` constant, `Compatibility` enum (Compatible/NewerThanTested/OlderThanTested/Unparseable), semver-based comparison. Runtime `check_compatibility()` logs warnings on version mismatch.
+- **ScionCli struct:** Builder pattern (`with_scion_path`, `with_project_dir`, `with_timeout`). Internal `run_command` (JSON) and `run_raw_command` (text) helpers with timeout. Public methods: `is_available`, `version`, `check_compatibility`, `list_agents`, `start_agent`, `stop_agent`, `delete_agent`, `resume_agent`, `send_message`, `look`, `agent_logs`, `project_init`, `list_templates`.
+- **SCION_COMPAT.md:** Documents which Scion version the types target, source file mappings, type mapping notes, and a changelog + "how to update" section.
+- **Tests:** 25 tests — JSON parsing (agent list, version, templates, unknown variants, minimal fields, all phases, all activities), compat (exact/patch/newer/older/unparseable), builder methods, phase/activity helper methods.
+- **Verified:** `cargo check`, `cargo test` (25 pass), `./script/clippy` all clean.
+- **Follow-ups:** Wire into orchestration panel, streaming `scion logs -f`, UI for starting/stopping agents.
+
 ---
 
 ## 2026-05-25
