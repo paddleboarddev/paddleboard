@@ -6,6 +6,11 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Delete `collab_ui` crate
+- Deleted `crates/collab_ui/` directory, removed workspace member entry and dep definition from root `Cargo.toml`, removed test dep from `crates/collab/Cargo.toml`.
+- Crate was already unlinked from the binary in PR #41; this just removes the dead directory.
+- **Open follow-ups:** `call`/`collab`/`livekit_*` crate deletion, namespace allowlist tuning.
+
 ### Unwire `call::init` from the binary
 - Removed `call::init(...)` from `main.rs`, `zed.rs`, and `visual_test_runner.rs`. `GlobalAnyActiveCall` is no longer set at boot, so all `try_global` calls return `None` and `active_call` on `Workspace` is always `None`.
 - The `call` crate is still a Cargo.toml dependency (transitive consumers exist) but is no longer initialized. Its `ActiveCall` entity is never constructed.
