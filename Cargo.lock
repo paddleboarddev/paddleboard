@@ -419,6 +419,8 @@ dependencies = [
  "notifications",
  "ordered-float 2.10.1",
  "paddleboard_actions",
+ "paddleboard_scion",
+ "paddleboard_scion_ui",
  "parking_lot",
  "paths",
  "picker",
@@ -11977,6 +11979,7 @@ dependencies = [
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_ui",
  "paddleboard_sandbox_settings",
+ "paddleboard_scion_ui",
  "parking_lot",
  "paths",
  "picker",
@@ -12161,6 +12164,20 @@ dependencies = [
  "serde_json",
  "tokio",
  "which 6.0.3",
+]
+
+[[package]]
+name = "paddleboard_scion_ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "gpui_tokio",
+ "log",
+ "paddleboard_actions",
+ "paddleboard_scion",
+ "ui",
+ "workspace",
 ]
 
 [[package]]

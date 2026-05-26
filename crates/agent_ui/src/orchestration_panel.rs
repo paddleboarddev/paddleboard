@@ -6,6 +6,9 @@ use gpui::{
     Action, App, AsyncWindowContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
     IntoElement, Pixels, Render, SharedString, Subscription, WeakEntity, Window, prelude::*, px,
 };
+// PaddleBoard: Scion orchestration support
+use paddleboard_scion::{AgentInfo, AgentPhase};
+use paddleboard_scion_ui::{ScionStore, ScionStoreEvent, ScionStoreGlobal};
 use ui::{Color, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
 use workspace::{
     Workspace,
@@ -27,6 +30,8 @@ pub struct OrchestrationPanel {
     agent_panel: Option<Entity<AgentPanel>>,
     /// Per-thread subscriptions so we re-render on status changes.
     thread_subscriptions: HashMap<acp::SessionId, Subscription>,
+    // PaddleBoard: Scion agent store for container-isolated parallel agents.
+    scion_store: Option<Entity<ScionStore>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -38,14 +43,28 @@ impl OrchestrationPanel {
     ) -> Self {
         let focus_handle = cx.focus_handle();
 
+        // PaddleBoard: resolve ScionStore from Global if available
+        let scion_store = cx
+            .try_global::<ScionStoreGlobal>()
+            .map(|g| g.0.clone());
+
         let mut panel = Self {
             focus_handle,
             position: DockPosition::Right,
             workspace: workspace.clone(),
             agent_panel: None,
             thread_subscriptions: HashMap::default(),
+            scion_store: scion_store.clone(),
             _subscriptions: Vec::new(),
         };
+
+        // PaddleBoard: subscribe to ScionStore events for re-render
+        if let Some(ref store) = scion_store {
+            let sub = cx.subscribe(store, |_this, _store, _event: &ScionStoreEvent, cx| {
+                cx.notify();
+            });
+            panel._subscriptions.push(sub);
+        }
 
         if let Some(workspace_entity) = workspace.upgrade() {
             let agent_panel_now = workspace_entity.read(cx).panel::<AgentPanel>(cx);
@@ -342,9 +361,132 @@ impl Panel for OrchestrationPanel {
     }
 }
 
+impl OrchestrationPanel {
+    // PaddleBoard: Scion agent section rendering
+    fn render_scion_section(&self, cx: &Context<Self>) -> Option<gpui::AnyElement> {
+        let store = self.scion_store.as_ref()?;
+        let store = store.read(cx);
+        if !store.is_available() {
+            return None;
+        }
+
+        let agents = store.agents();
+
+        let mut elements: Vec<gpui::AnyElement> = Vec::new();
+
+        elements.push(
+            h_flex()
+                .h_7()
+                .px_2()
+                .mt_2()
+                .border_b_1()
+                .border_color(cx.theme().colors().border_variant)
+                .items_center()
+                .child(
+                    Label::new("Scion Agents")
+                        .size(LabelSize::Small)
+                        .color(Color::Muted),
+                )
+                .into_any_element(),
+        );
+
+        if agents.is_empty() {
+            elements.push(
+                div()
+                    .px_2()
+                    .py_1()
+                    .child(
+                        Label::new("No agents running")
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .into_any_element(),
+            );
+        } else {
+            for agent in agents {
+                elements.push(self.render_scion_agent_row(agent, cx));
+            }
+        }
+
+        Some(v_flex().children(elements).into_any_element())
+    }
+
+    fn render_scion_agent_row(&self, agent: &AgentInfo, cx: &Context<Self>) -> gpui::AnyElement {
+        let phase = agent.phase.unwrap_or(AgentPhase::Unknown);
+        let activity = agent.activity;
+
+        let icon_color = if phase == AgentPhase::Error {
+            Color::Error
+        } else if phase == AgentPhase::Running {
+            if activity.map_or(false, |a| a.needs_attention()) {
+                Color::Warning
+            } else {
+                Color::Accent
+            }
+        } else if phase.is_active() {
+            Color::Accent
+        } else {
+            Color::Muted
+        };
+
+        let activity_label: Option<SharedString> = activity.map(|a| {
+            let label = match a {
+                paddleboard_scion::AgentActivity::Working => "working",
+                paddleboard_scion::AgentActivity::Thinking => "thinking",
+                paddleboard_scion::AgentActivity::Executing => "executing",
+                paddleboard_scion::AgentActivity::WaitingForInput => "waiting",
+                paddleboard_scion::AgentActivity::Blocked => "blocked",
+                paddleboard_scion::AgentActivity::Completed => "done",
+                paddleboard_scion::AgentActivity::LimitsExceeded => "limits",
+                paddleboard_scion::AgentActivity::Stalled => "stalled",
+                paddleboard_scion::AgentActivity::Offline => "offline",
+                paddleboard_scion::AgentActivity::Crashed => "crashed",
+                paddleboard_scion::AgentActivity::Unknown => "unknown",
+            };
+            SharedString::from(label)
+        });
+
+        h_flex()
+            .id(SharedString::from(format!("scion-agent-{}", agent.name)))
+            .w_full()
+            .h_7()
+            .pl(px(8.0))
+            .pr_2()
+            .gap_1p5()
+            .items_center()
+            .cursor_pointer()
+            .hover(|style| style.bg(cx.theme().colors().element_hover))
+            .child(
+                Icon::new(IconName::Terminal)
+                    .size(IconSize::XSmall)
+                    .color(icon_color),
+            )
+            .child(
+                Label::new(SharedString::from(agent.name.clone()))
+                    .size(LabelSize::Small)
+                    .when(phase == AgentPhase::Running, |label| {
+                        label.color(Color::Default)
+                    })
+                    .when(phase != AgentPhase::Running, |label| {
+                        label.color(Color::Muted)
+                    }),
+            )
+            .when_some(activity_label, |el, label| {
+                el.child(
+                    Label::new(label)
+                        .size(LabelSize::XSmall)
+                        .color(Color::Muted),
+                )
+            })
+            .into_any_element()
+    }
+}
+
 impl Render for OrchestrationPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = cx.theme().colors();
+        // PaddleBoard: render Scion section alongside native threads
+        let scion_section = self.render_scion_section(cx);
 
         v_flex()
             .size_full()
@@ -362,7 +504,13 @@ impl Render for OrchestrationPanel {
                             .color(Color::Muted),
                     ),
             )
-            .child(div().flex_1().overflow_hidden().child(self.render_thread_tree(cx)))
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_hidden()
+                    .child(self.render_thread_tree(cx))
+                    .when_some(scion_section, |el, section| el.child(section)),
+            )
     }
 }
 

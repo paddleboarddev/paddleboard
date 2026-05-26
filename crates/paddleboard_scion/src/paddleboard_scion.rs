@@ -265,6 +265,31 @@ impl ScionCli {
         let output = self.run_command(&["templates", "list"]).await?;
         serde_json::from_str(&output).context("failed to parse scion templates list output")
     }
+
+    /// Spawns `scion logs -f <name>` and returns the child process with piped
+    /// stdout. The caller reads lines from `child.stdout` and must kill/drop
+    /// the child when done.
+    pub fn stream_logs(&self, name: &str) -> Result<tokio::process::Child> {
+        let binary = self.resolve_binary()?;
+        let mut cmd = tokio::process::Command::new(&binary);
+        cmd.args(["logs", "-f", name, "--non-interactive"]);
+
+        if let Some(ref dir) = self.project_dir {
+            cmd.current_dir(dir);
+        }
+
+        cmd.stdin(std::process::Stdio::null());
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        cmd.spawn()
+            .with_context(|| format!("failed to spawn scion logs -f {name}"))
+    }
+
+    /// Pulls an agent's changes into the local worktree.
+    pub async fn sync_from(&self, name: &str) -> Result<String> {
+        self.run_raw_command(&["sync", "from", name]).await
+    }
 }
 
 #[cfg(test)]

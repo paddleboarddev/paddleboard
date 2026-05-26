@@ -50,7 +50,17 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **SCION_COMPAT.md:** Documents which Scion version the types target, source file mappings, type mapping notes, and a changelog + "how to update" section.
 - **Tests:** 25 tests — JSON parsing (agent list, version, templates, unknown variants, minimal fields, all phases, all activities), compat (exact/patch/newer/older/unparseable), builder methods, phase/activity helper methods.
 - **Verified:** `cargo check`, `cargo test` (25 pass), `./script/clippy` all clean.
-- **Follow-ups:** Wire into orchestration panel, streaming `scion logs -f`, UI for starting/stopping agents.
+- **Follow-ups:** Picker-based start modal, streaming log view as workspace item, sync with workspace refresh.
+
+### Scion UI integration (paddleboard_scion_ui crate)
+
+- **New crate:** `paddleboard_scion_ui` — GPUI layer on top of `paddleboard_scion`. Contains `ScionStore` entity that polls `scion list` every 5s via `gpui_tokio::Tokio::spawn_result`, emits `ScionStoreEvent::AgentsUpdated` for reactive UI updates. Exposed as `ScionStoreGlobal` for the orchestration panel.
+- **Orchestration panel integration:** Added "Scion Agents" section below native threads. Each agent row shows a terminal icon colored by phase (accent=running, warning=needs attention, error=error, muted=stopped), agent name, and activity badge. Section hidden when Scion is not installed.
+- **Command palette actions:** Added `scion::StartAgent`, `scion::StopAgent`, `scion::SyncFromAgent`, `scion::ShowAgentLogs` to `paddleboard_actions`. Action handlers in `paddleboard_scion_ui::init` — start creates a default agent, stop targets the first running agent, sync/logs target the first agent. All surface errors via `workspace.show_error`.
+- **paddleboard_scion additions:** `stream_logs(name)` spawns `scion logs -f` with piped stdout (caller owns child), `sync_from(name)` runs `scion sync from`.
+- **Wiring:** `paddleboard_scion_ui::init(cx)` called from `main.rs`, `ScionStoreGlobal` set per workspace, orchestration panel reads it via `cx.try_global`.
+- **Verified:** `cargo build -p paddleboard`, `cargo test`, `./script/clippy` all clean.
+- **Follow-ups:** Picker-based start modal with template selection, streaming log view as workspace item, sync with workspace file rescan.
 
 ---
 

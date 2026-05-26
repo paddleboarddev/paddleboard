@@ -1,0 +1,22 @@
+[package]
+name = "paddleboard_scion_ui"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_scion_ui.rs"
+
+[dependencies]
+anyhow.workspace = true
+gpui.workspace = true
+gpui_tokio.workspace = true
+log.workspace = true
+paddleboard_actions.workspace = true
+paddleboard_scion.workspace = true
+ui.workspace = true
+workspace.workspace = true

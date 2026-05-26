@@ -500,6 +500,7 @@ fn main() {
         paddleboard_sandbox_settings::init(cx);
         paddleboard_sandbox_prereqs_ui::init(cx);
         paddleboard_ai_dock::init(cx);
+        paddleboard_scion_ui::init(cx);
         if let Some(app_commit_sha) = app_commit_sha {
             AppCommitSha::set_global(app_commit_sha, cx);
         }

@@ -902,3 +902,21 @@ pub mod ai_dock {
         ]
     );
 }
+
+pub mod scion {
+    use gpui::actions;
+
+    actions!(
+        scion,
+        [
+            /// Starts a new Scion agent with the default template.
+            StartAgent,
+            /// Stops a running Scion agent.
+            StopAgent,
+            /// Syncs changes from a Scion agent into the local worktree.
+            SyncFromAgent,
+            /// Shows recent log output from a Scion agent.
+            ShowAgentLogs,
+        ]
+    );
+}
