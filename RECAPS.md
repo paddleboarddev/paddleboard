@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Remove dead AnyActiveCall types and collab functions from workspace
+- Removed `AnyActiveCall` trait, `GlobalAnyActiveCall`, `ActiveCallEvent`, `ParticipantLocation`, `RemoteCollaborator` type definitions (-501 lines from workspace.rs).
+- Removed `active_call` field from `Workspace`, `active_call()`/`active_global_call()` methods, the call-membership block in `prepare_to_close`, and `join_channel`/`join_channel_internal`/`join_in_room_project` functions.
+- Slimmed `WorkspaceStore` to just workspace tracking (removed `client`/`_subscriptions` fields).
+- **Verified:** `cargo check` and `./script/clippy` on `paddleboard` and `workspace` clean.
+
 ### Namespace allowlist tuning
 - Removed `channel_modal`, `collab`, `collab_panel` from the keybind namespace allowlist in `zed.rs`. These namespaces no longer have action definitions after the collab crate deletions.
 
