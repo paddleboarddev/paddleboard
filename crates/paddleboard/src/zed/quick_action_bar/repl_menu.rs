@@ -16,6 +16,7 @@ use util::ResultExt;
 
 use super::QuickActionBar;
 
+// PaddleBoard: REPL docs still point at Zed (shared codebase, no PB-specific docs)
 const PADDLEBOARD_REPL_DOCUMENTATION: &str = "https://zed.dev/docs/repl";
 
 struct ReplMenuState {
