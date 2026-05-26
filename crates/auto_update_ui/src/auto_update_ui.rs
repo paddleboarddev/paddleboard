@@ -2,32 +2,14 @@ use std::sync::Arc;
 
 use agent_skills::GLOBAL_SKILLS_DIR_DISPLAY;
 use auto_update::{AutoUpdater, release_notes_url};
-use client::zed_urls;
 use db::kvp::Dismissable;
-<<<<<<< HEAD
-use fs::Fs;
-=======
-use editor::{Editor, MultiBuffer};
->>>>>>> zed/main
 use gpui::{
     App, DismissEvent, EventEmitter, FocusHandle, Focusable, TaskExt, Window, actions, prelude::*,
 };
-<<<<<<< HEAD
-use notifications::status_toast::StatusToast;
+use prompt_store::rules_to_skills_migration;
 use release_channel::ReleaseChannel;
 use semver::Version;
-use settings::Settings as _;
-use ui::{AnnouncementToast, ListBulletItem, ParallelAgentsIllustration, prelude::*};
-=======
-use markdown_preview::markdown_preview_view::{MarkdownPreviewMode, MarkdownPreviewView};
-use prompt_store::rules_to_skills_migration;
-use release_channel::{AppVersion, ReleaseChannel};
-use semver::Version;
-use serde::Deserialize;
-use smol::io::AsyncReadExt;
 use ui::{AnnouncementToast, ListBulletItem, SkillsIllustration, prelude::*};
-use util::{ResultExt as _, maybe};
->>>>>>> zed/main
 use workspace::{
     Workspace,
     notifications::{
@@ -35,11 +17,7 @@ use workspace::{
         simple_message_notification::MessageNotification,
     },
 };
-<<<<<<< HEAD
 use paddleboard_actions::{ShowUpdateNotification, assistant::FocusAgent};
-=======
-use zed_actions::ShowUpdateNotification;
->>>>>>> zed/main
 
 actions!(
     auto_update,
@@ -139,19 +117,12 @@ fn announcement_for_version(version: &Version, cx: &App) -> Option<AnnouncementC
             secondary_action_label: "Read Documentation".into(),
             primary_action_url: None,
             primary_action_callback: Some(Arc::new(move |window, cx| {
-                window.dispatch_action(Box::new(zed_actions::assistant::FocusAgent), cx);
+                window.dispatch_action(Box::new(FocusAgent), cx);
             })),
-<<<<<<< HEAD
-            on_dismiss: Some(Arc::new(|cx| {
-                ParallelAgentAnnouncement::set_dismissed(true, cx)
-            })),
-            // PaddleBoard: upstream points "Learn More" at zed.dev/blog. PaddleBoard ships its own
-            // parallel-agents/multi-workspace docs in the repo README, so route there instead.
-            secondary_action_url: Some("https://github.com/jasonsmithio/paddleboard".into()),
-=======
             on_dismiss: Some(Arc::new(|cx| SkillsAnnouncement::set_dismissed(true, cx))),
-            secondary_action_url: Some(zed_urls::skills_docs(cx).into()),
->>>>>>> zed/main
+            // PaddleBoard: upstream points "Learn More" at zed.dev/blog. PaddleBoard ships its own
+            // skills docs in the repo README, so route there instead.
+            secondary_action_url: Some("https://github.com/jasonsmithio/paddleboard".into()),
         })
     } else {
         None

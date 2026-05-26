@@ -619,35 +619,6 @@ pub fn init(
         // the legacy pane-item handler that used to live here has moved.
     })
     .detach();
-<<<<<<< HEAD
-    cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
-        workspace.register_action(
-            |workspace: &mut Workspace,
-             _: &paddleboard_actions::agent::OpenRulesToSkillsMigrationInfo,
-             window: &mut Window,
-             cx: &mut Context<Workspace>| {
-                // The banner is the only intended entry point and is
-                // gated on the skills flag, but dispatch from the
-                // command palette or a keybind is still possible — only
-                // open the explainer if the flag is enabled so it never
-                // surfaces outside its intended audience.
-                //
-                // Race note: `has_flag` returns false before server
-                // flags are received, so a dispatch during that brief
-                // window is a no-op even for users who genuinely have
-                // the flag. The banner itself has the same race — it
-                // stays hidden until flags arrive — so a user who can
-                // see the banner has, by definition, already passed it.
-                if cx.has_flag::<SkillsFeatureFlag>() {
-                    crate::ui::RulesToSkillsModal::toggle(workspace, window, cx);
-                }
-            },
-        );
-    })
-    .detach();
-
-=======
->>>>>>> zed/main
     cx.observe_new(ManageProfilesModal::register).detach();
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
         workspace.register_action(
@@ -743,12 +714,8 @@ fn update_command_palette_filter(cx: &mut App) {
             TypeId::of::<ToggleEditPrediction>(),
         ];
 
-<<<<<<< HEAD
         let open_rules_library_action = [TypeId::of::<paddleboard_actions::assistant::OpenRulesLibrary>()];
-=======
-        let open_rules_library_action = [TypeId::of::<zed_actions::assistant::OpenRulesLibrary>()];
-        let open_skill_creator_action = [TypeId::of::<zed_actions::assistant::OpenSkillCreator>()];
->>>>>>> zed/main
+        let open_skill_creator_action = [TypeId::of::<paddleboard_actions::assistant::OpenSkillCreator>()];
 
         if disable_ai {
             filter.hide_namespace("agent");

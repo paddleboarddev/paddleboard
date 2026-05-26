@@ -1436,64 +1436,6 @@ impl ExtensionsPage {
                 self.upsells.remove(feature);
             }
         }
-<<<<<<< HEAD
-
-        self.show_acp_registry_upsell = acp_registry_upsell_keywords()
-            .iter()
-            .any(|keyword| search_terms.iter().any(|term| keyword.contains(term)));
-    }
-
-    fn render_acp_registry_upsell(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let registry_url = zed_urls::acp_registry_blog(cx);
-
-        let view_registry = Button::new("view_registry", "View Registry")
-            .style(ButtonStyle::Tinted(ui::TintColor::Warning))
-            .on_click({
-                let registry_url = registry_url.clone();
-                move |_, window, cx| {
-                    telemetry::event!(
-                        "ACP Registry Opened from Extensions",
-                        source = "ACP Registry Upsell",
-                        url = registry_url,
-                    );
-                    window.dispatch_action(Box::new(paddleboard_actions::AcpRegistry), cx)
-                }
-            });
-        let open_registry_button = Button::new("open_registry", "Learn More")
-            .end_icon(
-                Icon::new(IconName::ArrowUpRight)
-                    .size(IconSize::Small)
-                    .color(Color::Muted),
-            )
-            .on_click({
-                move |_event, _window, cx| {
-                    telemetry::event!(
-                        "ACP Registry Viewed",
-                        source = "ACP Registry Upsell",
-                        url = registry_url,
-                    );
-                    cx.open_url(&registry_url)
-                }
-            });
-
-        div().pt_4().px_4().child(
-            Banner::new()
-                .severity(Severity::Warning)
-                .child(
-                    Label::new(
-                        "Agent Server extensions will be deprecated in favor of the ACP registry.",
-                    )
-                    .mt_0p5(),
-                )
-                .action_slot(
-                    h_flex()
-                        .gap_1()
-                        .child(open_registry_button)
-                        .child(view_registry),
-                ),
-        )
-=======
->>>>>>> zed/main
     }
 
     fn render_feature_upsell_banner(

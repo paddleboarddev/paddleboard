@@ -48,14 +48,10 @@ use ui::{
 };
 use update_version::UpdateVersion;
 use util::ResultExt;
-<<<<<<< HEAD
-use workspace::{MultiWorkspace, ToggleWorktreeSecurity, Workspace};
-=======
 use workspace::{
     MultiWorkspace, ToggleWorktreeSecurity, Workspace,
-    notifications::{NotifyResultExt, NotifyTaskExt as _},
+    notifications::NotifyTaskExt as _,
 };
->>>>>>> zed/main
 
 use paddleboard_actions::OpenRemote;
 
@@ -450,26 +446,7 @@ impl TitleBar {
             titlebar
         });
 
-<<<<<<< HEAD
-        // The banner label stays static ("Introducing: Skills") regardless
-        // of whether the user had Rules to migrate; the explainer modal
-        // is where the migration-specific summary surfaces. Keeping the
-        // label static avoids the rebuild-on-migration-completion plumbing
-        // we'd otherwise need to dodge the title-bar-vs-migration race.
-        let banner = Some(cx.new(|cx| {
-            OnboardingBanner::new(
-                "Skills Migration Announcement",
-                IconName::Sparkle,
-                "Skills",
-                Some("Introducing:".into()),
-                paddleboard_actions::agent::OpenRulesToSkillsMigrationInfo.boxed_clone(),
-                cx,
-            )
-            .visible_when(|cx| cx.has_flag::<SkillsFeatureFlag>())
-        }));
-=======
         let banner = None;
->>>>>>> zed/main
 
         Self {
             platform_titlebar,

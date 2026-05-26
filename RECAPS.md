@@ -6,6 +6,11 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Resolve upstream merge conflicts from weekly Zed sync
+- Fixed 19 conflict markers across 11 files plus 6 `zed_actions` → `paddleboard_actions` renames and a missing `ClientSecretRequired` match arm in mcp_servers_ui.
+- Key decisions: kept PaddleBoard's `SkillsFeatureFlag` (dropped upstream's `AutoWatchFeatureFlag`), kept `paddleboard_actions` imports everywhere, kept PB's disabled Zeta stub, took upstream's new `ActiveCallEvent` variants for call crate compatibility, took upstream's sidebar/extensions_ui/agent thread additions.
+- `./script/clippy -p paddleboard -p workspace -p editor -p agent_ui -p auto_update_ui -p git_ui -p edit_prediction -p title_bar -p call` clean.
+
 ### Rip peer-follow protocol (preserve agent follow) — PR #44 (merged)
 - Removed the peer-to-peer follower protocol from workspace.rs and 12 other files. Net -2,113 lines across 13 files. Branch: `rip-follower-protocol`.
 - **What was removed:** `FollowNextCollaborator` action, `WorkspaceStore::handle_follow`/`handle_update_followers` RPC handlers, `process_leader_update`, `add_view_from_leader`, `update_active_view_for_followers`, `active_item_for_followers`, `update_followers`, `active_item_for_peer`, `follow_next_collaborator`, `collaborator_left`, `on_active_call_event`, `leader_border_for_pane`. Peer-follow event subscription in item.rs. `FollowEvent`, `Dedup`, `WeakFollowableItemHandle` types. Proto serialization methods on `FollowableItem`/`FollowableItemHandle` (`remote_id`, `from_state_proto`, `to_state_proto`, `to_follow_event`, `add_event_to_update_proto`, `apply_update_proto`, `is_project_item`, `dedup`). Editor peer-follow `impl FollowableItem` (300+ LOC), `update_editor_from_message`, serialize/deserialize helpers. `test_following` and `test_following_with_multiple_excerpts` editor tests. Peer leader decoration in pane_group.rs (100+ LOC status box rendering).
