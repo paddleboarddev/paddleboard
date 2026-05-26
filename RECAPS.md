@@ -19,7 +19,19 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Built-in skill badges:** Added `builtin: bool` field to `SkillEntry` catalog schema. Marked `/verify`, `/review`, `/security-review` as `builtin: true` — these are harness-level Claude Code skills, not `.claude/commands/` files. UI now shows a "Built-in" badge instead of the misleading disabled "Not installed" pill.
 - **3 new installable skills:** Created `/clippy`, `/test`, `/check-drift` as bundled `.claude/commands/` markdown files. Wired into `bundled_skill_content()` so "Add to project" / "Add to user" buttons actually write the file. Skills tab now has 8 entries (up from 5), all with functional actions.
 - **Tests:** Added assertions for the 3 new bundled skills, a `builtin_skills_are_not_bundled` invariant test, updated `every_bundled_id_is_in_catalog` to cover all 5 bundled IDs. All 4 tests pass.
-- **Verified:** App rebuilt and relaunched; Skills tab shows install buttons for bundled skills and "Built-in" for harness skills. Awaiting user confirmation of visual correctness.
+- **Verified:** App rebuilt and relaunched; Skills tab shows install buttons for bundled skills and "Built-in" for harness skills. User confirmed "looks decent."
+
+### Merge dependabot PRs
+
+- Merged PRs #1 (quinn-proto 0.11.13 → 0.11.14), #17 (picomatch 2.3.1 → 2.3.2), #18 (qs 6.14.0 → 6.15.1). All lockfile-only bumps.
+
+### Drift dashboard tuning
+
+- **Removed dead crates from tracking:** Dropped `collab` and `collab_ui` from `CORE_CRATES` (deleted in PRs #47-#48, were showing "missing locally").
+- **Baseline tracking:** Added `--save-baseline` flag to `script/check-upstream-drift` that writes per-crate numbers to `script/upstream-drift-baseline.json`. Initial baseline saved (37,896 combined LOC, 17 PaddleBoard tags across 15 tracked crates).
+- **Delta thresholds:** Added `--check` flag that compares current numbers against baseline and exits non-zero if any crate's combined LOC drifts by more than 5,000 or if total PaddleBoard tags grow by more than 5. Thresholds configurable via `CRATE_DELTA_THRESHOLD` and `TAG_DELTA_THRESHOLD` env vars.
+- **CI integration:** Updated `upstream-drift.yml` to pass `--check` on PR runs so threshold breaches fail the check. Scheduled/manual runs still report-only.
+- **Verified:** Report renders with delta section, `--check` exits 0 against fresh baseline.
 
 ---
 

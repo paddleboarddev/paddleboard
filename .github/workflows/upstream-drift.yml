@@ -57,10 +57,17 @@ jobs:
       - name: Generate drift report
         id: drift
         run: |
-          ./script/check-upstream-drift > /tmp/drift.md
-          cat /tmp/drift.md
+          # On PRs, --check compares against the committed baseline and
+          # exits non-zero if any crate's drift exceeds the threshold.
+          # Scheduled / manual runs just report — no gate.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ./script/check-upstream-drift --check 2>&1 | tee /tmp/drift.md
+          else
+            ./script/check-upstream-drift | tee /tmp/drift.md
+          fi
 
       - name: Write workflow summary
+        if: always()
         run: cat /tmp/drift.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post or update PR comment
