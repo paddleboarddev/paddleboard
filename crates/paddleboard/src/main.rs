@@ -777,7 +777,7 @@ fn main() {
         theme_selector::init(cx);
         settings_profile_selector::init(cx);
         language_tools::init(cx);
-        call::init(app_state.client.clone(), app_state.user_store.clone(), cx);
+        // PaddleBoard: call::init removed — collaborative calls are not supported
         git_ui::init(cx);
         git_graph::init(cx);
         feedback::init(cx);
