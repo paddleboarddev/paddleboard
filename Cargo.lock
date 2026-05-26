@@ -3368,7 +3368,6 @@ dependencies = [
  "clock",
  "cloud_api_types",
  "collab",
- "collab_ui",
  "collections",
  "command_palette_hooks",
  "ctor",
@@ -3445,43 +3444,6 @@ dependencies = [
  "workspace",
  "worktree",
  "zlog",
-]
-
-[[package]]
-name = "collab_ui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "call",
- "channel",
- "client",
- "collections",
- "db",
- "editor",
- "feature_flags",
- "futures 0.3.32",
- "fuzzy",
- "gpui",
- "livekit_client",
- "menu",
- "notifications",
- "paddleboard_actions",
- "picker",
- "project",
- "release_channel",
- "rpc",
- "serde",
- "serde_json",
- "settings",
- "smallvec",
- "telemetry",
- "theme",
- "theme_settings",
- "time",
- "title_bar",
- "ui",
- "util",
- "workspace",
 ]
 
 [[package]]
