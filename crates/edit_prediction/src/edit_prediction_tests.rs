@@ -264,7 +264,7 @@ async fn test_diagnostics_refresh_suppressed_while_following(cx: &mut TestAppCon
 
     let _ = multi_workspace.update(cx, |multi_workspace, window, cx| {
         multi_workspace.workspace().update(cx, |workspace, cx| {
-            workspace.start_following(CollaboratorId::Agent, window, cx);
+            workspace.follow(CollaboratorId::Agent, window, cx);
         });
     });
     cx.run_until_parked();

@@ -4,6 +4,26 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-25
+
+### Upstream merge attempted — deferred
+- Attempted `git merge origin/main` into `rip-follower-protocol`. Hit 17+ conflict sites across 13 files from the weekly Zed upstream sync (crate renames: `paddleboard_actions` → `zed_actions`, new `zed_credentials_provider` crate, `ContextServerStatus` enum expansion, `ActiveCallEvent` new variants, etc.).
+- Resolved workspace.rs, feature_flags, Cargo.toml, and title_bar conflicts successfully but remaining breaks (auto_update_ui, git_ui, agent_ui, sidebar, extensions_ui) require a dedicated upstream merge session.
+- Aborted merge. PR #44 is clean against its branch base; the upstream sync should land on main first via the weekly merge workflow, then this branch can rebase cleanly.
+
+### Rip peer-follow protocol (preserve agent follow) — PR #44
+- Removed the peer-to-peer follower protocol from workspace.rs and 12 other files. Net -2,113 lines across 13 files. Branch: `rip-follower-protocol`.
+- **What was removed:** `FollowNextCollaborator` action, `WorkspaceStore::handle_follow`/`handle_update_followers` RPC handlers, `process_leader_update`, `add_view_from_leader`, `update_active_view_for_followers`, `active_item_for_followers`, `update_followers`, `active_item_for_peer`, `follow_next_collaborator`, `collaborator_left`, `on_active_call_event`, `leader_border_for_pane`. Peer-follow event subscription in item.rs. `FollowEvent`, `Dedup`, `WeakFollowableItemHandle` types. Proto serialization methods on `FollowableItem`/`FollowableItemHandle` (`remote_id`, `from_state_proto`, `to_state_proto`, `to_follow_event`, `add_event_to_update_proto`, `apply_update_proto`, `is_project_item`, `dedup`). Editor peer-follow `impl FollowableItem` (300+ LOC), `update_editor_from_message`, serialize/deserialize helpers. `test_following` and `test_following_with_multiple_excerpts` editor tests. Peer leader decoration in pane_group.rs (100+ LOC status box rendering).
+- **Intentionally preserved:** Agent follow (`workspace.follow(CollaboratorId::Agent, ...)`), `handle_agent_location_changed`, `leader_updated` (agent-only path), `leader_for_pane`, `active_item_for_agent`, `follower_states` HashMap, `FollowerState`/`FollowerView`/`ViewId` structs, `Unfollow` action (generic), `FollowableItem` trait (slimmed to `set_leader_id` + `update_agent_location`), `FollowableViewRegistry::register`/`to_followable_view`, `to_followable_item_handle` on ItemHandle, agent border rendering in pane_group.rs. `AnyActiveCall`, `GlobalAnyActiveCall`, `ActiveCallEvent`, `ParticipantLocation`, `RemoteCollaborator`, `CollaboratorId` — all have non-follow consumers.
+- **Verified:** `./script/clippy -p paddleboard -p workspace -p editor -p debugger_ui -p edit_prediction -p terminal_view -p title_bar -p agent_ui -p call` clean (zero errors, zero warnings on lib targets).
+- **Open follow-ups:**
+  - **`call::init` unwiring.** Now unblocked — the follower protocol no longer calls `GlobalAnyActiveCall::try_global`. `call::init` is still wired at boot in `main.rs` and `zed.rs`.
+  - **`collab_ui` crate deletion.** Directory + workspace member entry — trivial now.
+  - **`collab` / `livekit_*` / `call` crate deletion.** Biggest remaining swing.
+  - **Namespace allowlist tuning.** `zed.rs` keybind validation still expects `collab_panel` / `channel_modal` / `collab` namespaces.
+
+---
+
 ## 2026-05-24
 
 ### PR #42: Delete shared_screen module

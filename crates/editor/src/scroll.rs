@@ -820,6 +820,7 @@ impl Editor {
         );
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_scroll_anchor_remote(
         &mut self,
         scroll_anchor: ScrollAnchor,
