@@ -2648,16 +2648,6 @@ impl Editor {
         })
     }
 
-    /// Returns the project path for the editor's buffer, if any buffer is
-    /// opened in the editor.
-    pub fn project_path(&self, cx: &App) -> Option<ProjectPath> {
-        if let Some(buffer) = self.buffer.read(cx).as_singleton() {
-            buffer.read(cx).project_path(cx)
-        } else {
-            None
-        }
-    }
-
     pub fn selection_menu_enabled(&self, cx: &App) -> bool {
         self.show_selection_menu
             .unwrap_or_else(|| EditorSettings::get_global(cx).toolbar.selections_menu)
@@ -6769,7 +6759,6 @@ impl Editor {
 
         let mut new_selections = Vec::new();
         let mut edits = Vec::new();
-        let mut selection_adjustment = 0isize;
 
         for selection in self.selections.all_adjusted(&self.display_snapshot(cx)) {
             let selection_is_empty = selection.is_empty();
@@ -6784,23 +6773,24 @@ impl Editor {
                 )
             };
 
-            let text = buffer.text_for_range(start..end).collect::<String>();
-            let old_length = text.len() as isize;
-            let text = callback(&text);
+            let old_text = buffer.text_for_range(start..end).collect::<String>();
+            let new_text = callback(&old_text);
 
             new_selections.push(Selection {
-                start: MultiBufferOffset((start.0 as isize - selection_adjustment) as usize),
-                end: MultiBufferOffset(
-                    ((start.0 + text.len()) as isize - selection_adjustment) as usize,
-                ),
+                start: buffer.anchor_before(start),
+                end: buffer.anchor_after(end),
                 goal: SelectionGoal::None,
                 id: selection.id,
                 reversed: selection.reversed,
             });
 
-            selection_adjustment += old_length - text.len() as isize;
+            if new_text != old_text {
+                edits.push((start..end, new_text));
+            }
+        }
 
-            edits.push((start..end, text));
+        if edits.is_empty() {
+            return;
         }
 
         self.transact(window, cx, |this, window, cx| {

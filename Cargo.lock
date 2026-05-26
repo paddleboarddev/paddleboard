@@ -410,6 +410,7 @@ dependencies = [
  "language_models",
  "languages",
  "log",
+ "lru 0.16.4",
  "lsp",
  "markdown",
  "menu",
@@ -442,6 +443,7 @@ dependencies = [
  "serde_json",
  "serde_json_lenient",
  "settings",
+ "skill_creator",
  "smol",
  "streaming_diff",
  "task",
@@ -1320,23 +1322,21 @@ dependencies = [
 name = "auto_update_ui"
 version = "0.1.0"
 dependencies = [
- "agent_settings",
+ "agent_skills",
  "anyhow",
  "auto_update",
  "client",
  "db",
  "editor",
- "fs",
  "gpui",
  "markdown_preview",
  "notifications",
  "paddleboard_actions",
- "project",
+ "prompt_store",
  "release_channel",
  "semver",
  "serde",
  "serde_json",
- "settings",
  "smol",
  "telemetry",
  "ui",
@@ -1564,7 +1564,7 @@ dependencies = [
  "http 0.2.12",
  "http 1.4.0",
  "http-body 0.4.6",
- "lru",
+ "lru 0.12.5",
  "percent-encoding",
  "regex-lite",
  "sha2 0.10.9",
@@ -3136,7 +3136,6 @@ dependencies = [
  "cloud_llm_client",
  "collections",
  "credentials_provider",
- "db",
  "derive_more 2.1.1",
  "feature_flags",
  "fs",
@@ -4055,9 +4054,9 @@ dependencies = [
 
 [[package]]
 name = "cosmic-text"
-version = "0.17.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d8c4e3a1d02f5269ed15c2d70b4647167856f66f228dcdf99050ab77bbb5a56"
+checksum = "be17b688510d934ce13f48a2beba700e11583e281e0fda99c22bb256a14eda73"
 dependencies = [
  "bitflags 2.11.1",
  "fontdb",
@@ -6138,6 +6137,8 @@ dependencies = [
  "settings",
  "shellexpand",
  "terminal_view",
+ "theme",
+ "theme_settings",
  "util",
  "watch",
 ]
@@ -6340,7 +6341,6 @@ name = "extensions_ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "client",
  "cloud_api_types",
  "collections",
  "db",
@@ -7728,6 +7728,7 @@ dependencies = [
  "settings",
  "smallvec",
  "strum 0.27.2",
+ "sysinfo 0.37.2",
  "task",
  "telemetry",
  "theme",
@@ -10160,6 +10161,7 @@ dependencies = [
  "futures 0.3.32",
  "gpui_shared_string",
  "http_client",
+ "log",
  "partial-json-fixer",
  "schemars 1.2.1",
  "serde",
@@ -10835,6 +10837,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
 dependencies = [
  "hashbrown 0.15.5",
+]
+
+[[package]]
+name = "lru"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+dependencies = [
+ "hashbrown 0.16.1",
 ]
 
 [[package]]
@@ -14697,7 +14708,6 @@ dependencies = [
  "chrono",
  "collections",
  "db",
- "feature_flags",
  "fs",
  "futures 0.3.32",
  "fuzzy",
@@ -17336,6 +17346,7 @@ version = "0.1.0"
 dependencies = [
  "agent",
  "agent_settings",
+ "agent_skills",
  "anyhow",
  "audio",
  "codestral",
@@ -17646,6 +17657,30 @@ name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
+
+[[package]]
+name = "skill_creator"
+version = "0.1.0"
+dependencies = [
+ "agent_skills",
+ "anyhow",
+ "editor",
+ "fs",
+ "gpui",
+ "language",
+ "menu",
+ "platform_title_bar",
+ "release_channel",
+ "serde_json",
+ "serde_yaml_ng",
+ "settings",
+ "theme_settings",
+ "ui",
+ "ui_input",
+ "util",
+ "workspace",
+ "worktree",
+]
 
 [[package]]
 name = "skrifa"
@@ -19413,7 +19448,6 @@ dependencies = [
  "client",
  "cloud_api_types",
  "db",
- "feature_flags",
  "fs",
  "git_ui",
  "gpui",
@@ -19980,9 +20014,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter"
-version = "0.26.8"
+version = "0.26.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "887bd495d0582c5e3e0d8ece2233666169fa56a9644d172fc22ad179ab2d0538"
+checksum = "4dab76d0b724ba557954125188cf0633a1ca43199ced82d95c7b9c32cc3de1f3"
 dependencies = [
  "cc",
  "regex",
@@ -20422,7 +20456,9 @@ dependencies = [
  "gpui_util",
  "icons",
  "itertools 0.14.0",
+ "log",
  "menu",
+ "num-format",
  "schemars 1.2.1",
  "serde",
  "smallvec",
@@ -23375,6 +23411,7 @@ dependencies = [
  "collections",
  "component",
  "db",
+ "dirs",
  "fs",
  "futures 0.3.32",
  "futures-lite 1.13.0",

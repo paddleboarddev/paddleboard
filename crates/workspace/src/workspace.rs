@@ -13,9 +13,11 @@ pub mod pane_group;
 pub mod path_list {
     pub use util::path_list::{PathList, SerializedPathList};
 }
+pub mod path_link;
 mod persistence;
 pub mod searchable;
-mod security_modal;
+// PaddleBoard: shared_screen deleted in PR #42; security_modal made pub by upstream
+pub mod security_modal;
 pub mod focus_follows_mouse;
 mod status_bar;
 pub mod tasks;
@@ -5624,7 +5626,7 @@ impl Workspace {
         self.follower_states.contains_key(&id.into())
     }
 
-    fn active_item_path_changed(
+    pub(crate) fn active_item_path_changed(
         &mut self,
         focus_changed: bool,
         window: &mut Window,
@@ -7354,6 +7356,10 @@ pub struct RemoteCollaborator {
 
 pub enum ActiveCallEvent {
     ParticipantLocationChanged { participant_id: PeerId },
+    RemoteVideoTracksChanged { participant_id: PeerId },
+    LocalScreenShareStarted,
+    LocalScreenShareStopped,
+    RoomLeft,
 }
 
 fn window_bounds_env_override() -> Option<Bounds<Pixels>> {
