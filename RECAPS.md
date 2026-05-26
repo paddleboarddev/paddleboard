@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Zed Cloud cleanup: redirect remaining zed.dev URLs
+- Replaced `DOCS_URL` and `STATUS_URL` constants in `zed.rs` with PaddleBoard GitHub repo links.
+- Removed "Documentation", "PaddleBoard Twitter", and "Join the Team" menu items from Help menu (pointed at zed.dev/twitter/jobs). Kept "PaddleBoard Repository" which already pointed correctly.
+- Tagged remaining `zed.dev/docs` troubleshooting URLs (Linux/Windows) with `(upstream docs, shared codebase)` so intent is clear.
+- Tagged REPL docs URL with `// PaddleBoard:` comment.
+- **Verified:** `cargo check` and `./script/clippy` clean.
+
 ### Remove dead AnyActiveCall types and collab functions from workspace
 - Removed `AnyActiveCall` trait, `GlobalAnyActiveCall`, `ActiveCallEvent`, `ParticipantLocation`, `RemoteCollaborator` type definitions (-501 lines from workspace.rs).
 - Removed `active_call` field from `Workspace`, `active_call()`/`active_global_call()` methods, the call-membership block in `prepare_to_close`, and `join_channel`/`join_channel_internal`/`join_in_room_project` functions.
