@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Delete `call`, `collab`, `livekit_client`, `livekit_api` crates
+- Deleted 4 crate directories (-56,306 lines across 137 files). Removed workspace member entries, dep definitions from root `Cargo.toml`, and `call` dep from `crates/paddleboard/Cargo.toml`.
+- **Intentionally preserved:** `channel` crate (provides `ChannelId` and types used across the entire codebase — not collab-specific).
+- **Verified:** `cargo check -p paddleboard` and `./script/clippy -p paddleboard` clean.
+- **Open follow-ups:** namespace allowlist tuning in `zed.rs` (`collab_panel`/`channel_modal`/`collab` namespaces).
+
 ### Delete `collab_ui` crate
 - Deleted `crates/collab_ui/` directory, removed workspace member entry and dep definition from root `Cargo.toml`, removed test dep from `crates/collab/Cargo.toml`.
 - Crate was already unlinked from the binary in PR #41; this just removes the dead directory.
