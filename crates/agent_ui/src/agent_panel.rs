@@ -20,20 +20,9 @@ use project::AgentId;
 use serde::{Deserialize, Serialize};
 use settings::{LanguageModelProviderSetting, LanguageModelSelection};
 
-<<<<<<< HEAD
 use paddleboard_actions::agent::{
     AddSelectionToThread, ConflictContent, LogoutAgent, ReauthenticateAgent,
     ResolveConflictedFilesWithAgent, ResolveConflictsWithAgent, ReviewBranchDiff,
-=======
-use zed_actions::{
-    DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
-    agent::{
-        AddSelectionToThread, ConflictContent, LogoutAgent, OpenSettings, ReauthenticateAgent,
-        ResetAgentZoom, ResetOnboarding, ResolveConflictedFilesWithAgent,
-        ResolveConflictsWithAgent, ReviewBranchDiff,
-    },
-    assistant::{FocusAgent, OpenRulesLibrary, OpenSkillCreator, Toggle, ToggleFocus},
->>>>>>> zed/main
 };
 
 use crate::ExpandMessageEditor;
@@ -44,16 +33,10 @@ use crate::terminal_thread_metadata_store::{TerminalThreadMetadata, TerminalThre
 use crate::thread_metadata_store::{ThreadId, ThreadMetadataStore, ThreadMetadataStoreEvent};
 use crate::{
     AddContextServer, AgentDiffPane, ConversationView, CopyThreadToClipboard, Follow,
-<<<<<<< HEAD
-    InlineAssistant, LoadThreadFromClipboard, NewThread, OpenActiveThreadAsMarkdown, OpenAgentDiff,
-    ResetTrialEndUpsell, ResetTrialUpsell, ShowAllSidebarThreadMetadata, ShowThreadMetadata,
-    ThreadHistory, ThreadHistoryView, ThreadHistoryViewEvent, ToggleNewThreadMenu,
-    ToggleOptionsMenu,
-=======
-    LoadThreadFromClipboard, NewTerminalThread, NewThread, OpenActiveThreadAsMarkdown,
-    OpenAgentDiff, ResetTrialEndUpsell, ResetTrialUpsell, ShowAllSidebarThreadMetadata,
-    ShowThreadMetadata, ToggleNewThreadMenu, ToggleOptionsMenu,
->>>>>>> zed/main
+    LoadThreadFromClipboard, NewTerminalThread, NewThread,
+    OpenActiveThreadAsMarkdown, OpenAgentDiff, ResetTrialEndUpsell, ResetTrialUpsell,
+    ShowAllSidebarThreadMetadata, ShowThreadMetadata, ThreadHistory, ThreadHistoryView,
+    ThreadHistoryViewEvent, ToggleNewThreadMenu, ToggleOptionsMenu,
     agent_configuration::{AgentConfiguration, AssistantConfigurationEvent},
     conversation_view::{AcpThreadViewEvent, ThreadView},
     ui::{AgentNotification, AgentNotificationEvent, EndTrialUpsell},
@@ -72,11 +55,6 @@ use client::UserStore;
 use collections::HashMap;
 use editor::{Editor, MultiBuffer};
 use extension_host::ExtensionStore;
-<<<<<<< HEAD
-use feature_flags::{FeatureFlagAppExt, SkillsFeatureFlag};
-=======
-
->>>>>>> zed/main
 use fs::Fs;
 use gpui::{
     Action, Anchor, Animation, AnimationExt, AnyElement, App, AsyncWindowContext, ClipboardItem,
@@ -108,7 +86,7 @@ use workspace::{
 use paddleboard_actions::{
     DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize,
     agent::{OpenSettings, ResetAgentZoom, ResetOnboarding},
-    assistant::{FocusAgent, OpenRulesLibrary, Toggle, ToggleFocus},
+    assistant::{FocusAgent, OpenRulesLibrary, OpenSkillCreator, Toggle, ToggleFocus},
 };
 
 const AGENT_PANEL_KEY: &str = "agent_panel";
@@ -4988,13 +4966,8 @@ impl AgentPanel {
                                 .header("MCP Servers")
                                 .action("Add Custom Server…", Box::new(AddContextServer))
                                 .action(
-<<<<<<< HEAD
                                     "View Server Extensions",
                                     Box::new(paddleboard_actions::Extensions {
-=======
-                                    "Install New Servers…",
-                                    Box::new(zed_actions::Extensions {
->>>>>>> zed/main
                                         category_filter: Some(
                                             paddleboard_actions::ExtensionCategoryFilter::ContextServers,
                                         ),
@@ -5012,7 +4985,7 @@ impl AgentPanel {
                                 )
                                 .entry("Manage Skills…", None, |window, cx| {
                                     window.dispatch_action(
-                                        Box::new(zed_actions::OpenSettingsAt {
+                                        Box::new(paddleboard_actions::OpenSettingsAt {
                                             path: "agent.skills".to_string(),
                                         }),
                                         cx,

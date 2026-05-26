@@ -2580,24 +2580,6 @@ impl Sidebar {
                         });
 
                         let project_group_key = project_group_key.clone();
-<<<<<<< HEAD
-                        let multi_workspace = multi_workspace.clone();
-                        menu.entry(
-                            "Move to New Window",
-                            Some(Box::new(
-                                paddleboard_actions::agents_sidebar::MoveWorkspaceToNewWindow,
-                            )),
-                            move |window, cx| {
-                                multi_workspace
-                                    .update(cx, |multi_workspace, cx| {
-                                        multi_workspace
-                                            .remove_project_group(&project_group_key, window, cx)
-                                            .detach_and_log_err(cx);
-                                    })
-                                    .ok();
-                                weak_menu.update(cx, |_, cx| cx.emit(DismissEvent)).ok();
-                            })
-=======
                         let remove_multi_workspace = multi_workspace.clone();
                         menu.separator().entry("Remove", None, move |window, cx| {
                             remove_multi_workspace
@@ -2609,7 +2591,6 @@ impl Sidebar {
                                 .ok();
                             weak_menu.update(cx, |_, cx| cx.emit(DismissEvent)).ok();
                         })
->>>>>>> zed/main
                     });
 
                 let this = this.clone();

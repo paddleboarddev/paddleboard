@@ -1095,7 +1095,7 @@ mod tests {
         main_workspace.update_in(cx, |workspace, window, cx| {
             handle_create_worktree(
                 workspace,
-                &zed_actions::CreateWorktree {
+                &paddleboard_actions::CreateWorktree {
                     worktree_name: Some("feature".to_string()),
                     branch_target: NewWorktreeBranchTarget::CurrentBranch,
                 },

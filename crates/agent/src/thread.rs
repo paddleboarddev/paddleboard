@@ -2,17 +2,10 @@ use crate::{
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool,
     FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
-<<<<<<< HEAD
     ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool,
     SandboxServiceTool, SandboxTool, SpawnAgentTool, SystemPromptTemplate, Template, Templates,
-    TerminalTool, ToolPermissionDecision, UpdatePlanTool, UserAgentsMd, WebSearchTool,
-    WriteFileTool, decide_permission_from_settings,
-=======
-    ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool, SpawnAgentTool,
-    SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision,
-    UpdatePlanTool, UpdateTitleTool, UserAgentsMd, WebSearchTool, WriteFileTool,
-    decide_permission_from_settings,
->>>>>>> zed/main
+    TerminalTool, ToolPermissionDecision, UpdatePlanTool, UpdateTitleTool, UserAgentsMd,
+    WebSearchTool, WriteFileTool, decide_permission_from_settings,
 };
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;

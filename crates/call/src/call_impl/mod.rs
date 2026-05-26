@@ -204,8 +204,6 @@ impl AnyActiveCall for ActiveCallEntity {
                             participant_id: *participant_id,
                         })
                     }
-<<<<<<< HEAD
-=======
                     room::Event::RemoteVideoTracksChanged { participant_id } => {
                         Some(ActiveCallEvent::RemoteVideoTracksChanged {
                             participant_id: *participant_id,
@@ -218,7 +216,6 @@ impl AnyActiveCall for ActiveCallEntity {
                         Some(ActiveCallEvent::LocalScreenShareStopped)
                     }
                     room::Event::RoomLeft { .. } => Some(ActiveCallEvent::RoomLeft),
->>>>>>> zed/main
                     _ => None,
                 };
                 if let Some(event) = mapped {

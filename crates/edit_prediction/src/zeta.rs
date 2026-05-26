@@ -1,16 +1,13 @@
 use crate::{
     CurrentEditPrediction, DebugEvent, EditPredictionFinishedDebugEvent, EditPredictionId,
-    EditPredictionModelInput, EditPredictionStartedDebugEvent, EditPredictionStore,
+    EditPredictionModelInput, EditPredictionStartedDebugEvent, EditPredictionStore, StoredEvent,
     ZedUpdateRequiredError, buffer_path_with_id_fallback,
     cursor_excerpt::{self, compute_cursor_excerpt, compute_syntax_ranges},
     prediction::EditPredictionResult,
 };
 use anyhow::Result;
-<<<<<<< HEAD
-use std::env;
-=======
 use buffer_diff::BufferDiff;
->>>>>>> zed/main
+use std::env;
 use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };
@@ -49,7 +46,10 @@ use crate::open_ai_compatible::{
 pub fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
-    capture_data: Option<Vec<StoredEvent>>,
+    capture_data: Option<(
+        Vec<StoredEvent>,
+        Task<Result<collections::HashMap<Arc<Path>, Entity<BufferDiff>>>>,
+    )>,
     cx: &mut Context<EditPredictionStore>,
 ) -> Task<Result<Option<EditPredictionResult>>> {
     cx.background_spawn(async move { anyhow::Ok(None) })

@@ -1153,7 +1153,7 @@ impl ContextServerStore {
             let configuration = configuration.clone();
             async move |this, cx| {
                 if let Some(server_url) = needs_keychain_check {
-                    let credentials_provider = cx.update(|cx| zed_credentials_provider::global(cx));
+                    let credentials_provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
                     let has_keychain_secret =
                         Self::load_client_secret(&credentials_provider, &server_url, cx)
                             .await
@@ -1252,7 +1252,7 @@ impl ContextServerStore {
             async move |this, cx| {
                 // Store the secret if non-empty (empty means public client / skip).
                 if !secret.is_empty() {
-                    let credentials_provider = cx.update(|cx| zed_credentials_provider::global(cx));
+                    let credentials_provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
                     if let Err(err) =
                         Self::store_client_secret(&credentials_provider, &server_url, &secret, cx)
                             .await
@@ -1285,7 +1285,7 @@ impl ContextServerStore {
                         // Clear the bad secret from the keychain so the user
                         // gets a fresh prompt.
                         let credentials_provider =
-                            cx.update(|cx| zed_credentials_provider::global(cx));
+                            cx.update(|cx| paddleboard_credentials_provider::global(cx));
                         Self::clear_client_secret(&credentials_provider, &server_url, cx)
                             .await
                             .log_err();

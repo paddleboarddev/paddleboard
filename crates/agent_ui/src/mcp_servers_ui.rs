@@ -420,6 +420,7 @@ impl McpServersView {
             ContextServerStatus::Error(_) => ("Error", Color::Error),
             ContextServerStatus::AuthRequired => ("Auth Required", Color::Warning),
             ContextServerStatus::Authenticating => ("Authenticating", Color::Info),
+            ContextServerStatus::ClientSecretRequired { .. } => ("Secret Required", Color::Warning),
         };
 
         let error_message = if let ContextServerStatus::Error(error) = &status {
