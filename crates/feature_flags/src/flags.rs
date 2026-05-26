@@ -59,6 +59,18 @@ impl FeatureFlag for UpdatePlanToolFeatureFlag {
 }
 register_feature_flag!(UpdatePlanToolFeatureFlag);
 
+pub struct UpdateTitleToolFeatureFlag;
+
+impl FeatureFlag for UpdateTitleToolFeatureFlag {
+    const NAME: &'static str = "update-title-tool";
+    type Value = PresenceFlag;
+
+    fn enabled_for_staff() -> bool {
+        false
+    }
+}
+register_feature_flag!(UpdateTitleToolFeatureFlag);
+
 pub struct LspToolFeatureFlag;
 
 impl FeatureFlag for LspToolFeatureFlag {
@@ -116,6 +128,7 @@ impl FeatureFlag for AgentThreadWorktreeLabelFlag {
 }
 register_feature_flag!(AgentThreadWorktreeLabelFlag);
 
+<<<<<<< HEAD
 pub struct SkillsFeatureFlag;
 
 impl FeatureFlag for SkillsFeatureFlag {
@@ -127,3 +140,12 @@ impl FeatureFlag for SkillsFeatureFlag {
     }
 }
 register_feature_flag!(SkillsFeatureFlag);
+=======
+pub struct AutoWatchFeatureFlag;
+
+impl FeatureFlag for AutoWatchFeatureFlag {
+    const NAME: &'static str = "auto-watch-screens";
+    type Value = PresenceFlag;
+}
+register_feature_flag!(AutoWatchFeatureFlag);
+>>>>>>> zed/main

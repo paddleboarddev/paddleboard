@@ -6899,6 +6899,61 @@ async fn test_convert_to_base64(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn test_manipulate_text_handles_cross_excerpt_edit_that_applies_differently(
+    cx: &mut TestAppContext,
+) {
+    init_test(cx, |_| {});
+
+    let buffer_1 = cx.new(|cx| {
+        let mut buffer = Buffer::local("ab", cx);
+        // The selected multibuffer range starts in this excerpt, but edits to
+        // it are skipped because the underlying buffer is read-only.
+        buffer.set_capability(language::Capability::ReadOnly, cx);
+        buffer
+    });
+    let buffer_2 = cx.new(|cx| Buffer::local("cd", cx));
+    let multibuffer = cx.new(|cx| {
+        let mut multibuffer = MultiBuffer::new(ReadWrite);
+        multibuffer.set_excerpts_for_path(
+            PathKey::sorted(0),
+            buffer_1.clone(),
+            [Point::new(0, 0)..Point::new(0, 2)],
+            0,
+            cx,
+        );
+        multibuffer.set_excerpts_for_path(
+            PathKey::sorted(1),
+            buffer_2.clone(),
+            [Point::new(0, 0)..Point::new(0, 2)],
+            0,
+            cx,
+        );
+        multibuffer
+    });
+
+    cx.add_window(|window, cx| {
+        let mut editor = build_editor(multibuffer, window, cx);
+        let len = editor.buffer().read(cx).len(cx);
+        editor.change_selections(SelectionEffects::no_scroll(), window, cx, |selections| {
+            selections.select_ranges([MultiBufferOffset(0)..len])
+        });
+
+        // No-op transformations should not be sent through `MultiBuffer::edit`.
+        editor.manipulate_text(window, cx, |text| text.to_string());
+        assert_eq!(buffer_1.read(cx).text(), "ab");
+        assert_eq!(buffer_2.read(cx).text(), "cd");
+
+        // A real replacement can apply differently than requested; selection
+        // remapping should follow the actual edit instead of predicted offsets.
+        editor.manipulate_text(window, cx, |_| "replacement".to_string());
+        assert_eq!(buffer_1.read(cx).text(), "ab");
+        assert_eq!(buffer_2.read(cx).text(), "");
+
+        editor
+    });
+}
+
+#[gpui::test]
 async fn test_manipulate_text(cx: &mut TestAppContext) {
     init_test(cx, |_| {});
 
@@ -27958,7 +28013,7 @@ async fn test_breakpoint_toggling(cx: &mut TestAppContext) {
         )
     });
 
-    let project_path = editor.update(cx, |editor, cx| editor.project_path(cx).unwrap());
+    let project_path = editor.update(cx, |editor, cx| editor.active_project_path(cx).unwrap());
     let abs_path = project.read_with(cx, |project, cx| {
         project
             .absolute_path(&project_path, cx)
@@ -28108,7 +28163,8 @@ async fn test_breakpoint_after_save_as_existing_path(cx: &mut TestAppContext) {
         editor.toggle_breakpoint(&actions::ToggleBreakpoint, window, cx);
     });
 
-    let project_path = first_editor.update(cx, |editor, cx| editor.project_path(cx).unwrap());
+    let project_path =
+        first_editor.update(cx, |editor, cx| editor.active_project_path(cx).unwrap());
     let abs_path = project.read_with(cx, |project, cx| {
         project
             .absolute_path(&project_path, cx)
@@ -28176,7 +28232,7 @@ async fn test_log_breakpoint_editing(cx: &mut TestAppContext) {
         )
     });
 
-    let project_path = editor.update(cx, |editor, cx| editor.project_path(cx).unwrap());
+    let project_path = editor.update(cx, |editor, cx| editor.active_project_path(cx).unwrap());
     let abs_path = project.read_with(cx, |project, cx| {
         project
             .absolute_path(&project_path, cx)
@@ -28347,7 +28403,7 @@ async fn test_breakpoint_enabling_and_disabling(cx: &mut TestAppContext) {
         )
     });
 
-    let project_path = editor.update(cx, |editor, cx| editor.project_path(cx).unwrap());
+    let project_path = editor.update(cx, |editor, cx| editor.active_project_path(cx).unwrap());
     let abs_path = project.read_with(cx, |project, cx| {
         project
             .absolute_path(&project_path, cx)
@@ -28508,9 +28564,9 @@ impl BookmarkTestContext {
     }
 
     fn abs_path(&self) -> Arc<Path> {
-        let project_path = self
-            .editor
-            .read_with(&self.cx, |editor, cx| editor.project_path(cx).unwrap());
+        let project_path = self.editor.read_with(&self.cx, |editor, cx| {
+            editor.active_project_path(cx).unwrap()
+        });
         self.project.read_with(&self.cx, |project, cx| {
             project
                 .absolute_path(&project_path, cx)

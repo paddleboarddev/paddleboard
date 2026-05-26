@@ -1,25 +1,45 @@
 use std::sync::Arc;
 
-use agent_settings::{AgentSettings, WindowLayout};
+use agent_skills::GLOBAL_SKILLS_DIR_DISPLAY;
 use auto_update::{AutoUpdater, release_notes_url};
+use client::zed_urls;
 use db::kvp::Dismissable;
+<<<<<<< HEAD
 use fs::Fs;
+=======
+use editor::{Editor, MultiBuffer};
+>>>>>>> zed/main
 use gpui::{
     App, DismissEvent, EventEmitter, FocusHandle, Focusable, TaskExt, Window, actions, prelude::*,
 };
+<<<<<<< HEAD
 use notifications::status_toast::StatusToast;
 use release_channel::ReleaseChannel;
 use semver::Version;
 use settings::Settings as _;
 use ui::{AnnouncementToast, ListBulletItem, ParallelAgentsIllustration, prelude::*};
+=======
+use markdown_preview::markdown_preview_view::{MarkdownPreviewMode, MarkdownPreviewView};
+use prompt_store::rules_to_skills_migration;
+use release_channel::{AppVersion, ReleaseChannel};
+use semver::Version;
+use serde::Deserialize;
+use smol::io::AsyncReadExt;
+use ui::{AnnouncementToast, ListBulletItem, SkillsIllustration, prelude::*};
+use util::{ResultExt as _, maybe};
+>>>>>>> zed/main
 use workspace::{
-    FocusWorkspaceSidebar, Workspace,
+    Workspace,
     notifications::{
         Notification, NotificationId, SuppressEvent, show_app_notification,
         simple_message_notification::MessageNotification,
     },
 };
+<<<<<<< HEAD
 use paddleboard_actions::{ShowUpdateNotification, assistant::FocusAgent};
+=======
+use zed_actions::ShowUpdateNotification;
+>>>>>>> zed/main
 
 actions!(
     auto_update,
@@ -72,105 +92,66 @@ struct AnnouncementContent {
     description: SharedString,
     bullet_items: Vec<SharedString>,
     primary_action_label: SharedString,
+    secondary_action_label: SharedString,
     primary_action_url: Option<SharedString>,
     primary_action_callback: Option<Arc<dyn Fn(&mut Window, &mut App) + Send + Sync>>,
     secondary_action_url: Option<SharedString>,
     on_dismiss: Option<Arc<dyn Fn(&mut App) + Send + Sync>>,
 }
 
-struct ParallelAgentAnnouncement;
+struct SkillsAnnouncement;
 
-impl Dismissable for ParallelAgentAnnouncement {
-    const KEY: &'static str = "parallel-agent-announcement";
+impl Dismissable for SkillsAnnouncement {
+    const KEY: &'static str = "skills_announcement_dismissed";
 }
 
 fn announcement_for_version(version: &Version, cx: &App) -> Option<AnnouncementContent> {
-    let version_with_parallel_agents = match ReleaseChannel::global(cx) {
-        ReleaseChannel::Stable => Version::new(0, 233, 0),
+    let version_with_skills = match ReleaseChannel::global(cx) {
+        ReleaseChannel::Stable => Version::new(1, 4, 0),
         ReleaseChannel::Dev | ReleaseChannel::Nightly | ReleaseChannel::Preview => {
-            Version::new(0, 232, 0)
+            Version::new(1, 4, 0)
         }
     };
 
-    if *version >= version_with_parallel_agents
-        && !ParallelAgentAnnouncement::dismissed(cx)
-        && !project::DisableAiSettings::get_global(cx).disable_ai
-    {
-        let fs = <dyn Fs>::global(cx);
+    if *version >= version_with_skills && !SkillsAnnouncement::dismissed(cx) {
+        // Only mention the Rules → Skills migration if the user actually
+        // had Rules that got migrated. New users (and existing users who
+        // never created a Rule) would otherwise be confused by a bullet
+        // referring to "your rules" that don't exist.
+        let migrated_anything =
+            rules_to_skills_migration::migration_result().is_some_and(|result| !result.is_empty());
+
+        let mut bullet_items: Vec<SharedString> = Vec::with_capacity(3);
+        bullet_items
+            .push(format!("Skills live in {GLOBAL_SKILLS_DIR_DISPLAY}/<name>/SKILL.md").into());
+        if migrated_anything {
+            bullet_items.push(
+                "Default Rules are converted into your global AGENTS.md; all other rules become skills".into(),
+            );
+        }
+        bullet_items.push("Type / to manually invoke a skill".into());
+
         Some(AnnouncementContent {
-            heading: "Introducing Parallel Agents".into(),
-            description: "Run multiple threads of your favorite agents simultaneously across projects in a new workspace layout, tailored for agentic workflows.".into(),
-            bullet_items: vec![
-                "Use your favorite agents in parallel".into(),
-                "Optionally isolate agents using worktrees".into(),
-                "Combine multiple projects in one window".into(),
-            ],
-            primary_action_label: "Try Agentic Layout".into(),
+            heading: "Introducing Skills Support".into(),
+            description: "Extend the agent with focused instructions and domain knowledge.".into(),
+            bullet_items,
+            primary_action_label: "Try Now".into(),
+            secondary_action_label: "Read Documentation".into(),
             primary_action_url: None,
             primary_action_callback: Some(Arc::new(move |window, cx| {
-                let get_layout = AgentSettings::get_layout(cx);
-                let already_agent_layout = matches!(get_layout, WindowLayout::Agent(_));
-
-                let update;
-                if !already_agent_layout {
-                    update = Some(AgentSettings::set_layout(
-                        WindowLayout::Agent(None),
-                        fs.clone(),
-                        cx,
-                    ));
-                } else {
-                    update = None;
-                }
-
-                let revert_fs = fs.clone();
-                window
-                    .spawn(cx, async move |cx| {
-                        if let Some(update) = update {
-                            update.await.ok();
-                        }
-
-                        cx.update(|window, cx| {
-                            if !already_agent_layout {
-                                if let Some(workspace) = Workspace::for_window(window, cx) {
-                                    let toast = StatusToast::new(
-                                        "You are in the new agentic layout!",
-                                        cx,
-                                        move |this, _cx| {
-                                            this.icon(
-                                                Icon::new(IconName::Check)
-                                                    .size(IconSize::Small)
-                                                    .color(Color::Success),
-                                            )
-                                            .action("Revert", move |_window, cx| {
-                                                let _ = AgentSettings::set_layout(
-                                                    get_layout.clone(),
-                                                    revert_fs.clone(),
-                                                    cx,
-                                                );
-                                            })
-                                            .auto_dismiss(false)
-                                            .dismiss_button(true)
-                                        },
-                                    );
-
-                                    workspace.update(cx, |workspace, cx| {
-                                        workspace.toggle_status_toast(toast, cx);
-                                    });
-                                }
-                            }
-
-                            window.dispatch_action(Box::new(FocusWorkspaceSidebar), cx);
-                            window.dispatch_action(Box::new(FocusAgent), cx);
-                        })
-                    })
-                    .detach();
+                window.dispatch_action(Box::new(zed_actions::assistant::FocusAgent), cx);
             })),
+<<<<<<< HEAD
             on_dismiss: Some(Arc::new(|cx| {
                 ParallelAgentAnnouncement::set_dismissed(true, cx)
             })),
             // PaddleBoard: upstream points "Learn More" at zed.dev/blog. PaddleBoard ships its own
             // parallel-agents/multi-workspace docs in the repo README, so route there instead.
             secondary_action_url: Some("https://github.com/jasonsmithio/paddleboard".into()),
+=======
+            on_dismiss: Some(Arc::new(|cx| SkillsAnnouncement::set_dismissed(true, cx))),
+            secondary_action_url: Some(zed_urls::skills_docs(cx).into()),
+>>>>>>> zed/main
         })
     } else {
         None
@@ -211,7 +192,7 @@ impl Notification for AnnouncementToastNotification {}
 impl Render for AnnouncementToastNotification {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         AnnouncementToast::new()
-            .illustration(ParallelAgentsIllustration::new())
+            .illustration(SkillsIllustration::new())
             .heading(self.content.heading.clone())
             .description(self.content.description.clone())
             .bullet_items(
@@ -221,11 +202,12 @@ impl Render for AnnouncementToastNotification {
                     .map(|item| ListBulletItem::new(item.clone())),
             )
             .primary_action_label(self.content.primary_action_label.clone())
+            .secondary_action_label(self.content.secondary_action_label.clone())
             .primary_on_click(cx.listener({
                 let url = self.content.primary_action_url.clone();
                 let callback = self.content.primary_action_callback.clone();
                 move |this, _, window, cx| {
-                    telemetry::event!("Parallel Agent Announcement Main Click");
+                    telemetry::event!("Skills Announcement Main Click");
                     if let Some(callback) = &callback {
                         callback(window, cx);
                     }
@@ -238,14 +220,14 @@ impl Render for AnnouncementToastNotification {
             .secondary_on_click(cx.listener({
                 let url = self.content.secondary_action_url.clone();
                 move |_, _, _window, cx| {
-                    telemetry::event!("Parallel Agent Announcement Secondary Click");
+                    telemetry::event!("Skills Announcement Secondary Click");
                     if let Some(url) = &url {
                         cx.open_url(url);
                     }
                 }
             }))
             .dismiss_on_click(cx.listener(|this, _, _window, cx| {
-                telemetry::event!("Parallel Agent Announcement Dismiss");
+                telemetry::event!("Skills Announcement Dismiss");
                 this.dismiss(cx);
             }))
     }
