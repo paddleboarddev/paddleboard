@@ -104,8 +104,9 @@ use paddleboard_actions::{
     OpenStatusPage, OpenZedUrl, Quit,
 };
 
-const DOCS_URL: &str = "https://zed.dev/docs/";
-const STATUS_URL: &str = "https://status.zed.dev";
+// PaddleBoard: point at the repo — PB doesn't have a hosted docs site
+const DOCS_URL: &str = "https://github.com/jasonsmithio/paddleboard#readme";
+const STATUS_URL: &str = "https://github.com/jasonsmithio/paddleboard";
 
 pub struct CrashHandler(pub Arc<crashes::Client>);
 

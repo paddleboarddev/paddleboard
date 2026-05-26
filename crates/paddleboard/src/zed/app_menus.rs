@@ -306,25 +306,8 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                 MenuItem::action("Request Feature...", paddleboard_actions::feedback::RequestFeature),
                 MenuItem::action("Email Us...", paddleboard_actions::feedback::EmailZed),
                 MenuItem::separator(),
-                MenuItem::action(
-                    "Documentation",
-                    super::OpenBrowser {
-                        url: "https://zed.dev/docs".into(),
-                    },
-                ),
+                // PaddleBoard: point at PB repo instead of zed.dev
                 MenuItem::action("PaddleBoard Repository", feedback::OpenZedRepo),
-                MenuItem::action(
-                    "PaddleBoard Twitter",
-                    super::OpenBrowser {
-                        url: "https://twitter.com/zeddotdev".into(),
-                    },
-                ),
-                MenuItem::action(
-                    "Join the Team",
-                    super::OpenBrowser {
-                        url: "https://zed.dev/jobs".into(),
-                    },
-                ),
             ],
         },
     ]
