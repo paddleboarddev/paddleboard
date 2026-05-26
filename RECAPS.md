@@ -33,6 +33,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **CI integration:** Updated `upstream-drift.yml` to pass `--check` on PR runs so threshold breaches fail the check. Scheduled/manual runs still report-only.
 - **Verified:** Report renders with delta section, `--check` exits 0 against fresh baseline.
 
+### Kotlin/Java JDK version probes
+
+- **Kotlin adapter:** Added once-per-session `java -version` probe to `fetch_latest_server_version`. If `java` is missing or version < 17, shows a notification with install instructions. Shared `parse_java_major_version` function handles both modern (`"21.0.2"`) and legacy (`"1.8.0_392"`) version strings.
+- **Java adapter:** Added the same probe pattern but with JDK 21+ threshold (jdtls requirement). Reuses `parse_java_major_version` from the Kotlin module.
+- **Tests:** 4 unit tests for `parse_java_major_version` covering modern JDK, legacy JDK, JDK 17, and garbage input.
+- **Verified:** `cargo check`, `cargo test` (81 pass), `./script/clippy` all clean. Local machine has JDK 14 — probe would correctly fire for both Kotlin (needs 17+) and Java (needs 21+).
+- **Not yet smoke-tested live:** Neither `kotlin-language-server` nor `intelephense` installed on this machine. Full live spawn test deferred to when the LSP binaries are available.
+
 ---
 
 ## 2026-05-25

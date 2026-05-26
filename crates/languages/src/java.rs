@@ -34,16 +34,63 @@ use std::{
     sync::atomic::{AtomicBool, Ordering::SeqCst},
 };
 
+use crate::kotlin::parse_java_major_version;
+
 pub struct JavaLspAdapter;
 
 impl JavaLspAdapter {
     const SERVER_NAME: LanguageServerName = LanguageServerName::new_static("jdtls");
+    const MIN_JDK_VERSION: u32 = 21;
 
     const MISSING_JDTLS_NOTIFICATION: &'static str =
         "jdtls (Eclipse JDT Language Server) was not found on PATH. Install it via your \
          package manager (macOS: `brew install jdtls`, Debian/Ubuntu: `apt install jdtls`) \
          or download the binary from https://download.eclipse.org/jdtls/snapshots/ and put \
          the `jdtls` launcher on PATH. JDK 21+ is also required at runtime.";
+}
+
+static DID_WARN_JAVA_JDK: AtomicBool = AtomicBool::new(false);
+
+async fn check_java_jdk_version(delegate: &dyn LspAdapterDelegate, cx: &mut AsyncApp) {
+    if DID_WARN_JAVA_JDK.load(SeqCst) {
+        return;
+    }
+
+    let java_path = match delegate.which("java".as_ref()).await {
+        Some(path) => path,
+        None => return,
+    };
+
+    let output = match smol::process::Command::new(&java_path)
+        .arg("-version")
+        .output()
+        .await
+    {
+        Ok(output) => output,
+        Err(_) => return,
+    };
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if let Some(major) = parse_java_major_version(&stderr) {
+        if major < JavaLspAdapter::MIN_JDK_VERSION {
+            if DID_WARN_JAVA_JDK
+                .compare_exchange(false, true, SeqCst, SeqCst)
+                .is_ok()
+            {
+                let min = JavaLspAdapter::MIN_JDK_VERSION;
+                cx.update(|cx| {
+                    delegate.show_notification(
+                        &format!(
+                            "jdtls requires Java {min}+ but found Java {major}. \
+                             Install a newer JDK (macOS: `brew install openjdk@21`, \
+                             Debian/Ubuntu: `apt install openjdk-21-jdk`) and restart PaddleBoard."
+                        ),
+                        cx,
+                    );
+                });
+            }
+        }
+    }
 }
 
 impl LspInstaller for JavaLspAdapter {
@@ -71,6 +118,7 @@ impl LspInstaller for JavaLspAdapter {
         _pre_release: bool,
         cx: &mut AsyncApp,
     ) -> Result<()> {
+        check_java_jdk_version(delegate, cx).await;
         static DID_SHOW_NOTIFICATION: AtomicBool = AtomicBool::new(false);
         if DID_SHOW_NOTIFICATION
             .compare_exchange(false, true, SeqCst, SeqCst)
