@@ -4,6 +4,25 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-26
+
+### Fix startup crash from dead collab keybindings + harden keymap loader
+
+- **Crash:** PaddleBoard panicked on launch at `zed.rs:2192` — the default keymap still referenced `collab_panel::*`, `channel_modal::*`, and `workspace::FollowNextCollaborator` actions that were deleted in PRs #47–#51. The keymap loader's `unwrap()` turned the missing actions into a hard crash.
+- **Keymap cleanup:** Removed all dead collab/channel keybindings from 6 keymap files: `default-macos.json`, `default-linux.json`, `default-windows.json`, `vim.json`, `linux/jetbrains.json`, `macos/jetbrains.json`. Removed entire `CollabPanel`, `ChannelModal`, and `ChannelModal > Picker > Editor` context sections; removed `FollowNextCollaborator` and `collab_panel::ToggleFocus` individual bindings.
+- **Hardened keymap loader:** Replaced 3 `unwrap()` calls in `load_default_keymap` (`zed.rs`) with `.log_err()` so a stale keymap reference logs the error instead of crashing the app. Tagged with `// PaddleBoard:` divergence comment.
+- **Verified:** App builds, launches, and stays running. No crash log output.
+- **Verified:** AI Dock smoke test passed — all 3 tabs (Agents/Skills/MCP) render, switch, and fit the modal.
+
+### AI Dock Skills tab content
+
+- **Built-in skill badges:** Added `builtin: bool` field to `SkillEntry` catalog schema. Marked `/verify`, `/review`, `/security-review` as `builtin: true` — these are harness-level Claude Code skills, not `.claude/commands/` files. UI now shows a "Built-in" badge instead of the misleading disabled "Not installed" pill.
+- **3 new installable skills:** Created `/clippy`, `/test`, `/check-drift` as bundled `.claude/commands/` markdown files. Wired into `bundled_skill_content()` so "Add to project" / "Add to user" buttons actually write the file. Skills tab now has 8 entries (up from 5), all with functional actions.
+- **Tests:** Added assertions for the 3 new bundled skills, a `builtin_skills_are_not_bundled` invariant test, updated `every_bundled_id_is_in_catalog` to cover all 5 bundled IDs. All 4 tests pass.
+- **Verified:** App rebuilt and relaunched; Skills tab shows install buttons for bundled skills and "Built-in" for harness skills. Awaiting user confirmation of visual correctness.
+
+---
+
 ## 2026-05-25
 
 ### Zed Cloud cleanup: redirect remaining zed.dev URLs

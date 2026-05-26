@@ -102,7 +102,16 @@ fn render_skill_row(
 
     let bundled = bundled_skill_content(&entry.id).is_some();
 
-    let action_area: AnyElement = if let Some(scope) = scope {
+    let action_area: AnyElement = if entry.builtin {
+        Button::new(
+            SharedString::from(format!("ai-dock-skill-builtin-{}", entry.id)),
+            "Built-in",
+        )
+        .style(ButtonStyle::Subtle)
+        .label_size(LabelSize::Small)
+        .disabled(true)
+        .into_any_element()
+    } else if let Some(scope) = scope {
         Button::new(
             SharedString::from(format!("ai-dock-skill-installed-{}", entry.id)),
             format!("Installed ({})", scope.label()),
@@ -112,9 +121,6 @@ fn render_skill_row(
         .disabled(true)
         .into_any_element()
     } else if bundled {
-        // Install buttons — one per scope. Disable a button when its target
-        // directory can't be resolved (no workspace open for project; no
-        // $HOME for user) so the user still sees what *would* be possible.
         let entry_id = entry.id.clone();
         let project_btn = {
             let id = entry_id.clone();
@@ -148,8 +154,6 @@ fn render_skill_row(
             .child(user_btn)
             .into_any_element()
     } else {
-        // No bundled content — direct to homepage if present, else surface a
-        // disabled "Not installed" pill so users see the skill exists.
         match entry.homepage.clone() {
             Some(url) => Button::new(
                 SharedString::from(format!("ai-dock-skill-info-{}", entry.id)),

@@ -61,25 +61,49 @@
       "featured": true
     },
     {
+      "id": "clippy",
+      "name": "/clippy",
+      "description": "Run ./script/clippy (the project's custom lint script) instead of raw cargo clippy.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "test",
+      "name": "/test",
+      "description": "Run tests for a specific crate, file, or the whole project. Parses arguments to pick the right cargo test invocation.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "check-drift",
+      "name": "/check-drift",
+      "description": "Run script/check-upstream-drift to see how far PaddleBoard has diverged from upstream Zed.",
+      "homepage": null,
+      "featured": false
+    },
+    {
       "id": "verify",
       "name": "/verify",
       "description": "Run the app and confirm a change actually does what it's supposed to do.",
       "homepage": null,
-      "featured": false
+      "featured": false,
+      "builtin": true
     },
     {
       "id": "review",
       "name": "/review",
       "description": "Review a pull request.",
       "homepage": null,
-      "featured": false
+      "featured": false,
+      "builtin": true
     },
     {
       "id": "security-review",
       "name": "/security-review",
       "description": "Run a complete security review of pending changes on the current branch.",
       "homepage": null,
-      "featured": false
+      "featured": false,
+      "builtin": true
     }
   ],
   "mcp_servers": [
