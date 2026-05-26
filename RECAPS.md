@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-25
 
+### Unwire `call::init` from the binary
+- Removed `call::init(...)` from `main.rs`, `zed.rs`, and `visual_test_runner.rs`. `GlobalAnyActiveCall` is no longer set at boot, so all `try_global` calls return `None` and `active_call` on `Workspace` is always `None`.
+- The `call` crate is still a Cargo.toml dependency (transitive consumers exist) but is no longer initialized. Its `ActiveCall` entity is never constructed.
+- **Verified:** `cargo check -p paddleboard` and `./script/clippy -p paddleboard` clean.
+- **Open follow-ups:** `collab_ui` crate deletion (directory + workspace member), `call`/`collab`/`livekit_*` crate deletion (biggest swing), namespace allowlist tuning in `zed.rs`.
+
 ### Resolve upstream merge conflicts from weekly Zed sync
 - Fixed 19 conflict markers across 11 files plus 6 `zed_actions` → `paddleboard_actions` renames and a missing `ClientSecretRequired` match arm in mcp_servers_ui.
 - Key decisions: kept PaddleBoard's `SkillsFeatureFlag` (dropped upstream's `AutoWatchFeatureFlag`), kept `paddleboard_actions` imports everywhere, kept PB's disabled Zeta stub, took upstream's new `ActiveCallEvent` variants for call crate compatibility, took upstream's sidebar/extensions_ui/agent thread additions.
