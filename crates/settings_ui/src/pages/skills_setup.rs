@@ -79,7 +79,7 @@ pub(crate) fn render_skills_setup_page(
                                     original_window
                                         .update(cx, |_workspace, original_window, cx| {
                                             original_window.dispatch_action(
-                                                zed_actions::assistant::OpenSkillCreator
+                                                paddleboard_actions::assistant::OpenSkillCreator
                                                     .boxed_clone(),
                                                 cx,
                                             );
