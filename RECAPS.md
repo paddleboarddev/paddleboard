@@ -6,6 +6,24 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### Bug fixes, upstream merge cleanup, stale memory audit
+
+- **ADK double-run zombie fix:** `handle_run_agent` in `paddleboard_adk.rs` now kills any previously running `adk web` child process before storing the new one. Without this, calling `RunAgent` twice leaked the first process — `smol::process::Child` doesn't kill on drop.
+- **Upstream merge test fix:** Replaced 6 `zed_actions::assistant::*` references with `paddleboard_actions::assistant::*` in `agent_ui.rs` test `test_agent_command_palette_visibility`. The `zed_actions` crate doesn't exist in PaddleBoard — these came in via the weekly upstream merge.
+- **Stale memory cleanup:** Audited follow-up items from prior sessions. Skills tab bundled content install was already complete (bundled via `include_str!()` from `.claude/commands/*.md`, "Add to project/user" buttons work, "Create Skill" modal works). MCP live log streaming was already complete (`open_server_logs` subscribes to `async_channel` receiver and appends lines in real time). Updated `project_ai_dock.md` and `project_mcp_orchestrator_idea.md` memory files to reflect current state.
+- **Verified:** `cargo check -p paddleboard_adk` and `cargo check -p agent_ui` clean. All 5 ADK tests pass. `test_agent_command_palette_visibility` passes.
+- **Intentionally preserved:** Pre-existing `cloud_api_types::Plan` unused import warning in `agent_panel.rs` (upstream issue, not ours).
+- **Follow-ups:** Tab accumulation on repeated RunAgent calls (each run opens a new "ADK Web" tab; could reuse existing). Scaffold modal could be more visually prominent.
+
+### ADK live test — all four features verified
+
+- **Project detection:** Opened PaddleBoard on a directory containing `agent.py`. Toast "ADK project detected" appeared with "Run Agent" button within seconds.
+- **Run Agent:** `adk web` spawned, read-only "ADK Web" editor tab opened streaming stdout/stderr. Port 8000 parsed from Uvicorn output. Toast "ADK Web running on port 8000" appeared. "Port Fwd" status bar indicator visible.
+- **Stop Agent:** Process killed (confirmed via `ps aux` and log `"ADK Web server stopped"`). Port forward toast and status bar indicator disappeared.
+- **Scaffold Agent:** Modal appeared with agent name input field.
+- **Double-run probe:** Ran RunAgent twice in succession. First process (PID 79858) killed before second (PID 81402) started. Log confirms `"killed previous ADK Web process before starting new one"`. Only one `adk web` process running after second invocation.
+- **Verdict:** PASS — all four ADK features work end-to-end with ADK v1.25.1.
+
 ### Sandbox prereqs: fix gVisor detection on macOS Podman machine
 
 - **gVisor detection fallback:** `check_gvisor` in `paddleboard_sandbox_prereqs.rs` checked `podman info`'s `host.ociRuntimes` map for `runsc`, but on macOS the Podman client doesn't reflect runtimes registered inside the VM — the map is always empty. Added a fallback that probes `podman machine ssh -- runsc --version` when `ociRuntimes` check fails. Tagged with `// PaddleBoard:` comment.

@@ -925,19 +925,19 @@ mod tests {
                 "NewTerminalThread should be visible by default"
             );
             assert!(
-                !filter.is_hidden(&zed_actions::assistant::OpenSkillCreator),
+                !filter.is_hidden(&paddleboard_actions::assistant::OpenSkillCreator),
                 "OpenSkillCreator should be visible by default"
             );
             assert!(
-                !filter.is_hidden(&zed_actions::assistant::CreateSkillFromUrl),
+                !filter.is_hidden(&paddleboard_actions::assistant::CreateSkillFromUrl),
                 "CreateSkillFromUrl should be visible by default"
             );
             assert!(
-                !filter.is_hidden(&zed_actions::assistant::OpenGlobalAgentsMdRules),
+                !filter.is_hidden(&paddleboard_actions::assistant::OpenGlobalAgentsMdRules),
                 "OpenGlobalAgentsMdRules should be visible by default"
             );
             assert!(
-                !filter.is_hidden(&zed_actions::assistant::OpenProjectAgentsMdRules),
+                !filter.is_hidden(&paddleboard_actions::assistant::OpenProjectAgentsMdRules),
                 "OpenProjectAgentsMdRules should be visible by default"
             );
         });
@@ -964,11 +964,11 @@ mod tests {
                 "NewTerminalThread should be hidden when agent is disabled"
             );
             assert!(
-                filter.is_hidden(&zed_actions::assistant::OpenGlobalAgentsMdRules),
+                filter.is_hidden(&paddleboard_actions::assistant::OpenGlobalAgentsMdRules),
                 "OpenGlobalAgentsMdRules should be hidden when agent is disabled"
             );
             assert!(
-                filter.is_hidden(&zed_actions::assistant::OpenProjectAgentsMdRules),
+                filter.is_hidden(&paddleboard_actions::assistant::OpenProjectAgentsMdRules),
                 "OpenProjectAgentsMdRules should be hidden when agent is disabled"
             );
         });
