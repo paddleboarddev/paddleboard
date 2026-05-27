@@ -18,7 +18,24 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Drift baseline updated:** Tag count grew by +6 from polish divergence comments; saved fresh baseline.
 - **UI smoke test passed:** App launches, Welcome featured strip shows catalog agents, AI Dock modal renders all 3 tabs, MCP tab content scrolls, orchestration panel shows Scion section. Scion agent-specific features (named log tabs, sync toast, activity detail) couldn't be exercised without running agents.
 - **Catalog label fix:** Shortened agent display names in `catalog.json` — "Claude Agent" → "Claude", "Codex CLI" → "Codex", "GitHub Copilot" → "Copilot". Keeps the Welcome featured strip compact (matching the old hardcoded labels). Cursor stays `featured: false` intentionally.
-- **Follow-ups:** Streaming log view (replace one-shot 200-line buffer with `stream_logs()`), OTEL telemetry stream in orchestration panel, live test of Scion-specific features with running agents.
+- **Follow-ups:** OTEL telemetry stream in orchestration panel, live test of Scion-specific features with running agents.
+
+### Streaming Scion log view
+
+- **Replaced one-shot log buffer with live streaming.** "View Logs" now loads the last 200 lines as before, then spawns `scion logs -f` via `stream_logs()` on the tokio runtime. New lines are sent over an `async_channel` to the foreground, which appends them to the buffer in real-time. The stream auto-stops when the tab is closed (WeakEntity pattern) or the child process exits.
+- **Channel-based architecture:** Tokio runtime reads lines from the child's stdout via `BufReader::read_line()`, sends through a bounded(64) channel; foreground GPUI task receives and calls `buffer.edit()` to append. Clean separation of async I/O and UI updates.
+- **Added deps:** `tokio` to `agent_ui`, `editor`/`language`/`multi_buffer`/`project`/`tokio` to `paddleboard_scion_ui`.
+- **Verified:** `cargo check -p paddleboard` clean, clippy clean, all tests pass.
+
+### ADK integration (paddleboard_adk crate)
+
+- **New crate:** `paddleboard_adk` — Google Agent Development Kit integration with two command palette actions.
+- **`adk: scaffold agent`:** Opens a modal (name input + Create button), then spawns `adk create <name>` in a terminal via `workspace.spawn_in_terminal()`. Follows the Scion `StartAgentModal` pattern.
+- **`adk: run agent`:** Spawns `adk web` in a terminal. The `adk web` dev server's URL appears in the terminal output for the user to click.
+- **Action definitions:** Added `pub mod adk { ScaffoldAgent, RunAgent }` to `paddleboard_actions`.
+- **Wiring:** `paddleboard_adk::init(cx)` called from `main.rs`, workspace member + dep added to root `Cargo.toml`.
+- **Verified:** `cargo check -p paddleboard` clean, clippy clean on all changed crates.
+- **Follow-ups:** Forwarded Ports integration for `adk web` (via sandbox service tool), ADK project detection (show Run button when `agent.py`/`agent.yaml` present), AI Dock catalog entry for ADK.
 
 ---
 

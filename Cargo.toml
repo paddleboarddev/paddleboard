@@ -232,6 +232,7 @@ members = [
     "crates/paddleboard_sandbox_prereqs_state",
     "crates/paddleboard_sandbox_prereqs_ui",
     "crates/paddleboard_sandbox_settings",
+    "crates/paddleboard_adk",
     "crates/paddleboard_ai_dock",
     "crates/paddleboard_scion",
     "crates/paddleboard_scion_ui",
@@ -496,6 +497,7 @@ paddleboard_sandbox_prereqs = { path = "crates/paddleboard_sandbox_prereqs" }
 paddleboard_sandbox_prereqs_state = { path = "crates/paddleboard_sandbox_prereqs_state" }
 paddleboard_sandbox_prereqs_ui = { path = "crates/paddleboard_sandbox_prereqs_ui" }
 paddleboard_sandbox_settings = { path = "crates/paddleboard_sandbox_settings" }
+paddleboard_adk = { path = "crates/paddleboard_adk" }
 paddleboard_ai_dock = { path = "crates/paddleboard_ai_dock" }
 paddleboard_scion = { path = "crates/paddleboard_scion" }
 paddleboard_scion_ui = { path = "crates/paddleboard_scion_ui" }
