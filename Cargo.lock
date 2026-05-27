@@ -458,6 +458,7 @@ dependencies = [
  "theme_settings",
  "time",
  "time_format",
+ "tokio",
  "tree-sitter-md",
  "ui",
  "ui_input",
@@ -11975,6 +11976,7 @@ dependencies = [
  "outline",
  "outline_panel",
  "paddleboard_actions",
+ "paddleboard_adk",
  "paddleboard_ai_dock",
  "paddleboard_env_vars",
  "paddleboard_sandbox_prereqs",
@@ -12062,6 +12064,20 @@ dependencies = [
  "serde",
  "util",
  "uuid",
+]
+
+[[package]]
+name = "paddleboard_adk"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "menu",
+ "paddleboard_actions",
+ "task",
+ "ui",
+ "ui_input",
+ "workspace",
 ]
 
 [[package]]
@@ -12173,12 +12189,17 @@ name = "paddleboard_scion_ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "editor",
  "gpui",
  "gpui_tokio",
+ "language",
  "log",
  "menu",
+ "multi_buffer",
  "paddleboard_actions",
  "paddleboard_scion",
+ "project",
+ "tokio",
  "ui",
  "ui_input",
  "workspace",

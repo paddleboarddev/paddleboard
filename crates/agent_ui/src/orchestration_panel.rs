@@ -38,6 +38,7 @@ pub struct OrchestrationPanel {
     // PaddleBoard: Scion agent store for container-isolated parallel agents.
     scion_store: Option<Entity<ScionStore>>,
     scion_context_menu: Option<(Entity<ContextMenu>, Point<Pixels>, Subscription)>,
+    _scion_log_streams: Vec<gpui::Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -62,6 +63,7 @@ impl OrchestrationPanel {
             thread_subscriptions: HashMap::default(),
             scion_store: scion_store.clone(),
             scion_context_menu: None,
+            _scion_log_streams: Vec::new(),
             _subscriptions: Vec::new(),
         };
 
@@ -619,22 +621,49 @@ impl OrchestrationPanel {
         cx: &mut App,
     ) {
         let tab_title = format!("Scion Logs: {name}");
+        let stream_name = name.clone();
+        let stream_cli = cli.clone();
+
         let log_task =
             Tokio::spawn_result(cx, async move { cli.agent_logs(&name, Some(200)).await });
+
+        // PaddleBoard: spawn `scion logs -f` for live streaming. The child
+        // is started eagerly so it's ready when the buffer opens. Lines are
+        // read on the tokio runtime and sent to the foreground via a channel.
+        let (line_tx, line_rx) = async_channel::bounded::<String>(64);
+        let _stream_reader = Tokio::spawn_result(cx, {
+            let cli = stream_cli;
+            let name = stream_name;
+            async move {
+                let mut child = cli.stream_logs(&name)?;
+                let stdout = child
+                    .stdout
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("stdout not piped"))?;
+                use tokio::io::{AsyncBufReadExt, BufReader};
+                let mut reader = BufReader::new(stdout);
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line).await {
+                        Ok(0) => break,
+                        Ok(_) => {
+                            if line_tx.send(line.clone()).await.is_err() {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+                Ok::<(), anyhow::Error>(())
+            }
+        });
 
         let window_handle = window.window_handle();
         let project = workspace.read(cx).project().clone();
 
         cx.spawn(async move |cx| {
-            let logs = match log_task.await {
-                Ok(logs) => logs,
-                Err(err) => {
-                    workspace.update(cx, |workspace, cx| {
-                        workspace.show_error(&err, cx);
-                    });
-                    return;
-                }
-            };
+            let initial_logs = log_task.await.unwrap_or_default();
 
             let create_buffer =
                 project.update(cx, |project, cx| project.create_buffer(None, false, cx));
@@ -648,13 +677,15 @@ impl OrchestrationPanel {
             };
 
             buffer.update(cx, |buffer, cx| {
-                buffer.edit([(0..0, logs)], None, cx);
+                if !initial_logs.is_empty() {
+                    buffer.edit([(0..0, initial_logs)], None, cx);
+                }
                 buffer.set_capability(language::Capability::ReadOnly, cx);
             });
 
-            cx.update_window(window_handle, |_view, window, cx| {
+            let opened = cx.update_window(window_handle, |_view, window, cx| {
                 let multibuffer = cx.new(|cx| {
-                    MultiBuffer::singleton(buffer, cx).with_title(tab_title)
+                    MultiBuffer::singleton(buffer.clone(), cx).with_title(tab_title)
                 });
                 let editor_entity = cx.new(|cx| {
                     let mut editor_view =
@@ -671,8 +702,24 @@ impl OrchestrationPanel {
                         cx,
                     );
                 });
-            })
-            .ok();
+            });
+
+            if opened.is_err() {
+                return;
+            }
+
+            // PaddleBoard: receive streamed lines and append to the buffer.
+            // Stops when the channel closes (child exited) or buffer drops.
+            let weak_buffer = buffer.downgrade();
+            while let Ok(line) = line_rx.recv().await {
+                let result = weak_buffer.update(cx, |buffer, cx| {
+                    let len = buffer.len();
+                    buffer.edit([(len..len, line.as_str())], None, cx);
+                });
+                if result.is_err() {
+                    break;
+                }
+            }
         })
         .detach();
     }
