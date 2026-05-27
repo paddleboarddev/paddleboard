@@ -12083,6 +12083,7 @@ dependencies = [
  "serde_json",
  "settings",
  "ui",
+ "ui_input",
  "util",
  "which 6.0.3",
  "workspace",
@@ -12174,9 +12175,11 @@ dependencies = [
  "gpui",
  "gpui_tokio",
  "log",
+ "menu",
  "paddleboard_actions",
  "paddleboard_scion",
  "ui",
+ "ui_input",
  "workspace",
 ]
 

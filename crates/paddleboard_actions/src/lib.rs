@@ -909,7 +909,7 @@ pub mod scion {
     actions!(
         scion,
         [
-            /// Starts a new Scion agent with the default template.
+            /// Opens the Start Scion Agent modal to configure and launch an agent.
             StartAgent,
             /// Stops a running Scion agent.
             StopAgent,
