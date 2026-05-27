@@ -79,7 +79,7 @@ pub use crate::agent_panel::{
 };
 pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
-pub use crate::mcp_servers_ui::McpServersView;
+pub use crate::mcp_servers_ui::{McpServersView, McpStatusItem};
 pub use crate::inline_assistant::InlineAssistant;
 pub use crate::thread_metadata_store::ThreadId;
 pub use agent_diff::{AgentDiffPane, AgentDiffToolbar};

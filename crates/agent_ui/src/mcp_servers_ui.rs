@@ -566,15 +566,45 @@ impl McpServersView {
         }
 
         if let Some(error) = error_message {
+            let is_sandbox_error = error.contains("sandboxed") || error.contains("Podman");
             card = card.child(
-                h_flex()
-                    .gap_1p5()
+                v_flex()
+                    .gap_1()
                     .child(
-                        Icon::new(IconName::XCircle)
-                            .size(IconSize::XSmall)
-                            .color(Color::Error),
+                        h_flex()
+                            .gap_1p5()
+                            .child(
+                                Icon::new(IconName::XCircle)
+                                    .size(IconSize::XSmall)
+                                    .color(Color::Error),
+                            )
+                            .child(
+                                Label::new(error)
+                                    .color(Color::Muted)
+                                    .size(LabelSize::Small),
+                            ),
                     )
-                    .child(Label::new(error).color(Color::Muted).size(LabelSize::Small)),
+                    // PaddleBoard: link to the sandbox prereqs modal for sandbox-related errors.
+                    .when(is_sandbox_error, |this| {
+                        this.child(
+                            Button::new(
+                                SharedString::from(format!(
+                                    "fix-prereqs-{}",
+                                    context_server_id.0
+                                )),
+                                "Fix Prerequisites",
+                            )
+                            .style(ButtonStyle::Outlined)
+                            .label_size(LabelSize::Small)
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(
+                                    paddleboard_sandbox_prereqs_state::OpenSandboxPrereqs
+                                        .boxed_clone(),
+                                    cx,
+                                );
+                            }),
+                        )
+                    }),
             );
         } else if auth_required {
             let context_server_store = self.context_server_store.clone();
@@ -605,6 +635,90 @@ impl McpServersView {
         }
 
         card
+    }
+
+    fn open_server_logs(
+        context_server_id: ContextServerId,
+        context_server_store: Entity<ContextServerStore>,
+        workspace: WeakEntity<Workspace>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let tab_title = format!("MCP Logs: {}", context_server_id.0);
+        let (log_text, line_rx) = {
+            let store = context_server_store.read(cx);
+            let text = store.server_log(&context_server_id).map(|buf| {
+                buf.lock().ok().map(|lines| {
+                    lines.iter().cloned().collect::<Vec<_>>().join("")
+                }).unwrap_or_default()
+            }).unwrap_or_default();
+            let rx = store.server_log_receiver(&context_server_id);
+            (text, rx)
+        };
+
+        let Some(workspace) = workspace.upgrade() else {
+            return;
+        };
+        let project = workspace.read(cx).project().clone();
+        let window_handle = window.window_handle();
+
+        cx.spawn(async move |cx| {
+            let create_buffer =
+                project.update(cx, |project, cx| project.create_buffer(None, false, cx));
+
+            let buffer = match create_buffer.await {
+                Ok(buffer) => buffer,
+                Err(err) => {
+                    log::error!("failed to create log buffer: {err:#}");
+                    return;
+                }
+            };
+
+            buffer.update(cx, |buffer, cx| {
+                if !log_text.is_empty() {
+                    buffer.edit([(0..0, log_text.as_str())], None, cx);
+                }
+                buffer.set_capability(language::Capability::ReadOnly, cx);
+            });
+
+            cx.update_window(window_handle, |_view, window, cx| {
+                let multibuffer = cx.new(|cx| {
+                    multi_buffer::MultiBuffer::singleton(buffer.clone(), cx)
+                        .with_title(tab_title)
+                });
+                let editor_entity = cx.new(|cx| {
+                    let mut editor_view =
+                        editor::Editor::for_multibuffer(multibuffer, None, window, cx);
+                    editor_view.set_read_only(true);
+                    editor_view
+                });
+                workspace.update(cx, |workspace, cx| {
+                    workspace.add_item_to_active_pane(
+                        Box::new(editor_entity),
+                        None,
+                        true,
+                        window,
+                        cx,
+                    );
+                });
+            })
+            .ok();
+
+            // PaddleBoard: stream new stderr lines into the buffer as they arrive.
+            if let Some(line_rx) = line_rx {
+                let weak_buffer = buffer.downgrade();
+                while let Ok(line) = line_rx.recv().await {
+                    let result = weak_buffer.update(cx, |buffer, cx| {
+                        let len = buffer.len();
+                        buffer.edit([(len..len, line.as_str())], None, cx);
+                    });
+                    if result.is_err() {
+                        break;
+                    }
+                }
+            }
+        })
+        .detach();
     }
 
     fn render_config_menu(
@@ -678,6 +792,20 @@ impl McpServersView {
                                     .ok();
                             }
                         })
+                    })
+                    .entry("View Logs", None, {
+                        let context_server_id = context_server_id.clone();
+                        let context_server_store = context_server_store.clone();
+                        let workspace = workspace.clone();
+                        move |window, cx| {
+                            Self::open_server_logs(
+                                context_server_id.clone(),
+                                context_server_store.clone(),
+                                workspace.clone(),
+                                window,
+                                cx,
+                            );
+                        }
                     })
                     .when(should_show_logout_button, |this| {
                         this.entry("Log Out", None, {
@@ -864,5 +992,103 @@ impl Render for McpServersView {
 impl Focusable for McpServersView {
     fn focus_handle(&self, cx: &App) -> gpui::FocusHandle {
         self.query_editor.read(cx).focus_handle(cx)
+    }
+}
+
+// PaddleBoard: status bar indicator for MCP server health.
+pub struct McpStatusItem {
+    context_server_store: Entity<ContextServerStore>,
+    _subscription: gpui::Subscription,
+}
+
+impl McpStatusItem {
+    pub fn new(workspace: &Workspace, cx: &mut Context<Self>) -> Self {
+        let context_server_store = workspace.project().read(cx).context_server_store();
+        let subscription = cx.subscribe(&context_server_store, |_, _, _, cx| cx.notify());
+        Self {
+            context_server_store,
+            _subscription: subscription,
+        }
+    }
+
+    fn counts(&self, cx: &App) -> (usize, usize, bool) {
+        let store = self.context_server_store.read(cx);
+        let ids = store.server_ids();
+        let total = ids.len();
+        let mut running = 0;
+        let mut has_error = false;
+        for id in ids {
+            match store.status_for_server(id) {
+                Some(ContextServerStatus::Running) => running += 1,
+                Some(ContextServerStatus::Error(_)) => has_error = true,
+                _ => {}
+            }
+        }
+        (running, total, has_error)
+    }
+}
+
+impl workspace::StatusItemView for McpStatusItem {
+    fn set_active_pane_item(
+        &mut self,
+        _active_pane_item: Option<&dyn workspace::ItemHandle>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+    }
+
+    fn hide_setting(&self, _cx: &App) -> Option<workspace::HideStatusItem> {
+        None
+    }
+}
+
+impl Render for McpStatusItem {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let (running, total, has_error) = self.counts(cx);
+
+        if total == 0 {
+            return div().into_any_element();
+        }
+
+        let color = if has_error {
+            Color::Error
+        } else if running > 0 {
+            Color::Success
+        } else {
+            Color::Muted
+        };
+
+        let tooltip_text: SharedString = if has_error {
+            format!("MCP Servers: {running}/{total} running (errors)").into()
+        } else {
+            format!("MCP Servers: {running}/{total} running").into()
+        };
+
+        h_flex()
+            .gap_1()
+            .child(
+                IconButton::new("mcp-status", IconName::Server)
+                    .icon_size(IconSize::Small)
+                    .icon_color(color)
+                    .tooltip(move |_window, cx| {
+                        Tooltip::for_action(
+                            tooltip_text.clone(),
+                            &paddleboard_actions::McpServers,
+                            cx,
+                        )
+                    })
+                    .on_click(|_, window, cx| {
+                        window.dispatch_action(
+                            paddleboard_actions::McpServers.boxed_clone(),
+                            cx,
+                        );
+                    }),
+            )
+            .child(
+                Label::new(format!("{running}/{total}"))
+                    .size(LabelSize::Small)
+                    .color(color),
+            )
+            .into_any_element()
     }
 }

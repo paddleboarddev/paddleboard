@@ -171,6 +171,8 @@ impl Client {
         server_id: ContextServerId,
         binary: ModelContextServerBinary,
         working_directory: &Option<PathBuf>,
+        stderr_log: Option<Arc<std::sync::Mutex<std::collections::VecDeque<String>>>>,
+        stderr_sender: Option<async_channel::Sender<String>>,
         cx: AsyncApp,
     ) -> Result<Self> {
         log::debug!(
@@ -187,7 +189,7 @@ impl Client {
 
         let timeout = binary.timeout.map(Duration::from_secs);
         let transport = Arc::new(StdioTransport::new(binary, working_directory, &cx)?);
-        Self::new(server_id, server_name.into(), transport, timeout, cx)
+        Self::new(server_id, server_name.into(), transport, timeout, stderr_log, stderr_sender, cx)
     }
 
     /// Creates a new Client instance for a context server whose process runs inside
@@ -196,6 +198,8 @@ impl Client {
         server_id: ContextServerId,
         binary: ModelContextServerBinary,
         sandbox: &SandboxConfig,
+        stderr_log: Option<Arc<std::sync::Mutex<std::collections::VecDeque<String>>>>,
+        stderr_sender: Option<async_channel::Sender<String>>,
         cx: AsyncApp,
     ) -> Result<Self> {
         log::debug!(
@@ -213,15 +217,18 @@ impl Client {
 
         let timeout = binary.timeout.map(Duration::from_secs);
         let transport = Arc::new(SandboxedStdioTransport::new(binary, sandbox, &cx)?);
-        Self::new(server_id, server_name.into(), transport, timeout, cx)
+        Self::new(server_id, server_name.into(), transport, timeout, stderr_log, stderr_sender, cx)
     }
 
     /// Creates a new Client instance for a context server.
+    // PaddleBoard: `stderr_log` collects server stderr for the UI; `stderr_sender` broadcasts new lines.
     pub fn new(
         server_id: ContextServerId,
         server_name: Arc<str>,
         transport: Arc<dyn Transport>,
         request_timeout: Option<Duration>,
+        stderr_log: Option<Arc<std::sync::Mutex<std::collections::VecDeque<String>>>>,
+        stderr_sender: Option<async_channel::Sender<String>>,
         cx: AsyncApp,
     ) -> Result<Self> {
         let (outbound_tx, outbound_rx) = async_channel::unbounded::<String>();
@@ -251,7 +258,7 @@ impl Client {
         });
         let receive_err_task = cx.spawn({
             let transport = transport.clone();
-            async move |_| Self::handle_err(transport).log_err().await
+            async move |_| Self::handle_err(transport, stderr_log, stderr_sender).log_err().await
         });
         let input_task = cx.spawn(async move |_| {
             let (input, err) = futures::join!(receive_input_task, receive_err_task);
@@ -336,11 +343,25 @@ impl Client {
         Ok(())
     }
 
-    /// Handles the stderr output from the context server.
-    /// Continuously reads and logs any error messages from the server.
-    async fn handle_err(transport: Arc<dyn Transport>) -> anyhow::Result<()> {
+    // PaddleBoard: accepts an optional stderr log handle so the UI can display server logs.
+    async fn handle_err(
+        transport: Arc<dyn Transport>,
+        stderr_log: Option<Arc<std::sync::Mutex<std::collections::VecDeque<String>>>>,
+        stderr_sender: Option<async_channel::Sender<String>>,
+    ) -> anyhow::Result<()> {
         while let Some(err) = transport.receive_err().next().await {
             log::debug!("context server stderr: {}", err.trim());
+            if let Some(buf) = &stderr_log {
+                if let Ok(mut buf) = buf.lock() {
+                    buf.push_back(err.clone());
+                    while buf.len() > 200 {
+                        buf.pop_front();
+                    }
+                }
+            }
+            if let Some(sender) = &stderr_sender {
+                let _ = sender.try_send(err);
+            }
         }
 
         Ok(())

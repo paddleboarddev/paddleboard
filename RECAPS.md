@@ -6,6 +6,33 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### Sandbox prereqs: fix gVisor detection on macOS Podman machine
+
+- **gVisor detection fallback:** `check_gvisor` in `paddleboard_sandbox_prereqs.rs` checked `podman info`'s `host.ociRuntimes` map for `runsc`, but on macOS the Podman client doesn't reflect runtimes registered inside the VM — the map is always empty. Added a fallback that probes `podman machine ssh -- runsc --version` when `ociRuntimes` check fails. Tagged with `// PaddleBoard:` comment.
+- **Root cause:** `containers.conf` inside the Podman machine VM correctly lists `runsc` under `[engine.runtimes]`, and `runsc --version` works inside the VM, but the macOS client-side `podman info` doesn't surface VM-internal runtimes.
+- **SELinux runtime fix:** Added `--security-opt label=disable` to `build_podman_argv` in `sandboxed_stdio_transport.rs` so runsc containers work on Fedora-based Podman machine VMs where SELinux is enforcing. Without this, runsc rejects the container with "SELinux is not supported". All 6 sandbox transport tests updated and passing.
+- **Verified:** `cargo check -p paddleboard` clean, all sandbox transport tests pass, build succeeds.
+- **Follow-ups:** Test Refresh in Sandbox Prerequisites modal with new build to confirm gVisor shows ✓.
+
+### MCP live log streaming, StopAgent wiring, UI smoke test
+
+- **MCP live log streaming:** Added `StderrLogHandle` struct bundling the buffer with an `async_channel::Sender<String>` broadcast channel. `Client::handle_err` now sends each stderr line through the channel in addition to buffering. `ContextServerStore::server_log_receiver()` exposes a cloneable receiver. `open_server_logs` subscribes to the receiver after loading the initial snapshot, streaming new lines into the editor buffer in real time (Scion pattern).
+- **StopAgent wired:** `AdkChildProcess` GPUI Global stores the running `smol::process::Child`. `handle_run_agent` stores the child after spawn. `handle_stop_agent` kills the child and removes the "ADK Web" forwarded port. Action registered in `init()` and visible in command palette.
+- **Logo copied:** `docs/source/paddleboard_logo.svg` → repo root `paddleboard_logo.svg`.
+- **UI smoke test passed:** App launches, Welcome screen renders with AI Dock featured agents strip. Command palette shows all new actions (`adk: stop agent`, `paddleboard: mcp servers`). AI Dock → MCP Servers tab renders catalog (5 entries) + installed `filesystem` server card with "1/1 running", green status, config gear menu. MCP status bar item correctly hides with 0 servers, renders when servers exist.
+- **Follow-ups:** Verify "View Logs" opens editor tab with live streaming (needs server with stderr output). Verify "Fix Prerequisites" button renders on sandbox error cards. Verify MCP status bar shows `1/1` count when servers are configured. ADK port parsing needs live test with `adk web` installed.
+
+### Java LSP tests, MCP orchestrator polish, ADK port parsing
+
+- **Java LSP tests (9 new):** Extracted `detect_build_tool()` from `JavaBuildContextProvider` for testability. Tests cover Gradle/Maven/Gradle KTS detection, priority ordering (Gradle wins over Maven), empty-result case, JDK version threshold checks (21+ required, 17 below), and binary name validation. No production logic changed.
+- **MCP status bar item:** New `McpStatusItem` in `mcp_servers_ui.rs` shows `{running}/{total}` with color-coded server icon (green/red/muted). Click dispatches `McpServers` → opens AI Dock MCP tab. Registered in `zed.rs` status bar alongside sandbox prereqs.
+- **MCP inline logs ("View Logs"):** Plumbed stderr from `StdioTransport` → `ContextServerClient` → `ContextServerStore` via a shared `Arc<Mutex<VecDeque<String>>>` buffer (200-line cap). New `StderrLog` type alias and `start_with_log()` on `ContextServer`. Each server card's config menu now has a "View Logs" entry that opens a read-only editor tab with buffered stderr (Scion streaming-logs pattern).
+- **Sandbox prereqs gating on MCP server cards:** Server cards with sandbox-related errors (`"sandboxed"` or `"Podman"` in message) show a "Fix Prerequisites" button dispatching `OpenSandboxPrereqs`. Added `paddleboard_sandbox_prereqs_state` dep to `agent_ui`. Sandboxed servers are settings.json-only so the full modal gating was scoped to error-state cards instead.
+- **ADK port parsing (5 new tests):** Replaced `spawn_in_terminal` + hardcoded port 8000 with background `smol::process::Command`. Parses stdout for `http://...:PORT` pattern via `parse_port_from_line()`. Registers discovered port in ForwardedPorts, shows toast. Output streams to a read-only editor tab ("ADK Web"). Falls back to port 8000 after 50 lines if undetected. Added `StopAgent` action to `paddleboard_actions`. Tests cover Uvicorn, custom port, no-port, https (negative), and mid-text patterns.
+- **Upstream-file divergence:** `context_server/src/client.rs` and `context_server/src/context_server.rs` touched with `// PaddleBoard:` comments for merge traceability. Changes are additive (new parameter with `Option` default path, new type alias, new method).
+- **Verified:** `cargo check -p paddleboard` clean, clippy clean on all changed crates (pre-existing `cloud_api_types::Plan` and `NSBeep` warnings unchanged), 90 languages tests pass (81 → 90), 5 ADK tests pass, 4 AI Dock tests pass.
+- **Follow-ups:** Manual UI smoke test of all five features. MCP logs don't yet stream live (buffer is a snapshot at open time — could subscribe to new lines). ADK `StopAgent` action is defined but not yet wired to kill the child process. `async-channel` dep name uses hyphen in Cargo.toml per workspace convention.
+
 ### Language server polish: Java auto-download + Gradle/Maven context provider
 
 - **Java LSP auto-download:** Replaced PATH-only jdtls adapter with full GitHub-release auto-download following Kotlin's pattern. Downloads `jdt-language-server-*.tar.gz` from `eclipse-jdtls/eclipse.jdt.ls` releases, extracts to versioned cache dir, uses `bin/jdtls` launcher. SHA-256 digest verification, old-version cleanup, Unix executable permission fix. Falls back to user-installed `jdtls` on PATH first. JDK 21+ check with once-per-session notification. `crates/languages/src/java.rs` grew from 158 to ~290 lines.

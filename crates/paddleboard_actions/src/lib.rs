@@ -942,8 +942,10 @@ pub mod adk {
         [
             /// Opens a modal to scaffold a new ADK agent project.
             ScaffoldAgent,
-            /// Runs `adk web` in a terminal to launch the agent dev server.
+            /// Runs `adk web` to launch the agent dev server.
             RunAgent,
+            /// Stops the running ADK web server.
+            StopAgent,
         ]
     );
 }

@@ -113,17 +113,27 @@ async fn check_gvisor(podman: &PodmanStatus) -> GvisorStatus {
         Ok(v) => v,
         Err(_) => return GvisorStatus::NotConfigured,
     };
-    let has_runsc = value
+    let has_runsc_in_info = value
         .get("host")
         .and_then(|h| h.get("ociRuntimes"))
         .and_then(|r| r.as_object())
         .is_some_and(|map| map.contains_key("runsc"));
 
-    if has_runsc {
-        GvisorStatus::Available
-    } else {
-        GvisorStatus::NotConfigured
+    if has_runsc_in_info {
+        return GvisorStatus::Available;
     }
+
+    // PaddleBoard: on macOS, `podman info` runs on the client and doesn't
+    // reflect runtimes registered inside the Podman machine VM. Fall back to
+    // probing runsc directly inside the VM.
+    if run_probe("podman", &["machine", "ssh", "--", "runsc", "--version"])
+        .await
+        .is_some_and(|out| out.contains("runsc version"))
+    {
+        return GvisorStatus::Available;
+    }
+
+    GvisorStatus::NotConfigured
 }
 
 async fn run_probe(cmd: &str, args: &[&str]) -> Option<String> {

@@ -115,6 +115,8 @@ uuid.workspace = true
 watch.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true
+# PaddleBoard: sandbox prereqs gating for MCP server cards
+paddleboard_sandbox_prereqs_state.workspace = true
 # PaddleBoard: Scion orchestration support
 paddleboard_scion.workspace = true
 paddleboard_scion_ui.workspace = true

@@ -163,6 +163,11 @@ fn build_podman_argv(binary: &ModelContextServerBinary, sandbox: &SandboxConfig)
         "-i".into(),
         "--rm".into(),
         "--runtime=runsc".into(),
+        // PaddleBoard: gVisor's runsc does not support SELinux labels.
+        // Without this flag, Fedora-based Podman machine VMs reject the
+        // container with "SELinux is not supported".
+        "--security-opt".into(),
+        "label=disable".into(),
     ];
 
     if let Some(env) = &binary.env {
@@ -246,6 +251,8 @@ mod tests {
                 "-i",
                 "--rm",
                 "--runtime=runsc",
+                "--security-opt",
+                "label=disable",
                 "python:3.12-slim",
                 "mcp-server",
                 "--port",
