@@ -15,7 +15,10 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **MCP tab scroll:** Added `overflow_y_scroll()` (with required element ID) to the McpServersView wrapper in the AI Dock modal so content scrolls instead of overflowing.
 - **Verified:** `cargo check -p paddleboard` clean, `cargo clippy` clean on all changed crates, all 25 `paddleboard_scion` + 4 `paddleboard_ai_dock` tests pass. Pre-existing `ZED_AGENT_ID` error in `sidebar_tests.rs` is from upstream merge, not related.
 - **Sidebar test fix:** Replaced `agent::ZED_AGENT_ID` → `agent::PADDLEBOARD_AGENT_ID` in 2 places in `sidebar_tests.rs`. The constant was renamed in a prior session but tests weren't updated.
-- **Follow-ups:** Streaming log view (replace one-shot 200-line buffer with `stream_logs()`), OTEL telemetry stream in orchestration panel, visual smoke test of all changes in running app.
+- **Drift baseline updated:** Tag count grew by +6 from polish divergence comments; saved fresh baseline.
+- **UI smoke test passed:** App launches, Welcome featured strip shows catalog agents, AI Dock modal renders all 3 tabs, MCP tab content scrolls, orchestration panel shows Scion section. Scion agent-specific features (named log tabs, sync toast, activity detail) couldn't be exercised without running agents.
+- **Catalog label fix:** Shortened agent display names in `catalog.json` — "Claude Agent" → "Claude", "Codex CLI" → "Codex", "GitHub Copilot" → "Copilot". Keeps the Welcome featured strip compact (matching the old hardcoded labels). Cursor stays `featured: false` intentionally.
+- **Follow-ups:** Streaming log view (replace one-shot 200-line buffer with `stream_logs()`), OTEL telemetry stream in orchestration panel, live test of Scion-specific features with running agents.
 
 ---
 
