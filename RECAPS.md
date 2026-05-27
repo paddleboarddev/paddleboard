@@ -13,6 +13,8 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **SkillScope made pub(crate):** `SkillScope::label()` visibility changed from private to `pub(crate)` so the add_skill_modal can reference it.
 - **Dependency:** Added `ui_input` to `paddleboard_ai_dock` for InputField.
 - **Verified:** `cargo check -p paddleboard` clean, `cargo clippy -p paddleboard_ai_dock` clean, all 4 catalog tests pass. Visual smoke test partially blocked by macOS binary link permission issue; app launched but couldn't be driven via AppleScript. Manual test recommended.
+- **README updated:** Added AI Dock and Scion Agents orchestration panel entries to the "What's different from Zed" section.
+- **PR:** [#52](https://github.com/jasonsmithio/paddleboard/pull/52) — bundles all Scion UI + AI Dock work from this session.
 
 ### Scion panel interactivity, log viewing, and error surfacing
 
