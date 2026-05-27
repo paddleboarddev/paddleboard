@@ -31,8 +31,10 @@ pub(super) fn render(
     let catalog_section = render_catalog_section(&catalog.mcp_servers, &installed_ids, cx);
     let installed_view: AnyElement = match modal.mcp_view.as_ref() {
         Some(view) => div()
+            .id("ai-dock-mcp-installed")
             .flex_1()
             .min_h_0()
+            .overflow_y_scroll()
             .child(view.clone())
             .into_any_element(),
         None => v_flex()

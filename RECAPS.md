@@ -4,6 +4,21 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-27
+
+### Scion + AI Dock polish pass
+
+- **Named log tabs:** "View Logs" on a Scion agent now opens a tab titled "Scion Logs: {agent-name}" instead of "untitled". Uses `MultiBuffer::singleton(...).with_title(...)` → `Editor::for_multibuffer(...)` in `orchestration_panel.rs`.
+- **Sync feedback + refresh:** "Sync Changes" (both context menu and command palette) now shows an auto-hiding toast ("Synced changes from {name}") and refreshes the agent list via `store.refresh(cx)`. Previously silent log-only.
+- **Agent detail in activity rows:** Orchestration panel agent rows now surface `AgentDetail.tool_name` or `task_summary` alongside the activity label (e.g., "executing · Edit"). Only shown when detail is present; truncated to 20 chars for task summaries.
+- **Welcome Featured strip from catalog:** Replaced hardcoded `WELCOME_FEATURED_AGENT_LABELS` constant with catalog-driven featured agents via `paddleboard_ai_dock::catalog::catalog(cx)`. Falls back to hardcoded IDs if catalog is empty. Added `paddleboard_ai_dock` dep to `onboarding` crate. Telemetry in `onboarding.rs` updated to use new `featured_agent_ids(cx)` function.
+- **MCP tab scroll:** Added `overflow_y_scroll()` (with required element ID) to the McpServersView wrapper in the AI Dock modal so content scrolls instead of overflowing.
+- **Verified:** `cargo check -p paddleboard` clean, `cargo clippy` clean on all changed crates, all 25 `paddleboard_scion` + 4 `paddleboard_ai_dock` tests pass. Pre-existing `ZED_AGENT_ID` error in `sidebar_tests.rs` is from upstream merge, not related.
+- **Sidebar test fix:** Replaced `agent::ZED_AGENT_ID` → `agent::PADDLEBOARD_AGENT_ID` in 2 places in `sidebar_tests.rs`. The constant was renamed in a prior session but tests weren't updated.
+- **Follow-ups:** Streaming log view (replace one-shot 200-line buffer with `stream_logs()`), OTEL telemetry stream in orchestration panel, visual smoke test of all changes in running app.
+
+---
+
 ## 2026-05-26
 
 ### Docs: Scion and AI Dock references in README and tour

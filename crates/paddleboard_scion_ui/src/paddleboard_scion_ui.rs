@@ -8,7 +8,7 @@ use anyhow::Result;
 use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global, Task, Window};
 use gpui_tokio::Tokio;
 use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli, StartAgentOptions, TemplateInfo};
-use workspace::Workspace;
+use workspace::{Toast, Workspace, notifications::NotificationId};
 
 pub use start_agent_modal::StartAgentModal;
 
@@ -283,12 +283,24 @@ fn handle_sync_from(
     };
 
     let name = first.name.clone();
-    let task = store.update(cx, |store, cx| store.sync_from(name, cx));
+    let task = store.update(cx, |store, cx| store.sync_from(name.clone(), cx));
 
+    let store = store.clone();
     cx.spawn(async move |this, cx| {
         match task.await {
             Ok(_output) => {
-                log::info!("scion sync from completed");
+                store.update(cx, |store, cx| store.refresh(cx));
+                this.update(cx, |workspace, cx| {
+                    workspace.show_toast(
+                        Toast::new(
+                            NotificationId::unique::<ScionStore>(),
+                            format!("Synced changes from {name}"),
+                        )
+                        .autohide(),
+                        cx,
+                    );
+                })
+                .ok();
             }
             Err(err) => {
                 this.update(cx, |workspace, cx| {

@@ -432,33 +432,32 @@ fn render_import_settings_section(tab_index: &mut isize, cx: &mut App) -> impl I
         .child(h_flex().gap_1().child(vscode).child(cursor))
 }
 
-pub(crate) const FEATURED_AGENT_IDS: &[&str] = &[
-    "claude-acp",
-    "codex-acp",
-    "github-copilot-cli",
-    "cursor",
-    "gemini",
-];
-
-// PaddleBoard: parallel display labels for the welcome-screen featured strip.
-// Kept separate from FEATURED_AGENT_IDS so the telemetry constant stays a
-// plain `&[&str]` (its `.iter().filter()` usage in onboarding.rs doesn't need
-// to learn about tuples). Pills all dispatch the same `ai_dock::Open` action;
-// the editorial value is the names being visible on the Welcome screen, not
-// a per-pill action.
-const WELCOME_FEATURED_AGENT_LABELS: &[(&str, &str)] = &[
-    ("claude-acp", "Claude"),
-    ("codex-acp", "Codex"),
-    ("github-copilot-cli", "Copilot"),
-    ("cursor", "Cursor"),
-    ("gemini", "Gemini"),
-];
+pub(crate) fn featured_agent_ids(cx: &App) -> Vec<String> {
+    let catalog = paddleboard_ai_dock::catalog::catalog(cx);
+    let ids: Vec<String> = catalog
+        .agents
+        .iter()
+        .filter(|a| a.featured)
+        .map(|a| a.id.clone())
+        .collect();
+    if ids.is_empty() {
+        vec![
+            "claude-acp".into(),
+            "codex-acp".into(),
+            "github-copilot-cli".into(),
+            "cursor".into(),
+            "gemini".into(),
+        ]
+    } else {
+        ids
+    }
+}
 
 // PaddleBoard: replaces the upstream 5-card "Agent Setup" row with a single
-// entry point into the AI Dock plus a small featured strip. The dock
-// consolidates agents, skills, and MCP servers; the pills surface a few
-// well-known names so first-run users have something concrete to recognize.
-fn render_ai_section(_user_store: &Entity<UserStore>, _cx: &mut App) -> impl IntoElement {
+// entry point into the AI Dock plus a small featured strip driven by the
+// catalog. The dock consolidates agents, skills, and MCP servers.
+fn render_ai_section(_user_store: &Entity<UserStore>, cx: &mut App) -> impl IntoElement {
+    let featured = render_welcome_featured_strip(cx);
     v_flex()
         .gap_0p5()
         .child(Label::new("AI Dock"))
@@ -481,10 +480,17 @@ fn render_ai_section(_user_store: &Entity<UserStore>, _cx: &mut App) -> impl Int
                     }),
             ),
         )
-        .child(render_welcome_featured_strip())
+        .child(featured)
 }
 
-fn render_welcome_featured_strip() -> impl IntoElement {
+fn render_welcome_featured_strip(cx: &App) -> impl IntoElement {
+    let catalog = paddleboard_ai_dock::catalog::catalog(cx);
+    let featured: Vec<_> = catalog
+        .agents
+        .iter()
+        .filter(|a| a.featured)
+        .collect();
+
     v_flex()
         .mt_2()
         .gap_1()
@@ -496,16 +502,20 @@ fn render_welcome_featured_strip() -> impl IntoElement {
         .child(
             h_flex()
                 .gap_1()
-                .children(WELCOME_FEATURED_AGENT_LABELS.iter().map(|(id, label)| {
-                    let id = *id;
+                .children(featured.iter().map(|agent| {
+                    let id = agent.id.clone();
+                    let name = agent.name.clone();
                     Button::new(
                         SharedString::from(format!("welcome-featured-{id}")),
-                        SharedString::from(*label),
+                        SharedString::from(name),
                     )
                     .style(ButtonStyle::Outlined)
                     .label_size(LabelSize::Small)
                     .on_click(move |_, window, cx| {
-                        telemetry::event!("Welcome Featured Agent Clicked", agent = id);
+                        telemetry::event!(
+                            "Welcome Featured Agent Clicked",
+                            agent = id.as_str()
+                        );
                         window.dispatch_action(
                             paddleboard_actions::ai_dock::Open.boxed_clone(),
                             cx,

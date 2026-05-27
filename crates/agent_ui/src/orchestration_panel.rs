@@ -10,12 +10,14 @@ use gpui::{
 };
 use gpui_tokio::Tokio;
 // PaddleBoard: Scion orchestration support
+use multi_buffer::MultiBuffer;
 use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli};
 use paddleboard_scion_ui::{ScionStore, ScionStoreEvent, ScionStoreGlobal};
 use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
 use workspace::{
-    Workspace,
+    Toast, Workspace,
     dock::{DockPosition, Panel, PanelEvent},
+    notifications::NotificationId,
 };
 
 use crate::agent_panel::AgentPanel;
@@ -439,7 +441,7 @@ impl OrchestrationPanel {
         };
 
         let activity_label: Option<SharedString> = activity.map(|a| {
-            let label = match a {
+            let base = match a {
                 paddleboard_scion::AgentActivity::Working => "working",
                 paddleboard_scion::AgentActivity::Thinking => "thinking",
                 paddleboard_scion::AgentActivity::Executing => "executing",
@@ -452,7 +454,27 @@ impl OrchestrationPanel {
                 paddleboard_scion::AgentActivity::Crashed => "crashed",
                 paddleboard_scion::AgentActivity::Unknown => "unknown",
             };
-            SharedString::from(label)
+            let detail_suffix = agent
+                .detail
+                .as_ref()
+                .and_then(|d| {
+                    if !d.tool_name.is_empty() {
+                        Some(d.tool_name.as_str())
+                    } else if !d.task_summary.is_empty() {
+                        let truncated = if d.task_summary.len() > 20 {
+                            &d.task_summary[..20]
+                        } else {
+                            &d.task_summary
+                        };
+                        Some(truncated)
+                    } else {
+                        None
+                    }
+                });
+            match detail_suffix {
+                Some(detail) => SharedString::from(format!("{base} · {detail}")),
+                None => SharedString::from(base),
+            }
         });
 
         let agent_name = agent.name.clone();
@@ -596,6 +618,7 @@ impl OrchestrationPanel {
         window: &mut Window,
         cx: &mut App,
     ) {
+        let tab_title = format!("Scion Logs: {name}");
         let log_task =
             Tokio::spawn_result(cx, async move { cli.agent_logs(&name, Some(200)).await });
 
@@ -630,8 +653,12 @@ impl OrchestrationPanel {
             });
 
             cx.update_window(window_handle, |_view, window, cx| {
+                let multibuffer = cx.new(|cx| {
+                    MultiBuffer::singleton(buffer, cx).with_title(tab_title)
+                });
                 let editor_entity = cx.new(|cx| {
-                    let mut editor_view = editor::Editor::for_buffer(buffer, None, window, cx);
+                    let mut editor_view =
+                        editor::Editor::for_multibuffer(multibuffer, None, window, cx);
                     editor_view.set_read_only(true);
                     editor_view
                 });
@@ -656,12 +683,23 @@ impl OrchestrationPanel {
         workspace: Entity<Workspace>,
         cx: &mut App,
     ) {
-        let task = store.update(cx, |store, cx| store.sync_from(name, cx));
+        let task = store.update(cx, |store, cx| store.sync_from(name.clone(), cx));
 
+        let store_for_refresh = store.clone();
         cx.spawn(async move |cx| {
             match task.await {
                 Ok(_output) => {
-                    log::info!("scion sync completed");
+                    store_for_refresh.update(cx, |store, cx| store.refresh(cx));
+                    workspace.update(cx, |workspace, cx| {
+                        workspace.show_toast(
+                            Toast::new(
+                                NotificationId::unique::<ScionStore>(),
+                                format!("Synced changes from {name}"),
+                            )
+                            .autohide(),
+                            cx,
+                        );
+                    });
                 }
                 Err(err) => {
                     workspace.update(cx, |workspace, cx| {
