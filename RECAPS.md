@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-26
 
+### Docs: Scion and AI Dock references in README and tour
+
+- **README.md:** Expanded Scion from a parenthetical into its own bullet with install command, start modal, context menu actions (View Logs / Sync / Stop), and log viewing. Expanded AI Dock bullet with Add Agent, Create Skill, and catalog details.
+- **tour.md:** Added new section 8 (Scion) covering install, start modal, orchestration panel status rendering, and right-click context menu. Updated AI Dock section (5) with Add Agent and Create Skill buttons. Renumbered sections 9–11.
+- **PR:** [#53](https://github.com/jasonsmithio/paddleboard/pull/53) — docs only, no code changes.
+
 ### AI Dock: Add Agent and Create Skill modals
 
 - **Add Agent modal:** New "Add Agent" button in the Agents tab header. Opens a modal where users enter a registry agent server ID (e.g. `anthropic/claude-code`). On confirm, writes a `CustomAgentServerSettings::Registry` entry to `settings.agent_servers` via `update_settings_file`. For agents not in the catalog.
