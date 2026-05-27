@@ -38,6 +38,8 @@ One place to browse and install everything the agent talks to — the marina whe
 - Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or hit **Open the AI Dock** on the Welcome screen. The Welcome screen also surfaces a **Featured** strip (Claude / Codex / Copilot / Cursor / Gemini pills) so first-run users have recognizable names to click.
 - Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI).
 - Installed items show a green badge; missing ones get a one-click **Install / Sign In / Learn More** that does the category-appropriate thing. Bundled skills (currently `/build` and `/update-tour`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
+- **Add Agent** (Agents tab header): opens a modal to register a custom agent server by its registry ID — for agents not in the catalog.
+- **Create Skill** (Skills tab header): opens a modal with a name field, prompt editor, and project/user scope toggle. Creates a new `.claude/commands/{name}.md` file.
 - The catalog is `assets/ai_dock/catalog.json` in-repo — adds are PRs, not fetches.
 
 ### 6. Step-Through Mode
@@ -52,18 +54,26 @@ A live tree view of every active agent session, including subagents.
 - Subagents nest under the thread that spawned them.
 - Status dot shows generating vs. idle; click any row to jump to that thread.
 
-### 8. LLM Provider Picker Panel
+### 8. Scion — Container-Isolated Parallel Agents
+Run multiple deep agents in parallel, each in its own container and git worktree, via [Scion](https://github.com/GoogleCloudPlatform/scion).
+- Install: `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then `scion init --machine` and `scion init` in your project.
+- Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, and template.
+- The **Orchestration Panel** shows a **Scion Agents** section below native threads. Each row shows the agent's phase (provisioning → running → stopped) and activity (working, thinking, waiting, etc.).
+- Right-click any agent row for **View Logs** (opens last 200 lines in a read-only editor tab), **Sync Changes** (pulls the agent's worktree changes into your local copy), or **Stop Agent**.
+- Status colors: accent = running, warning = needs attention, error = errored, muted = stopped.
+
+### 9. LLM Provider Picker Panel
 A dedicated panel for switching the active language model provider without opening settings.
 - Dock it wherever is convenient and change providers as you work.
 - **ChatGPT Subscription auth**: sign in with your ChatGPT Plus or Pro account via OAuth — no API key needed. The flow opens in the embedded browser panel; tokens persist in PB's credential store.
 
-### 9. Multi-Workspace
+### 10. Multi-Workspace
 Keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads.
 - Open the worktree picker: `Cmd-Shift-P` → **`git: Worktree`**.
 - **Switch** between existing worktrees, **create** a new worktree-backed workspace (accept the auto-generated branch name like `dusty-pelican` or supply your own), or **open in new window**.
 - The orchestration panel shows agent threads from every workspace at once — perfect for parallel agent sessions against different projects.
 
-### 10. Built-in Language Servers
+### 11. Built-in Language Servers
 PaddleBoard ships built-in LSP support for four languages that Zed historically punts to extensions — **no extension installation required**.
 - **Java** via [jdtls](https://github.com/eclipse/eclipse.jdt.ls)
 - **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server)
