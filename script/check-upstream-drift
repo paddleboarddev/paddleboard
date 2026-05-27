@@ -14,20 +14,36 @@
 # Runs on every PR (results post as a sticky comment) and weekly via
 # `.github/workflows/upstream-drift.yml`. Also runnable locally:
 #
-#   ./script/check-upstream-drift                  # writes markdown to stdout
-#   ./script/check-upstream-drift --no-fetch        # skip the `git fetch`
+#   ./script/check-upstream-drift                    # writes markdown to stdout
+#   ./script/check-upstream-drift --no-fetch         # skip the `git fetch`
+#   ./script/check-upstream-drift --check            # compare against baseline, exit 1 if thresholds exceeded
+#   ./script/check-upstream-drift --save-baseline    # write current numbers to baseline JSON
 #   UPSTREAM_REF=zed/main ./script/check-upstream-drift
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASELINE_FILE="$SCRIPT_DIR/upstream-drift-baseline.json"
 
 UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-zed}"
 UPSTREAM_REPO="${UPSTREAM_REPO:-https://github.com/zed-industries/zed.git}"
 UPSTREAM_REF="${UPSTREAM_REF:-${UPSTREAM_REMOTE}/main}"
 
+# Per-crate threshold: if combined insertions+deletions grow by more
+# than this since the baseline, the --check flag treats it as a warning.
+CRATE_DELTA_THRESHOLD="${CRATE_DELTA_THRESHOLD:-5000}"
+# Total PaddleBoard tags threshold: if the tag count grows by more than
+# this since the baseline, --check treats it as a warning.
+TAG_DELTA_THRESHOLD="${TAG_DELTA_THRESHOLD:-5}"
+
 DO_FETCH=1
+DO_CHECK=0
+DO_SAVE=0
 for arg in "$@"; do
     case "$arg" in
         --no-fetch) DO_FETCH=0 ;;
+        --check) DO_CHECK=1 ;;
+        --save-baseline) DO_SAVE=1 ;;
         -h|--help)
             sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
@@ -39,6 +55,7 @@ done
 # we want to track drift on. Excludes:
 #   - `paddleboard_*` (net-new in our fork; no upstream baseline)
 #   - `grammars/` (we own this dir's layout for the language bake-ins)
+#   - `collab`, `collab_ui`, `call`, `livekit_*` (deleted from PaddleBoard)
 #   - smaller-blast-radius crates (theme, file_icons, etc.) — add later
 #     if a specific incident motivates it
 CORE_CRATES=(
@@ -46,8 +63,6 @@ CORE_CRATES=(
     agent_ui
     buffer_diff
     client
-    collab
-    collab_ui
     editor
     gpui
     language
@@ -84,6 +99,48 @@ shortstat_num() {
     printf '%s' "${out:-0}"
 }
 
+# --- Collect per-crate data into parallel arrays ---
+declare -a crate_files_arr crate_ins_arr crate_del_arr crate_tags_arr crate_missing_arr
+
+total_files=0
+total_ins=0
+total_del=0
+total_tags=0
+
+for i in "${!CORE_CRATES[@]}"; do
+    crate="${CORE_CRATES[$i]}"
+    path="crates/$crate"
+    if [ ! -d "$path" ]; then
+        crate_missing_arr[$i]=1
+        crate_files_arr[$i]=0
+        crate_ins_arr[$i]=0
+        crate_del_arr[$i]=0
+        crate_tags_arr[$i]=0
+        continue
+    fi
+    crate_missing_arr[$i]=0
+
+    stat=$(git diff --shortstat "$UPSTREAM_REF" -- "$path" 2>/dev/null || echo "")
+    files=$(shortstat_num "$stat" "files? changed")
+    ins=$(shortstat_num "$stat" "insertions?")
+    del=$(shortstat_num "$stat" "deletions?")
+
+    tags=$({ set +o pipefail; git grep -I -c "// PaddleBoard:" -- "$path" 2>/dev/null \
+        | awk -F: 'BEGIN{s=0} {s += $NF} END {print s}'; })
+    tags=${tags:-0}
+
+    crate_files_arr[$i]=$files
+    crate_ins_arr[$i]=$ins
+    crate_del_arr[$i]=$del
+    crate_tags_arr[$i]=$tags
+
+    total_files=$((total_files + files))
+    total_ins=$((total_ins + ins))
+    total_del=$((total_del + del))
+    total_tags=$((total_tags + tags))
+done
+
+# --- Render markdown report ---
 cat <<EOF
 # Upstream drift report
 
@@ -94,42 +151,144 @@ Last common ancestor: \`$merge_base_short\`.
 |-------|-------|------------|-----------|------------------------|
 EOF
 
-total_files=0
-total_ins=0
-total_del=0
-total_tags=0
-
-for crate in "${CORE_CRATES[@]}"; do
-    path="crates/$crate"
-    if [ ! -d "$path" ]; then
-        printf "| \`%s\` | _(missing locally)_ | — | — | — |\n" "$path"
-        continue
+for i in "${!CORE_CRATES[@]}"; do
+    crate="${CORE_CRATES[$i]}"
+    if [ "${crate_missing_arr[$i]}" = 1 ]; then
+        printf "| \`crates/%s\` | _(missing locally)_ | — | — | — |\n" "$crate"
+    else
+        printf "| \`crates/%s\` | %s | +%s | -%s | %s |\n" \
+            "$crate" "${crate_files_arr[$i]}" "${crate_ins_arr[$i]}" \
+            "${crate_del_arr[$i]}" "${crate_tags_arr[$i]}"
     fi
-
-    stat=$(git diff --shortstat "$UPSTREAM_REF" -- "$path" 2>/dev/null || echo "")
-    files=$(shortstat_num "$stat" "files? changed")
-    ins=$(shortstat_num "$stat" "insertions?")
-    del=$(shortstat_num "$stat" "deletions?")
-
-    # `git grep -c` exits 1 when nothing matches, which `set -o pipefail`
-    # would normally turn into a script failure — disable pipefail for
-    # the duration of this pipeline so an empty match counts as zero
-    # rather than aborting.
-    tags=$({ set +o pipefail; git grep -I -c "// PaddleBoard:" -- "$path" 2>/dev/null \
-        | awk -F: 'BEGIN{s=0} {s += $NF} END {print s}'; })
-    tags=${tags:-0}
-
-    total_files=$((total_files + files))
-    total_ins=$((total_ins + ins))
-    total_del=$((total_del + del))
-    total_tags=$((total_tags + tags))
-
-    printf "| \`crates/%s\` | %s | +%s | -%s | %s |\n" \
-        "$crate" "$files" "$ins" "$del" "$tags"
 done
 
 printf "| **Total** | **%s** | **+%s** | **-%s** | **%s** |\n" \
     "$total_files" "$total_ins" "$total_del" "$total_tags"
 
+# --- Baseline delta section ---
+if [ -f "$BASELINE_FILE" ]; then
+    baseline_date=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('generated_at','unknown'))" < "$BASELINE_FILE")
+    baseline_tags=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('totals',{}).get('tags',0))" < "$BASELINE_FILE")
+    baseline_total_loc=$(python3 -c "
+import json, sys
+d = json.load(sys.stdin).get('totals',{})
+print(d.get('insertions',0) + d.get('deletions',0))
+" < "$BASELINE_FILE")
+    current_total_loc=$((total_ins + total_del))
+    loc_delta=$((current_total_loc - baseline_total_loc))
+    tag_delta=$((total_tags - baseline_tags))
+
+    echo
+    echo "### Delta from baseline ($baseline_date)"
+    echo
+    echo "| Metric | Baseline | Current | Delta |"
+    echo "|--------|----------|---------|-------|"
+    printf "| Combined LOC (ins+del) | %s | %s | %+d |\n" "$baseline_total_loc" "$current_total_loc" "$loc_delta"
+    printf "| \`// PaddleBoard:\` tags | %s | %s | %+d |\n" "$baseline_tags" "$total_tags" "$tag_delta"
+
+    # Per-crate deltas for crates that exceeded the threshold
+    breached_crates=()
+    for i in "${!CORE_CRATES[@]}"; do
+        crate="${CORE_CRATES[$i]}"
+        [ "${crate_missing_arr[$i]}" = 1 ] && continue
+        current_loc=$(( ${crate_ins_arr[$i]} + ${crate_del_arr[$i]} ))
+        baseline_crate_loc=$(python3 -c "
+import json, sys
+crates = json.load(sys.stdin).get('crates', {})
+c = crates.get('$crate', {})
+print(c.get('insertions', 0) + c.get('deletions', 0))
+" < "$BASELINE_FILE")
+        crate_delta=$((current_loc - baseline_crate_loc))
+        if [ "$crate_delta" -gt "$CRATE_DELTA_THRESHOLD" ] || [ "$crate_delta" -lt "-$CRATE_DELTA_THRESHOLD" ]; then
+            breached_crates+=("$crate ($crate_delta)")
+        fi
+    done
+
+    if [ ${#breached_crates[@]} -gt 0 ]; then
+        echo
+        printf "**Crates exceeding ±%s LOC threshold:** " "$CRATE_DELTA_THRESHOLD"
+        printf "%s" "${breached_crates[0]}"
+        for bc in "${breached_crates[@]:1}"; do
+            printf ", %s" "$bc"
+        done
+        echo
+    fi
+
+    if [ "$tag_delta" -gt "$TAG_DELTA_THRESHOLD" ]; then
+        echo
+        printf "**Warning:** PaddleBoard tag count grew by %+d (threshold: +%s). New divergence points may need review.\n" "$tag_delta" "$TAG_DELTA_THRESHOLD"
+    fi
+fi
+
 echo
 echo "_Generated by \`script/check-upstream-drift\`. See \`FORK_HYGIENE.md\` for context._"
+
+# --- Save baseline ---
+if [ "$DO_SAVE" = 1 ]; then
+    {
+        printf '{\n'
+        printf '  "generated_at": "%s",\n' "$(date -u +%Y-%m-%d)"
+        printf '  "upstream_ref": "%s",\n' "$UPSTREAM_REF"
+        printf '  "upstream_sha": "%s",\n' "$upstream_short"
+        printf '  "head_sha": "%s",\n' "$head_short"
+        printf '  "crates": {\n'
+        first=1
+        for i in "${!CORE_CRATES[@]}"; do
+            crate="${CORE_CRATES[$i]}"
+            [ "${crate_missing_arr[$i]}" = 1 ] && continue
+            [ "$first" = 0 ] && printf ',\n'
+            first=0
+            printf '    "%s": {"files": %s, "insertions": %s, "deletions": %s, "tags": %s}' \
+                "$crate" "${crate_files_arr[$i]}" "${crate_ins_arr[$i]}" \
+                "${crate_del_arr[$i]}" "${crate_tags_arr[$i]}"
+        done
+        printf '\n  },\n'
+        printf '  "totals": {"files": %s, "insertions": %s, "deletions": %s, "tags": %s}\n' \
+            "$total_files" "$total_ins" "$total_del" "$total_tags"
+        printf '}\n'
+    } > "$BASELINE_FILE"
+    echo >&2 "Baseline saved to $BASELINE_FILE"
+fi
+
+# --- Check mode ---
+if [ "$DO_CHECK" = 1 ]; then
+    if [ ! -f "$BASELINE_FILE" ]; then
+        echo >&2 "Warning: no baseline file at $BASELINE_FILE — skipping threshold check."
+        echo >&2 "Run with --save-baseline to create one."
+        exit 0
+    fi
+
+    violations=0
+
+    # Check per-crate deltas
+    for i in "${!CORE_CRATES[@]}"; do
+        crate="${CORE_CRATES[$i]}"
+        [ "${crate_missing_arr[$i]}" = 1 ] && continue
+        current_loc=$(( ${crate_ins_arr[$i]} + ${crate_del_arr[$i]} ))
+        baseline_crate_loc=$(python3 -c "
+import json, sys
+crates = json.load(sys.stdin).get('crates', {})
+c = crates.get('$crate', {})
+print(c.get('insertions', 0) + c.get('deletions', 0))
+" < "$BASELINE_FILE")
+        crate_delta=$((current_loc - baseline_crate_loc))
+        abs_delta=${crate_delta#-}
+        if [ "$abs_delta" -gt "$CRATE_DELTA_THRESHOLD" ]; then
+            echo >&2 "DRIFT CHECK: crates/$crate exceeded threshold (delta: ${crate_delta}, threshold: ±${CRATE_DELTA_THRESHOLD})"
+            violations=$((violations + 1))
+        fi
+    done
+
+    # Check tag delta
+    baseline_tags=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('totals',{}).get('tags',0))" < "$BASELINE_FILE")
+    tag_delta=$((total_tags - baseline_tags))
+    if [ "$tag_delta" -gt "$TAG_DELTA_THRESHOLD" ]; then
+        echo >&2 "DRIFT CHECK: PaddleBoard tag count grew by +${tag_delta} (threshold: +${TAG_DELTA_THRESHOLD})"
+        violations=$((violations + 1))
+    fi
+
+    if [ "$violations" -gt 0 ]; then
+        echo >&2 "DRIFT CHECK: $violations threshold(s) exceeded. Run --save-baseline after an upstream merge to reset."
+        exit 1
+    fi
+fi

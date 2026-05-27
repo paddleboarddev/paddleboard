@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-05-26",
+  "upstream_ref": "zed/main",
+  "upstream_sha": "533d3d534b",
+  "head_sha": "3a4fbef5ff",
+  "crates": {
+    "agent": {"files": 19, "insertions": 25254, "deletions": 206, "tags": 0},
+    "agent_ui": {"files": 29, "insertions": 3831, "deletions": 1180, "tags": 6},
+    "buffer_diff": {"files": 2, "insertions": 145, "deletions": 119, "tags": 0},
+    "client": {"files": 5, "insertions": 59, "deletions": 228, "tags": 2},
+    "editor": {"files": 16, "insertions": 167, "deletions": 2013, "tags": 0},
+    "gpui": {"files": 8, "insertions": 41, "deletions": 203, "tags": 0},
+    "language": {"files": 2, "insertions": 8, "deletions": 8, "tags": 0},
+    "language_core": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "lsp": {"files": 1, "insertions": 0, "deletions": 4, "tags": 0},
+    "multi_buffer": {"files": 1, "insertions": 517, "deletions": 517, "tags": 0},
+    "project": {"files": 12, "insertions": 245, "deletions": 799, "tags": 1},
+    "rope": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "settings_content": {"files": 6, "insertions": 153, "deletions": 12, "tags": 6},
+    "text": {"files": 1, "insertions": 1, "deletions": 1, "tags": 0},
+    "workspace": {"files": 13, "insertions": 218, "deletions": 1967, "tags": 2}
+  },
+  "totals": {"files": 115, "insertions": 30639, "deletions": 7257, "tags": 17}
+}
