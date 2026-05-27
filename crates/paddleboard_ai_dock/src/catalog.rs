@@ -38,6 +38,9 @@ pub struct AgentEntry {
 /// One skill entry. Skills are markdown files dropped into `.claude/commands/`
 /// (per-project) or `~/.claude/commands/` (per-user). Bundled skills carry
 /// the markdown body inline so "Add" works without a network round-trip.
+///
+/// Skills with `builtin: true` are provided by the Claude Code harness and
+/// are always available — they don't need a `.claude/commands/` file.
 #[derive(Debug, Clone, Deserialize)]
 pub struct SkillEntry {
     pub id: String,
@@ -47,6 +50,8 @@ pub struct SkillEntry {
     pub homepage: Option<String>,
     #[serde(default)]
     pub featured: bool,
+    #[serde(default)]
+    pub builtin: bool,
 }
 
 /// One MCP server entry. The AI Dock's MCP tab uses these to populate the
@@ -116,6 +121,9 @@ pub fn bundled_skill_content(id: &str) -> Option<&'static str> {
     match id {
         "build" => Some(include_str!("../../../.claude/commands/build.md")),
         "update-tour" => Some(include_str!("../../../.claude/commands/update-tour.md")),
+        "clippy" => Some(include_str!("../../../.claude/commands/clippy.md")),
+        "test" => Some(include_str!("../../../.claude/commands/test.md")),
+        "check-drift" => Some(include_str!("../../../.claude/commands/check-drift.md")),
         _ => None,
     }
 }
@@ -137,19 +145,51 @@ mod tests {
             update_tour.contains("WELCOME.md") || update_tour.contains("tour"),
             "bundled `update-tour.md` should reference WELCOME.md or `tour`: got {update_tour:?}"
         );
+
+        let clippy = bundled_skill_content("clippy").expect("clippy is bundled");
+        assert!(
+            clippy.contains("script/clippy"),
+            "bundled `clippy.md` should mention `script/clippy`: got {clippy:?}"
+        );
+
+        let test = bundled_skill_content("test").expect("test is bundled");
+        assert!(
+            test.contains("cargo test"),
+            "bundled `test.md` should mention `cargo test`: got {test:?}"
+        );
+
+        let check_drift =
+            bundled_skill_content("check-drift").expect("check-drift is bundled");
+        assert!(
+            check_drift.contains("check-upstream-drift"),
+            "bundled `check-drift.md` should mention `check-upstream-drift`: got {check_drift:?}"
+        );
     }
 
     #[test]
     fn bundled_skill_content_returns_none_for_unbundled() {
-        assert!(bundled_skill_content("review").is_none());
-        assert!(bundled_skill_content("verify").is_none());
         assert!(bundled_skill_content("nonexistent").is_none());
+    }
+
+    #[test]
+    fn builtin_skills_are_not_bundled() {
+        let catalog = Catalog::load();
+        for skill in &catalog.skills {
+            if skill.builtin {
+                assert!(
+                    bundled_skill_content(&skill.id).is_none(),
+                    "builtin skill `{}` should not have bundled content — \
+                     it's provided by the harness, not a .claude/commands/ file",
+                    skill.id
+                );
+            }
+        }
     }
 
     #[test]
     fn every_bundled_id_is_in_catalog() {
         let catalog = Catalog::load();
-        let bundled_ids = ["build", "update-tour"];
+        let bundled_ids = ["build", "update-tour", "clippy", "test", "check-drift"];
         for id in bundled_ids {
             assert!(
                 catalog.skills.iter().any(|s| s.id == id),
