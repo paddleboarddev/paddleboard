@@ -6,7 +6,8 @@ use util::command::new_command;
 pub struct ForwardedPort {
     pub label: SharedString,
     pub host_port: u16,
-    pub container_id: Arc<str>,
+    // PaddleBoard: optional so non-container ports (e.g. `adk web` in a terminal) can register
+    pub container_id: Option<Arc<str>>,
 }
 
 impl ForwardedPort {
@@ -58,7 +59,11 @@ impl ForwardedPorts {
         };
 
         let Some(port) = removed else { return };
-        let container_id = port.container_id.to_string();
+        // PaddleBoard: only attempt podman stop for container-backed ports
+        let Some(container_id) = port.container_id else {
+            return;
+        };
+        let container_id = container_id.to_string();
         cx.background_spawn(async move {
             let mut cmd = new_command("podman");
             cmd.args(["stop", &container_id]);

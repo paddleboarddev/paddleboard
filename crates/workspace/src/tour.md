@@ -23,9 +23,10 @@ When the AI needs to run untrusted code, compile new binaries, or run tests, it 
 ### 3. Forwarded Ports — Sandbox Services
 Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Service Tool**. Each running service appears in a **Forwarded Ports** row above the browser viewport.
 - Click the label (e.g. `http :54321`) → the browser panel navigates to `http://localhost:54321`.
-- Click the × → the container stops and the entry disappears.
+- Click the × → the service stops and the entry disappears.
 - Bindings stay on `127.0.0.1` only — never your LAN.
-- **ADK quick start**: `Cmd-Shift-P` → **`adk: Scaffold Agent`** to create a new Google ADK agent project, then **`adk: Run Agent`** to launch `adk web` in a terminal. The dev server URL appears in the terminal output.
+- Non-container ports appear here too — `adk: Run Agent` registers port 8000 from the terminal so you get the same one-click navigation.
+- **ADK quick start**: `Cmd-Shift-P` → **`adk: Scaffold Agent`** to create a new Google ADK agent project, then **`adk: Run Agent`** to launch `adk web` — port 8000 appears in Forwarded Ports automatically. Open a folder with `agent.py` or `agent.yaml` and PaddleBoard shows a toast with a **Run Agent** button.
 
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
@@ -37,8 +38,8 @@ PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as
 ### 5. AI Dock
 One place to browse and install everything the agent talks to — the marina where every external collaborator ties up.
 - Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or hit **Open the AI Dock** on the Welcome screen. The Welcome screen also surfaces a **Featured** strip (Claude / Codex / Copilot / Cursor / Gemini pills) so first-run users have recognizable names to click.
-- Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI).
-- Installed items show a green badge; missing ones get a one-click **Install / Sign In / Learn More** that does the category-appropriate thing. Bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
+- Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, Google ADK), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI).
+- Installed items show a green badge; missing ones get a one-click **Install / Sign In / Set Up / Learn More** that does the category-appropriate thing. CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command. Bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - **Add Agent** (Agents tab header): opens a modal to register a custom agent server by its registry ID — for agents not in the catalog.
 - **Create Skill** (Skills tab header): opens a modal with a name field, prompt editor, and project/user scope toggle. Creates a new `.claude/commands/{name}.md` file.
 - The catalog is `assets/ai_dock/catalog.json` in-repo — adds are PRs, not fetches.

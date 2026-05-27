@@ -13,6 +13,7 @@ path = "src/paddleboard_adk.rs"
 
 [dependencies]
 anyhow.workspace = true
+browser.workspace = true
 gpui.workspace = true
 menu.workspace = true
 paddleboard_actions.workspace = true

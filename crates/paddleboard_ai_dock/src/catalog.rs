@@ -33,6 +33,11 @@ pub struct AgentEntry {
     /// instead of the generic agent-server install path.
     #[serde(default)]
     pub builtin_zed: bool,
+    /// Shell command to install the agent's CLI tool (e.g. `pip install google-adk`).
+    /// When set, the Agents tab shows a terminal-based "Set Up" button instead of
+    /// the registry-settings install path.
+    #[serde(default)]
+    pub install_command: Option<String>,
 }
 
 /// One skill entry. Skills are markdown files dropped into `.claude/commands/`

@@ -223,7 +223,7 @@ impl AgentTool for SandboxServiceTool {
                 let port = ForwardedPort {
                     label: SharedString::from(label.clone()),
                     host_port: container_port,
-                    container_id: Arc::from(host_command_id.as_str()),
+                    container_id: Some(Arc::from(host_command_id.as_str())),
                 };
                 cx.update(|cx| ForwardedPorts::register(cx, port));
 
@@ -300,7 +300,7 @@ impl AgentTool for SandboxServiceTool {
             let port = ForwardedPort {
                 label: SharedString::from(label.clone()),
                 host_port,
-                container_id: Arc::from(container_id.as_str()),
+                container_id: Some(Arc::from(container_id.as_str())),
             };
 
             cx.update(|cx| ForwardedPorts::register(cx, port));

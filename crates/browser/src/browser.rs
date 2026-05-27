@@ -293,7 +293,7 @@ impl Render for Browser {
                                                     IconName::Close,
                                                 )
                                                 .icon_size(IconSize::XSmall)
-                                                .tooltip(Tooltip::text("Stop container"))
+                                                .tooltip(Tooltip::text("Remove"))
                                                 .on_click(cx.listener(move |_, _, _, cx| {
                                                     ForwardedPorts::stop(cx, host_port);
                                                 })),

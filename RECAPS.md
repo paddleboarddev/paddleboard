@@ -6,6 +6,34 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### Full OTEL pipeline for Scion agent tracing
+
+- **New crate `paddleboard_otel`:** Initializes an OpenTelemetry tracing pipeline with OTLP gRPC exporter. Opt-in via `paddleboard_otel.enabled: true` in settings.json or `PADDLEBOARD_OTEL_ENABLED=1` env var. Respects `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME` env vars. Stores `OtelGuard` as a GPUI Global for graceful shutdown. Skips init when Tracy (`ZTRACING`) is active to avoid subscriber conflicts.
+- **New crate `paddleboard_otel_settings`:** Typed settings wrapper (`OtelSettings` with `enabled`, `endpoint`, `protocol`, `service_name`) following the `paddleboard_sandbox_settings` pattern. `RegisterSetting` derive + `impl Settings`.
+- **Settings schema:** `PaddleboardOtelContent` in `crates/settings_content/src/paddleboard_otel.rs`, wired into `SettingsContent`. Default section added to `assets/settings/default.json`.
+- **Display impls for Scion enums:** `AgentPhase` and `AgentActivity` now implement `Display` with snake_case strings matching serde. Two new tests verify consistency.
+- **ScionCli instrumentation:** `list_agents`, `start_agent`, `stop_agent`, and `sync_from` wrapped with `tracing::info_span!` + `tracing::Instrument` for async span propagation. Attributes include agent names, counts, template, flags. Zero-cost when no subscriber is installed.
+- **ScionStore transition detection:** New `prev_agent_states: HashMap<String, AgentSnapshot>` field tracks per-agent phase/activity between polls. `detect_transitions()` emits `tracing::info!` events for phase transitions, activity transitions, newly discovered agents, and disappeared agents. Poll cycle wrapped in `scion.poll_cycle` span.
+- **Environment variables:** `PADDLEBOARD_OTEL_ENABLED` and `PADDLEBOARD_OTEL_ENDPOINT` added to `paddleboard_env_vars` for discoverability.
+- **Workspace deps:** `opentelemetry 0.32`, `opentelemetry_sdk 0.32`, `opentelemetry-otlp 0.32` (grpc-tonic), `tracing-opentelemetry 0.33`, `tracing-subscriber 0.3.22` added to workspace Cargo.toml.
+- **Verified:** `cargo check -p paddleboard` clean, clippy clean on all OTEL + Scion crates, all 27 tests pass (paddleboard_scion 15 + paddleboard_ai_dock 4 + new Display tests 2 + existing scion_ui 6).
+- **Follow-ups:** Manual verification with Jaeger (`docker run -d -p 16686:16686 -p 4317:4317 jaegertracing/all-in-one`), HTTP protocol support (currently gRPC-only, HTTP falls back to gRPC with a warning), WELCOME.md + tour updates for OTEL.
+
+### WELCOME.md + tour sync for ADK/AI Dock features
+
+- **WELCOME.md:** Updated Forwarded Ports section with non-container port support. Expanded ADK recipe with project detection toast, Forwarded Ports auto-registration, and AI Dock "Set Up" entry. Updated AI Dock section to mention "Set Up" button for CLI-based agents.
+- **tour.md:** Synced all three sections to match — forwarded ports mentions non-container ports, ADK section covers detection toast and port 8000 registration, AI Dock lists Google ADK and "Set Up" flow.
+
+### ADK follow-ups + AI Dock terminal install
+
+- **ForwardedPort.container_id now optional:** Changed `container_id: Arc<str>` → `Option<Arc<str>>` in `crates/browser/src/forwarded_ports.rs`. `stop()` skips `podman stop` when `None`. Updated both construction sites in `sandbox_service_tool.rs` to wrap in `Some(...)`. Browser panel tooltip changed from "Stop container" to "Remove". Tagged with `// PaddleBoard:` comments. Minimal upstream-file diff.
+- **ADK catalog entry:** Added "Google ADK" to `assets/ai_dock/catalog.json` with new `install_command` field (`"pip install google-adk"`). Added `install_command: Option<String>` to `AgentEntry` in `catalog.rs` (serde default, backwards-compatible).
+- **Terminal install flow for CLI agents:** New `cli_tool_button()` in `agents_tab.rs` — checks `which` for the CLI binary from the install command's first token. Shows "Installed" (disabled) if found on PATH, "Set Up" (spawns terminal with install command via `workspace.spawn_in_terminal()`) if not. Follows the install-wizard "Run in Terminal" UX preference. Added `task` dep to `paddleboard_ai_dock`.
+- **ADK project detection:** On workspace open, deferred check (500ms) scans visible worktree roots for `agent.py` or `agent.yaml`. If found, shows toast "ADK project detected" with a "Run Agent" button that dispatches `paddleboard_actions::adk::RunAgent`.
+- **Forwarded Ports on `adk web`:** After spawning `adk web` in terminal, registers `localhost:8000` in the Browser panel's forwarded ports row with `container_id: None`. Added `browser` dep to `paddleboard_adk`.
+- **Verified:** `cargo check -p paddleboard` clean, clippy clean on `paddleboard_adk`, `paddleboard_ai_dock`, `browser`, all 4 `paddleboard_ai_dock` catalog tests pass. Pre-existing warnings (`NSBeep` unsafe, `cloud_api_types::Plan` unused import) are from upstream merge.
+- **Follow-ups:** UI smoke test of all four features in running app. Port 8000 is hardcoded — a future enhancement could parse `adk web` stdout for the actual bound port. `which` call in `render_agent_row` is synchronous (typically fast, but could be cached if profiling shows issues).
+
 ### Scion + AI Dock polish pass
 
 - **Named log tabs:** "View Logs" on a Scion agent now opens a tab titled "Scion Logs: {agent-name}" instead of "untitled". Uses `MultiBuffer::singleton(...).with_title(...)` → `Editor::for_multibuffer(...)` in `orchestration_panel.rs`.

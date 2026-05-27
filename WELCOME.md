@@ -50,8 +50,9 @@ When you want the agent to run something long-lived — a dev server, a demo app
 - The agent picks the container port (e.g. `python3 -m http.server 8000` → port `8000`); PaddleBoard handles the host-side mapping and binds it to `127.0.0.1` only — never your LAN
 - Each running service shows up in a **Forwarded Ports** row above the browser viewport, labeled like `http :54321`
 - Click the label → the browser panel navigates to `http://localhost:54321`
-- Click the × → the container is stopped and the entry disappears
+- Click the × → the service is stopped and the entry disappears
 - The agent can wait for a readiness substring in the container logs before reporting success, so the URL it gives you is actually live
+- Non-container ports also appear here — for example, `adk: Run Agent` registers port 8000 directly from the terminal so you get the same one-click navigation
 
 For one-shot commands (builds, tests, scripts) the agent still uses the regular Sandbox Tool. The Service Tool is for processes that should outlive the tool call.
 
@@ -60,7 +61,9 @@ For one-shot commands (builds, tests, scripts) the agent still uses the regular 
 Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `adk web` UI that's a natural fit for PaddleBoard. Two command palette actions make it quick:
 
 - **`adk: Scaffold Agent`** — opens a modal where you name your agent, then runs `adk create <name>` in a terminal tab. Writes `agent.py`, config, and dependencies into your workspace.
-- **`adk: Run Agent`** — spawns `adk web` in a terminal tab. The dev server's URL appears in the terminal output — click it to open in the browser panel.
+- **`adk: Run Agent`** — spawns `adk web` in a terminal tab and registers port 8000 in the Forwarded Ports row so you can click through to the dev server in the browser panel.
+- **Project detection** — when you open a workspace that contains `agent.py` or `agent.yaml`, PaddleBoard shows a toast notification with a **Run Agent** button so you can launch the dev server in one click.
+- **AI Dock entry** — Google ADK appears in the Agents tab of the AI Dock. If the `adk` CLI isn't on your PATH, a **Set Up** button opens a terminal with `pip install google-adk`.
 
 For sandboxed execution via the agent, you can also ask in a chat thread: **"Run `adk web` in the sandbox, forwarding GOOGLE_API_KEY."** The agent will call `sandbox_service_tool` and the URL lands in the Forwarded Ports row.
 
@@ -105,7 +108,7 @@ One place to browse and install everything the agent talks to. Think of it as th
 
 - Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Gemini) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
 - Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), and **MCP Servers** (the absorbed management page plus a catalog of common servers).
-- Installed items show a green badge; missing ones show an **Install / Sign In / Learn More** action that does the right thing for the category — agent installs are a one-click settings write, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
+- Installed items show a green badge; missing ones show an **Install / Sign In / Set Up / Learn More** action that does the right thing for the category — registry agent installs are a one-click settings write, CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
 
 The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome screen and the standalone MCP Servers pane — both routes now land here.

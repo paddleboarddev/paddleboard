@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
+use tracing::Instrument;
 
 pub use compat::Compatibility;
 pub use types::*;
@@ -159,15 +160,27 @@ impl ScionCli {
         all: bool,
         running_only: bool,
     ) -> Result<Vec<AgentInfo>> {
-        let mut args = vec!["list"];
-        if all {
-            args.push("--all");
+        async {
+            let mut args = vec!["list"];
+            if all {
+                args.push("--all");
+            }
+            if running_only {
+                args.push("--running");
+            }
+            let output = self.run_command(&args).await?;
+            let agents: Vec<AgentInfo> =
+                serde_json::from_str(&output).context("failed to parse scion list output")?;
+            tracing::Span::current().record("scion.agent_count", agents.len());
+            Ok(agents)
         }
-        if running_only {
-            args.push("--running");
-        }
-        let output = self.run_command(&args).await?;
-        serde_json::from_str(&output).context("failed to parse scion list output")
+        .instrument(tracing::info_span!(
+            "scion.list_agents",
+            scion.all = all,
+            scion.running_only = running_only,
+            scion.agent_count = tracing::field::Empty,
+        ))
+        .await
     }
 
     pub async fn start_agent(
@@ -176,26 +189,43 @@ impl ScionCli {
         task: Option<&str>,
         options: &StartAgentOptions,
     ) -> Result<String> {
-        let mut args = vec!["start".to_string(), name.to_string()];
-        if let Some(task_text) = task {
-            args.push(task_text.to_string());
-        }
-        args.extend(options.to_args());
+        async {
+            let mut args = vec!["start".to_string(), name.to_string()];
+            if let Some(task_text) = task {
+                args.push(task_text.to_string());
+            }
+            args.extend(options.to_args());
 
-        let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        self.run_raw_command(&str_args).await
+            let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            self.run_raw_command(&str_args).await
+        }
+        .instrument(tracing::info_span!(
+            "scion.start_agent",
+            scion.agent_name = name,
+            scion.template = options.template.as_deref().unwrap_or(""),
+            scion.detached = options.detached,
+        ))
+        .await
     }
 
     pub async fn stop_agent(&self, name: Option<&str>, all: bool) -> Result<()> {
-        let mut args = vec!["stop"];
-        if let Some(agent_name) = name {
-            args.push(agent_name);
+        async {
+            let mut args = vec!["stop"];
+            if let Some(agent_name) = name {
+                args.push(agent_name);
+            }
+            if all {
+                args.push("--all");
+            }
+            self.run_raw_command(&args).await?;
+            Ok(())
         }
-        if all {
-            args.push("--all");
-        }
-        self.run_raw_command(&args).await?;
-        Ok(())
+        .instrument(tracing::info_span!(
+            "scion.stop_agent",
+            scion.agent_name = name.unwrap_or(""),
+            scion.all = all,
+        ))
+        .await
     }
 
     pub async fn delete_agent(&self, name: &str) -> Result<()> {
@@ -288,9 +318,10 @@ impl ScionCli {
             .with_context(|| format!("failed to spawn scion logs -f {name}"))
     }
 
-    /// Pulls an agent's changes into the local worktree.
     pub async fn sync_from(&self, name: &str) -> Result<String> {
-        self.run_raw_command(&["sync", "from", name]).await
+        async { self.run_raw_command(&["sync", "from", name]).await }
+            .instrument(tracing::info_span!("scion.sync_from", scion.agent_name = name))
+            .await
     }
 }
 
