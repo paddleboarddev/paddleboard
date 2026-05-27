@@ -1,15 +1,18 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use agent_client_protocol::schema as acp;
 use acp_thread::ThreadStatus;
 use gpui::{
-    Action, App, AsyncWindowContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
-    IntoElement, Pixels, Render, SharedString, Subscription, WeakEntity, Window, prelude::*, px,
+    Action, App, AppContext as _, AsyncWindowContext, Context, DismissEvent, Entity, EventEmitter,
+    FocusHandle, Focusable, IntoElement, MouseButton, MouseDownEvent, Pixels, Point, Render,
+    SharedString, Subscription, WeakEntity, Window, prelude::*, px,
 };
+use gpui_tokio::Tokio;
 // PaddleBoard: Scion orchestration support
-use paddleboard_scion::{AgentInfo, AgentPhase};
+use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli};
 use paddleboard_scion_ui::{ScionStore, ScionStoreEvent, ScionStoreGlobal};
-use ui::{Color, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
+use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
 use workspace::{
     Workspace,
     dock::{DockPosition, Panel, PanelEvent},
@@ -32,6 +35,7 @@ pub struct OrchestrationPanel {
     thread_subscriptions: HashMap<acp::SessionId, Subscription>,
     // PaddleBoard: Scion agent store for container-isolated parallel agents.
     scion_store: Option<Entity<ScionStore>>,
+    scion_context_menu: Option<(Entity<ContextMenu>, Point<Pixels>, Subscription)>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -55,6 +59,7 @@ impl OrchestrationPanel {
             agent_panel: None,
             thread_subscriptions: HashMap::default(),
             scion_store: scion_store.clone(),
+            scion_context_menu: None,
             _subscriptions: Vec::new(),
         };
 
@@ -363,14 +368,14 @@ impl Panel for OrchestrationPanel {
 
 impl OrchestrationPanel {
     // PaddleBoard: Scion agent section rendering
-    fn render_scion_section(&self, cx: &Context<Self>) -> Option<gpui::AnyElement> {
+    fn render_scion_section(&self, cx: &mut Context<Self>) -> Option<gpui::AnyElement> {
         let store = self.scion_store.as_ref()?;
-        let store = store.read(cx);
-        if !store.is_available() {
+        let store_read = store.read(cx);
+        if !store_read.is_available() {
             return None;
         }
 
-        let agents = store.agents();
+        let agents = store_read.agents().to_vec();
 
         let mut elements: Vec<gpui::AnyElement> = Vec::new();
 
@@ -403,7 +408,7 @@ impl OrchestrationPanel {
                     .into_any_element(),
             );
         } else {
-            for agent in agents {
+            for agent in &agents {
                 elements.push(self.render_scion_agent_row(agent, cx));
             }
         }
@@ -411,7 +416,11 @@ impl OrchestrationPanel {
         Some(v_flex().children(elements).into_any_element())
     }
 
-    fn render_scion_agent_row(&self, agent: &AgentInfo, cx: &Context<Self>) -> gpui::AnyElement {
+    fn render_scion_agent_row(
+        &self,
+        agent: &AgentInfo,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let phase = agent.phase.unwrap_or(AgentPhase::Unknown);
         let activity = agent.activity;
 
@@ -446,6 +455,9 @@ impl OrchestrationPanel {
             SharedString::from(label)
         });
 
+        let agent_name = agent.name.clone();
+        let is_running = phase == AgentPhase::Running || phase.is_active();
+
         h_flex()
             .id(SharedString::from(format!("scion-agent-{}", agent.name)))
             .w_full()
@@ -456,6 +468,15 @@ impl OrchestrationPanel {
             .items_center()
             .cursor_pointer()
             .hover(|style| style.bg(cx.theme().colors().element_hover))
+            .on_mouse_down(MouseButton::Right, cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                this.deploy_scion_context_menu(
+                    event.position,
+                    agent_name.clone(),
+                    is_running,
+                    window,
+                    cx,
+                );
+            }))
             .child(
                 Icon::new(IconName::Terminal)
                     .size(IconSize::XSmall)
@@ -480,13 +501,208 @@ impl OrchestrationPanel {
             })
             .into_any_element()
     }
+
+    fn deploy_scion_context_menu(
+        &mut self,
+        position: Point<Pixels>,
+        agent_name: String,
+        is_running: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let workspace = self.workspace.clone();
+        let store = self.scion_store.clone();
+
+        let name_for_logs = agent_name.clone();
+        let name_for_sync = agent_name.clone();
+        let name_for_stop = agent_name;
+
+        let store_for_logs = store.clone();
+        let store_for_sync = store.clone();
+        let store_for_stop = store;
+
+        let workspace_for_logs = workspace.clone();
+        let workspace_for_sync = workspace.clone();
+        let workspace_for_stop = workspace;
+
+        let context_menu = ContextMenu::build(window, cx, move |menu, _window, _cx| {
+            menu.entry(
+                "View Logs",
+                None,
+                move |window, cx| {
+                    if let (Some(store), Some(workspace)) =
+                        (store_for_logs.as_ref(), workspace_for_logs.upgrade())
+                    {
+                        let cli = store.read(cx).cli.clone();
+                        Self::open_agent_logs(
+                            name_for_logs.clone(),
+                            cli,
+                            workspace,
+                            window,
+                            cx,
+                        );
+                    }
+                },
+            )
+            .entry(
+                "Sync Changes",
+                None,
+                move |_window, cx| {
+                    if let (Some(store), Some(workspace)) =
+                        (store_for_sync.as_ref(), workspace_for_sync.upgrade())
+                    {
+                        Self::sync_from_agent(
+                            name_for_sync.clone(),
+                            store.clone(),
+                            workspace,
+                            cx,
+                        );
+                    }
+                },
+            )
+            .when(is_running, |menu| {
+                menu.separator().entry(
+                    "Stop Agent",
+                    None,
+                    move |_window, cx| {
+                        if let (Some(store), Some(workspace)) =
+                            (store_for_stop.as_ref(), workspace_for_stop.upgrade())
+                        {
+                            Self::stop_agent(
+                                name_for_stop.clone(),
+                                store.clone(),
+                                workspace,
+                                cx,
+                            );
+                        }
+                    },
+                )
+            })
+        });
+
+        window.focus(&context_menu.focus_handle(cx), cx);
+        let subscription = cx.subscribe(&context_menu, |this, _, _: &DismissEvent, cx| {
+            this.scion_context_menu.take();
+            cx.notify();
+        });
+        self.scion_context_menu = Some((context_menu, position, subscription));
+        cx.notify();
+    }
+
+    fn open_agent_logs(
+        name: String,
+        cli: Arc<ScionCli>,
+        workspace: Entity<Workspace>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let log_task =
+            Tokio::spawn_result(cx, async move { cli.agent_logs(&name, Some(200)).await });
+
+        let window_handle = window.window_handle();
+        let project = workspace.read(cx).project().clone();
+
+        cx.spawn(async move |cx| {
+            let logs = match log_task.await {
+                Ok(logs) => logs,
+                Err(err) => {
+                    workspace.update(cx, |workspace, cx| {
+                        workspace.show_error(&err, cx);
+                    });
+                    return;
+                }
+            };
+
+            let create_buffer =
+                project.update(cx, |project, cx| project.create_buffer(None, false, cx));
+
+            let buffer = match create_buffer.await {
+                Ok(buffer) => buffer,
+                Err(err) => {
+                    log::error!("failed to create log buffer: {err:#}");
+                    return;
+                }
+            };
+
+            buffer.update(cx, |buffer, cx| {
+                buffer.edit([(0..0, logs)], None, cx);
+                buffer.set_capability(language::Capability::ReadOnly, cx);
+            });
+
+            cx.update_window(window_handle, |_view, window, cx| {
+                let editor_entity = cx.new(|cx| {
+                    let mut editor_view = editor::Editor::for_buffer(buffer, None, window, cx);
+                    editor_view.set_read_only(true);
+                    editor_view
+                });
+                workspace.update(cx, |workspace, cx| {
+                    workspace.add_item_to_active_pane(
+                        Box::new(editor_entity),
+                        None,
+                        true,
+                        window,
+                        cx,
+                    );
+                });
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    fn sync_from_agent(
+        name: String,
+        store: Entity<ScionStore>,
+        workspace: Entity<Workspace>,
+        cx: &mut App,
+    ) {
+        let task = store.update(cx, |store, cx| store.sync_from(name, cx));
+
+        cx.spawn(async move |cx| {
+            match task.await {
+                Ok(_output) => {
+                    log::info!("scion sync completed");
+                }
+                Err(err) => {
+                    workspace.update(cx, |workspace, cx| {
+                        workspace.show_error(&err, cx);
+                    });
+                }
+            }
+        })
+        .detach();
+    }
+
+    fn stop_agent(
+        name: String,
+        store: Entity<ScionStore>,
+        workspace: Entity<Workspace>,
+        cx: &mut App,
+    ) {
+        let task = store.update(cx, |store, cx| store.stop_agent(name, cx));
+
+        let store_for_refresh = store.clone();
+        cx.spawn(async move |cx| {
+            match task.await {
+                Ok(()) => {
+                    store_for_refresh.update(cx, |store, cx| store.refresh(cx));
+                }
+                Err(err) => {
+                    workspace.update(cx, |workspace, cx| {
+                        workspace.show_error(&err, cx);
+                    });
+                }
+            }
+        })
+        .detach();
+    }
 }
 
 impl Render for OrchestrationPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let colors = cx.theme().colors();
         // PaddleBoard: render Scion section alongside native threads
         let scion_section = self.render_scion_section(cx);
+        let colors = cx.theme().colors();
 
         v_flex()
             .size_full()
@@ -511,6 +727,14 @@ impl Render for OrchestrationPanel {
                     .child(self.render_thread_tree(cx))
                     .when_some(scion_section, |el, section| el.child(section)),
             )
+            .children(self.scion_context_menu.as_ref().map(|(menu, position, _)| {
+                gpui::deferred(
+                    gpui::anchored()
+                        .position(*position)
+                        .child(menu.clone()),
+                )
+                .with_priority(1)
+            }))
     }
 }
 

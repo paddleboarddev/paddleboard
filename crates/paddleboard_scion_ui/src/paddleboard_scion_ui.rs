@@ -1,3 +1,5 @@
+mod start_agent_modal;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -5,14 +7,17 @@ use std::time::Duration;
 use anyhow::Result;
 use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global, Task, Window};
 use gpui_tokio::Tokio;
-use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli, StartAgentOptions};
+use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli, StartAgentOptions, TemplateInfo};
 use workspace::Workspace;
+
+pub use start_agent_modal::StartAgentModal;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 pub struct ScionStore {
     pub cli: Arc<ScionCli>,
     agents: Vec<AgentInfo>,
+    templates: Vec<TemplateInfo>,
     available: bool,
     _poll_task: Option<Task<()>>,
 }
@@ -36,11 +41,13 @@ impl ScionStore {
         let mut store = Self {
             cli,
             agents: Vec::new(),
+            templates: Vec::new(),
             available,
             _poll_task: None,
         };
 
         if available {
+            store.fetch_templates(cx);
             store.schedule_poll(cx);
         }
 
@@ -111,6 +118,28 @@ impl ScionStore {
             .collect()
     }
 
+    pub fn templates(&self) -> &[TemplateInfo] {
+        &self.templates
+    }
+
+    fn fetch_templates(&mut self, cx: &mut Context<Self>) {
+        let task = Tokio::spawn_result(cx, {
+            let cli = self.cli.clone();
+            async move { cli.list_templates().await }
+        });
+
+        cx.spawn(async move |this, cx| {
+            if let Ok(templates) = task.await {
+                this.update(cx, |store, cx| {
+                    store.templates = templates;
+                    cx.notify();
+                })
+                .ok();
+            }
+        })
+        .detach();
+    }
+
     pub fn start_agent(
         &self,
         name: String,
@@ -161,8 +190,8 @@ pub fn init(cx: &mut App) {
 
             let store = scion_store.clone();
             workspace.register_action(
-                move |workspace, _: &paddleboard_actions::scion::StartAgent, _window, cx| {
-                    handle_start_agent(workspace, &store, cx);
+                move |workspace, _: &paddleboard_actions::scion::StartAgent, window, cx| {
+                    handle_start_agent(workspace, window, &store, cx);
                 },
             );
 
@@ -193,6 +222,7 @@ pub fn init(cx: &mut App) {
 
 fn handle_start_agent(
     workspace: &mut Workspace,
+    window: &mut Window,
     store: &Entity<ScionStore>,
     cx: &mut Context<Workspace>,
 ) {
@@ -207,26 +237,7 @@ fn handle_start_agent(
         return;
     }
 
-    let task = store.update(cx, |store, cx| {
-        let name = format!("pb-agent-{}", cx.entity_id().as_u64() % 10000);
-        store.start_agent(name, None, StartAgentOptions::default(), cx)
-    });
-
-    let store = store.clone();
-    cx.spawn(async move |this, cx| {
-        match task.await {
-            Ok(_) => {
-                store.update(cx, |store, cx| store.refresh(cx));
-            }
-            Err(err) => {
-                this.update(cx, |workspace, cx| {
-                    workspace.show_error(&err, cx);
-                })
-                .ok();
-            }
-        }
-    })
-    .detach();
+    StartAgentModal::toggle(store.clone(), workspace, window, cx);
 }
 
 fn handle_stop_agent(

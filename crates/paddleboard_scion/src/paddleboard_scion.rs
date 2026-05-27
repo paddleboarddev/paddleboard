@@ -263,7 +263,9 @@ impl ScionCli {
 
     pub async fn list_templates(&self) -> Result<Vec<TemplateInfo>> {
         let output = self.run_command(&["templates", "list"]).await?;
-        serde_json::from_str(&output).context("failed to parse scion templates list output")
+        let response: TemplateListResponse = serde_json::from_str(&output)
+            .context("failed to parse scion templates list output")?;
+        Ok(response.into_flat_list())
     }
 
     /// Spawns `scion logs -f <name>` and returns the child process with piped

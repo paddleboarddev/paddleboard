@@ -4,6 +4,7 @@ use gpui::ClickEvent;
 use ui::prelude::*;
 
 use crate::ai_dock::AiDock;
+use crate::ai_dock::add_skill_modal::AddSkillModal;
 use crate::catalog::{SkillEntry, bundled_skill_content};
 
 pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoElement {
@@ -34,6 +35,7 @@ pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
         .p_4()
         .gap_2()
         .overflow_y_scroll()
+        .child(render_tab_header(modal, cx))
         .children(catalog.skills.iter().map(|entry| {
             render_skill_row(
                 entry,
@@ -45,6 +47,34 @@ pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
         }))
 }
 
+fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoElement {
+    let workspace = modal.workspace.clone();
+    h_flex()
+        .w_full()
+        .justify_between()
+        .pb_1()
+        .child(
+            Label::new("Available Skills")
+                .size(LabelSize::Small)
+                .color(Color::Muted),
+        )
+        .child(
+            Button::new("create-skill-btn", "Create Skill")
+                .style(ButtonStyle::Filled)
+                .label_size(LabelSize::Small)
+                .on_click(cx.listener(move |_this, _: &ClickEvent, window, cx| {
+                    if let Some(workspace) = workspace.upgrade() {
+                        let weak = workspace.read(cx).weak_handle();
+                        workspace.update(cx, |workspace, cx| {
+                            workspace.toggle_modal(window, cx, |window, cx| {
+                                AddSkillModal::new(weak, window, cx)
+                            });
+                        });
+                    }
+                })),
+        )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SkillScope {
     Project,
@@ -52,7 +82,7 @@ pub(crate) enum SkillScope {
 }
 
 impl SkillScope {
-    fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             SkillScope::Project => "Project",
             SkillScope::User => "User",

@@ -12,6 +12,8 @@ use workspace::{ModalView, Workspace};
 
 use crate::catalog::{Catalog, CatalogGlobal};
 
+pub(crate) mod add_agent_modal;
+pub(crate) mod add_skill_modal;
 mod agents_tab;
 mod mcp_tab;
 mod skills_tab;
