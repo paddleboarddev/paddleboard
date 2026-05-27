@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### Language server polish: Java auto-download + Gradle/Maven context provider
+
+- **Java LSP auto-download:** Replaced PATH-only jdtls adapter with full GitHub-release auto-download following Kotlin's pattern. Downloads `jdt-language-server-*.tar.gz` from `eclipse-jdtls/eclipse.jdt.ls` releases, extracts to versioned cache dir, uses `bin/jdtls` launcher. SHA-256 digest verification, old-version cleanup, Unix executable permission fix. Falls back to user-installed `jdtls` on PATH first. JDK 21+ check with once-per-session notification. `crates/languages/src/java.rs` grew from 158 to ~290 lines.
+- **Gradle/Maven context provider:** New `JavaBuildContextProvider` walks ancestor directories looking for `build.gradle`, `build.gradle.kts`, or `pom.xml`. Provides `JAVA_BUILD_TOOL` ("gradle" or "maven") and `JAVA_PROJECT_ROOT` (absolute path) as task variables. Wired into both Java and Kotlin `LanguageInfo` entries. Java now has `manifest_name: "build.gradle"`, Kotlin has `manifest_name: "build.gradle.kts"`.
+- **WELCOME.md + tour.md:** Updated with OTEL tracing section (OpenTelemetry settings, what gets traced, Jaeger quick start) and OTEL quick-start row in the tips table.
+- **Verified:** `cargo check -p paddleboard` clean, `cargo clippy -p languages` clean, all 81 `languages` tests pass.
+- **Follow-ups:** Manual live smoke test of Java auto-download (need clean environment without jdtls on PATH), Kotlin/PHP live smoke tests (need .kt/.php project files), test Java context provider in a Gradle project. Updated WELCOME.md and tour.md with OTEL and LSP details in the same session.
+
 ### Full OTEL pipeline for Scion agent tracing
 
 - **New crate `paddleboard_otel`:** Initializes an OpenTelemetry tracing pipeline with OTLP gRPC exporter. Opt-in via `paddleboard_otel.enabled: true` in settings.json or `PADDLEBOARD_OTEL_ENABLED=1` env var. Respects `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME` env vars. Stores `OtelGuard` as a GPUI Global for graceful shutdown. Skips init when Tracy (`ZTRACING`) is active to avoid subscriber conflicts.

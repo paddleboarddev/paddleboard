@@ -155,6 +155,41 @@ When [Scion](https://github.com/GoogleCloudPlatform/scion) is installed, a **Sci
 
 Install Scion with `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then use `scion: Start Agent` from the command palette to launch your first container-isolated agent.
 
+#### OpenTelemetry tracing
+
+PaddleBoard can export Scion agent lifecycle telemetry via **OpenTelemetry** to an external collector (Jaeger, Tempo, Grafana, etc.). When enabled, every poll cycle, CLI command, and agent state transition is captured as a trace span or event — useful for debugging multi-agent sessions or measuring agent efficiency.
+
+**How to enable it:** Add `"paddleboard_otel": { "enabled": true }` to your `settings.json`, or set `PADDLEBOARD_OTEL_ENABLED=1` in your environment. Traces export via OTLP gRPC to `localhost:4317` by default.
+
+Configuration options in `settings.json`:
+
+```json
+"paddleboard_otel": {
+  "enabled": true,
+  "endpoint": "http://localhost:4317",
+  "protocol": "grpc",
+  "service_name": "paddleboard"
+}
+```
+
+- The `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME` environment variables override their settings equivalents (standard OTEL convention).
+- When OTEL is disabled (the default), the tracing instrumentation compiles to near-zero-cost checks — no overhead.
+
+**What gets traced:**
+
+- `scion.poll_cycle` — one span per 5-second poll interval
+- `scion.list_agents`, `scion.start_agent`, `scion.stop_agent`, `scion.sync_from` — spans per CLI command with agent names, counts, and timing
+- Phase transitions (e.g., `provisioning` → `running`) and activity transitions (e.g., `thinking` → `executing`) as trace events
+- Agent discovery and disappearance events
+
+**Quick start with Jaeger:**
+
+```
+docker run -d -p 16686:16686 -p 4317:4317 jaegertracing/all-in-one
+```
+
+Then launch PaddleBoard with `PADDLEBOARD_OTEL_ENABLED=1` and open `http://localhost:16686` to see traces.
+
 ---
 
 ### Multi-workspace
@@ -183,12 +218,14 @@ A dedicated panel for configuring and switching your active language model provi
 
 PaddleBoard ships with built-in support for four languages that Zed historically punts to extensions:
 
-- **Java** via [jdtls](https://github.com/eclipse/eclipse.jdt.ls) (Eclipse JDT Language Server)
-- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server)
-- **PHP** via [intelephense](https://intelephense.com/)
-- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp)
+- **Java** via [jdtls](https://github.com/eclipse-jdtls/eclipse.jdt.ls) (Eclipse JDT Language Server) — auto-downloads from GitHub releases, requires JDK 21+
+- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server) — auto-downloads from GitHub releases, requires JDK 17+
+- **PHP** via [intelephense](https://intelephense.com/) — auto-installs via npm
+- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp) — uses the Swift toolchain from your PATH
 
-Open a `.java`/`.kt`/`.php`/`.swift` file and the LSP attaches automatically — no extension installation required. The first time you open a file in one of these languages, PB downloads the appropriate language server binary and caches it for subsequent sessions.
+Open a `.java`/`.kt`/`.php`/`.swift` file and the LSP attaches automatically — no extension installation required. Java, Kotlin, and PHP download their language server on first use and cache it; Swift relies on the platform toolchain (Xcode / swift.org).
+
+**Build tool context** — Java and Kotlin files detect Gradle (`build.gradle`, `build.gradle.kts`) and Maven (`pom.xml`) projects automatically. The `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables are available in task templates for build/test workflows.
 
 ---
 
@@ -211,6 +248,7 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 | Scaffold an ADK agent | `Cmd-Shift-P` → `adk: Scaffold Agent` |
 | Run an ADK agent | `Cmd-Shift-P` → `adk: Run Agent` |
 | Start a Scion agent | `Cmd-Shift-P` → `scion: Start Agent` |
+| Enable OTEL tracing | Set `PADDLEBOARD_OTEL_ENABLED=1` or add `"paddleboard_otel": { "enabled": true }` to settings |
 | Switch / create a worktree | `Cmd-Shift-P` → `git: Worktree` |
 | Run code in a sandbox | Ask the agent to run a command — it uses the Sandbox Tool automatically |
 | Run a service in a sandbox | Ask the agent to start a server (e.g. `python3 -m http.server 8000`) — it uses the Sandbox Service Tool, and the URL appears in the Forwarded Ports row of the browser panel |
