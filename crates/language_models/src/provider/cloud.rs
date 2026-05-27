@@ -24,14 +24,14 @@ use gpui::{
 use http_client::http::{HeaderMap, HeaderValue};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Response, StatusCode};
 use language_model::{
-    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, GOOGLE_PROVIDER_ID,
-    GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel, LanguageModelCompletionError,
-    LanguageModelCompletionEvent, LanguageModelEffortLevel, LanguageModelId, LanguageModelName,
-    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
-    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
-    LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID, OPEN_AI_PROVIDER_NAME,
+    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, FastModeConfirmation,
+    GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel,
+    LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
+    LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
+    LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
+    LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
+    OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
     PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
-    PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use release_channel::AppVersion;
@@ -340,6 +340,16 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
 
     fn reset_credentials(&self, _cx: &mut App) -> Task<Result<()>> {
         Task::ready(Ok(()))
+    }
+
+    fn fast_mode_confirmation(&self, _cx: &App) -> Option<FastModeConfirmation> {
+        Some(FastModeConfirmation {
+            title: "Enable Fast Mode for Zed?".into(),
+            message: "Fast mode routes requests through the upstream provider's fast mode or priority tier. The \
+                upstream provider's premium per-token pricing applies and is passed through to \
+                your Zed billing."
+                .into(),
+        })
     }
 }
 

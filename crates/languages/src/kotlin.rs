@@ -47,7 +47,7 @@ impl LspInstaller for KotlinLspAdapter {
 
     async fn fetch_latest_server_version(
         &self,
-        delegate: &dyn LspAdapterDelegate,
+        delegate: &Arc<dyn LspAdapterDelegate>,
         pre_release: bool,
         cx: &mut AsyncApp,
     ) -> Result<GitHubLspBinaryVersion> {
@@ -80,7 +80,7 @@ impl LspInstaller for KotlinLspAdapter {
 
     async fn check_if_user_installed(
         &self,
-        delegate: &dyn LspAdapterDelegate,
+        delegate: &Arc<dyn LspAdapterDelegate>,
         _: Option<Toolchain>,
         _: &AsyncApp,
     ) -> Option<LanguageServerBinary> {
@@ -223,7 +223,7 @@ const MIN_JDK_VERSION: u32 = 17;
 
 static DID_WARN_JDK: AtomicBool = AtomicBool::new(false);
 
-async fn check_jdk_version(delegate: &dyn LspAdapterDelegate, cx: &mut AsyncApp) {
+async fn check_jdk_version(delegate: &Arc<dyn LspAdapterDelegate>, cx: &mut AsyncApp) {
     if DID_WARN_JDK.load(SeqCst) {
         return;
     }

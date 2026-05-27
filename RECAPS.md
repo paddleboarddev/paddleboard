@@ -44,6 +44,20 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Verified:** `cargo check -p paddleboard` clean, clippy clean on all changed crates.
 - **Follow-ups:** Forwarded Ports integration for `adk web` (via sandbox service tool), ADK project detection (show Run button when `agent.py`/`agent.yaml` present), AI Dock catalog entry for ADK.
 
+### Docs: WELCOME.md and tour update for session features
+
+- **WELCOME.md:** Added Scion streaming logs and activity detail to orchestration panel section. Rewrote ADK recipe to feature the two new command palette actions (`adk: Scaffold Agent`, `adk: Run Agent`). Updated bundled skills list to all 5. Added ADK and Scion to quick-start table.
+- **tour.md:** Synced Scion section with streaming logs and activity badges. Updated AI Dock bundled skills list. Added ADK quick-start bullet to Forwarded Ports section.
+- **PR:** [#57](https://github.com/jasonsmithio/paddleboard/pull/57) — docs only.
+### Weekly upstream merge (61 commits from zed/main)
+
+- **14 conflicts resolved** across 9 files + collab delete/modify + Cargo.lock.
+- **Key resolutions:** `zed_actions` → `paddleboard_actions` in 4 files, `UserAgentsMdState` moved from `agent` to `agent_settings` (kept OrchestrationPanel import), `LspAdapterDelegate` changed from `&dyn` to `&Arc<dyn>` in `check_if_user_installed`/`fetch_latest_server_version` (updated java/kotlin/php/swift adapters), `NSBeep` wrapped in `unsafe` block (Rust 2024 edition), skill_creator_actions renamed from singular, upstream added `CreateSkillFromUrl`/`FastModeConfirmation`/`ResetFastModeWarnings`/`Plan`/`zed_urls` imports.
+- **Collab:** 4 modify/delete conflicts resolved by keeping deleted (PRs #47-#51 removed collab/call crates).
+- **install_cli:** kept PB branding over upstream changes.
+- **Cargo.lock:** regenerated to fix `async-tungstenite` dual-version conflict.
+- **Verified:** `cargo check -p paddleboard` and `cargo clippy -p paddleboard` clean.
+
 ---
 
 ## 2026-05-26

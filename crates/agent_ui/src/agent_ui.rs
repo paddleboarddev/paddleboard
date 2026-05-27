@@ -210,6 +210,8 @@ actions!(
         ArchiveSelectedThread,
         /// Removes the currently selected thread.
         RemoveSelectedThread,
+        /// Renames the currently selected thread.
+        RenameSelectedThread,
         /// Starts a chat conversation with follow-up enabled.
         ChatWithFollow,
         /// Cycles to the next inline assist suggestion.
@@ -254,6 +256,8 @@ actions!(
         ResetTrialUpsell,
         /// Resets the trial end upsell notification.
         ResetTrialEndUpsell,
+        /// Re-enables the fast mode warning for every provider and model.
+        ResetFastModeWarnings,
         /// Opens the "Add Context" menu in the message editor.
         OpenAddContextMenu,
         /// Interrupts the current generation and sends the message immediately.
@@ -707,7 +711,6 @@ fn update_command_palette_filter(cx: &mut App) {
             TypeId::of::<AcceptEditPrediction>(),
             TypeId::of::<AcceptNextWordEditPrediction>(),
             TypeId::of::<AcceptNextLineEditPrediction>(),
-            TypeId::of::<AcceptEditPrediction>(),
             TypeId::of::<ShowEditPrediction>(),
             TypeId::of::<NextEditPrediction>(),
             TypeId::of::<PreviousEditPrediction>(),
@@ -715,7 +718,10 @@ fn update_command_palette_filter(cx: &mut App) {
         ];
 
         let open_rules_library_action = [TypeId::of::<paddleboard_actions::assistant::OpenRulesLibrary>()];
-        let open_skill_creator_action = [TypeId::of::<paddleboard_actions::assistant::OpenSkillCreator>()];
+        let skill_creator_actions = [
+            TypeId::of::<paddleboard_actions::assistant::OpenSkillCreator>(),
+            TypeId::of::<paddleboard_actions::assistant::CreateSkillFromUrl>(),
+        ];
 
         if disable_ai {
             filter.hide_namespace("agent");
@@ -773,10 +779,10 @@ fn update_command_palette_filter(cx: &mut App) {
         // rest of that namespace's actions.
         if !disable_ai {
             filter.hide_action_types(&open_rules_library_action);
-            filter.show_action_types(open_skill_creator_action.iter());
+            filter.show_action_types(skill_creator_actions.iter());
         } else {
             filter.show_action_types(open_rules_library_action.iter());
-            filter.hide_action_types(&open_skill_creator_action);
+            filter.hide_action_types(&skill_creator_actions);
         }
     });
 }
@@ -918,6 +924,22 @@ mod tests {
                 !filter.is_hidden(&NewTerminalThread),
                 "NewTerminalThread should be visible by default"
             );
+            assert!(
+                !filter.is_hidden(&zed_actions::assistant::OpenSkillCreator),
+                "OpenSkillCreator should be visible by default"
+            );
+            assert!(
+                !filter.is_hidden(&zed_actions::assistant::CreateSkillFromUrl),
+                "CreateSkillFromUrl should be visible by default"
+            );
+            assert!(
+                !filter.is_hidden(&zed_actions::assistant::OpenGlobalAgentsMdRules),
+                "OpenGlobalAgentsMdRules should be visible by default"
+            );
+            assert!(
+                !filter.is_hidden(&zed_actions::assistant::OpenProjectAgentsMdRules),
+                "OpenProjectAgentsMdRules should be visible by default"
+            );
         });
 
         // Disable agent
@@ -940,6 +962,14 @@ mod tests {
             assert!(
                 filter.is_hidden(&NewTerminalThread),
                 "NewTerminalThread should be hidden when agent is disabled"
+            );
+            assert!(
+                filter.is_hidden(&zed_actions::assistant::OpenGlobalAgentsMdRules),
+                "OpenGlobalAgentsMdRules should be hidden when agent is disabled"
+            );
+            assert!(
+                filter.is_hidden(&zed_actions::assistant::OpenProjectAgentsMdRules),
+                "OpenProjectAgentsMdRules should be hidden when agent is disabled"
             );
         });
 
