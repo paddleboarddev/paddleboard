@@ -60,3 +60,4 @@ site/
 
 # AI Dock smoke-test screenshots (verification evidence — local only)
 aidock-*.png
+.scion/

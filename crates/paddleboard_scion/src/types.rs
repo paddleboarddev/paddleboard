@@ -160,11 +160,34 @@ pub struct TemplateInfo {
     #[serde(default)]
     pub source: String,
     #[serde(default)]
+    pub path: String,
+    #[serde(default)]
     pub harness: String,
     #[serde(default)]
     pub image: String,
     #[serde(default)]
     pub description: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct TemplateListResponse {
+    #[serde(default)]
+    pub local: HashMap<String, Vec<TemplateInfo>>,
+    #[serde(default)]
+    pub hub: HashMap<String, Vec<TemplateInfo>>,
+}
+
+impl TemplateListResponse {
+    pub fn into_flat_list(self) -> Vec<TemplateInfo> {
+        let mut templates = Vec::new();
+        for (_scope, list) in self.local {
+            templates.extend(list);
+        }
+        for (_scope, list) in self.hub {
+            templates.extend(list);
+        }
+        templates
+    }
 }
 
 pub struct StartAgentOptions {
@@ -269,27 +292,34 @@ mod tests {
 
     #[test]
     fn parse_template_list() {
-        let json = r#"[
-            {
-                "name": "claude-code",
-                "source": "builtin",
-                "harness": "claude-code",
-                "image": "ghcr.io/org/agent:latest",
-                "description": "Claude Code agent"
-            },
-            {
-                "name": "gemini",
-                "source": "builtin",
-                "harness": "gemini",
-                "image": "",
-                "description": "Gemini CLI agent"
+        let json = r#"{
+            "local": {
+                "global": [
+                    {
+                        "name": "claude-code",
+                        "source": "builtin",
+                        "harness": "claude-code",
+                        "image": "ghcr.io/org/agent:latest",
+                        "description": "Claude Code agent"
+                    }
+                ],
+                "project": [
+                    {
+                        "name": "gemini",
+                        "source": "builtin",
+                        "harness": "gemini",
+                        "image": "",
+                        "description": "Gemini CLI agent"
+                    }
+                ]
             }
-        ]"#;
-        let templates: Vec<TemplateInfo> =
-            serde_json::from_str(json).expect("template list should parse");
+        }"#;
+        let response: TemplateListResponse =
+            serde_json::from_str(json).expect("template response should parse");
+        let templates = response.into_flat_list();
         assert_eq!(templates.len(), 2);
-        assert_eq!(templates[0].name, "claude-code");
-        assert_eq!(templates[1].harness, "gemini");
+        assert!(templates.iter().any(|t| t.name == "claude-code"));
+        assert!(templates.iter().any(|t| t.harness == "gemini"));
     }
 
     #[test]

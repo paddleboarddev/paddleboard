@@ -9,6 +9,7 @@ use ui::prelude::*;
 
 use crate::catalog::AgentEntry;
 use crate::ai_dock::AiDock;
+use crate::ai_dock::add_agent_modal::AddAgentModal;
 
 pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoElement {
     let catalog = modal.catalog.clone();
@@ -26,11 +27,39 @@ pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
         .p_4()
         .gap_2()
         .overflow_y_scroll()
+        .child(render_tab_header(modal, cx))
         .children(
             catalog
                 .agents
                 .iter()
                 .map(|entry| render_agent_row(entry, &registry_agents, &installed_agents, cx)),
+        )
+}
+
+fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoElement {
+    let workspace = modal.workspace.clone();
+    h_flex()
+        .w_full()
+        .justify_between()
+        .pb_1()
+        .child(
+            Label::new("Available Agents")
+                .size(LabelSize::Small)
+                .color(Color::Muted),
+        )
+        .child(
+            Button::new("add-agent-btn", "Add Agent")
+                .style(ButtonStyle::Filled)
+                .label_size(LabelSize::Small)
+                .on_click(cx.listener(move |_this, _: &ClickEvent, window, cx| {
+                    if let Some(workspace) = workspace.upgrade() {
+                        workspace.update(cx, |workspace, cx| {
+                            workspace.toggle_modal(window, cx, |window, cx| {
+                                AddAgentModal::new(window, cx)
+                            });
+                        });
+                    }
+                })),
         )
 }
 

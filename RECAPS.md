@@ -6,6 +6,33 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-26
 
+### AI Dock: Add Agent and Create Skill modals
+
+- **Add Agent modal:** New "Add Agent" button in the Agents tab header. Opens a modal where users enter a registry agent server ID (e.g. `anthropic/claude-code`). On confirm, writes a `CustomAgentServerSettings::Registry` entry to `settings.agent_servers` via `update_settings_file`. For agents not in the catalog.
+- **Create Skill modal:** New "Create Skill" button in the Skills tab header. Opens a modal with name field, prompt content field, and project/user scope selector (toggle buttons). On confirm, writes `{name}.md` to the appropriate `.claude/commands/` directory. Validates both fields non-empty before enabling the create button.
+- **SkillScope made pub(crate):** `SkillScope::label()` visibility changed from private to `pub(crate)` so the add_skill_modal can reference it.
+- **Dependency:** Added `ui_input` to `paddleboard_ai_dock` for InputField.
+- **Verified:** `cargo check -p paddleboard` clean, `cargo clippy -p paddleboard_ai_dock` clean, all 4 catalog tests pass. Visual smoke test partially blocked by macOS binary link permission issue; app launched but couldn't be driven via AppleScript. Manual test recommended.
+
+### Scion panel interactivity, log viewing, and error surfacing
+
+- **Context menus on agent rows:** Right-clicking a Scion agent row in the orchestration panel now opens a context menu with "View Logs", "Sync Changes", and (for running/active agents) "Stop Agent". Each action targets the specific agent by name, replacing the old blind-first-agent behavior.
+- **Log viewing in UI:** "View Logs" fetches the last 200 lines from `scion logs <name>` via `Tokio::spawn_result`, creates a read-only buffer via `project.create_buffer`, and opens it as a pane item. Errors (scion not available, buffer creation failure) are surfaced via `workspace.show_error`.
+- **Error surfacing from start modal:** `StartAgentModal` now captures a `WeakEntity<Workspace>` at construction time. If the async `scion start` call fails after the modal dismisses, the error is shown to the user via `workspace.show_error` instead of silently logging.
+- **Context menu plumbing:** Added `scion_context_menu` field to `OrchestrationPanel`, rendered as a `deferred(anchored(...))` overlay. Dismissed via `DismissEvent` subscription. Uses `on_mouse_down(MouseButton::Right, ...)` since `on_secondary_mouse_down` is only available on `TreeViewItem`, not `Stateful<Div>`.
+- **Template format fix:** Scion's `templates list --format json` returns nested `{local: {global: [...]}, hub: {...}}`, not a flat array. Added `TemplateListResponse` wrapper with `into_flat_list()` to flatten it. Updated test.
+- **Verified:** `cargo check -p paddleboard` clean, `cargo clippy -p paddleboard_scion_ui -p agent_ui` clean, all 25 `paddleboard_scion` tests pass. **UI smoke test passed** — app launches, Start Agent modal renders (task input, auto-generated name, template selector showing "default" from live scion CLI), no crashes, polling works silently with empty agent list.
+- **Intentionally preserved:** Command palette actions (StopAgent, SyncFromAgent, ShowAgentLogs) still target the first agent — they're a reasonable default when no specific agent is selected. The context menu provides per-agent targeting.
+
+### Scion Start Agent modal
+
+- **Start Agent modal:** The `scion::StartAgent` command palette action now opens a form modal instead of silently auto-launching an agent with a generated name. Modal has three sections: Task description (free-text, what the agent should work on), Name (auto-generated `pb-agent-{id}`, editable), and Template selector (radio-style list populated from `scion templates list`, with a "Default" fallback; only shown when templates are available).
+- **Template caching in ScionStore:** Added `templates: Vec<TemplateInfo>` field, fetched once on store init via `fetch_templates()`. Exposed via `templates()` getter for the modal to read.
+- **Dependencies:** Added `menu` (Confirm/Cancel/SelectNext/SelectPrevious actions) and `ui_input` (InputField) to `paddleboard_scion_ui`.
+- **Pattern followed:** `AddLlmProviderModal` from `agent_ui` — same `ModalView` + `EventEmitter<DismissEvent>` + `Focusable` trait combo, same footer button layout with keybindings, same tab navigation via `SelectNext`/`SelectPrevious`.
+- **Verified:** `cargo check -p paddleboard` clean, `cargo clippy -p paddleboard_scion_ui` clean, all 25 `paddleboard_scion` tests pass. UI smoke test pending (Scion not installed on this machine).
+- **Follow-ups:** Panel interactivity (per-agent stop/sync/logs instead of blindly targeting first agent), log viewing in UI (stream_logs exists but nothing displays output).
+
 ### Fix startup crash from dead collab keybindings + harden keymap loader
 
 - **Crash:** PaddleBoard panicked on launch at `zed.rs:2192` — the default keymap still referenced `collab_panel::*`, `channel_modal::*`, and `workspace::FollowNextCollaborator` actions that were deleted in PRs #47–#51. The keymap loader's `unwrap()` turned the missing actions into a hard crash.
