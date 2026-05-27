@@ -11,9 +11,8 @@ use std::sync::Arc;
 //      latest release, extracts it under
 //      `<container>/kotlin-language-server_<tag>/server/`, and uses
 //      `server/bin/kotlin-language-server[.bat]` as the binary.
-// The launcher requires a JVM on $PATH to run; we don't pre-check
-// because the LSP host surfaces the spawn failure clearly enough — a
-// future polish could probe `java -version` and show a notification.
+// After locating the binary, the adapter probes `java -version` and
+// shows a once-per-session notification if the JDK is below 17.
 
 use anyhow::{Context as _, Result};
 use async_trait::async_trait;
@@ -25,6 +24,7 @@ pub use language::*;
 use lsp::{LanguageServerBinary, LanguageServerName};
 use smol::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
 use util::{ResultExt, fs::remove_matching, maybe};
 
 pub struct KotlinLspAdapter;
@@ -49,8 +49,9 @@ impl LspInstaller for KotlinLspAdapter {
         &self,
         delegate: &dyn LspAdapterDelegate,
         pre_release: bool,
-        _: &mut AsyncApp,
+        cx: &mut AsyncApp,
     ) -> Result<GitHubLspBinaryVersion> {
+        check_jdk_version(delegate, cx).await;
         let release = latest_github_release(
             "fwcd/kotlin-language-server",
             true,
@@ -218,9 +219,124 @@ impl LspInstaller for KotlinLspAdapter {
     }
 }
 
+const MIN_JDK_VERSION: u32 = 17;
+
+static DID_WARN_JDK: AtomicBool = AtomicBool::new(false);
+
+async fn check_jdk_version(delegate: &dyn LspAdapterDelegate, cx: &mut AsyncApp) {
+    if DID_WARN_JDK.load(SeqCst) {
+        return;
+    }
+
+    let java_path = match delegate.which("java".as_ref()).await {
+        Some(path) => path,
+        None => {
+            if DID_WARN_JDK.compare_exchange(false, true, SeqCst, SeqCst).is_ok() {
+                cx.update(|cx| {
+                    delegate.show_notification(
+                        "kotlin-language-server requires Java 17+ but `java` was not found on PATH. \
+                         Install a JDK (macOS: `brew install openjdk@21`, Debian/Ubuntu: \
+                         `apt install openjdk-21-jdk`) and restart PaddleBoard.",
+                        cx,
+                    );
+                });
+            }
+            return;
+        }
+    };
+
+    let output = match smol::process::Command::new(&java_path)
+        .arg("-version")
+        .output()
+        .await
+    {
+        Ok(output) => output,
+        Err(_) => return,
+    };
+
+    // `java -version` prints to stderr, e.g.:
+    //   openjdk version "21.0.2" 2024-01-16
+    // or older:
+    //   java version "1.8.0_392"
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if let Some(major) = parse_java_major_version(&stderr) {
+        if major < MIN_JDK_VERSION {
+            if DID_WARN_JDK.compare_exchange(false, true, SeqCst, SeqCst).is_ok() {
+                cx.update(|cx| {
+                    delegate.show_notification(
+                        &format!(
+                            "kotlin-language-server requires Java {MIN_JDK_VERSION}+ but found \
+                             Java {major}. Install a newer JDK (macOS: `brew install openjdk@21`, \
+                             Debian/Ubuntu: `apt install openjdk-21-jdk`) and restart PaddleBoard."
+                        ),
+                        cx,
+                    );
+                });
+            }
+        }
+    }
+}
+
+pub fn parse_java_major_version(version_output: &str) -> Option<u32> {
+    // Match patterns like `version "21.0.2"` or `version "1.8.0_392"`
+    let version_str = version_output
+        .lines()
+        .find(|line| line.contains("version"))?;
+    let start = version_str.find('"')? + 1;
+    let end = version_str[start..].find('"')? + start;
+    let version_num = &version_str[start..end];
+
+    let first_component: u32 = version_num
+        .split('.')
+        .next()?
+        .parse()
+        .ok()?;
+
+    // JDK 8 and earlier use "1.x" versioning (e.g. "1.8.0_392" = JDK 8)
+    if first_component == 1 {
+        version_num.split('.').nth(1)?.parse().ok()
+    } else {
+        Some(first_component)
+    }
+}
+
 #[async_trait(?Send)]
 impl LspAdapter for KotlinLspAdapter {
     fn name(&self) -> LanguageServerName {
         Self::SERVER_NAME
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_modern_jdk_version() {
+        assert_eq!(
+            parse_java_major_version(r#"openjdk version "21.0.2" 2024-01-16"#),
+            Some(21)
+        );
+    }
+
+    #[test]
+    fn parse_legacy_jdk_version() {
+        assert_eq!(
+            parse_java_major_version(r#"java version "1.8.0_392""#),
+            Some(8)
+        );
+    }
+
+    #[test]
+    fn parse_jdk_17() {
+        assert_eq!(
+            parse_java_major_version(r#"openjdk version "17.0.10" 2024-01-16"#),
+            Some(17)
+        );
+    }
+
+    #[test]
+    fn parse_garbage_returns_none() {
+        assert_eq!(parse_java_major_version("not a version string"), None);
     }
 }

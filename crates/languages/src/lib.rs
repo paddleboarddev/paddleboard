@@ -27,7 +27,7 @@ mod java;
 mod json;
 // PaddleBoard: Kotlin language support (kotlin-language-server, downloaded
 // from fwcd/kotlin-language-server GitHub releases).
-mod kotlin;
+pub(crate) mod kotlin;
 mod package_json;
 // PaddleBoard: PHP language support (intelephense via node_runtime).
 mod php;
