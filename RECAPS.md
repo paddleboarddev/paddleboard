@@ -20,6 +20,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Catalog label fix:** Shortened agent display names in `catalog.json` — "Claude Agent" → "Claude", "Codex CLI" → "Codex", "GitHub Copilot" → "Copilot". Keeps the Welcome featured strip compact (matching the old hardcoded labels). Cursor stays `featured: false` intentionally.
 - **Follow-ups:** OTEL telemetry stream in orchestration panel, live test of Scion-specific features with running agents.
 
+### Remove dead Zeta request function from zeta.rs
+
+- **Removed the 450-line `#[cfg(any())]`-gated `request_prediction_with_zeta_disabled` function** from `crates/edit_prediction/src/zeta.rs` (826 → 380 lines). This was dead code kept for upstream merge stability.
+- **zeta_prompt crate stays:** Investigation revealed it's NOT orphaned — its types (`Event`, `ZetaPromptInput`, `udiff`) are used by Mercury, FIM, and the full edit prediction pipeline (~40 import sites across 7+ crates). Only the Zeta-specific request function was dead.
+- **Corrected memory:** Updated the `project_zed_cloud_cleanup_followups` memory to reflect that zeta_prompt is a shared utility, not an orphaned crate.
+- **Verified:** `cargo check -p paddleboard` clean.
+
 ### Streaming Scion log view
 
 - **Replaced one-shot log buffer with live streaming.** "View Logs" now loads the last 200 lines as before, then spawns `scion logs -f` via `stream_logs()` on the tokio runtime. New lines are sent over an `async_channel` to the foreground, which appends them to the buffer in real-time. The stream auto-stops when the tab is closed (WeakEntity pattern) or the child process exits.
