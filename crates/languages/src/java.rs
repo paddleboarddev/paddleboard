@@ -51,7 +51,7 @@ impl JavaLspAdapter {
 
 static DID_WARN_JAVA_JDK: AtomicBool = AtomicBool::new(false);
 
-async fn check_java_jdk_version(delegate: &dyn LspAdapterDelegate, cx: &mut AsyncApp) {
+async fn check_java_jdk_version(delegate: &Arc<dyn LspAdapterDelegate>, cx: &mut AsyncApp) {
     if DID_WARN_JAVA_JDK.load(SeqCst) {
         return;
     }
@@ -100,7 +100,7 @@ impl LspInstaller for JavaLspAdapter {
 
     async fn check_if_user_installed(
         &self,
-        delegate: &dyn LspAdapterDelegate,
+        delegate: &Arc<dyn LspAdapterDelegate>,
         _: Option<Toolchain>,
         _: &AsyncApp,
     ) -> Option<LanguageServerBinary> {
@@ -114,7 +114,7 @@ impl LspInstaller for JavaLspAdapter {
 
     async fn fetch_latest_server_version(
         &self,
-        delegate: &dyn LspAdapterDelegate,
+        delegate: &Arc<dyn LspAdapterDelegate>,
         _pre_release: bool,
         cx: &mut AsyncApp,
     ) -> Result<()> {
