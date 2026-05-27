@@ -1,0 +1,22 @@
+[package]
+name = "paddleboard_scion"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_scion.rs"
+
+[dependencies]
+anyhow.workspace = true
+chrono = { workspace = true }
+log.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
+which.workspace = true

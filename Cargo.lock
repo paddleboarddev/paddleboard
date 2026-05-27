@@ -12150,6 +12150,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "paddleboard_scion"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "log",
+ "semver",
+ "serde",
+ "serde_json",
+ "tokio",
+ "which 6.0.3",
+]
+
+[[package]]
 name = "page_size"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
