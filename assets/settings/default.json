@@ -2217,7 +2217,8 @@
       "language_servers": ["!ruby-lsp", "..."],
     },
     "Kotlin": {
-      "language_servers": ["!kotlin-language-server", "kotlin-lsp", "..."],
+      // PaddleBoard: enable built-in kotlin-language-server (upstream disables it in favor of extensions).
+      "language_servers": ["kotlin-language-server", "..."],
     },
     "LaTeX": {
       "formatter": "language_server",
@@ -2241,7 +2242,8 @@
       },
     },
     "PHP": {
-      "language_servers": ["phpactor", "!intelephense", "!phptools", "..."],
+      // PaddleBoard: enable built-in intelephense (upstream disables it in favor of extensions).
+      "language_servers": ["intelephense", "..."],
       "prettier": {
         "allowed": true,
         "plugins": ["@prettier/plugin-php"],
