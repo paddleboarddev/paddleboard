@@ -88,6 +88,8 @@ pub struct McpServersView {
     filtered_indices: Vec<usize>,
     query_editor: Entity<Editor>,
     filter: McpFilter,
+    // PaddleBoard: suppress the headline row when hosted inside the AI Dock modal.
+    compact: bool,
     _subscriptions: Vec<gpui::Subscription>,
 }
 
@@ -141,12 +143,18 @@ impl McpServersView {
                 filtered_indices: Vec::new(),
                 query_editor,
                 filter: McpFilter::All,
+                compact: false,
                 _subscriptions: subscriptions,
             };
 
             this.reload_servers(cx);
             this
         })
+    }
+
+    // PaddleBoard: suppress the headline row when embedded in a host like the AI Dock.
+    pub fn set_compact(&mut self, compact: bool) {
+        self.compact = compact;
     }
 
     fn reload_servers(&mut self, cx: &mut Context<Self>) {
@@ -885,32 +893,41 @@ impl Render for McpServersView {
             .filter(|id| matches!(self.status_for(id, cx), ContextServerStatus::Running))
             .count();
 
+        let compact = self.compact;
         v_flex()
             .size_full()
-            .bg(cx.theme().colors().editor_background)
+            .when(!compact, |this| {
+                this.bg(cx.theme().colors().editor_background)
+            })
             .child(
                 v_flex()
-                    .p_4()
-                    .gap_4()
+                    .when(compact, |this| this.p_3().gap_2())
+                    .when(!compact, |this| this.p_4().gap_4())
                     .border_b_1()
                     .border_color(cx.theme().colors().border_variant)
-                    .child(
-                        h_flex()
-                            .w_full()
-                            .gap_1p5()
-                            .justify_between()
-                            .child(
-                                h_flex()
-                                    .gap_3()
-                                    .child(Headline::new("MCP Servers").size(HeadlineSize::Large))
-                                    .child(
-                                        Label::new(format!("{running}/{total} running"))
-                                            .size(LabelSize::Small)
-                                            .color(Color::Muted),
-                                    ),
-                            )
-                            .child(self.render_add_server_popover()),
-                    )
+                    // PaddleBoard: skip headline row in compact mode (AI Dock provides context).
+                    .when(!compact, |this| {
+                        this.child(
+                            h_flex()
+                                .w_full()
+                                .gap_1p5()
+                                .justify_between()
+                                .child(
+                                    h_flex()
+                                        .gap_3()
+                                        .child(
+                                            Headline::new("MCP Servers")
+                                                .size(HeadlineSize::Large),
+                                        )
+                                        .child(
+                                            Label::new(format!("{running}/{total} running"))
+                                                .size(LabelSize::Small)
+                                                .color(Color::Muted),
+                                        ),
+                                )
+                                .child(self.render_add_server_popover()),
+                        )
+                    })
                     .child(
                         h_flex()
                             .w_full()
