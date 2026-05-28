@@ -34,7 +34,6 @@ pub(super) fn render(
             .id("ai-dock-mcp-installed")
             .flex_1()
             .min_h_0()
-            .overflow_y_scroll()
             .child(view.clone())
             .into_any_element(),
         None => v_flex()
