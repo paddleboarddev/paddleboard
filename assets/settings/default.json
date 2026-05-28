@@ -2129,6 +2129,8 @@
       },
     },
     "C++": {
+      // PaddleBoard: clangd is opt-in for C++. Enable via "Manage Languages". (C stays default-on; clangd is shared.)
+      "language_servers": ["!clangd", "..."],
       "format_on_save": "off",
       "use_on_type_format": false,
       "prettier": {
@@ -2136,7 +2138,8 @@
       },
     },
     "CSharp": {
-      "language_servers": ["roslyn", "!omnisharp", "..."],
+      // PaddleBoard: roslyn is opt-in (needs .NET). Enable via "Manage Languages".
+      "language_servers": ["!roslyn", "!omnisharp", "..."],
     },
     "CSS": {
       "prettier": {
@@ -2192,6 +2195,8 @@
       "language_servers": ["herb", "!ruby-lsp", "..."],
     },
     "Java": {
+      // PaddleBoard: jdtls is opt-in (needs JDK 17+). Enable via "Manage Languages".
+      "language_servers": ["!jdtls", "..."],
       "prettier": {
         "allowed": true,
         "plugins": ["prettier-plugin-java"],
@@ -2217,8 +2222,8 @@
       "language_servers": ["!ruby-lsp", "..."],
     },
     "Kotlin": {
-      // PaddleBoard: enable built-in kotlin-language-server (upstream disables it in favor of extensions).
-      "language_servers": ["kotlin-language-server", "..."],
+      // PaddleBoard: kotlin-language-server is opt-in (needs JDK 17+). Enable via "Manage Languages".
+      "language_servers": ["!kotlin-language-server", "..."],
     },
     "LaTeX": {
       "formatter": "language_server",
@@ -2242,8 +2247,8 @@
       },
     },
     "PHP": {
-      // PaddleBoard: enable built-in intelephense (upstream disables it in favor of extensions).
-      "language_servers": ["intelephense", "..."],
+      // PaddleBoard: intelephense is opt-in (needs Node). Enable via "Manage Languages".
+      "language_servers": ["!intelephense", "..."],
       "prettier": {
         "allowed": true,
         "plugins": ["@prettier/plugin-php"],

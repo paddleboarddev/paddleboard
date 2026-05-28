@@ -965,3 +965,15 @@ pub mod langgraph {
         ]
     );
 }
+
+pub mod languages {
+    use gpui::actions;
+
+    actions!(
+        languages,
+        [
+            /// Opens the Manage Languages modal to install optional language servers.
+            ManageLanguages,
+        ]
+    );
+}

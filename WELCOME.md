@@ -216,14 +216,21 @@ A dedicated panel for configuring and switching your active language model provi
 
 ### Built-in language servers
 
-PaddleBoard ships with built-in support for four languages that Zed historically punts to extensions:
+PaddleBoard splits language support into two tiers so the default install stays lean and languages that need an external toolchain don't fail silently.
 
-- **Java** via [jdtls](https://github.com/eclipse-jdtls/eclipse.jdt.ls) (Eclipse JDT Language Server) — auto-downloads from GitHub releases, requires JDK 21+
-- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server) — auto-downloads from GitHub releases, requires JDK 17+
-- **PHP** via [intelephense](https://intelephense.com/) — auto-installs via npm
-- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp) — uses the Swift toolchain from your PATH
+**Ready to use** — self-contained servers (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, and more) are enabled by default. Open a matching file and the language server attaches automatically, downloading on first use and caching it.
 
-Open a `.java`/`.kt`/`.php`/`.swift` file and the LSP attaches automatically — no extension installation required. Java, Kotlin, and PHP download their language server on first use and cache it; Swift relies on the platform toolchain (Xcode / swift.org).
+**Install support** — languages that aren't enabled by default. Run **`Manage Languages`** from the command palette to add them. Five ship a built-in server: PaddleBoard writes the setting and downloads the server binary on one click, so it's ready before you open a file:
+
+- **Java** via [jdtls](https://github.com/eclipse-jdtls/eclipse.jdt.ls) (Eclipse JDT Language Server) — requires JDK 17+
+- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server) — requires JDK 17+
+- **PHP** via [intelephense](https://intelephense.com/) — requires Node
+- **C#** via [roslyn](https://github.com/dotnet/roslyn) — requires .NET
+- **C++** via [clangd](https://clangd.llvm.org/) — downloads the clangd binary (C stays enabled by default; clangd is shared)
+
+Each row shows its prerequisite up front, so you opt into a heavier toolchain knowingly rather than hitting a confusing "server reset the connection" crash when the runtime is missing.
+
+Two more — **Ruby** and **Dart** — get their language servers from extensions rather than a built-in adapter, so their row opens the Extensions page where you install the extension. **Swift** continues to use [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp) from the platform toolchain (Xcode / swift.org) on your PATH.
 
 **Build tool context** — Java and Kotlin files detect Gradle (`build.gradle`, `build.gradle.kts`) and Maven (`pom.xml`) projects automatically. The `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables are available in task templates for build/test workflows.
 

@@ -4,6 +4,33 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-28
+
+### Tiered language support: default servers + one-click install
+
+- **Two tiers:** Self-contained language servers (Rust, TS/JS, Python, Go, JSON, YAML, HTML/CSS, …) stay enabled and auto-download as before. Four prereq-heavy languages — **Java** (jdtls/JDK), **Kotlin** (kotlin-language-server/JDK), **PHP** (intelephense/Node), **C#** (roslyn/.NET) — are now disabled by default and installed on demand. This partly reverses the 2026-05-27 default-on change for Kotlin/PHP (intentional): their servers crash confusingly when the external runtime is missing, so gating them behind an explicit choice is better UX.
+- **Mechanism:** `assets/settings/default.json` `!`-disables the four primary adapters (`!jdtls`, `!kotlin-language-server`, `!intelephense`, `!roslyn`), each `// PaddleBoard:` tagged. "Installing" writes the user setting re-enabling the adapter (`["<adapter>", "..."]`) and proactively downloads the binary.
+- **New `Manage Languages` modal** (`paddleboard_languages_ui` crate, command-palette action `paddleboard_actions::languages::ManageLanguages`): a "Ready to use" chip strip plus an "Install support" list with per-language prereq labels and an Install button that moves Available → Installing → Installed ✓ / Retry. Initial state read from effective `language_servers` settings.
+- **New `LspStore::install_language_server`** (`// PaddleBoard:` in `crates/project/src/lsp_store.rs`): builds a `LocalLspAdapterDelegate` from the first visible worktree and forces a binary download via `get_language_server_command` with `allow_binary_download: true` — no open buffer required. Falls back to "enabled, downloads on first open" when no worktree is open.
+- **Verified:** `cargo check -p project -p paddleboard` clean; 2 new crate tests pass (table well-formed + the four adapters are `!`-disabled in defaults); clippy clean on the new crate with `--deny warnings`. Note: `./script/clippy` (`--all-features`) trips a pre-existing non-exhaustive match in `workspace/persistence.rs` over the test-support-gated `RemoteConnectionIdentity::Mock` variant — unrelated to this change.
+- **Follow-ups:** Live-test the modal end-to-end (install PHP/Kotlin on a machine with Node/JDK 17+, confirm the binary downloads and the server attaches). Download progress currently shows a static "Installing…" label, not the discrete `BinaryStatus` events from `language_server_binary_statuses()` — wiring that channel in would give "Checking…/Downloading…" states.
+
+### Docs, tour, and memory sync for tiered languages
+
+- **WELCOME.md:** Rewrote the "Built-in language servers" section into the two-tier model (Ready to use vs Install support), with the `Manage Languages` command and per-language prereqs (Java/Kotlin JDK 17+, PHP Node, C# .NET); Swift still uses the platform toolchain.
+- **Tour:** Ran `/update-tour` — section 11 retitled "Language Support — Two Tiers" in `crates/workspace/src/tour.md`. Reminder: the runtime copy at `~/.config/paddleboard/PaddleBoard_Tour.md` is only written when absent, so existing users won't see the update until they delete it.
+- **Memory:** Updated `project_zed_cloud_cleanup_followups` (Kotlin/PHP no longer default-on) and added a `project_language_tiers` note recording the rationale + "don't re-enable by default on upstream merges" posture.
+- **Preserved intentionally:** Pre-existing `cloud_api_types::Plan` unused-import warning in `agent_panel.rs` (upstream) left untouched.
+
+### Expanded opt-in tier: C++ built-in + Ruby/Dart via extensions
+
+- **Default tier finalized** at the 8 the user named: Python, TypeScript, JavaScript, Go, YAML, HTML/CSS, JSON, Rust (chip strip is now authoritative for these). All other built-in languages not named in either list (Bash, Swift, Elixir, C, …) stay default-on as upstream ships them.
+- **C++ added to the built-in opt-in flow:** `default.json` now `!clangd`-disables C++ (`// PaddleBoard:` tagged). C stays default-on — clangd is shared, so installing C++ just enables it for `.cpp`/`.h`.
+- **Generalized the crate table** into an `Install` enum: `Builtin { adapter, enabled_servers }` (Java, Kotlin, PHP, C#, C++) vs `Extension { extension_id }` (Ruby, Dart). `enabled_servers` is now an explicit list so C#'s `!omnisharp` exclusion is preserved on install (previously the simple `[adapter, "..."]` write would have dropped it).
+- **Ruby/Dart are extension-provided** (no built-in adapter — verified there's no `ruby.rs`/`dart.rs` in `crates/languages`). Their row shows a "View in Extensions" button that dispatches `paddleboard_actions::Extensions { id: Some(...) }` to deep-link the Extensions page. Decision per user: open Extensions rather than wiring in-modal extension install.
+- **Verified:** crate tests updated (well-formed for both `Install` kinds + built-in adapters `!`-disabled), `cargo check -p paddleboard` links, clippy clean on the crate with `--deny warnings`.
+- **Follow-ups (unchanged):** still needs live end-to-end testing on a machine with JDK 17+/Node/.NET; verify the Extensions deep-link `id` actually focuses the ruby/dart extension.
+
 ## 2026-05-27
 
 ### Live smoke tests: LangGraph, Kotlin LSP, PHP LSP
