@@ -13,7 +13,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Stale memory cleanup:** Audited follow-up items from prior sessions. Skills tab bundled content install was already complete (bundled via `include_str!()` from `.claude/commands/*.md`, "Add to project/user" buttons work, "Create Skill" modal works). MCP live log streaming was already complete (`open_server_logs` subscribes to `async_channel` receiver and appends lines in real time). Updated `project_ai_dock.md` and `project_mcp_orchestrator_idea.md` memory files to reflect current state.
 - **Verified:** `cargo check -p paddleboard_adk` and `cargo check -p agent_ui` clean. All 5 ADK tests pass. `test_agent_command_palette_visibility` passes.
 - **Intentionally preserved:** Pre-existing `cloud_api_types::Plan` unused import warning in `agent_panel.rs` (upstream issue, not ours).
-- **Follow-ups:** Tab accumulation on repeated RunAgent calls (each run opens a new "ADK Web" tab; could reuse existing). Scaffold modal could be more visually prominent.
+- **Follow-ups:** ~~Tab accumulation on repeated RunAgent calls~~ (fixed, see below). Scaffold modal could be more visually prominent.
+
+### ADK tab reuse + MCP modal sizing
+
+- **ADK tab reuse:** Expanded `AdkChildProcess` → `AdkState` to also hold a `WeakEntity<language::Buffer>`. On re-run, if the existing buffer is alive (tab still open), clears it and streams new output into it instead of opening a second tab. If the tab was closed, creates a fresh one. Verified live: running `adk: Run Agent` twice keeps one "ADK Web" tab with fresh content.
+- **MCP tab sizing:** Removed `overflow_y_scroll()` wrapper around the `McpServersView` in the AI Dock's MCP tab. The view handles its own scrolling internally via `uniform_list` — the outer scroll container was conflicting with `size_full()` layout.
+- **Verified:** Both crates compile clean, all 9 tests pass (5 ADK + 4 AI Dock). Tab reuse verified in running app.
+- **Follow-ups:** Scaffold modal could be more visually prominent.
 
 ### ADK live test — all four features verified
 

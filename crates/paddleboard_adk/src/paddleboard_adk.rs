@@ -13,14 +13,18 @@ pub use scaffold_modal::ScaffoldAgentModal;
 struct AdkProjectDetected;
 struct AdkWebRunning;
 
-// PaddleBoard: global holding the running `adk web` child process for StopAgent.
+// PaddleBoard: global holding the running `adk web` child process for StopAgent,
+// plus a weak ref to the output buffer so RunAgent can reuse the existing tab.
 #[derive(Default)]
-struct AdkChildProcess(Option<smol::process::Child>);
+struct AdkState {
+    child: Option<smol::process::Child>,
+    output_buffer: Option<gpui::WeakEntity<language::Buffer>>,
+}
 
-impl gpui::Global for AdkChildProcess {}
+impl gpui::Global for AdkState {}
 
 pub fn init(cx: &mut App) {
-    cx.set_global(AdkChildProcess(None));
+    cx.set_global(AdkState::default());
 
     cx.observe_new(
         |workspace: &mut Workspace,
@@ -51,8 +55,8 @@ pub fn init(cx: &mut App) {
 }
 
 fn handle_stop_agent(cx: &mut App) {
-    let global = cx.default_global::<AdkChildProcess>();
-    if let Some(mut child) = global.0.take() {
+    let state = cx.default_global::<AdkState>();
+    if let Some(mut child) = state.child.take() {
         let _ = child.kill();
         log::info!("ADK Web server stopped");
     }
@@ -154,13 +158,14 @@ fn handle_run_agent(
         let stderr = child.stderr.take();
 
         // PaddleBoard: kill any previously running ADK process before storing the new one.
-        cx.update(|cx| {
-            let global = cx.default_global::<AdkChildProcess>();
-            if let Some(mut prev) = global.0.take() {
+        let existing_buffer = cx.update(|cx| {
+            let state = cx.default_global::<AdkState>();
+            if let Some(mut prev) = state.child.take() {
                 let _ = prev.kill();
                 log::info!("killed previous ADK Web process before starting new one");
             }
-            global.0 = Some(child);
+            state.child = Some(child);
+            state.output_buffer.as_ref().and_then(|w| w.upgrade())
         });
 
         let tx_for_stdout = line_tx.clone();
@@ -208,45 +213,59 @@ fn handle_run_agent(
             }
         }).detach();
 
-        let create_buffer = project.update(cx, |project, cx| {
-            project.create_buffer(None, false, cx)
-        });
-
-        let buffer = match create_buffer.await {
-            Ok(buffer) => buffer,
-            Err(err) => {
-                log::error!("failed to create ADK log buffer: {err:#}");
-                return;
-            }
+        // Reuse the existing output buffer (tab stays open) or create a fresh one.
+        let buffer = if let Some(buffer) = existing_buffer {
+            buffer.update(cx, |buffer, cx| {
+                let len = buffer.len();
+                if len > 0 {
+                    buffer.edit([(0..len, "")], None, cx);
+                }
+            });
+            buffer
+        } else {
+            let create_buffer = project.update(cx, |project, cx| {
+                project.create_buffer(None, false, cx)
+            });
+            let buffer = match create_buffer.await {
+                Ok(buffer) => buffer,
+                Err(err) => {
+                    log::error!("failed to create ADK log buffer: {err:#}");
+                    return;
+                }
+            };
+            buffer.update(cx, |buffer, cx| {
+                buffer.set_capability(language::Capability::ReadOnly, cx);
+            });
+            let tab_title = "ADK Web".to_string();
+            let _ = cx.update_window(window_handle, |_view, window, cx| {
+                let multibuffer = cx.new(|cx| {
+                    multi_buffer::MultiBuffer::singleton(buffer.clone(), cx)
+                        .with_title(tab_title)
+                });
+                let editor_entity = cx.new(|cx| {
+                    let mut editor_view =
+                        editor::Editor::for_multibuffer(multibuffer, None, window, cx);
+                    editor_view.set_read_only(true);
+                    editor_view
+                });
+                workspace_handle
+                    .update(cx, |workspace, cx| {
+                        workspace.add_item_to_active_pane(
+                            Box::new(editor_entity),
+                            None,
+                            true,
+                            window,
+                            cx,
+                        );
+                    })
+                    .ok();
+            });
+            buffer
         };
 
-        buffer.update(cx, |buffer, cx| {
-            buffer.set_capability(language::Capability::ReadOnly, cx);
-        });
-
-        let tab_title = "ADK Web".to_string();
-        let _ = cx.update_window(window_handle, |_view, window, cx| {
-            let multibuffer = cx.new(|cx| {
-                multi_buffer::MultiBuffer::singleton(buffer.clone(), cx)
-                    .with_title(tab_title)
-            });
-            let editor_entity = cx.new(|cx| {
-                let mut editor_view =
-                    editor::Editor::for_multibuffer(multibuffer, None, window, cx);
-                editor_view.set_read_only(true);
-                editor_view
-            });
-            workspace_handle
-                .update(cx, |workspace, cx| {
-                    workspace.add_item_to_active_pane(
-                        Box::new(editor_entity),
-                        None,
-                        true,
-                        window,
-                        cx,
-                    );
-                })
-                .ok();
+        cx.update(|cx| {
+            cx.default_global::<AdkState>().output_buffer =
+                Some(buffer.downgrade());
         });
 
         // Stream lines into the buffer. Register port when detected.
