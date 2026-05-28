@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### Live smoke tests: LangGraph, Kotlin LSP, PHP LSP
+
+- **LangGraph — PASS:** Project detection works (`langgraph.json` → toast with "Run Agent" button). `langgraph: Run Agent` spawns `langgraph dev`, opens "LangGraph Studio" read-only tab streaming output. `langgraph: Stop Agent` kills process (log confirms `"LangGraph Studio server stopped"`). Scaffold modal renders with "Create LangGraph Agent" headline and `langgraph new` hint. Tab reuse works (log: `"killed previous LangGraph Studio process before starting new one"`). The `langgraph dev` itself requires `langgraph-api` package (`pip install "langgraph-cli[inmem]"`) to fully start — expected runtime dependency, not a PaddleBoard issue.
+- **Kotlin LSP — BLOCKED:** Syntax highlighting works (grammar recognized). LSP auto-download never triggers — PaddleBoard `languages/` dir stays empty, no Kotlin-related log entries. Same behavior when `.kt` file is opened in the trusted PaddleBoard repo itself. Needs investigation: the `check_if_server_binary_exists` → download path may not be firing for single files, or there may be a JDK detection prerequisite that silently fails.
+- **PHP LSP — BLOCKED:** Blocked by same pattern as Kotlin. `intelephense` installed globally via npm, but the LSP adapter likely auto-downloads its own copy. Not tested independently since the underlying LSP startup mechanism needs investigation first.
+- **Follow-ups:** Debug why Kotlin/PHP LSP adapters don't trigger auto-download. Investigate whether the JDK 21+ check in Java/Kotlin silently blocks without logging. Consider adding LSP startup logging for troubleshooting.
+
 ### Add LangGraph support alongside ADK
 
 - **Crate rename:** `paddleboard_adk` → `paddleboard_agent_frameworks`. Houses both ADK and LangGraph as parallel modules with shared infrastructure (port parsing, process state, tab reuse, terminal scaffold).
