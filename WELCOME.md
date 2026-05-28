@@ -57,16 +57,12 @@ For one-shot commands (builds, tests, scripts) the agent still uses the regular 
 
 #### Recipe — build & run an ADK agent
 
-Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `adk web` UI that's a natural fit for the sandbox service flow. PaddleBoard can scaffold and run it for you without leaving the editor.
+Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `adk web` UI that's a natural fit for PaddleBoard. Two command palette actions make it quick:
 
-1. Export your model credential in the shell you launch PaddleBoard from — e.g. `export GOOGLE_API_KEY=...`. The value stays in your shell; PaddleBoard never copies it into the agent's context.
-2. In a chat thread, say: **"Scaffold a starter ADK agent in this worktree and run `adk web` in the sandbox, forwarding GOOGLE_API_KEY."**
-3. The agent will write `agent.py` and `requirements.txt`, then call `sandbox_service_tool` with something like:
-   - `image: "python:3.12-slim"`
-   - `command: "pip install -r requirements.txt && adk web --host 0.0.0.0 --port 8000"`
-   - `port: 8000`
-   - `forward_env: ["GOOGLE_API_KEY"]`
-4. A Forwarded Ports row appears with the host port; click it to open the ADK UI in the browser panel.
+- **`adk: Scaffold Agent`** — opens a modal where you name your agent, then runs `adk create <name>` in a terminal tab. Writes `agent.py`, config, and dependencies into your workspace.
+- **`adk: Run Agent`** — spawns `adk web` in a terminal tab. The dev server's URL appears in the terminal output — click it to open in the browser panel.
+
+For sandboxed execution via the agent, you can also ask in a chat thread: **"Run `adk web` in the sandbox, forwarding GOOGLE_API_KEY."** The agent will call `sandbox_service_tool` and the URL lands in the Forwarded Ports row.
 
 The `forward_env` field accepts a list of host env var **names** only — values are read by the tool at run time and passed to the container via `podman run -e`, never serialized into the conversation.
 
@@ -109,7 +105,7 @@ One place to browse and install everything the agent talks to. Think of it as th
 
 - Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Gemini) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
 - Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), and **MCP Servers** (the absorbed management page plus a catalog of common servers).
-- Installed items show a green badge; missing ones show an **Install / Sign In / Learn More** action that does the right thing for the category — agent installs are a one-click settings write, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (currently `/build` and `/update-tour`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
+- Installed items show a green badge; missing ones show an **Install / Sign In / Learn More** action that does the right thing for the category — agent installs are a one-click settings write, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
 
 The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome screen and the standalone MCP Servers pane — both routes now land here.
@@ -145,6 +141,16 @@ The panel shows:
 - Click any row to jump directly to that thread in the Agent Panel
 
 The tree updates in real time as threads start, finish, or spawn subagents.
+
+#### Scion agents
+
+When [Scion](https://github.com/GoogleCloudPlatform/scion) is installed, a **Scion Agents** section appears below the native threads. Each agent shows a color-coded status icon and live activity badge (e.g., "executing · Edit", "thinking"). Right-click an agent row for:
+
+- **View Logs** — opens a live-streaming log tab that tails `scion logs -f`. New lines appear in real time; the stream stops when you close the tab.
+- **Sync Changes** — pulls the agent's worktree changes into your local project. Shows a toast on success and refreshes the agent list.
+- **Stop Agent** — stops the selected agent.
+
+Install Scion with `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then use `scion: Start Agent` from the command palette to launch your first container-isolated agent.
 
 ---
 
@@ -199,6 +205,9 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 | See all agent threads | Click the list-tree icon in the panel bar |
 | Switch LLM provider | Open the LLM Picker panel from the panel bar |
 | Configure MCP servers | `Cmd-Shift-P` → `paddleboard: Mcp Servers` |
+| Scaffold an ADK agent | `Cmd-Shift-P` → `adk: Scaffold Agent` |
+| Run an ADK agent | `Cmd-Shift-P` → `adk: Run Agent` |
+| Start a Scion agent | `Cmd-Shift-P` → `scion: Start Agent` |
 | Switch / create a worktree | `Cmd-Shift-P` → `git: Worktree` |
 | Run code in a sandbox | Ask the agent to run a command — it uses the Sandbox Tool automatically |
 | Run a service in a sandbox | Ask the agent to start a server (e.g. `python3 -m http.server 8000`) — it uses the Sandbox Service Tool, and the URL appears in the Forwarded Ports row of the browser panel |
