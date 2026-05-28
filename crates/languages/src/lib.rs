@@ -73,9 +73,10 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     let eslint_adapter = Arc::new(eslint::EsLintLspAdapter::new(node.clone(), fs.clone()));
     let go_context_provider = Arc::new(go::GoContextProvider);
     let go_lsp_adapter = Arc::new(go::GoLspAdapter);
-    // PaddleBoard: Java adapter — $PATH lookup only; bails with a
-    // helpful notification if `jdtls` isn't installed.
+    // PaddleBoard: Java adapter — tries $PATH first, then auto-downloads
+    // from eclipse-jdtls/eclipse.jdt.ls GitHub releases.
     let java_lsp_adapter = Arc::new(java::JavaLspAdapter);
+    let java_context_provider = Arc::new(java::JavaBuildContextProvider);
     let json_context_provider = Arc::new(JsonTaskProvider);
     let json_lsp_adapter = Arc::new(json::JsonLspAdapter::new(languages.clone(), node.clone()));
     let node_version_lsp_adapter = Arc::new(json::NodeVersionAdapter);
@@ -155,11 +156,13 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
             context: Some(go_context_provider),
             ..Default::default()
         },
-        // PaddleBoard: Java entry. $PATH-only; bails with a notification
-        // if `jdtls` isn't installed.
+        // PaddleBoard: Java entry. Auto-downloads jdtls from GitHub releases;
+        // falls back to $PATH lookup.
         LanguageInfo {
             name: "java",
             adapters: vec![java_lsp_adapter],
+            context: Some(java_context_provider.clone()),
+            manifest_name: Some(SharedString::new_static("build.gradle").into()),
             ..Default::default()
         },
         LanguageInfo {
@@ -179,6 +182,8 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
         LanguageInfo {
             name: "kotlin",
             adapters: vec![kotlin_lsp_adapter],
+            context: Some(java_context_provider),
+            manifest_name: Some(SharedString::new_static("build.gradle.kts").into()),
             ..Default::default()
         },
         LanguageInfo {

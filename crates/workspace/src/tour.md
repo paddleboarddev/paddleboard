@@ -64,6 +64,7 @@ Run multiple deep agents in parallel, each in its own container and git worktree
 - Right-click any agent row for **View Logs** (opens a live-streaming log tab that tails output in real time), **Sync Changes** (pulls changes into your local copy and shows a toast), or **Stop Agent**.
 - Activity badges show what the agent is doing: "executing · Edit", "thinking", "waiting", etc.
 - Status colors: accent = running, warning = needs attention, error = errored, muted = stopped.
+- **OpenTelemetry tracing:** Enable `"paddleboard_otel": { "enabled": true }` in settings (or `PADDLEBOARD_OTEL_ENABLED=1`) to export agent lifecycle telemetry via OTLP. Poll cycles, CLI commands, and phase/activity transitions appear as spans and events in Jaeger, Tempo, or any OTEL-compatible collector.
 
 ### 9. LLM Provider Picker Panel
 A dedicated panel for switching the active language model provider without opening settings.
@@ -78,11 +79,12 @@ Keep multiple projects in one window, each as its own workspace with its own pan
 
 ### 11. Built-in Language Servers
 PaddleBoard ships built-in LSP support for four languages that Zed historically punts to extensions — **no extension installation required**.
-- **Java** via [jdtls](https://github.com/eclipse/eclipse.jdt.ls)
-- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server)
-- **PHP** via [intelephense](https://intelephense.com/)
-- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp)
+- **Java** via [jdtls](https://github.com/eclipse-jdtls/eclipse.jdt.ls) — auto-downloads from GitHub releases (JDK 21+ required)
+- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server) — auto-downloads from GitHub releases (JDK 17+ required)
+- **PHP** via [intelephense](https://intelephense.com/) — auto-installs via npm
+- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp) — uses your platform's Swift toolchain
 - Open a `.java`/`.kt`/`.php`/`.swift` file; PB downloads the language server on first use and caches it.
+- **Build tool context**: Java and Kotlin auto-detect Gradle/Maven projects and expose `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables.
 
 ---
 
