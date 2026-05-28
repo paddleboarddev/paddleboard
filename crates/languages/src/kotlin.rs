@@ -275,6 +275,27 @@ async fn check_jdk_version(delegate: &Arc<dyn LspAdapterDelegate>, cx: &mut Asyn
             }
         }
     }
+
+    // PaddleBoard: the kotlin-language-server launcher script checks JAVA_HOME
+    // independently of `java` on PATH. If JAVA_HOME is set but invalid, the
+    // script fails with a confusing error ("JAVA_HOME is set to an invalid
+    // directory") that surfaces as "server reset the connection". Warn early.
+    if let Ok(java_home) = std::env::var("JAVA_HOME") {
+        if !java_home.is_empty() && !std::path::Path::new(&java_home).is_dir() {
+            if DID_WARN_JDK.compare_exchange(false, true, SeqCst, SeqCst).is_ok() {
+                cx.update(|cx| {
+                    delegate.show_notification(
+                        &format!(
+                            "JAVA_HOME is set to \"{java_home}\" which is not a valid directory. \
+                             kotlin-language-server will fail to start. Fix JAVA_HOME or unset it \
+                             so the launcher can find Java automatically."
+                        ),
+                        cx,
+                    );
+                });
+            }
+        }
+    }
 }
 
 pub fn parse_java_major_version(version_output: &str) -> Option<u32> {
