@@ -500,7 +500,7 @@ fn main() {
         paddleboard_sandbox_settings::init(cx);
         paddleboard_otel_settings::init(cx);
         paddleboard_sandbox_prereqs_ui::init(cx);
-        paddleboard_adk::init(cx);
+        paddleboard_agent_frameworks::init(cx);
         paddleboard_ai_dock::init(cx);
         paddleboard_scion_ui::init(cx);
         if let Some(app_commit_sha) = app_commit_sha {
