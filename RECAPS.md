@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Dependabot triage + cleanup of test artifact
+
+- **Fixed the `qs` moderate alert** (GHSA-q8mj-m7cp-5q26): patch-bumped the transitive `qs` 6.15.1 → 6.15.2 in `script/danger/pnpm-lock.yaml` (CI danger tooling) via `npx pnpm update qs --lockfile-only`. Lockfile-only, no node_modules churn. Committed + pushed separately.
+- **Removed a test artifact:** the `"C++"` language-servers entry left in the user's global `~/.config/paddleboard/settings.json` by an earlier Manage Languages live test (outside the repo; not a commit).
+- **Remaining 5 alerts have no clean fix right now, deferred to the upstream merge:**
+  - rustls-webpki HIGH + 2 LOW come from Bedrock's AWS SDK (`aws-config`/`aws-smithy-http-client` already at latest 1.x, still on `rustls 0.21`); `cargo update` moves nothing. Real fixes are removing Bedrock (declined — we added Vertex instead) or an AWS-SDK major/feature change (risky on a fork). See [[project-dependabot-aws]].
+  - `glib` (med) + `rand` (low) are transitive dups pinned by old parents; the patched versions are different minors, so `cargo update` can't reach them without cascading parent bumps.
+
 ### LLM provider list: rename cloud provider to "Zed" + regroup order
 
 - **Renamed the cloud LLM provider** display name from "PaddleBoard" to **"Zed"** (`PADDLEBOARD_CLOUD_PROVIDER_NAME` in `language_model/src/provider/zed.rs`). Rationale: it's Zed's hosted model service, not a PaddleBoard offering, so rebranding it was misleading. Provider id stays `zed.dev`. `// PaddleBoard:` tagged.
