@@ -233,6 +233,8 @@ members = [
     "crates/paddleboard_sandbox_prereqs_state",
     "crates/paddleboard_sandbox_prereqs_ui",
     "crates/paddleboard_sandbox_settings",
+    "crates/paddleboard_otel",
+    "crates/paddleboard_otel_settings",
     "crates/paddleboard_adk",
     "crates/paddleboard_ai_dock",
     "crates/paddleboard_scion",
@@ -498,6 +500,8 @@ paddleboard_sandbox_prereqs = { path = "crates/paddleboard_sandbox_prereqs" }
 paddleboard_sandbox_prereqs_state = { path = "crates/paddleboard_sandbox_prereqs_state" }
 paddleboard_sandbox_prereqs_ui = { path = "crates/paddleboard_sandbox_prereqs_ui" }
 paddleboard_sandbox_settings = { path = "crates/paddleboard_sandbox_settings" }
+paddleboard_otel = { path = "crates/paddleboard_otel" }
+paddleboard_otel_settings = { path = "crates/paddleboard_otel_settings" }
 paddleboard_adk = { path = "crates/paddleboard_adk" }
 paddleboard_ai_dock = { path = "crates/paddleboard_ai_dock" }
 paddleboard_scion = { path = "crates/paddleboard_scion" }
@@ -673,6 +677,9 @@ objc2-foundation = { version = "=0.3.2", default-features = false, features = [
     "std",
 ] }
 open = "5.0.0"
+opentelemetry = { version = "0.32", default-features = false, features = ["trace"] }
+opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace", "rt-tokio"] }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = ["trace", "grpc-tonic"] }
 ordered-float = "2.1.1"
 palette = { version = "0.7.5", default-features = false, features = ["std"] }
 parking_lot = "0.12.1"
@@ -805,6 +812,8 @@ tree-sitter-swift = "0.7.2"
 tree-sitter-typescript = { git = "https://github.com/zed-industries/tree-sitter-typescript", rev = "e2c53597d6a5d9cf7bbe8dccde576fe1e46c5899" } # https://github.com/tree-sitter/tree-sitter-typescript/pull/347
 tree-sitter-yaml = { git = "https://github.com/zed-industries/tree-sitter-yaml", rev = "baff0b51c64ef6a1fb1f8390f3ad6015b83ec13a" }
 tracing = "0.1.40"
+tracing-opentelemetry = "0.33"
+tracing-subscriber = "0.3.22"
 unicase = "2.6"
 unicode-script = "0.5.7"
 unicode-segmentation = "1.10"

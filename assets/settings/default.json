@@ -2718,6 +2718,21 @@
     "prereq_check_enabled": true
   },
 
+  // PaddleBoard: configuration for OpenTelemetry trace export. When enabled,
+  // PaddleBoard installs a tracing subscriber that exports spans via OTLP to
+  // an external collector (Jaeger, Tempo, etc.).
+  "paddleboard_otel": {
+    // Whether OTEL tracing is enabled. Can also be enabled via
+    // PADDLEBOARD_OTEL_ENABLED=1 environment variable.
+    "enabled": false,
+    // OTLP endpoint. Overridden by OTEL_EXPORTER_OTLP_ENDPOINT env var.
+    "endpoint": "http://localhost:4317",
+    // OTLP protocol: "grpc" (default, port 4317) or "http" (port 4318).
+    "protocol": "grpc",
+    // Service name reported in traces.
+    "service_name": "paddleboard"
+  },
+
   // Configuration for developer-oriented instrumentation tools that can be
   // toggled at runtime.
   "instrumentation": {

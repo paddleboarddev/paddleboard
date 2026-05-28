@@ -498,6 +498,7 @@ fn main() {
         release_channel::init(app_version, cx);
         gpui_tokio::init(cx);
         paddleboard_sandbox_settings::init(cx);
+        paddleboard_otel_settings::init(cx);
         paddleboard_sandbox_prereqs_ui::init(cx);
         paddleboard_adk::init(cx);
         paddleboard_ai_dock::init(cx);
@@ -507,6 +508,7 @@ fn main() {
         }
         settings::init(cx);
         zlog_settings::init(cx);
+        paddleboard_otel::init(cx);
         zed::watch_settings_files(fs.clone(), cx);
         handle_keymap_file_changes(user_keymap_file_rx, user_keymap_watcher, cx);
 

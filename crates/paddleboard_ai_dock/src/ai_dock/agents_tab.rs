@@ -5,6 +5,7 @@ use gpui::ClickEvent;
 use project::AgentRegistryStore;
 use project::agent_server_store::AllAgentServersSettings;
 use settings::{CustomAgentServerSettings, SettingsStore, update_settings_file};
+use task::{HideStrategy, RevealStrategy, RevealTarget, SaveStrategy, Shell, SpawnInTerminal, TaskId};
 use ui::prelude::*;
 
 use crate::catalog::AgentEntry;
@@ -72,6 +73,11 @@ fn render_agent_row(
     let installed = entry.builtin_zed || installed_agents.contains_key(&entry.id);
     let registry_agent = registry_agents.iter().find(|a| a.id().as_ref() == entry.id);
 
+    let cli_installed = entry.install_command.as_ref().and_then(|cmd| {
+        let binary = cmd.split_whitespace().next()?;
+        which::which(binary).ok()
+    });
+
     let icon = if entry.builtin_zed {
         Icon::new(IconName::ZedAgent)
     } else if let Some(reg) = registry_agent.as_ref() {
@@ -87,6 +93,8 @@ fn render_agent_row(
 
     let action_button: AnyElement = if entry.builtin_zed {
         zed_agent_button(cx)
+    } else if entry.install_command.is_some() {
+        cli_tool_button(entry, cli_installed.is_some(), cx)
     } else if installed {
         Button::new(SharedString::from(format!("ai-dock-open-{}", entry.id)), "Configure")
             .style(ButtonStyle::Outlined)
@@ -171,6 +179,66 @@ fn render_agent_row(
                 .child(action_button),
         )
         .into_any_element()
+}
+
+fn cli_tool_button(entry: &AgentEntry, is_installed: bool, cx: &mut Context<AiDock>) -> AnyElement {
+    if is_installed {
+        return Button::new(
+            SharedString::from(format!("ai-dock-cli-installed-{}", entry.id)),
+            "Installed",
+        )
+        .style(ButtonStyle::Outlined)
+        .label_size(LabelSize::Small)
+        .disabled(true)
+        .into_any_element();
+    }
+
+    let install_command = entry.install_command.clone().unwrap_or_default();
+    let entry_id = entry.id.clone();
+
+    Button::new(
+        SharedString::from(format!("ai-dock-setup-{}", entry_id)),
+        "Set Up",
+    )
+    .style(ButtonStyle::Filled)
+    .label_size(LabelSize::Small)
+    .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+        let parts: Vec<&str> = install_command.split_whitespace().collect();
+        let (command, args) = match parts.split_first() {
+            Some((cmd, rest)) => (cmd.to_string(), rest.iter().map(|s| s.to_string()).collect()),
+            None => return,
+        };
+
+        if let Some(workspace) = this.workspace.upgrade() {
+            workspace.update(cx, |workspace, cx| {
+                let _ = workspace.spawn_in_terminal(
+                    SpawnInTerminal {
+                        id: TaskId(format!("ai-dock-setup-{entry_id}")),
+                        full_label: format!("Set Up: {install_command}"),
+                        label: format!("Set Up: {entry_id}"),
+                        command: Some(command),
+                        args,
+                        command_label: install_command.clone(),
+                        cwd: None,
+                        env: Default::default(),
+                        use_new_terminal: true,
+                        allow_concurrent_runs: false,
+                        reveal: RevealStrategy::Always,
+                        reveal_target: RevealTarget::Dock,
+                        hide: HideStrategy::Never,
+                        shell: Shell::System,
+                        show_summary: true,
+                        show_command: true,
+                        show_rerun: true,
+                        save: SaveStrategy::None,
+                    },
+                    window,
+                    cx,
+                );
+            });
+        }
+    }))
+    .into_any_element()
 }
 
 fn zed_agent_button(cx: &mut Context<AiDock>) -> AnyElement {

@@ -1,5 +1,6 @@
 mod start_agent_modal;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -7,16 +8,34 @@ use std::time::Duration;
 use anyhow::Result;
 use gpui::{App, AppContext as _, Context, Entity, EventEmitter, Global, Task, Window};
 use gpui_tokio::Tokio;
-use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli, StartAgentOptions, TemplateInfo};
+use paddleboard_scion::{
+    AgentActivity, AgentInfo, AgentPhase, ScionCli, StartAgentOptions, TemplateInfo,
+};
 use workspace::{Toast, Workspace, notifications::NotificationId};
 
 pub use start_agent_modal::StartAgentModal;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
+#[derive(Clone, Debug, PartialEq)]
+struct AgentSnapshot {
+    phase: Option<AgentPhase>,
+    activity: Option<AgentActivity>,
+}
+
+impl From<&AgentInfo> for AgentSnapshot {
+    fn from(agent: &AgentInfo) -> Self {
+        Self {
+            phase: agent.phase,
+            activity: agent.activity,
+        }
+    }
+}
+
 pub struct ScionStore {
     pub cli: Arc<ScionCli>,
     agents: Vec<AgentInfo>,
+    prev_agent_states: HashMap<String, AgentSnapshot>,
     templates: Vec<TemplateInfo>,
     available: bool,
     _poll_task: Option<Task<()>>,
@@ -41,6 +60,7 @@ impl ScionStore {
         let mut store = Self {
             cli,
             agents: Vec::new(),
+            prev_agent_states: HashMap::new(),
             templates: Vec::new(),
             available,
             _poll_task: None,
@@ -61,9 +81,12 @@ impl ScionStore {
         });
 
         self._poll_task = Some(cx.spawn(async move |this, cx| {
+            let _span = tracing::info_span!("scion.poll_cycle").entered();
+
             match task.await {
                 Ok(agents) => {
                     this.update(cx, |store, cx| {
+                        store.detect_transitions(&agents);
                         store.agents = agents;
                         cx.emit(ScionStoreEvent::AgentsUpdated);
                         cx.notify();
@@ -71,6 +94,7 @@ impl ScionStore {
                     .ok();
                 }
                 Err(err) => {
+                    tracing::warn!(error = %err, "scion poll failed");
                     log::warn!("scion poll failed: {err:#}");
                 }
             }
@@ -82,6 +106,74 @@ impl ScionStore {
             })
             .ok();
         }));
+    }
+
+    fn detect_transitions(&mut self, new_agents: &[AgentInfo]) {
+        let new_states: HashMap<String, AgentSnapshot> = new_agents
+            .iter()
+            .map(|a| (a.name.clone(), AgentSnapshot::from(a)))
+            .collect();
+
+        for agent in new_agents {
+            let new_snap = AgentSnapshot::from(agent);
+            if let Some(old_snap) = self.prev_agent_states.get(&agent.name) {
+                if old_snap.phase != new_snap.phase {
+                    let old_phase = old_snap
+                        .phase
+                        .map(|p| p.to_string())
+                        .unwrap_or_else(|| "none".to_string());
+                    let new_phase = new_snap
+                        .phase
+                        .map(|p| p.to_string())
+                        .unwrap_or_else(|| "none".to_string());
+                    tracing::info!(
+                        scion.agent_name = %agent.name,
+                        scion.phase.old = %old_phase,
+                        scion.phase.new = %new_phase,
+                        "scion agent phase transition"
+                    );
+                }
+                if old_snap.activity != new_snap.activity {
+                    let old_activity = old_snap
+                        .activity
+                        .map(|a| a.to_string())
+                        .unwrap_or_else(|| "none".to_string());
+                    let new_activity = new_snap
+                        .activity
+                        .map(|a| a.to_string())
+                        .unwrap_or_else(|| "none".to_string());
+                    tracing::info!(
+                        scion.agent_name = %agent.name,
+                        scion.activity.old = %old_activity,
+                        scion.activity.new = %new_activity,
+                        "scion agent activity transition"
+                    );
+                }
+            } else {
+                let phase = new_snap
+                    .phase
+                    .map(|p| p.to_string())
+                    .unwrap_or_else(|| "none".to_string());
+                let activity = new_snap
+                    .activity
+                    .map(|a| a.to_string())
+                    .unwrap_or_else(|| "none".to_string());
+                tracing::info!(
+                    scion.agent_name = %agent.name,
+                    scion.phase = %phase,
+                    scion.activity = %activity,
+                    "scion agent discovered"
+                );
+            }
+        }
+
+        for name in self.prev_agent_states.keys() {
+            if !new_states.contains_key(name) {
+                tracing::info!(scion.agent_name = %name, "scion agent disappeared");
+            }
+        }
+
+        self.prev_agent_states = new_states;
     }
 
     pub fn refresh(&mut self, cx: &mut Context<Self>) {

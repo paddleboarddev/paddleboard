@@ -1,18 +1,22 @@
 mod scaffold_modal;
 
 use std::path::PathBuf;
+use std::time::Duration;
 
-use gpui::{App, Context, Window};
+use gpui::{Action as _, App, Context, Window};
 use task::{HideStrategy, RevealStrategy, RevealTarget, SaveStrategy, Shell, SpawnInTerminal, TaskId};
 use workspace::Workspace;
+use workspace::notifications::NotificationId;
 
 pub use scaffold_modal::ScaffoldAgentModal;
+
+struct AdkProjectDetected;
 
 pub fn init(cx: &mut App) {
     cx.observe_new(
         |workspace: &mut Workspace,
          _window: Option<&mut Window>,
-         _cx: &mut Context<Workspace>| {
+         cx: &mut Context<Workspace>| {
             workspace.register_action(
                 |workspace, _: &paddleboard_actions::adk::ScaffoldAgent, window, cx| {
                     handle_scaffold_agent(workspace, window, cx);
@@ -24,9 +28,46 @@ pub fn init(cx: &mut App) {
                     handle_run_agent(workspace, window, cx);
                 },
             );
+
+            detect_adk_project(cx);
         },
     )
     .detach();
+}
+
+fn detect_adk_project(cx: &mut Context<Workspace>) {
+    cx.spawn(async move |weak_workspace, cx| {
+        cx.background_executor()
+            .timer(Duration::from_millis(500))
+            .await;
+        let _ = weak_workspace.update(&mut *cx, |workspace, cx| {
+            if !has_adk_markers(workspace, cx) {
+                return;
+            }
+            let id = NotificationId::unique::<AdkProjectDetected>();
+            workspace.show_toast(
+                workspace::Toast::new(id, "ADK project detected").on_click(
+                    "Run Agent",
+                    |window, cx| {
+                        window.dispatch_action(
+                            paddleboard_actions::adk::RunAgent.boxed_clone(),
+                            cx,
+                        );
+                    },
+                ),
+                cx,
+            );
+        });
+    })
+    .detach();
+}
+
+fn has_adk_markers(workspace: &Workspace, cx: &App) -> bool {
+    let project = workspace.project().read(cx);
+    project.visible_worktrees(cx).any(|wt| {
+        let root = wt.read(cx).abs_path();
+        root.join("agent.py").exists() || root.join("agent.yaml").exists()
+    })
 }
 
 fn handle_scaffold_agent(
@@ -67,6 +108,15 @@ fn handle_run_agent(
         },
         window,
         cx,
+    );
+
+    browser::ForwardedPorts::register(
+        cx,
+        browser::ForwardedPort {
+            label: "ADK Web".into(),
+            host_port: 8000,
+            container_id: None,
+        },
     );
 }
 

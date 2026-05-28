@@ -8,6 +8,8 @@ mod language_model;
 pub mod merge_from;
 // PaddleBoard: schema for the sandbox enforcement layer.
 mod paddleboard_sandbox;
+// PaddleBoard: schema for OpenTelemetry trace export.
+mod paddleboard_otel;
 mod project;
 mod serde_helper;
 mod terminal;
@@ -23,7 +25,8 @@ pub use fallible_options::*;
 pub use language::*;
 pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
-// PaddleBoard: re-export sandbox content types alongside the rest.
+// PaddleBoard: re-export sandbox and OTEL content types alongside the rest.
+pub use paddleboard_otel::*;
 pub use paddleboard_sandbox::*;
 pub use project::*;
 use serde::de::DeserializeOwned;
@@ -264,6 +267,9 @@ pub struct SettingsContent {
     // PaddleBoard: configuration for the sandbox enforcement layer (policy
     // when Podman/gVisor prereqs are missing at tool-launch time).
     pub paddleboard_sandbox: Option<PaddleboardSandboxContent>,
+
+    // PaddleBoard: configuration for OpenTelemetry trace export (opt-in).
+    pub paddleboard_otel: Option<PaddleboardOtelContent>,
 
     /// Local overrides for feature flags, keyed by flag name.
     pub feature_flags: Option<FeatureFlagsMap>,

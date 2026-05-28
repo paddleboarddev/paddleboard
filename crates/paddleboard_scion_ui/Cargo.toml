@@ -24,6 +24,7 @@ paddleboard_actions.workspace = true
 paddleboard_scion.workspace = true
 project.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 ui.workspace = true
 ui_input.workspace = true
 workspace.workspace = true

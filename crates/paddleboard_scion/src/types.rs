@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -45,6 +46,24 @@ impl AgentPhase {
     }
 }
 
+impl fmt::Display for AgentPhase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Created => "created",
+            Self::Provisioning => "provisioning",
+            Self::Cloning => "cloning",
+            Self::Starting => "starting",
+            Self::Running => "running",
+            Self::Suspended => "suspended",
+            Self::Stopping => "stopping",
+            Self::Stopped => "stopped",
+            Self::Error => "error",
+            Self::Unknown => "unknown",
+        };
+        f.write_str(s)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentActivity {
@@ -68,6 +87,25 @@ impl AgentActivity {
             self,
             Self::WaitingForInput | Self::Blocked | Self::LimitsExceeded | Self::Crashed
         )
+    }
+}
+
+impl fmt::Display for AgentActivity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Working => "working",
+            Self::Thinking => "thinking",
+            Self::Executing => "executing",
+            Self::WaitingForInput => "waiting_for_input",
+            Self::Blocked => "blocked",
+            Self::Completed => "completed",
+            Self::LimitsExceeded => "limits_exceeded",
+            Self::Stalled => "stalled",
+            Self::Offline => "offline",
+            Self::Crashed => "crashed",
+            Self::Unknown => "unknown",
+        };
+        f.write_str(s)
     }
 }
 
@@ -417,6 +455,35 @@ mod tests {
                 Some(AgentPhase::Unknown),
                 "phase '{phase_str}' should not be Unknown"
             );
+        }
+    }
+
+    #[test]
+    fn phase_display_matches_serde() {
+        let phases = [
+            (AgentPhase::Created, "created"),
+            (AgentPhase::Provisioning, "provisioning"),
+            (AgentPhase::Running, "running"),
+            (AgentPhase::Stopped, "stopped"),
+            (AgentPhase::Error, "error"),
+            (AgentPhase::Unknown, "unknown"),
+        ];
+        for (phase, expected) in phases {
+            assert_eq!(phase.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn activity_display_matches_serde() {
+        let activities = [
+            (AgentActivity::Working, "working"),
+            (AgentActivity::WaitingForInput, "waiting_for_input"),
+            (AgentActivity::LimitsExceeded, "limits_exceeded"),
+            (AgentActivity::Crashed, "crashed"),
+            (AgentActivity::Unknown, "unknown"),
+        ];
+        for (activity, expected) in activities {
+            assert_eq!(activity.to_string(), expected);
         }
     }
 
