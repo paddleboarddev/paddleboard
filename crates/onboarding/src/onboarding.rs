@@ -241,10 +241,11 @@ impl Onboarding {
                 Some(Plan::ZedFree) | None => "free",
             }
         };
-        let agents_installed = basics_page::FEATURED_AGENT_IDS
+        let featured_ids = basics_page::featured_agent_ids(cx);
+        let agents_installed = featured_ids
             .iter()
-            .filter(|id| installed_agents.contains_key(**id))
-            .copied()
+            .filter(|id| installed_agents.contains_key(id.as_str()))
+            .cloned()
             .collect::<Vec<_>>();
         telemetry::event!(
             "Welcome Agent Setup Viewed",
