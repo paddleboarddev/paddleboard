@@ -11,21 +11,21 @@
     },
     {
       "id": "claude-acp",
-      "name": "Claude Agent",
+      "name": "Claude",
       "description": "Anthropic's Claude agent over ACP. Streaming tool use, persistent threads, multi-modal.",
       "homepage": "https://docs.claude.com/en/docs/claude-code/overview",
       "featured": true
     },
     {
       "id": "codex-acp",
-      "name": "Codex CLI",
+      "name": "Codex",
       "description": "OpenAI's terminal coding agent. Runs locally; bring your own API key.",
       "homepage": "https://github.com/openai/codex",
       "featured": true
     },
     {
       "id": "github-copilot-cli",
-      "name": "GitHub Copilot",
+      "name": "Copilot",
       "description": "GitHub's coding assistant. Sign in with your GitHub account.",
       "homepage": "https://github.com/features/copilot",
       "featured": true

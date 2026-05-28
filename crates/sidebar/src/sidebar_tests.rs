@@ -465,7 +465,7 @@ fn save_draft_metadata_with_main_paths(
     let metadata = ThreadMetadata {
         thread_id,
         session_id: None,
-        agent_id: agent::ZED_AGENT_ID.clone(),
+        agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
         title,
         title_override: None,
         updated_at,
@@ -13894,7 +13894,7 @@ async fn test_remote_linked_worktree_workspace_to_remove_uses_remote_connection(
         let metadata = ThreadMetadata {
             thread_id: worktree_thread_id,
             session_id: Some(worktree_session_id.clone()),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Remote Worktree Thread".into()),
             title_override: None,
             updated_at: chrono::TimeZone::with_ymd_and_hms(&Utc, 2024, 1, 1, 0, 0, 0).unwrap(),

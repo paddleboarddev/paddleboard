@@ -11554,6 +11554,7 @@ dependencies = [
  "menu",
  "notifications",
  "paddleboard_actions",
+ "paddleboard_ai_dock",
  "picker",
  "project",
  "schemars 1.2.1",
