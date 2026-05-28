@@ -5,26 +5,63 @@ use ui::{
 use ui_input::InputField;
 use workspace::{ModalView, Workspace};
 
+struct ScaffoldConfig {
+    headline: &'static str,
+    description: &'static str,
+    hint: &'static str,
+    command: &'static str,
+    subcommand: &'static str,
+    task_id_prefix: &'static str,
+}
+
+const ADK_CONFIG: ScaffoldConfig = ScaffoldConfig {
+    headline: "Create ADK Agent",
+    description: "Scaffold a new Google ADK agent project in this workspace.",
+    hint: "Runs `adk create <name>` in a terminal to set up the project structure.",
+    command: "adk",
+    subcommand: "create",
+    task_id_prefix: "adk-scaffold",
+};
+
+const LANGGRAPH_CONFIG: ScaffoldConfig = ScaffoldConfig {
+    headline: "Create LangGraph Agent",
+    description: "Scaffold a new LangGraph agent project in this workspace.",
+    hint: "Runs `langgraph new <name>` in a terminal to set up the project structure.",
+    command: "langgraph",
+    subcommand: "new",
+    task_id_prefix: "langgraph-scaffold",
+};
+
+fn config_for(framework: &str) -> &'static ScaffoldConfig {
+    match framework {
+        "langgraph" => &LANGGRAPH_CONFIG,
+        _ => &ADK_CONFIG,
+    }
+}
+
 pub struct ScaffoldAgentModal {
     workspace: WeakEntity<Workspace>,
     name_input: Entity<InputField>,
     focus_handle: FocusHandle,
+    config: &'static ScaffoldConfig,
 }
 
 impl ScaffoldAgentModal {
     pub fn toggle(
         workspace: &mut Workspace,
+        framework: &'static str,
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
         let weak_workspace = cx.entity().downgrade();
         workspace.toggle_modal(window, cx, |window, cx| {
-            Self::new(weak_workspace, window, cx)
+            Self::new(weak_workspace, framework, window, cx)
         });
     }
 
     fn new(
         workspace: WeakEntity<Workspace>,
+        framework: &'static str,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -39,6 +76,7 @@ impl ScaffoldAgentModal {
             workspace,
             name_input,
             focus_handle: cx.focus_handle(),
+            config: config_for(framework),
         }
     }
 
@@ -50,9 +88,18 @@ impl ScaffoldAgentModal {
             return;
         }
 
+        let config = self.config;
         if let Some(workspace) = self.workspace.upgrade() {
             workspace.update(cx, |workspace, cx| {
-                crate::spawn_adk_create(&name, workspace, window, cx);
+                crate::spawn_in_terminal(
+                    workspace,
+                    window,
+                    cx,
+                    config.task_id_prefix,
+                    &format!("{} Create: {name}", config.headline.replace("Create ", "")),
+                    config.command,
+                    vec![config.subcommand.to_string(), name],
+                );
             });
         }
 
@@ -77,6 +124,7 @@ impl ModalView for ScaffoldAgentModal {}
 impl Render for ScaffoldAgentModal {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let confirm_enabled = !self.name_input.read(cx).text(cx).trim().is_empty();
+        let config = self.config;
 
         v_flex()
             .key_context("ScaffoldAgentModal")
@@ -86,25 +134,21 @@ impl Render for ScaffoldAgentModal {
             .w(rems(34.))
             .child(
                 Modal::new("scaffold-agent-modal", None)
-                    .header(ModalHeader::new().headline("Create ADK Agent"))
+                    .header(ModalHeader::new().headline(config.headline))
                     .section(
                         Section::new()
                             .child(
                                 v_flex()
                                     .gap_1()
                                     .child(
-                                        Label::new(
-                                            "Scaffold a new Google ADK agent project in this workspace.",
-                                        )
-                                        .size(LabelSize::Small)
-                                        .color(Color::Muted),
+                                        Label::new(config.description)
+                                            .size(LabelSize::Small)
+                                            .color(Color::Muted),
                                     )
                                     .child(
-                                        Label::new(
-                                            "Runs `adk create <name>` in a terminal to set up the project structure.",
-                                        )
-                                        .size(LabelSize::XSmall)
-                                        .color(Color::Muted),
+                                        Label::new(config.hint)
+                                            .size(LabelSize::XSmall)
+                                            .color(Color::Muted),
                                     ),
                             )
                             .child(self.name_input.clone()),

@@ -6,6 +6,16 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### Add LangGraph support alongside ADK
+
+- **Crate rename:** `paddleboard_adk` → `paddleboard_agent_frameworks`. Houses both ADK and LangGraph as parallel modules with shared infrastructure (port parsing, process state, tab reuse, terminal scaffold).
+- **Shared infrastructure:** Extracted `run_framework_server()`, `stop_framework()`, `spawn_in_terminal()`, `parse_port_from_line()` into the crate root. Each framework passes a `RunConfig` specifying its command, args, label, and fallback port. `FrameworkStates` global holds per-framework child process and output buffer.
+- **LangGraph module:** Detects `langgraph.json` marker files, runs `langgraph dev` (fallback port 2024), scaffolds via `langgraph new <name>`. Actions: `langgraph::ScaffoldAgent`, `langgraph::RunAgent`, `langgraph::StopAgent`.
+- **Scaffold modal generalized:** `ScaffoldAgentModal` now takes a `framework` parameter ("adk" or "langgraph") and renders framework-specific headline, description, hint, and command.
+- **AI Dock catalog:** Added LangGraph entry with `install_command: "pip install langgraph-cli[inmem]"`.
+- **Verified:** `cargo check -p paddleboard` clean, all 9 tests pass (5 port parsing + 4 AI Dock catalog).
+- **Follow-ups:** Live test LangGraph integration with `langgraph` CLI installed. Consider adding CrewAI, AutoGen as future frameworks.
+
 ### MCP compact mode + scaffold modal polish
 
 - **MCP compact mode:** Added `compact: bool` field to `McpServersView` with `set_compact()` setter. When compact, suppresses the "MCP Servers" headline row and reduces padding — the AI Dock tab already provides context. The search bar and filter chips remain. AI Dock's `ensure_mcp_view` calls `set_compact(true)`. Tagged with `// PaddleBoard:` comment in upstream-shaped file.

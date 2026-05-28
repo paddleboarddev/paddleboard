@@ -949,3 +949,19 @@ pub mod adk {
         ]
     );
 }
+
+pub mod langgraph {
+    use gpui::actions;
+
+    actions!(
+        langgraph,
+        [
+            /// Opens a modal to scaffold a new LangGraph agent project.
+            ScaffoldAgent,
+            /// Runs `langgraph dev` to launch the LangGraph dev server.
+            RunAgent,
+            /// Stops the running LangGraph dev server.
+            StopAgent,
+        ]
+    );
+}
