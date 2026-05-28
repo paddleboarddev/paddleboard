@@ -27,6 +27,7 @@ Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Servi
 - Bindings stay on `127.0.0.1` only — never your LAN.
 - Non-container ports appear here too — `adk: Run Agent` registers port 8000 from the terminal so you get the same one-click navigation.
 - **ADK quick start**: `Cmd-Shift-P` → **`adk: Scaffold Agent`** to create a new Google ADK agent project, then **`adk: Run Agent`** to launch `adk web` — port 8000 appears in Forwarded Ports automatically. Open a folder with `agent.py` or `agent.yaml` and PaddleBoard shows a toast with a **Run Agent** button.
+- **More frameworks**, same Scaffold/Run/Stop pattern, each auto-detected with a toast: **LangGraph** (`langgraph dev`), **CrewAI** (`crewai run`), and **AutoGen** (AutoGen Studio web UI). All appear in the AI Dock with a **Set Up** install button.
 
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.

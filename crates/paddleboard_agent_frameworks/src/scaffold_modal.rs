@@ -10,7 +10,8 @@ struct ScaffoldConfig {
     description: &'static str,
     hint: &'static str,
     command: &'static str,
-    subcommand: &'static str,
+    /// Leading args before the project name, e.g. `["create"]` or `["create", "crew"]`.
+    subcommand_args: &'static [&'static str],
     task_id_prefix: &'static str,
 }
 
@@ -19,7 +20,7 @@ const ADK_CONFIG: ScaffoldConfig = ScaffoldConfig {
     description: "Scaffold a new Google ADK agent project in this workspace.",
     hint: "Runs `adk create <name>` in a terminal to set up the project structure.",
     command: "adk",
-    subcommand: "create",
+    subcommand_args: &["create"],
     task_id_prefix: "adk-scaffold",
 };
 
@@ -28,13 +29,23 @@ const LANGGRAPH_CONFIG: ScaffoldConfig = ScaffoldConfig {
     description: "Scaffold a new LangGraph agent project in this workspace.",
     hint: "Runs `langgraph new <name>` in a terminal to set up the project structure.",
     command: "langgraph",
-    subcommand: "new",
+    subcommand_args: &["new"],
     task_id_prefix: "langgraph-scaffold",
+};
+
+const CREWAI_CONFIG: ScaffoldConfig = ScaffoldConfig {
+    headline: "Create CrewAI Agent",
+    description: "Scaffold a new CrewAI crew project in this workspace.",
+    hint: "Runs `crewai create crew <name>` in a terminal to set up the project structure.",
+    command: "crewai",
+    subcommand_args: &["create", "crew"],
+    task_id_prefix: "crewai-scaffold",
 };
 
 fn config_for(framework: &str) -> &'static ScaffoldConfig {
     match framework {
         "langgraph" => &LANGGRAPH_CONFIG,
+        "crewai" => &CREWAI_CONFIG,
         _ => &ADK_CONFIG,
     }
 }
@@ -91,6 +102,9 @@ impl ScaffoldAgentModal {
         let config = self.config;
         if let Some(workspace) = self.workspace.upgrade() {
             workspace.update(cx, |workspace, cx| {
+                let mut args: Vec<String> =
+                    config.subcommand_args.iter().map(|s| s.to_string()).collect();
+                args.push(name.clone());
                 crate::spawn_in_terminal(
                     workspace,
                     window,
@@ -98,7 +112,7 @@ impl ScaffoldAgentModal {
                     config.task_id_prefix,
                     &format!("{} Create: {name}", config.headline.replace("Create ", "")),
                     config.command,
-                    vec![config.subcommand.to_string(), name],
+                    args,
                 );
             });
         }

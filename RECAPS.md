@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Maintenance: drift check, CrewAI + AutoGen frameworks, drift-dashboard tuning
+
+- **Upstream drift check:** 44 commits behind `zed/main` (last merged yesterday, PR #58), 171 ahead, 212 `// PaddleBoard:` tags. Decided to **skip a manual merge** — only ~1 day of drift, handled by the weekly automated workflow; not worth the conflict risk.
+- **Added CrewAI + AutoGen** to `paddleboard_agent_frameworks` (now ADK/LangGraph/CrewAI/AutoGen). Generalized the shared runner: `RunConfig.fallback_port` is now `Option<u16>` so a framework can opt out of port-forwarding. **AutoGen** = AutoGen Studio web server (`autogenstudio ui --port 8081`, fallback port). **CrewAI** = scaffold (`crewai create crew <name>`) + one-shot `crewai run` (`fallback_port: None`, streams to a tab). Detection via new `worktree_declares_dependency()` (scans pyproject/requirements). Scaffold modal's `subcommand_args` is now a slice (for `create crew`). Added `crewai`/`autogen` action modules + AI Dock catalog entries.
+- **Drift-dashboard tuning:** bumped `TAG_DELTA_THRESHOLD` 5 → 25 (the +5 default fired on every feature session) and refreshed the baseline so `--check` is clean (+0). Left the comparison ref as `zed/main` (that's what we merge against).
+- **Verified:** full `cargo build -p paddleboard` clean; `paddleboard_agent_frameworks` (5 tests) + `paddleboard_ai_dock` (4) pass; clippy clean. Docs: WELCOME.md + tour updated with the new frameworks; memory refreshed.
+- **Follow-ups:** live-test CrewAI/AutoGen with the CLIs installed (commands are best-effort from docs — `crewai`, `autogenstudio`). AutoGen has no scaffold (no project-create CLI), so it's Run/Stop only — intentional.
+
 ### Dependabot triage + cleanup of test artifact
 
 - **Fixed the `qs` moderate alert** (GHSA-q8mj-m7cp-5q26): patch-bumped the transitive `qs` 6.15.1 → 6.15.2 in `script/danger/pnpm-lock.yaml` (CI danger tooling) via `npx pnpm update qs --lockfile-only`. Lockfile-only, no node_modules churn. Committed + pushed separately.

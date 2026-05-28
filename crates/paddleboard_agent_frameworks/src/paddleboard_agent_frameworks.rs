@@ -1,4 +1,6 @@
 mod adk;
+mod autogen;
+mod crewai;
 mod langgraph;
 mod scaffold_modal;
 
@@ -13,6 +15,8 @@ pub use scaffold_modal::ScaffoldAgentModal;
 pub(crate) struct FrameworkStates {
     pub adk: FrameworkState,
     pub langgraph: FrameworkState,
+    pub crewai: FrameworkState,
+    pub autogen: FrameworkState,
 }
 
 impl gpui::Global for FrameworkStates {}
@@ -27,6 +31,8 @@ pub fn init(cx: &mut App) {
     cx.set_global(FrameworkStates::default());
     adk::init(cx);
     langgraph::init(cx);
+    crewai::init(cx);
+    autogen::init(cx);
 }
 
 pub(crate) fn parse_port_from_line(line: &str) -> Option<u16> {
@@ -46,6 +52,24 @@ pub(crate) fn project_root(workspace: &Workspace, cx: &App) -> Option<PathBuf> {
         .visible_worktrees(cx)
         .next()
         .map(|wt| wt.read(cx).abs_path().to_path_buf())
+}
+
+/// Best-effort check for whether a visible worktree declares a Python dependency
+/// (scans `pyproject.toml` / `requirements.txt` for the package name). Used by the
+/// framework auto-detection toasts where there's no single marker file.
+pub(crate) fn worktree_declares_dependency(workspace: &Workspace, cx: &App, needle: &str) -> bool {
+    workspace
+        .project()
+        .read(cx)
+        .visible_worktrees(cx)
+        .any(|wt| {
+            let root = wt.read(cx).abs_path();
+            ["pyproject.toml", "requirements.txt"].iter().any(|file| {
+                std::fs::read_to_string(root.join(file))
+                    .map(|contents| contents.contains(needle))
+                    .unwrap_or(false)
+            })
+        })
 }
 
 pub(crate) fn run_framework_server(
@@ -159,16 +183,18 @@ pub(crate) fn run_framework_server(
         while let Ok(line) = line_rx.recv().await {
             lines_seen += 1;
 
-            if !port_registered {
+            if let Some(fallback) = fallback_port
+                && !port_registered
+            {
                 if let Some(port) = parse_port_from_line(&line) {
                     port_registered = true;
                     register_port(&mut *cx, &workspace_handle, label, port);
                 } else if lines_seen > 50 {
                     port_registered = true;
                     log::warn!(
-                        "{label} port not detected in first 50 lines, falling back to port {fallback_port}"
+                        "{label} port not detected in first 50 lines, falling back to port {fallback}"
                     );
-                    register_port(cx, &workspace_handle, label, fallback_port);
+                    register_port(cx, &workspace_handle, label, fallback);
                 }
             }
 
@@ -188,7 +214,10 @@ pub(crate) struct RunConfig {
     pub command: &'static str,
     pub args: &'static [&'static str],
     pub label: &'static str,
-    pub fallback_port: u16,
+    /// Port to register a forward for if none is parsed from the process output.
+    /// `None` for one-shot/non-server frameworks (e.g. `crewai run`), which skips
+    /// port forwarding entirely and just streams output to the tab.
+    pub fallback_port: Option<u16>,
     pub get_state: fn(&mut FrameworkStates) -> &mut FrameworkState,
 }
 
