@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-27
 
+### MCP compact mode + scaffold modal polish
+
+- **MCP compact mode:** Added `compact: bool` field to `McpServersView` with `set_compact()` setter. When compact, suppresses the "MCP Servers" headline row and reduces padding — the AI Dock tab already provides context. The search bar and filter chips remain. AI Dock's `ensure_mcp_view` calls `set_compact(true)`. Tagged with `// PaddleBoard:` comment in upstream-shaped file.
+- **Scaffold modal wider + hint:** Increased width from `rems(28.)` to `rems(34.)`. Added a second helper line explaining the underlying command (`adk create <name>`).
+- **Verified:** All crates compile clean, 9 tests pass (5 ADK + 4 AI Dock). Both changes verified visually in running app.
+
 ### Bug fixes, upstream merge cleanup, stale memory audit
 
 - **ADK double-run zombie fix:** `handle_run_agent` in `paddleboard_adk.rs` now kills any previously running `adk web` child process before storing the new one. Without this, calling `RunAgent` twice leaked the first process — `smol::process::Child` doesn't kill on drop.

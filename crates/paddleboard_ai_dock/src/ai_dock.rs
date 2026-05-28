@@ -82,6 +82,7 @@ impl AiDock {
         let view = workspace.update(cx, |workspace, cx| {
             agent_ui::McpServersView::new(workspace, window, cx)
         });
+        view.update(cx, |view, _| view.set_compact(true));
         self.mcp_view = Some(view);
     }
 

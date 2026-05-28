@@ -83,18 +83,29 @@ impl Render for ScaffoldAgentModal {
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::cancel))
-            .w(rems(28.))
+            .w(rems(34.))
             .child(
                 Modal::new("scaffold-agent-modal", None)
                     .header(ModalHeader::new().headline("Create ADK Agent"))
                     .section(
                         Section::new()
                             .child(
-                                Label::new(
-                                    "Scaffold a new Google ADK agent project in this workspace.",
-                                )
-                                .size(LabelSize::Small)
-                                .color(Color::Muted),
+                                v_flex()
+                                    .gap_1()
+                                    .child(
+                                        Label::new(
+                                            "Scaffold a new Google ADK agent project in this workspace.",
+                                        )
+                                        .size(LabelSize::Small)
+                                        .color(Color::Muted),
+                                    )
+                                    .child(
+                                        Label::new(
+                                            "Runs `adk create <name>` in a terminal to set up the project structure.",
+                                        )
+                                        .size(LabelSize::XSmall)
+                                        .color(Color::Muted),
+                                    ),
                             )
                             .child(self.name_input.clone()),
                     )
