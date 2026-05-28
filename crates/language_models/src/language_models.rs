@@ -282,6 +282,15 @@ fn register_language_model_providers(
         )),
         cx,
     );
+    // PaddleBoard: register the Vertex AI provider (addition over upstream Zed).
+    registry.register_provider(
+        Arc::new(crate::provider::vertex::VertexLanguageModelProvider::new(
+            client.http_client(),
+            credentials_provider.clone(),
+            cx,
+        )),
+        cx,
+    );
     registry.register_provider(
         MistralLanguageModelProvider::global(
             client.http_client(),

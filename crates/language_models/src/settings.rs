@@ -8,7 +8,8 @@ use crate::provider::{
     deepseek::DeepSeekSettings, google::GoogleSettings, lmstudio::LmStudioSettings,
     mistral::MistralSettings, ollama::OllamaSettings, open_ai::OpenAiSettings,
     open_ai_compatible::OpenAiCompatibleSettings, open_router::OpenRouterSettings,
-    opencode::OpenCodeSettings, vercel_ai_gateway::VercelAiGatewaySettings, x_ai::XAiSettings,
+    opencode::OpenCodeSettings, vercel_ai_gateway::VercelAiGatewaySettings,
+    vertex::VertexSettings, x_ai::XAiSettings,
 };
 
 #[derive(Debug, RegisterSetting)]
@@ -17,6 +18,8 @@ pub struct AllLanguageModelSettings {
     pub bedrock: AmazonBedrockSettings,
     pub deepseek: DeepSeekSettings,
     pub google: GoogleSettings,
+    // PaddleBoard: Vertex AI provider settings.
+    pub vertex: VertexSettings,
     pub lmstudio: LmStudioSettings,
     pub mistral: MistralSettings,
     pub ollama: OllamaSettings,
@@ -71,6 +74,16 @@ impl settings::Settings for AllLanguageModelSettings {
             google: GoogleSettings {
                 api_url: google.api_url.unwrap(),
                 available_models: google.available_models.unwrap_or_default(),
+            },
+            // PaddleBoard: unwrap_or_default so a missing `vertex` block can't panic startup.
+            vertex: {
+                let vertex = language_models.vertex.unwrap_or_default();
+                VertexSettings {
+                    project_id: vertex.project_id,
+                    location: vertex.location,
+                    credentials_path: vertex.credentials_path,
+                    available_models: vertex.available_models.unwrap_or_default(),
+                }
             },
             lmstudio: LmStudioSettings {
                 api_url: lmstudio.api_url.unwrap(),

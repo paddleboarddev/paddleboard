@@ -212,6 +212,8 @@ A dedicated panel for configuring and switching your active language model provi
 
 **ChatGPT Subscription auth.** Alongside the usual API-key providers, PaddleBoard includes a ChatGPT Subscription provider that authenticates via OAuth — sign in once with your ChatGPT Plus or Pro account and PB uses your subscription's OpenAI access, no API key needed. The OAuth flow opens in the embedded browser panel; tokens persist in PB's credential store.
 
+**Vertex AI (Gemini Enterprise).** PaddleBoard adds a Google Vertex AI provider so you can run Gemini models through your own GCP project — the enterprise path alongside the consumer Gemini API. Two modes: point `language_models.vertex` at a service-account key file (`credentials_path` + `project_id` + `location`) for full Vertex, or paste a Vertex Express API key for a quick start. It reuses the Gemini request format, so it's a thin addition with no extra cloud SDK.
+
 ---
 
 ### Built-in language servers

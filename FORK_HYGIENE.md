@@ -6,7 +6,7 @@ PaddleBoard is a fork of [Zed](https://github.com/zed-industries/zed). Some drif
 
 There are two kinds of drift:
 
-- **Intentional drift** — features that don't exist upstream (sandbox, browser panel, sandboxed MCP, orchestration panel), or upstream behavior we deliberately disable (telemetry, Zed Pro upsells). This is the value we're adding; protect it.
+- **Intentional drift** — features that don't exist upstream (sandbox, browser panel, sandboxed MCP, orchestration panel, the Vertex AI LLM provider), or upstream behavior we deliberately disable (telemetry, Zed Pro upsells). This is the value we're adding; protect it. The Vertex provider lives mostly in the `paddleboard_vertex` crate, but registers via small tagged edits in `language_models` + a `vertex` field in `settings_content`; if an upstream merge adds its own Vertex provider, reconcile rather than duplicate.
 - **Unintended drift** — assets we forgot we edited, refactors that touched files we didn't need to touch, defaults that diverged silently. This is the rot; eliminate it.
 
 The practices below all reduce one or the other.

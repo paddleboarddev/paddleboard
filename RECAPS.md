@@ -6,6 +6,32 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### LLM provider list: rename cloud provider to "Zed" + regroup order
+
+- **Renamed the cloud LLM provider** display name from "PaddleBoard" to **"Zed"** (`PADDLEBOARD_CLOUD_PROVIDER_NAME` in `language_model/src/provider/zed.rs`). Rationale: it's Zed's hosted model service, not a PaddleBoard offering, so rebranding it was misleading. Provider id stays `zed.dev`. `// PaddleBoard:` tagged.
+- **Regrouped the provider list order** in the agent settings (`agent_configuration.rs` `render_provider_configuration_section`): previously raw `visible_providers()` order (zed pinned, then BTreeMap by provider id). Added a `// PaddleBoard:` sort — Zed first, then the cloud-hyperscaler group (Amazon Bedrock, Google AI, Vertex AI together), then everything else alphabetical by display name.
+- **Live-verified:** list now reads Zed → Amazon Bedrock → Google AI → Vertex AI (Gemini Enterprise) → Anthropic → … Also visually confirmed the prior "Vertex AI (Gemini Enterprise)" rename renders un-truncated, and the macOS traffic-light fix still holds.
+- **Model picker aligned:** extracted the ordering into a shared `pub(crate) paddleboard_order_providers()` in `agent_configuration.rs` and applied it to the model-picker provider list (`language_model_selector.rs` `all_models`) too, so both surfaces match (and can't drift).
+- **Verified:** `cargo build -p paddleboard` clean.
+
+### Provider rename + agent-panel macOS traffic-light overlap fix
+
+- **Renamed the Vertex provider** display name from "Vertex AI" to **"Vertex AI (Gemini Enterprise)"** (`provider/vertex.rs` `PROVIDER_NAME` + the config-view strings + the not-configured error). Internal provider id stays `vertex` (no churn).
+- **Fixed the macOS traffic-light / "Settings" overlap:** the agent panel toolbar is the window's top row (no title bar above it), so when the panel sits in the top-left corner the macOS traffic-light buttons covered the title (showed "🔴🟡🟢ttgs"). Added a guarded `pl(px(72.))` on the toolbar's outer container in `agent_panel.rs` when `cfg!(target_os = "macos") && (self.zoomed || position == DockPosition::Left)`. `// PaddleBoard:` tagged (upstream-shaped file). Initial guess (`zoomed` only) was wrong — the collision also occurs docked-left and not zoomed; broadened after live testing.
+- **Live-verified the fix:** "Settings" now reads clearly past the traffic lights in both docked-left and zoomed states. The renamed provider label is compile-verified (couldn't scroll the provider list to it — GPUI ignores synthetic scroll/clicks; previously confirmed the row renders).
+- **Verified:** `cargo build -p paddleboard` clean; clippy clean on `language_models` + `agent_ui` (only the pre-existing `cloud_api_types::Plan` upstream warning remains).
+
+### Add Google Vertex AI (Gemini Enterprise) LLM provider
+
+- **Why:** enterprise-cloud parity. We had consumer Gemini + Bedrock but not Google's enterprise platform. Investigation showed adding Vertex is dependency-cheap (≈0 new heavy crates — reuses `google_ai` body types + `jsonwebtoken`, already a workspace dep), whereas Bedrock drags in ~25 AWS crates incl. a C crypto build. Chose to *add* Vertex rather than rip Bedrock.
+- **New fork-owned crate `paddleboard_vertex`:** service-account OAuth (SA JSON → RS256 JWT via `jsonwebtoken` → token exchange, cached with expiry skew) + a Vertex `stream_generate_content` (regional `*-aiplatform.googleapis.com` URL with `Bearer` for SA mode; global `?key=` for Express mode) reusing `google_ai::{GenerateContentRequest, GenerateContentResponse, validate_generate_content_request}`. 5 unit tests (SA parse, URL builders, token freshness).
+- **`provider/vertex.rs`** mirrors `google.rs`, reusing `google_ai::completion::{into_google, GoogleEventMapper}` and `google_ai::Model::iter()` for the model list. Provider id `vertex`, name "Vertex AI", reuses the Google icon. Two auth modes: service-account (`credentials_path`/`project_id`/`location` in settings) and Express API key (keychain / `VERTEX_API_KEY`).
+- **Settings:** `VertexSettingsContent` in `settings_content` + `vertex` field in `language_models` `AllLanguageModelSettings` (`from_settings` uses `unwrap_or_default()` so a missing block can't panic).
+- **Fork hygiene:** bulk in the new crate; upstream touch-points (`provider.rs` mod, `register_provider`, settings field) all `// PaddleBoard:` tagged + documented in `FORK_HYGIENE.md`. Bedrock + AWS SDK untouched.
+- **Verified:** `paddleboard_vertex` (5 tests) + `language_models` build clean; full `cargo build -p paddleboard` links; clippy clean with `--deny warnings` (fixed a redundant-clone). Dependabot alerts (rustls-webpki via Bedrock) intentionally parked — see memory.
+- **Live test:** launched the app — boots with no panic (registration runs at startup), and **"Vertex AI" appears in the agent settings → LLM Providers list** (between Vercel AI Gateway and xAI, Google icon). Could NOT exercise a real completion (needs GCP credentials) or expand the config view (GPUI ignores synthetic clicks) — those remain code-verified only.
+- **Follow-ups:** manual end-to-end pass — configure a service-account key + project/location, send a Gemini prompt; try an Express key. ADC/gcloud credential discovery out of scope. Not committed yet.
+
 ### Tiered language support: default servers + one-click install
 
 - **Two tiers:** Self-contained language servers (Rust, TS/JS, Python, Go, JSON, YAML, HTML/CSS, …) stay enabled and auto-download as before. Four prereq-heavy languages — **Java** (jdtls/JDK), **Kotlin** (kotlin-language-server/JDK), **PHP** (intelephense/Node), **C#** (roslyn/.NET) — are now disabled by default and installed on demand. This partly reverses the 2026-05-27 default-on change for Kotlin/PHP (intentional): their servers crash confusingly when the external runtime is missing, so gating them behind an explicit choice is better UX.
