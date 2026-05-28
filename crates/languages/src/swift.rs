@@ -40,7 +40,7 @@ impl LspInstaller for SwiftLspAdapter {
 
     async fn check_if_user_installed(
         &self,
-        delegate: &dyn LspAdapterDelegate,
+        delegate: &Arc<dyn LspAdapterDelegate>,
         _: Option<Toolchain>,
         _: &AsyncApp,
     ) -> Option<LanguageServerBinary> {
@@ -54,7 +54,7 @@ impl LspInstaller for SwiftLspAdapter {
 
     async fn fetch_latest_server_version(
         &self,
-        delegate: &dyn LspAdapterDelegate,
+        delegate: &Arc<dyn LspAdapterDelegate>,
         _pre_release: bool,
         cx: &mut AsyncApp,
     ) -> Result<()> {
