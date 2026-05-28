@@ -920,3 +920,17 @@ pub mod scion {
         ]
     );
 }
+
+pub mod adk {
+    use gpui::actions;
+
+    actions!(
+        adk,
+        [
+            /// Opens a modal to scaffold a new ADK agent project.
+            ScaffoldAgent,
+            /// Runs `adk web` in a terminal to launch the agent dev server.
+            RunAgent,
+        ]
+    );
+}
