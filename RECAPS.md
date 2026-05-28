@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Live test: Manage Languages (C++/PHP/C#) — PASS
+
+- Opened a scratch project with `main.cpp` + `index.php`, launched, opened the `Manage Languages` modal, clicked Install on PHP, C++ (and C#).
+- All three rows transitioned to **✓ Installed**, and the user `settings.json` got the correct per-language `language_servers` lists — including C# preserving `!omnisharp` (`["roslyn", "!omnisharp", "..."]`), validating the explicit enable-list (not the naive `[adapter, "..."]`).
+- **Attach confirmed:** opening `main.cpp` spawned **clangd** (attached); opening `index.php` spawned **intelephense --stdio** (attached). Both resolved via path-lookup to existing system binaries (Xcode clangd / global intelephense), so no download was needed on this machine.
+- C# setting written correctly but roslyn attach not exercised (no .NET installed). Java/Kotlin still need a JDK 17+ (machine has only JDK 14 with a broken `JAVA_HOME`).
+
 ### Live test: CrewAI + AutoGen frameworks — PASS
 
 - Installed `autogenstudio` and `crewai` in throwaway venvs, opened a scratch project with both in `pyproject.toml`, launched the app with the venv bins on PATH.
