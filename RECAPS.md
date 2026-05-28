@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Live test: CrewAI + AutoGen frameworks — PASS
+
+- Installed `autogenstudio` and `crewai` in throwaway venvs, opened a scratch project with both in `pyproject.toml`, launched the app with the venv bins on PATH.
+- **Detection:** both toasts fired — "AutoGen project detected" (Open Studio) and "CrewAI project detected" (Run Agent) — confirming the new `worktree_declares_dependency()` (scans pyproject/requirements).
+- **AutoGen:** `autogen: Run Agent` → `autogenstudio ui --port 8081` launched; "AutoGen Studio" tab streamed startup logs to "Application startup complete… http://127.0.0.1:8081"; server confirmed listening on 8081 (lsof). `autogen: Stop Agent` killed the process.
+- **CrewAI:** `crewai: Run Agent` → `crewai run` spawned, streamed output to a "CrewAI Run" tab (uv env setup + dep downloads), **no port forward** — validating the `fallback_port: None` one-shot path. Scaffold modal opens with the correct "Create CrewAI Agent" config (`crewai create crew <name>` hint).
+- **Limitation:** synthetic keystrokes land in the command palette but not in modal `InputField`s, so the scaffold's terminal exec wasn't completed via automation; the path is shared with ADK/LangGraph (already verified) and the `create crew` command is code-verified.
+
 ### Maintenance: drift check, CrewAI + AutoGen frameworks, drift-dashboard tuning
 
 - **Upstream drift check:** 44 commits behind `zed/main` (last merged yesterday, PR #58), 171 ahead, 212 `// PaddleBoard:` tags. Decided to **skip a manual merge** — only ~1 day of drift, handled by the weekly automated workflow; not worth the conflict risk.
