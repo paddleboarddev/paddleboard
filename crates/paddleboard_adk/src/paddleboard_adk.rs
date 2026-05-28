@@ -153,9 +153,14 @@ fn handle_run_agent(
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
 
-        // PaddleBoard: store the child process so StopAgent can kill it.
+        // PaddleBoard: kill any previously running ADK process before storing the new one.
         cx.update(|cx| {
-            cx.default_global::<AdkChildProcess>().0 = Some(child);
+            let global = cx.default_global::<AdkChildProcess>();
+            if let Some(mut prev) = global.0.take() {
+                let _ = prev.kill();
+                log::info!("killed previous ADK Web process before starting new one");
+            }
+            global.0 = Some(child);
         });
 
         let tx_for_stdout = line_tx.clone();
