@@ -25,6 +25,7 @@ Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Servi
 - Click the label (e.g. `http :54321`) → the browser panel navigates to `http://localhost:54321`.
 - Click the × → the container stops and the entry disappears.
 - Bindings stay on `127.0.0.1` only — never your LAN.
+- **ADK quick start**: `Cmd-Shift-P` → **`adk: Scaffold Agent`** to create a new Google ADK agent project, then **`adk: Run Agent`** to launch `adk web` in a terminal. The dev server URL appears in the terminal output.
 
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
@@ -37,7 +38,7 @@ PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as
 One place to browse and install everything the agent talks to — the marina where every external collaborator ties up.
 - Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or hit **Open the AI Dock** on the Welcome screen. The Welcome screen also surfaces a **Featured** strip (Claude / Codex / Copilot / Cursor / Gemini pills) so first-run users have recognizable names to click.
 - Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI).
-- Installed items show a green badge; missing ones get a one-click **Install / Sign In / Learn More** that does the category-appropriate thing. Bundled skills (currently `/build` and `/update-tour`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
+- Installed items show a green badge; missing ones get a one-click **Install / Sign In / Learn More** that does the category-appropriate thing. Bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - **Add Agent** (Agents tab header): opens a modal to register a custom agent server by its registry ID — for agents not in the catalog.
 - **Create Skill** (Skills tab header): opens a modal with a name field, prompt editor, and project/user scope toggle. Creates a new `.claude/commands/{name}.md` file.
 - The catalog is `assets/ai_dock/catalog.json` in-repo — adds are PRs, not fetches.
@@ -59,7 +60,8 @@ Run multiple deep agents in parallel, each in its own container and git worktree
 - Install: `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then `scion init --machine` and `scion init` in your project.
 - Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, and template.
 - The **Orchestration Panel** shows a **Scion Agents** section below native threads. Each row shows the agent's phase (provisioning → running → stopped) and activity (working, thinking, waiting, etc.).
-- Right-click any agent row for **View Logs** (opens last 200 lines in a read-only editor tab), **Sync Changes** (pulls the agent's worktree changes into your local copy), or **Stop Agent**.
+- Right-click any agent row for **View Logs** (opens a live-streaming log tab that tails output in real time), **Sync Changes** (pulls changes into your local copy and shows a toast), or **Stop Agent**.
+- Activity badges show what the agent is doing: "executing · Edit", "thinking", "waiting", etc.
 - Status colors: accent = running, warning = needs attention, error = errored, muted = stopped.
 
 ### 9. LLM Provider Picker Panel
