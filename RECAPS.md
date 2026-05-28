@@ -22,6 +22,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Memory:** Updated `project_zed_cloud_cleanup_followups` (Kotlin/PHP no longer default-on) and added a `project_language_tiers` note recording the rationale + "don't re-enable by default on upstream merges" posture.
 - **Preserved intentionally:** Pre-existing `cloud_api_types::Plan` unused-import warning in `agent_panel.rs` (upstream) left untouched.
 
+### Live test of Manage Languages modal — found & fixed row clipping
+
+- **Ran the real app** (launched the debug binary on a scratch folder, drove it via `osascript` keystrokes + `screencapture`). Confirmed: the `languages: manage languages` action is registered/discoverable in the command palette, and the modal opens with the "Ready to use" chip strip (all 8) and the "Install support" list.
+- **Bug found:** with 7 install rows the modal clipped everything after C# — C++, Ruby, and Dart were invisible (only ~4 rows fit). Root cause: the modal layer gives modals zero intrinsic height, so a modal must bound its own body; mine set only width, so `Modal`'s `overflow_hidden` clipped the overflow. This was already in the pushed commit (it fit when there were only 4 rows).
+- **Fix:** wrapped the modal body in a stateful, scrollable container — `.id(...).max_h(vh(0.7, window)).overflow_y_scroll().track_scroll(&scroll_handle)` (the idiom from `configure_context_server_modal`), added a `ScrollHandle` field. Rebuilt and re-verified: all 7 rows now render with correct labels and the right button per kind (Install vs View in Extensions).
+- **Could not exercise the click handlers** (Install→download→Installed; View in Extensions→panel): GPUI doesn't deliver synthetic mouse clicks from System Events (keystrokes work, clicks don't) and exposes no accessibility tree, so coordinate/AX clicking failed. Those paths remain verified by code review only — worth a manual click-through.
+
 ### Expanded opt-in tier: C++ built-in + Ruby/Dart via extensions
 
 - **Default tier finalized** at the 8 the user named: Python, TypeScript, JavaScript, Go, YAML, HTML/CSS, JSON, Rust (chip strip is now authoritative for these). All other built-in languages not named in either list (Bash, Swift, Elixir, C, …) stay default-on as upstream ships them.
