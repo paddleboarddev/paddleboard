@@ -317,6 +317,8 @@ pub struct ContextServerStore {
     needs_server_update: bool,
     ai_disabled: bool,
     _subscriptions: Vec<Subscription>,
+    // PaddleBoard: per-server stderr log handles for the MCP inline-logs UI.
+    server_logs: HashMap<ContextServerId, (context_server::StderrLog, async_channel::Receiver<String>)>,
 }
 
 pub struct ServerStatusChangedEvent {
@@ -532,6 +534,7 @@ impl ContextServerStore {
             server_ids: Default::default(),
             update_servers_task: None,
             context_server_factory,
+            server_logs: HashMap::default(),
         };
         if maintain_server_loop && !DisableAiSettings::get_global(cx).disable_ai {
             this.available_context_servers_changed(cx);
@@ -602,6 +605,16 @@ impl ContextServerStore {
                 },
             )
             .collect();
+    }
+
+    // PaddleBoard: returns the stderr log buffer for a server, if any.
+    pub fn server_log(&self, id: &ContextServerId) -> Option<&context_server::StderrLog> {
+        self.server_logs.get(id).map(|(buf, _)| buf)
+    }
+
+    // PaddleBoard: returns a receiver for live stderr lines from a server.
+    pub fn server_log_receiver(&self, id: &ContextServerId) -> Option<async_channel::Receiver<String>> {
+        self.server_logs.get(id).map(|(_, rx)| rx.clone())
     }
 
     pub fn running_servers(&self) -> Vec<Arc<ContextServer>> {
@@ -699,13 +712,17 @@ impl ContextServerStore {
         ) {
             self.stop_server(&id, cx).log_err();
         }
+        // PaddleBoard: create a shared stderr log handle for inline logs + live streaming.
+        let (log_handle, log_rx) = context_server::StderrLogHandle::new();
+        self.server_logs.insert(id.clone(), (log_handle.buffer.clone(), log_rx));
+
         let task = cx.spawn({
             let id = server.id();
             let server = server.clone();
             let configuration = configuration.clone();
 
             async move |this, cx| {
-                let new_state = match server.clone().start(cx).await {
+                let new_state = match server.clone().start_with_log(Some(log_handle), cx).await {
                     Ok(_) => {
                         debug_assert!(server.client().is_some());
                         ContextServerState::Running {

@@ -38,11 +38,34 @@ enum ContextServerTransport {
     Custom(Arc<dyn crate::transport::Transport>),
 }
 
+// PaddleBoard: `stderr_log` stores recent stderr lines for the MCP inline-logs UI.
+pub type StderrLog = Arc<std::sync::Mutex<std::collections::VecDeque<String>>>;
+
+// PaddleBoard: bundles the stderr buffer with a broadcast channel for live streaming.
+#[derive(Clone)]
+pub struct StderrLogHandle {
+    pub buffer: StderrLog,
+    pub sender: async_channel::Sender<String>,
+}
+
+impl StderrLogHandle {
+    pub fn new() -> (Self, async_channel::Receiver<String>) {
+        let (sender, receiver) = async_channel::unbounded();
+        let handle = Self {
+            buffer: Arc::new(std::sync::Mutex::new(std::collections::VecDeque::new())),
+            sender,
+        };
+        (handle, receiver)
+    }
+}
+
 pub struct ContextServer {
     id: ContextServerId,
     client: RwLock<Option<Arc<crate::protocol::InitializedContextServerProtocol>>>,
     configuration: ContextServerTransport,
     request_timeout: Option<Duration>,
+    stderr_log: Option<StderrLog>,
+    stderr_sender: Option<async_channel::Sender<String>>,
 }
 
 impl ContextServer {
@@ -59,6 +82,8 @@ impl ContextServer {
                 working_directory.map(|directory| directory.to_path_buf()),
             ),
             request_timeout: None,
+            stderr_log: None,
+            stderr_sender: None,
         }
     }
 
@@ -83,6 +108,8 @@ impl ContextServer {
                 },
             ),
             request_timeout: None,
+            stderr_log: None,
+            stderr_sender: None,
         }
     }
 
@@ -120,6 +147,8 @@ impl ContextServer {
             client: RwLock::new(None),
             configuration: ContextServerTransport::Custom(transport),
             request_timeout,
+            stderr_log: None,
+            stderr_sender: None,
         }
     }
 
@@ -131,11 +160,29 @@ impl ContextServer {
         self.client.read().clone()
     }
 
-    pub async fn start(&self, cx: &AsyncApp) -> Result<()> {
-        self.initialize(self.new_client(cx)?).await
+    // PaddleBoard: start with an optional stderr log handle for the MCP inline-logs UI.
+    pub async fn start_with_log(
+        &self,
+        log_handle: Option<StderrLogHandle>,
+        cx: &AsyncApp,
+    ) -> Result<()> {
+        let (buf, sender) = match log_handle {
+            Some(h) => (Some(h.buffer), Some(h.sender)),
+            None => (None, None),
+        };
+        self.initialize(self.new_client(buf, sender, cx)?).await
     }
 
-    fn new_client(&self, cx: &AsyncApp) -> Result<Client> {
+    pub async fn start(&self, cx: &AsyncApp) -> Result<()> {
+        self.initialize(self.new_client(self.stderr_log.clone(), self.stderr_sender.clone(), cx)?).await
+    }
+
+    fn new_client(
+        &self,
+        log: Option<StderrLog>,
+        sender: Option<async_channel::Sender<String>>,
+        cx: &AsyncApp,
+    ) -> Result<Client> {
         Ok(match &self.configuration {
             ContextServerTransport::Stdio(command, working_directory) => Client::stdio(
                 client::ContextServerId(self.id.0.clone()),
@@ -146,6 +193,8 @@ impl ContextServer {
                     timeout: command.timeout,
                 },
                 working_directory,
+                log,
+                sender,
                 cx.clone(),
             )?,
             ContextServerTransport::SandboxedStdio(command, sandbox) => Client::sandboxed_stdio(
@@ -157,6 +206,8 @@ impl ContextServer {
                     timeout: command.timeout,
                 },
                 sandbox,
+                log,
+                sender,
                 cx.clone(),
             )?,
             ContextServerTransport::Custom(transport) => Client::new(
@@ -164,6 +215,8 @@ impl ContextServer {
                 self.id().0,
                 transport.clone(),
                 self.request_timeout,
+                log,
+                sender,
                 cx.clone(),
             )?,
         })

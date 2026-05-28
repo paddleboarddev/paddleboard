@@ -311,6 +311,18 @@ static MAVEN_MANIFEST: &str = "pom.xml";
 
 pub(crate) struct JavaBuildContextProvider;
 
+fn detect_build_tool(file_dir: &std::path::Path) -> Option<(&'static str, PathBuf)> {
+    for ancestor in file_dir.ancestors() {
+        if GRADLE_MANIFESTS.iter().any(|m| ancestor.join(m).is_file()) {
+            return Some(("gradle", ancestor.to_path_buf()));
+        }
+        if ancestor.join(MAVEN_MANIFEST).is_file() {
+            return Some(("maven", ancestor.to_path_buf()));
+        }
+    }
+    None
+}
+
 impl ContextProvider for JavaBuildContextProvider {
     fn build_context(
         &self,
@@ -330,32 +342,102 @@ impl ContextProvider for JavaBuildContextProvider {
         let mut variables = TaskVariables::default();
 
         if let Some(path) = local_abs_path.as_deref().and_then(|p| p.parent()) {
-            for ancestor in path.ancestors() {
-                if GRADLE_MANIFESTS.iter().any(|m| ancestor.join(m).is_file()) {
-                    variables.insert(
-                        JAVA_BUILD_TOOL_VARIABLE.clone(),
-                        "gradle".to_string(),
-                    );
-                    variables.insert(
-                        JAVA_PROJECT_ROOT_VARIABLE.clone(),
-                        ancestor.to_string_lossy().into_owned(),
-                    );
-                    break;
-                }
-                if ancestor.join(MAVEN_MANIFEST).is_file() {
-                    variables.insert(
-                        JAVA_BUILD_TOOL_VARIABLE.clone(),
-                        "maven".to_string(),
-                    );
-                    variables.insert(
-                        JAVA_PROJECT_ROOT_VARIABLE.clone(),
-                        ancestor.to_string_lossy().into_owned(),
-                    );
-                    break;
-                }
+            if let Some((tool, root)) = detect_build_tool(path) {
+                variables.insert(JAVA_BUILD_TOOL_VARIABLE.clone(), tool.to_string());
+                variables.insert(
+                    JAVA_PROJECT_ROOT_VARIABLE.clone(),
+                    root.to_string_lossy().into_owned(),
+                );
             }
         }
 
         Task::ready(Ok(variables))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::kotlin::parse_java_major_version;
+
+    #[test]
+    fn min_jdk_version_is_21() {
+        assert_eq!(JavaLspAdapter::MIN_JDK_VERSION, 21);
+    }
+
+    #[test]
+    fn jdk_21_meets_threshold() {
+        let major = parse_java_major_version(r#"openjdk version "21.0.2" 2024-01-16"#).unwrap();
+        assert!(major >= JavaLspAdapter::MIN_JDK_VERSION);
+    }
+
+    #[test]
+    fn jdk_17_below_threshold() {
+        let major = parse_java_major_version(r#"openjdk version "17.0.10" 2024-01-16"#).unwrap();
+        assert!(major < JavaLspAdapter::MIN_JDK_VERSION);
+    }
+
+    #[test]
+    fn detect_gradle_build() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("build.gradle"), "").unwrap();
+        std::fs::create_dir_all(dir.path().join("src/main/java")).unwrap();
+
+        let file_dir = dir.path().join("src/main/java");
+        let (tool, root) = detect_build_tool(&file_dir).unwrap();
+        assert_eq!(tool, "gradle");
+        assert_eq!(root, dir.path());
+    }
+
+    #[test]
+    fn detect_gradle_kts_build() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("build.gradle.kts"), "").unwrap();
+        std::fs::create_dir_all(dir.path().join("app/src")).unwrap();
+
+        let file_dir = dir.path().join("app/src");
+        let (tool, root) = detect_build_tool(&file_dir).unwrap();
+        assert_eq!(tool, "gradle");
+        assert_eq!(root, dir.path());
+    }
+
+    #[test]
+    fn detect_maven_build() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("pom.xml"), "").unwrap();
+        std::fs::create_dir_all(dir.path().join("src/main/java")).unwrap();
+
+        let file_dir = dir.path().join("src/main/java");
+        let (tool, root) = detect_build_tool(&file_dir).unwrap();
+        assert_eq!(tool, "maven");
+        assert_eq!(root, dir.path());
+    }
+
+    #[test]
+    fn gradle_takes_priority_over_maven() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("build.gradle"), "").unwrap();
+        std::fs::write(dir.path().join("pom.xml"), "").unwrap();
+
+        let (tool, _) = detect_build_tool(dir.path()).unwrap();
+        assert_eq!(tool, "gradle");
+    }
+
+    #[test]
+    fn no_manifest_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+
+        assert!(detect_build_tool(&dir.path().join("src")).is_none());
+    }
+
+    #[test]
+    fn binary_name_is_platform_appropriate() {
+        let name = JavaLspAdapter::binary_name();
+        if cfg!(target_os = "windows") {
+            assert_eq!(name, "jdtls.bat");
+        } else {
+            assert_eq!(name, "jdtls");
+        }
     }
 }
