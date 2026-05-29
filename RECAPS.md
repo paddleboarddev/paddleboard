@@ -6,6 +6,18 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Repo migration to the paddleboarddev org
+
+- Executed the org move (gated on the same-day usability audit). Three repos now live under `github.com/paddleboarddev`:
+  - **`paddleboard`** — main code, moved via GitHub **repo transfer** (preserves history/PRs/issues; old `jasonsmithio/paddleboard` URLs auto-redirect). Kept **private** for now (user's call). Local remote repointed; the `zed` upstream-merge remote (`zed-industries/zed`) is untouched.
+  - **`site`** — public; Hugo site scaffolded and **deployed to GitHub Pages** (Actions source), custom domain set to **paddleboard.dev**. Self-contained layouts + nautical-themed CSS; build is warning-clean. Local clone at `~/Projects/Tools/paddleboard-site`.
+  - **`docs`** — public; seeded with a README (toolchain mdBook-vs-Hugo still to decide). Local clone at `~/Projects/Tools/paddleboard-docs`.
+  - `samples` — deferred per user.
+- **Code prep (PR #60, merged before transfer):** rewrote the 9 deferred `jasonsmithio/paddleboard` → `paddleboarddev/paddleboard` refs (`auto_update.rs`, `auto_update_ui.rs`, `feedback.rs`, `zed.rs`). `cargo check` clean; no `jasonsmithio` refs remain in tracked code.
+- **Tooling:** refreshed gh token scopes (`workflow` + `admin:org`) via device flow — required for the transfer and for pushing the Pages workflow.
+- **Blocked on user:** add DNS for paddleboard.dev (apex A → `185.199.108-111.153`, AAAA → `2606:50c0:800x::153`; HTTPS cert auto-provisions after DNS resolves — `.dev` is HSTS-preload).
+- **Follow-ups:** decide docs toolchain; flip main repo public when ready; org-level domain verification; auto-update/release pipeline still unscoped ([[project-upgrade-server]]).
+
 ### Fix user-facing Zed branding slips
 
 - Followed the audit's deeper "stranger-ready" sweep (4-way parallel investigation of install/auth/secrets/branding). Functional verdict: a stranger can build + run + use it with their own keys (no hard blockers, no secrets, licensing clean). The gap was *presentational* — several spots still read as "Zed".
