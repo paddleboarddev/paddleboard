@@ -6,6 +6,15 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Live test: Vertex via gcloud — PASS (+ global-location fix, curated models)
+
+- Tested against a real GCP project (`jasonsmithio`, Vertex AI API enabled) using the user's `gcloud auth login`. Replicated the *exact* request the provider builds (gcloud access token → `Authorization: Bearer` → regional/global `streamGenerateContent`): **`gemini-2.5-flash` and `gemini-3-flash-preview` returned real generated text.** That conclusively validates the gcloud `GcloudTokenProvider` + transport path.
+- **Two fixes the test surfaced:**
+  1. **`global` location bug** — newer models (Gemini 3, the `-latest` aliases) are published only on the `global` location, whose host is `aiplatform.googleapis.com` (no region prefix). `vertex_stream_url` was building `global-aiplatform.googleapis.com`; fixed to special-case `global`. New unit test.
+  2. **Model defaults 404'd** — the provider reused consumer-Gemini ids (`gemini-2.0-flash`, `gemini-1.5-*`) which don't exist on Vertex. Replaced with a curated Vertex list of confirmed-available models (`gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-2.5-flash`, `gemini-flash-latest`, `gemini-flash-lite-latest`) via `Model::Custom`, and changed the default location to `global` so they resolve out of the box. `default_model` = 2.5 Pro, `default_fast_model` = Gemini 3 Flash.
+- **In-app GUI confirmation not completed:** osascript keystroke driving was unreliable on the wide multi-display setup (raced, cluttered the session), so I stopped rather than make a mess. The protocol test covers the Vertex-specific code; the picker→chat plumbing is shared with the working Google provider. User can do the final click-through (settings now has `vertex.project_id = jasonsmithio`).
+- **Verified:** `paddleboard_vertex` 7 tests pass; `cargo build -p paddleboard` clean; clippy clean.
+
 ### Vertex auth: add gcloud / ADC (no stored key)
 
 - Driven by the user's preference for a long-term solution that doesn't store a credential on disk. Added a third Vertex auth mode that borrows short-lived tokens from the gcloud CLI (Application Default Credentials).

@@ -239,9 +239,18 @@ pub fn vertex_stream_url(
     model_id: &str,
 ) -> String {
     match auth {
-        VertexAuth::ServiceAccount(_) | VertexAuth::Gcloud(_) => format!(
-            "https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model_id}:streamGenerateContent?alt=sse"
-        ),
+        VertexAuth::ServiceAccount(_) | VertexAuth::Gcloud(_) => {
+            // The `global` location uses the un-prefixed host; regions are prefixed.
+            // (Newer models — Gemini 3, the `-latest` aliases — are global-only.)
+            let host = if location == "global" {
+                "aiplatform.googleapis.com".to_string()
+            } else {
+                format!("{location}-aiplatform.googleapis.com")
+            };
+            format!(
+                "https://{host}/v1/projects/{project}/locations/{location}/publishers/google/models/{model_id}:streamGenerateContent?alt=sse"
+            )
+        }
         VertexAuth::ApiKey(key) => format!(
             "https://aiplatform.googleapis.com/v1/publishers/google/models/{model_id}:streamGenerateContent?alt=sse&key={key}"
         ),
@@ -357,6 +366,16 @@ mod tests {
         assert_eq!(
             url,
             "https://us-east1-aiplatform.googleapis.com/v1/projects/proj/locations/us-east1/publishers/google/models/gemini-2.0-flash:streamGenerateContent?alt=sse"
+        );
+    }
+
+    #[test]
+    fn global_location_uses_unprefixed_host() {
+        let auth = VertexAuth::Gcloud(std::sync::Arc::new(GcloudTokenProvider::new()));
+        let url = vertex_stream_url(&auth, "proj", "global", "gemini-3-flash-preview");
+        assert_eq!(
+            url,
+            "https://aiplatform.googleapis.com/v1/projects/proj/locations/global/publishers/google/models/gemini-3-flash-preview:streamGenerateContent?alt=sse"
         );
     }
 
