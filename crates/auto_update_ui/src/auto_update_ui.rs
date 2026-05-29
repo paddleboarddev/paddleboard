@@ -122,7 +122,7 @@ fn announcement_for_version(version: &Version, cx: &App) -> Option<AnnouncementC
             on_dismiss: Some(Arc::new(|cx| SkillsAnnouncement::set_dismissed(true, cx))),
             // PaddleBoard: upstream points "Learn More" at zed.dev/blog. PaddleBoard ships its own
             // skills docs in the repo README, so route there instead.
-            secondary_action_url: Some("https://github.com/jasonsmithio/paddleboard".into()),
+            secondary_action_url: Some("https://github.com/paddleboarddev/paddleboard".into()),
         })
     } else {
         None

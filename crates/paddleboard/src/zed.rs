@@ -105,8 +105,8 @@ use paddleboard_actions::{
 };
 
 // PaddleBoard: point at the repo — PB doesn't have a hosted docs site
-const DOCS_URL: &str = "https://github.com/jasonsmithio/paddleboard#readme";
-const STATUS_URL: &str = "https://github.com/jasonsmithio/paddleboard";
+const DOCS_URL: &str = "https://github.com/paddleboarddev/paddleboard#readme";
+const STATUS_URL: &str = "https://github.com/paddleboarddev/paddleboard";
 
 pub struct CrashHandler(pub Arc<crashes::Client>);
 
