@@ -21,10 +21,11 @@ use language_model::{
 use paddleboard_vertex::{
     GcloudTokenProvider, ServiceAccountKey, TokenProvider, VertexAuth, stream_generate_content,
 };
-use settings::{Settings, SettingsStore};
+use fs::Fs;
+use settings::{Settings, SettingsStore, update_settings_file};
 pub use settings::VertexAvailableModel as AvailableModel;
 use std::sync::{Arc, LazyLock};
-use ui::{ConfiguredApiCard, List, ListBulletItem, prelude::*};
+use ui::prelude::*;
 use ui_input::InputField;
 use util::ResultExt;
 
@@ -426,20 +427,24 @@ impl LanguageModel for VertexLanguageModel {
 }
 
 struct ConfigurationView {
+    project_id_editor: Entity<InputField>,
+    location_editor: Entity<InputField>,
+    credentials_editor: Entity<InputField>,
     api_key_editor: Entity<InputField>,
     state: Entity<State>,
-    target_agent: ConfigurationViewTargetAgent,
     load_credentials_task: Option<Task<()>>,
 }
 
 impl ConfigurationView {
     fn new(
         state: Entity<State>,
-        target_agent: ConfigurationViewTargetAgent,
+        _target_agent: ConfigurationViewTargetAgent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
+
+        let settings = VertexLanguageModelProvider::settings(cx).clone();
 
         let load_credentials_task = Some(cx.spawn_in(window, {
             let state = state.clone();
@@ -455,108 +460,129 @@ impl ConfigurationView {
             }
         }));
 
+        let project_id_editor =
+            cx.new(|cx| InputField::new(window, cx, "your-gcp-project").label("GCP Project ID"));
+        let location_editor = cx.new(|cx| {
+            InputField::new(window, cx, "global").label("Location (default: global)")
+        });
+        let credentials_editor = cx.new(|cx| {
+            InputField::new(window, cx, "/path/to/service-account.json")
+                .label("Service-account key file (optional)")
+        });
+        let api_key_editor = cx
+            .new(|cx| InputField::new(window, cx, "Vertex Express API key").label("Express API key (optional)"));
+
+        if let Some(project_id) = &settings.project_id {
+            project_id_editor.update(cx, |field, cx| field.set_text(project_id, window, cx));
+        }
+        if let Some(location) = &settings.location {
+            location_editor.update(cx, |field, cx| field.set_text(location, window, cx));
+        }
+        if let Some(path) = &settings.credentials_path {
+            credentials_editor.update(cx, |field, cx| field.set_text(path, window, cx));
+        }
+
         Self {
-            api_key_editor: cx.new(|cx| InputField::new(window, cx, "Vertex Express API key")),
-            target_agent,
+            project_id_editor,
+            location_editor,
+            credentials_editor,
+            api_key_editor,
             state,
             load_credentials_task,
         }
     }
 
-    fn save_api_key(&mut self, _: &menu::Confirm, window: &mut Window, cx: &mut Context<Self>) {
+    fn save(&mut self, _: &menu::Confirm, window: &mut Window, cx: &mut Context<Self>) {
+        let project_id = self.project_id_editor.read(cx).text(cx).trim().to_string();
+        let location = self.location_editor.read(cx).text(cx).trim().to_string();
+        let credentials = self.credentials_editor.read(cx).text(cx).trim().to_string();
         let api_key = self.api_key_editor.read(cx).text(cx).trim().to_string();
-        if api_key.is_empty() {
-            return;
-        }
-        self.api_key_editor
-            .update(cx, |editor, cx| editor.set_text("", window, cx));
-        let state = self.state.clone();
-        cx.spawn_in(window, async move |_, cx| {
-            state
-                .update(cx, |state, cx| state.set_api_key(Some(api_key), cx))
-                .await
-        })
-        .detach_and_log_err(cx);
-    }
 
-    fn reset_api_key(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.api_key_editor
-            .update(cx, |editor, cx| editor.set_text("", window, cx));
-        let state = self.state.clone();
-        cx.spawn_in(window, async move |_, cx| {
-            state
-                .update(cx, |state, cx| state.set_api_key(None, cx))
-                .await
-        })
-        .detach_and_log_err(cx);
+        let fs = <dyn Fs>::global(cx);
+        update_settings_file(fs, cx, move |settings, _| {
+            let vertex = settings
+                .language_models
+                .get_or_insert_default()
+                .vertex
+                .get_or_insert_default();
+            vertex.project_id = (!project_id.is_empty()).then_some(project_id);
+            vertex.location = (!location.is_empty()).then_some(location);
+            vertex.credentials_path = (!credentials.is_empty()).then_some(credentials);
+        });
+
+        // The Express API key is a secret — store it in the keychain, not settings.
+        if !api_key.is_empty() {
+            self.api_key_editor
+                .update(cx, |field, cx| field.set_text("", window, cx));
+            let state = self.state.clone();
+            cx.spawn_in(window, async move |_, cx| {
+                state
+                    .update(cx, |state, cx| state.set_api_key(Some(api_key), cx))
+                    .await
+            })
+            .detach_and_log_err(cx);
+        }
     }
 }
 
 impl Render for ConfigurationView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let state = self.state.read(cx);
-        let has_service_account = state.token_provider.is_some();
-        let sa_error = state.sa_error.clone();
-
         if self.load_credentials_task.is_some() {
             return div()
                 .child(Label::new("Loading credentials…"))
                 .into_any_element();
         }
 
-        if has_service_account {
-            return ConfiguredApiCard::new("Service account configured")
-                .into_any_element();
-        }
+        let state = self.state.read(cx);
+        let has_express_key = state.api_key_state.has_key();
+        let has_sa_key = state.token_provider.is_some();
+        let sa_error = state.sa_error.clone();
+        let project_id_set = VertexLanguageModelProvider::settings(cx).project_id.is_some();
 
-        let agent_label = match &self.target_agent {
-            ConfigurationViewTargetAgent::ZedAgent => {
-                "PaddleBoard's agent with Vertex AI (Gemini Enterprise)".into()
-            }
-            ConfigurationViewTargetAgent::Other(agent) => agent.clone(),
+        // Mirror resolve_auth's precedence so the user sees the mode that will be used.
+        let status: SharedString = if has_sa_key {
+            "Authenticating via service-account key.".into()
+        } else if has_express_key {
+            "Authenticating via Express API key.".into()
+        } else if project_id_set {
+            "Authenticating via gcloud — run `gcloud auth login` if you haven't.".into()
+        } else {
+            "Not configured — set a Project ID (gcloud), a key file, or an Express key below.".into()
         };
 
-        if self.state.read(cx).api_key_state.has_key() {
-            ConfiguredApiCard::new("Express API key configured")
-                .on_click(cx.listener(|this, _, window, cx| this.reset_api_key(window, cx)))
-                .into_any_element()
-        } else {
-            v_flex()
-                .size_full()
-                .on_action(cx.listener(Self::save_api_key))
-                .child(Label::new(format!(
-                    "To use {agent_label}, configure Vertex AI (Gemini Enterprise):"
-                )))
-                .child(
-                    List::new()
-                        .child(ListBulletItem::new(
-                            "Recommended (no stored key): run `gcloud auth login`, then set \
-                             `language_models.vertex.project_id` and `location` in settings. \
-                             PaddleBoard borrows short-lived tokens from gcloud.",
-                        ))
-                        .child(ListBulletItem::new(
-                            "Service account: also set `credentials_path` to a key file in settings.",
-                        ))
-                        .child(ListBulletItem::new(
-                            "Quick start (Express): paste a Vertex API key below and press enter.",
-                        )),
-                )
-                .child(self.api_key_editor.clone())
-                .when_some(sa_error, |this, error| {
-                    this.child(
-                        Label::new(format!("Service-account error: {error}"))
-                            .size(LabelSize::Small)
-                            .color(Color::Error),
-                    )
-                })
-                .child(
-                    Label::new(format!(
-                        "You can also set the {VERTEX_API_KEY_VAR} environment variable and restart."
-                    ))
+        v_flex()
+            .size_full()
+            .gap_1()
+            .on_action(cx.listener(Self::save))
+            .child(
+                Label::new("Run Gemini through your GCP project. The recommended setup stores no key: \
+                            run `gcloud auth login`, set a Project ID, and save.")
                     .size(LabelSize::Small)
                     .color(Color::Muted),
+            )
+            .child(self.project_id_editor.clone())
+            .child(self.location_editor.clone())
+            .child(self.credentials_editor.clone())
+            .child(self.api_key_editor.clone())
+            .child(
+                Button::new("save-vertex", "Save")
+                    .style(ButtonStyle::Filled)
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.save(&menu::Confirm, window, cx)
+                    })),
+            )
+            .child(
+                Label::new(status)
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+            )
+            .when_some(sa_error, |this, error| {
+                this.child(
+                    Label::new(format!("Service-account error: {error}"))
+                        .size(LabelSize::Small)
+                        .color(Color::Error),
                 )
-                .into_any_element()
-        }
+            })
+            .into_any_element()
     }
 }

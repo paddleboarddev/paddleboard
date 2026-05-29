@@ -301,12 +301,20 @@ pub async fn stream_generate_content(
             })
             .boxed())
     } else {
+        let status = response.status();
         let mut text = String::new();
         response.body_mut().read_to_string(&mut text).await?;
-        bail!(
-            "Vertex streamGenerateContent failed (status {:?}): {text}",
-            response.status()
-        )
+        // A 404 on Vertex almost always means the model id isn't published in this
+        // project/location (availability varies), not a real "not found" — point the
+        // user at the fix rather than dumping the raw body.
+        if status.as_u16() == 404 {
+            bail!(
+                "Vertex model `{model_id}` isn't available in location `{location}` for project `{project}`. \
+                 Try `location: \"global\"` (newer models live there), or add an available model under \
+                 `language_models.vertex.available_models`. (Vertex response: {text})"
+            );
+        }
+        bail!("Vertex streamGenerateContent failed (status {status:?}): {text}")
     }
 }
 
