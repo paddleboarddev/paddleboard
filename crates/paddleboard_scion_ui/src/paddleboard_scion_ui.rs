@@ -1,6 +1,6 @@
 mod start_agent_modal;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -16,6 +16,8 @@ use workspace::{Toast, Workspace, notifications::NotificationId};
 pub use start_agent_modal::StartAgentModal;
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
+/// Cap on the retained activity feed (newest events are kept).
+const MAX_EVENTS: usize = 60;
 
 #[derive(Clone, Debug, PartialEq)]
 struct AgentSnapshot {
@@ -32,11 +34,46 @@ impl From<&AgentInfo> for AgentSnapshot {
     }
 }
 
+/// The kind of lifecycle change recorded in the activity feed. Mirrors the
+/// transitions emitted to OpenTelemetry in `detect_transitions`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScionEventKind {
+    Discovered,
+    Phase,
+    Activity,
+    Disappeared,
+}
+
+/// A user-facing record of a Scion agent lifecycle change. The same transitions
+/// are emitted to OTEL; these are retained in-memory so the orchestration panel
+/// can render a live activity feed without a collector round-trip.
+#[derive(Clone, Debug)]
+pub struct ScionEvent {
+    pub seq: u64,
+    pub agent: String,
+    pub kind: ScionEventKind,
+    pub summary: String,
+}
+
+fn phase_label(phase: Option<AgentPhase>) -> String {
+    phase
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| "none".to_string())
+}
+
+fn activity_label(activity: Option<AgentActivity>) -> String {
+    activity
+        .map(|a| a.to_string())
+        .unwrap_or_else(|| "none".to_string())
+}
+
 pub struct ScionStore {
     pub cli: Arc<ScionCli>,
     agents: Vec<AgentInfo>,
     prev_agent_states: HashMap<String, AgentSnapshot>,
     templates: Vec<TemplateInfo>,
+    events: VecDeque<ScionEvent>,
+    event_seq: u64,
     available: bool,
     _poll_task: Option<Task<()>>,
 }
@@ -62,6 +99,8 @@ impl ScionStore {
             agents: Vec::new(),
             prev_agent_states: HashMap::new(),
             templates: Vec::new(),
+            events: VecDeque::new(),
+            event_seq: 0,
             available,
             _poll_task: None,
         };
@@ -116,64 +155,87 @@ impl ScionStore {
 
         for agent in new_agents {
             let new_snap = AgentSnapshot::from(agent);
-            if let Some(old_snap) = self.prev_agent_states.get(&agent.name) {
+            // `.cloned()` releases the borrow of `prev_agent_states` so we can
+            // record events on `self` inside the branch.
+            if let Some(old_snap) = self.prev_agent_states.get(&agent.name).cloned() {
                 if old_snap.phase != new_snap.phase {
-                    let old_phase = old_snap
-                        .phase
-                        .map(|p| p.to_string())
-                        .unwrap_or_else(|| "none".to_string());
-                    let new_phase = new_snap
-                        .phase
-                        .map(|p| p.to_string())
-                        .unwrap_or_else(|| "none".to_string());
+                    let old_phase = phase_label(old_snap.phase);
+                    let new_phase = phase_label(new_snap.phase);
                     tracing::info!(
                         scion.agent_name = %agent.name,
                         scion.phase.old = %old_phase,
                         scion.phase.new = %new_phase,
                         "scion agent phase transition"
                     );
+                    self.push_event(
+                        &agent.name,
+                        ScionEventKind::Phase,
+                        format!("{old_phase} → {new_phase}"),
+                    );
                 }
                 if old_snap.activity != new_snap.activity {
-                    let old_activity = old_snap
-                        .activity
-                        .map(|a| a.to_string())
-                        .unwrap_or_else(|| "none".to_string());
-                    let new_activity = new_snap
-                        .activity
-                        .map(|a| a.to_string())
-                        .unwrap_or_else(|| "none".to_string());
+                    let old_activity = activity_label(old_snap.activity);
+                    let new_activity = activity_label(new_snap.activity);
                     tracing::info!(
                         scion.agent_name = %agent.name,
                         scion.activity.old = %old_activity,
                         scion.activity.new = %new_activity,
                         "scion agent activity transition"
                     );
+                    self.push_event(
+                        &agent.name,
+                        ScionEventKind::Activity,
+                        format!("{old_activity} → {new_activity}"),
+                    );
                 }
             } else {
-                let phase = new_snap
-                    .phase
-                    .map(|p| p.to_string())
-                    .unwrap_or_else(|| "none".to_string());
-                let activity = new_snap
-                    .activity
-                    .map(|a| a.to_string())
-                    .unwrap_or_else(|| "none".to_string());
+                let phase = phase_label(new_snap.phase);
+                let activity = activity_label(new_snap.activity);
                 tracing::info!(
                     scion.agent_name = %agent.name,
                     scion.phase = %phase,
                     scion.activity = %activity,
                     "scion agent discovered"
                 );
+                self.push_event(
+                    &agent.name,
+                    ScionEventKind::Discovered,
+                    format!("discovered ({phase})"),
+                );
             }
         }
 
-        for name in self.prev_agent_states.keys() {
-            if !new_states.contains_key(name) {
-                tracing::info!(scion.agent_name = %name, "scion agent disappeared");
-            }
+        // Collect first so the `keys()` borrow ends before we record events.
+        let disappeared: Vec<String> = self
+            .prev_agent_states
+            .keys()
+            .filter(|name| !new_states.contains_key(*name))
+            .cloned()
+            .collect();
+        for name in disappeared {
+            tracing::info!(scion.agent_name = %name, "scion agent disappeared");
+            self.push_event(&name, ScionEventKind::Disappeared, "removed".to_string());
         }
 
         self.prev_agent_states = new_states;
+    }
+
+    fn push_event(&mut self, agent: &str, kind: ScionEventKind, summary: String) {
+        self.event_seq += 1;
+        self.events.push_back(ScionEvent {
+            seq: self.event_seq,
+            agent: agent.to_string(),
+            kind,
+            summary,
+        });
+        while self.events.len() > MAX_EVENTS {
+            self.events.pop_front();
+        }
+    }
+
+    /// The retained activity feed, oldest first.
+    pub fn events(&self) -> &VecDeque<ScionEvent> {
+        &self.events
     }
 
     pub fn refresh(&mut self, cx: &mut Context<Self>) {

@@ -6,6 +6,15 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Scion: live activity feed in the orchestration panel
+
+- Closed the other open Scion gap (follow-up "1"): **surfaced the OTEL lifecycle stream in the panel.** `detect_transitions` already computed phase/activity/discovered/disappeared transitions but only emitted them to OTEL via `tracing` — now they're also retained in a capped (60) ring buffer on `ScionStore` (new `ScionEvent`/`ScionEventKind` + `events()` accessor) and rendered as a newest-first **"Activity"** feed under the Scion section in `orchestration_panel.rs`, color-coded by kind.
+- Refactored the repeated phase/activity label logic into `phase_label`/`activity_label` helpers.
+- **Borrow fix:** collect `recent_events` up-front alongside `agents` so the `store_read` borrow ends before the agent-row loop needs `&mut cx`.
+- **Scope honesty:** token counts aren't in `scion list` output, so the feed covers lifecycle transitions (phase/activity, plus the existing per-row tool/task detail), not token usage. Not unit-tested — `detect_transitions` needs gpui-test scaffolding and is flaky on `scion`-presence (it gates polling); logic is simple and type-checked.
+- **Verified:** `cargo check -p paddleboard` + `-p agent_ui` + `-p paddleboard_scion_ui` clean; clippy clean on changed crates (only the pre-existing `cloud_api_types::Plan` warning).
+- **Still open (Scion):** live-test the whole thing against a real `scion` daemon (needs Docker/Podman).
+
 ### Docs: Scion delegation tool + "not Apple-notarized" note
 
 - **Scion wrap-up (docs):** now that `spawn_scion_agent` landed (PR #63), synced the user-facing docs per the WELCOME+tour convention. Added the delegation tool to `WELCOME.md` (Scion section), `crates/workspace/src/tour.md` (in-app tour), and the README Scion bullet — an agent can hand a subtask to a container+worktree-isolated Scion agent instead of an in-process sub-agent.
