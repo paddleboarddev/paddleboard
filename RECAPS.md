@@ -4,6 +4,21 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-29
+
+### "Usable for anyone" audit (gates the paddleboarddev migration)
+
+- Ran the pre-migration usability sweep. Repo is largely clean: `assets/settings/default.json` has `"context_servers": {}` (no bundled filesystem MCP — the prior worry), telemetry hard-disabled, Vertex self-service, no email/contact leaks, and no `jasonsmithio`/personal refs in `script/`, `ci/`, or `.github/`.
+- **Fixed (doc/litter, reversible):**
+  - `README.md` — rewrote the stale "Built-in language servers for Java, Kotlin, PHP, and Swift… LSP attaches automatically" bullet, which contradicted the shipped tiered/opt-in model. Now describes the *Ready to use* tier vs `Manage Languages` opt-in (Java/Kotlin/PHP/C#/C++ with prereqs shown), Swift via platform toolchain, linking the WELCOME.md deep-dive. This was a correctness bug a new user reads first.
+  - `ARCHITECTURE.md` — removed the personal absolute path (`/Users/jaysmith/Projects/Tools/PaddleBoard`) from the scope line.
+  - `git rm fix_cli_toast.pl` — a spent one-off Perl script committed in the initial fork commit (it had already hardcoded the install_cli string).
+  - Deleted two untracked live-test screenshots from the working tree.
+- **Deferred to migration day** (correct today, mechanical rewrite with the org move): hardcoded `jasonsmithio/paddleboard` URLs in `auto_update.rs` (×3), `auto_update_ui.rs:125`, and `zed.rs:108-109` (`DOCS_URL`/`STATUS_URL`). Enumerated in the [[project-repo-migration]] memory note so the migration is mechanical. RECAPS PR links are historical — left as-is.
+- **Not committed yet** — staged the `fix_cli_toast.pl` removal; `README.md`/`ARCHITECTURE.md` edits pending.
+
+---
+
 ## 2026-05-28
 
 ### Vertex config in-app + friendly errors ("usable for anyone")
