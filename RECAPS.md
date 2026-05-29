@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Vertex config in-app + friendly errors ("usable for anyone")
+
+- Toward making PaddleBoard self-service before the repo migration: Vertex setup no longer requires hand-editing `settings.json`.
+- **In-app config form** (`provider/vertex.rs` `ConfigurationView`): input fields for Project ID, Location, service-account key path, and the Express API key, prefilled from current settings. Save writes `language_models.vertex.*` via `update_settings_file` (`<dyn Fs>::global`); the Express key goes to the keychain. Shows a derived status line ("Authenticating via gcloud / service-account / Express") mirroring `resolve_auth` precedence — simpler than explicit mode radios, same result.
+- **Friendly 404s** (`paddleboard_vertex` transport): a model-not-found 404 now returns "model X isn't available in location Y — try `location: global` or add it under `available_models`" instead of a raw body. (Model availability is project/region-specific, so this is the common failure.)
+- **Verified:** `paddleboard_vertex` 7 tests pass; `cargo build -p paddleboard` clean; clippy clean (removed now-unused ui imports). The form is code-verified; not visually re-tested (osascript GUI driving unreliable on the wide multi-display).
+- WELCOME/tour/memory updated to describe in-app setup.
+
 ### Live test: Vertex via gcloud — PASS (+ global-location fix, curated models)
 
 - Tested against a real GCP project (`jasonsmithio`, Vertex AI API enabled) using the user's `gcloud auth login`. Replicated the *exact* request the provider builds (gcloud access token → `Authorization: Bearer` → regional/global `streamGenerateContent`): **`gemini-2.5-flash` and `gemini-3-flash-preview` returned real generated text.** That conclusively validates the gcloud `GcloudTokenProvider` + transport path.
