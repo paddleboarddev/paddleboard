@@ -59,6 +59,7 @@ A live tree view of every active agent session, including subagents.
 
 ### 8. Scion — Container-Isolated Parallel Agents
 Run multiple deep agents in parallel, each in its own container and git worktree, via [Scion](https://github.com/GoogleCloudPlatform/scion).
+- **Opt-in:** enable with `"paddleboard_scion": { "enabled": true }` in settings (installing the CLI alone won't turn it on).
 - Install: `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then `scion init --machine` and `scion init` in your project.
 - Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, and template.
 - The **Orchestration Panel** shows a **Scion Agents** section below native threads. Each row shows the agent's phase (provisioning → running → stopped) and activity (working, thinking, waiting, etc.).

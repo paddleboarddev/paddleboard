@@ -6,6 +6,15 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Scion is now opt-in (settings-gated, default off)
+
+- Made Scion an explicit opt-in instead of auto-activating whenever the `scion` CLI happens to be on `PATH`. Mirrors the `OtelSettings` pattern exactly.
+- **New crate `paddleboard_scion_settings`** — `ScionSettings { enabled: bool }` (default `false`) via `RegisterSetting`/`Settings`, reading a new `paddleboard_scion` field added to `settings_content` (`PaddleboardScionContent { enabled: Option<bool> }`). Force-linked in `main.rs`; `vscode_import` updated.
+- **Three activation points now gated on `ScionSettings::get_global(cx).enabled`:** the `ScionStore` poll loop (`paddleboard_scion_ui::init`), the `spawn_scion_agent` tool registration (`agent/thread.rs`, already also gated on CLI presence), and the orchestration panel's Scion section render (`agent_ui`).
+- **Enable with** `"paddleboard_scion": { "enabled": true }`. Docs updated (README, WELCOME, in-app tour).
+- **Limitation:** the poll loop is gated at workspace-open, so toggling the setting on takes effect on the next window/workspace open; the tool and panel react live. Acceptable for v1.
+- **Verified:** `cargo check -p paddleboard` clean; clippy clean on new/changed crates; `paddleboard_scion` 28 tests pass.
+
 ### Scion live-test → fixed stale `-d` start flag
 
 - Live-tested the integration against a **real installed scion** (`go1.24.1`, `~/go/bin/scion`) + **Podman 5.8.2**. Had to cycle the Podman VM first — it reported "running" but `podman ps` refused the socket (stale after sleep); `scion list` surfaced this as `podman ps failed: exit status 125`.
