@@ -6,6 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Website logo (cross-repo: paddleboarddev/site)
+
+- Cross-repo note — the change landed in **`paddleboarddev/site`**, not this repo. A `paddleboard_logo.svg` (512×512 squircle mark) had been dropped at that repo's root, where Hugo wouldn't publish it and nothing referenced it.
+- Moved it into `static/`, swapped the placeholder 🛶 emoji in the header brand for the real logo, wired it up as the favicon, and added small flex styles so the logo + wordmark align. Verified with a clean `hugo --gc --minify` build. Opened as `paddleboarddev/site` PR #1.
+- Pure presentation; no content/config changes. (Logged here because the recap convention lives in this repo; the site repo has no RECAPS.)
+
 ### Repo migration to the paddleboarddev org
 
 - Executed the org move (gated on the same-day usability audit). Three repos now live under `github.com/paddleboarddev`:
