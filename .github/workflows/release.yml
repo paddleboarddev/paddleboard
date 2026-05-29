@@ -1,0 +1,65 @@
+name: Release
+
+# PaddleBoard: builds, signs, notarizes, and publishes a macOS (Apple Silicon)
+# release on a version tag. Signing is driven by repo secrets (see below); if the
+# signing secrets are absent the bundle script falls back to an ad-hoc signature.
+#
+# Required repo secrets for a signed + notarized build:
+#   MACOS_SIGNING_IDENTITY        - e.g. "Developer ID Application: Your Name (TEAMID)"
+#   MACOS_CERTIFICATE             - base64 of the exported Developer ID .p12
+#   MACOS_CERTIFICATE_PASSWORD    - password for that .p12
+#   APPLE_NOTARIZATION_KEY        - contents of the App Store Connect API .p8 key
+#   APPLE_NOTARIZATION_KEY_ID     - the API key's Key ID
+#   APPLE_NOTARIZATION_ISSUER_ID  - the API key's Issuer ID
+#
+# The git tag must match the paddleboard crate version, i.e. `v<version>`
+# (currently v0.232.0). Releases are created as drafts for manual review.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build the public stable channel
+        run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
+
+      - name: Validate tag against crate version
+        run: script/determine-release-channel
+
+      - name: Set up Rust
+        run: |
+          rustup update stable
+          rustup target add aarch64-apple-darwin
+
+      - name: Build, sign, notarize, and bundle (Apple Silicon)
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARIZATION_KEY: ${{ secrets.APPLE_NOTARIZATION_KEY }}
+          APPLE_NOTARIZATION_KEY_ID: ${{ secrets.APPLE_NOTARIZATION_KEY_ID }}
+          APPLE_NOTARIZATION_ISSUER_ID: ${{ secrets.APPLE_NOTARIZATION_ISSUER_ID }}
+        run: script/bundle-mac aarch64-apple-darwin
+
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "PaddleBoard ${GITHUB_REF_NAME}" \
+            --draft \
+            --generate-notes \
+            "target/aarch64-apple-darwin/release/PaddleBoard-aarch64.dmg#PaddleBoard (Apple Silicon).dmg"
