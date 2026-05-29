@@ -11357,6 +11357,50 @@ impl LspStore {
         }
     }
 
+    // PaddleBoard: proactively download a language server binary without an open
+    // buffer, so the "Manage Languages" UI can flip the setting and then show real
+    // download progress + a finished state instead of waiting for the first file open.
+    pub fn install_language_server(
+        &mut self,
+        worktree_id: WorktreeId,
+        adapter: Arc<CachedLspAdapter>,
+        cx: &mut Context<Self>,
+    ) -> Task<Result<()>> {
+        let Some(worktree) = self.worktree_store.read(cx).worktree_for_id(worktree_id, cx) else {
+            return Task::ready(Err(anyhow!(
+                "no worktree {worktree_id:?} to install language server into"
+            )));
+        };
+        let Some(local) = self.as_local() else {
+            return Task::ready(Err(anyhow!(
+                "installing language servers requires a local project"
+            )));
+        };
+        let delegate: Arc<dyn LspAdapterDelegate> =
+            LocalLspAdapterDelegate::from_local_lsp(local, &worktree, cx);
+        let binary_options = LanguageServerBinaryOptions {
+            allow_path_lookup: true,
+            allow_binary_download: true,
+            pre_release: false,
+        };
+        cx.spawn(async move |_, cx| {
+            let (existing_binary, maybe_download_binary) = adapter
+                .clone()
+                .get_language_server_command(delegate.clone(), None, binary_options, cx)
+                .await
+                .await;
+            delegate.update_status(adapter.name(), BinaryStatus::None);
+            match (existing_binary, maybe_download_binary) {
+                (_, Some(downloader)) => {
+                    downloader.await?;
+                }
+                (Ok(_), None) => {}
+                (Err(error), None) => return Err(error),
+            }
+            Ok(())
+        })
+    }
+
     pub fn restart_all_language_servers(&mut self, cx: &mut Context<Self>) {
         let buffers = self.buffer_store.read(cx).buffers().collect();
         self.restart_language_servers_for_buffers(buffers, HashSet::default(), cx);

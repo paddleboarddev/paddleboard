@@ -12572,6 +12572,7 @@ dependencies = [
  "paddleboard_agent_frameworks",
  "paddleboard_ai_dock",
  "paddleboard_env_vars",
+ "paddleboard_languages_ui",
  "paddleboard_otel",
  "paddleboard_otel_settings",
  "paddleboard_sandbox_prereqs",
@@ -12730,6 +12731,20 @@ name = "paddleboard_env_vars"
 version = "0.1.0"
 dependencies = [
  "env_var",
+]
+
+[[package]]
+name = "paddleboard_languages_ui"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "language",
+ "menu",
+ "paddleboard_actions",
+ "project",
+ "settings",
+ "ui",
+ "workspace",
 ]
 
 [[package]]

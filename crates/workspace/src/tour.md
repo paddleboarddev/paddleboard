@@ -77,13 +77,11 @@ Keep multiple projects in one window, each as its own workspace with its own pan
 - **Switch** between existing worktrees, **create** a new worktree-backed workspace (accept the auto-generated branch name like `dusty-pelican` or supply your own), or **open in new window**.
 - The orchestration panel shows agent threads from every workspace at once — perfect for parallel agent sessions against different projects.
 
-### 11. Built-in Language Servers
-PaddleBoard ships built-in LSP support for four languages that Zed historically punts to extensions — **no extension installation required**.
-- **Java** via [jdtls](https://github.com/eclipse-jdtls/eclipse.jdt.ls) — auto-downloads from GitHub releases (JDK 21+ required)
-- **Kotlin** via [kotlin-language-server](https://github.com/fwcd/kotlin-language-server) — auto-downloads from GitHub releases (JDK 17+ required)
-- **PHP** via [intelephense](https://intelephense.com/) — auto-installs via npm
-- **Swift** via [SourceKit-LSP](https://github.com/swiftlang/sourcekit-lsp) — uses your platform's Swift toolchain
-- Open a `.java`/`.kt`/`.php`/`.swift` file; PB downloads the language server on first use and caches it.
+### 11. Language Support — Two Tiers
+PaddleBoard keeps the default install lean and lets you add the rest with one click.
+- **Ready to use**: Rust, TypeScript, JavaScript, Python, Go, JSON, YAML, HTML/CSS attach automatically — open a file and the server downloads on first use.
+- **Install support** (run **`Manage Languages`** from the Command Palette): **Java**, **Kotlin** (JDK 17+), **PHP** (Node), **C#** (.NET), and **C++** (clangd) ship a built-in server — click Install and PaddleBoard downloads the binary. Each shows its prerequisite up front.
+- **Ruby** and **Dart** come from extensions — their row opens the Extensions page to install. **Swift** uses your platform's SourceKit-LSP.
 - **Build tool context**: Java and Kotlin auto-detect Gradle/Maven projects and expose `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables.
 
 ---
