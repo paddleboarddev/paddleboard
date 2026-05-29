@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Scion: spawn_scion_agent delegation tool
+
+- Re-verified the Scion integration (the 16-day-old memory note was stale): it's substantially **built** already (`paddleboard_scion` CLI wrapper, `paddleboard_scion_ui` polling store, orchestration-panel section with start modal / streaming logs / sync). The one missing piece — and the original "why" — was a way for a PaddleBoard *agent* to delegate to an isolated Scion agent. Built that.
+- **New `spawn_scion_agent` agent tool** (`crates/agent/src/tools/spawn_scion_agent_tool.rs`): the model delegates a task to a Scion agent that runs in its own container + git worktree (vs `spawn_agent`'s in-process, shared-workspace sub-agent). Starts the agent via `ScionCli::start_agent`, polls `list_agents` to a terminal phase (configurable timeout), returns the final phase + log tail; optional `sync_on_complete` runs `scion sync from <name>`.
+- **Wiring:** registered in `thread.rs` **only when the `scion` CLI is on PATH** (keeps the tool list clean otherwise); added `paddleboard_scion` + `gpui_tokio` as `agent` deps; tokio calls bridged via `gpui_tokio::Tokio::spawn_result` (the established pattern). Tool resolves the project root from the first worktree's `abs_path`.
+- **Verified:** `cargo check -p agent` + `-p paddleboard` clean; 3 new serde tests pass; clippy clean on the new code. Not live-tested (needs a running `scion` daemon + Docker/Podman).
+- **Follow-ups:** live-test against a real daemon; surface OTEL (token/tool-call) stream in the panel (still open); on merge, update WELCOME.md + run `/update-tour` for the new delegation tool.
+
 ### Release pipeline — Phase 1 (macOS Apple Silicon, signed)
 
 - Decided scope (with user): releases **+ in-app auto-update**, **macOS Apple Silicon** first, **real Apple Developer signing**. This is Phase 1 (the release pipeline foundation); in-app auto-update reactivation is Phase 2 (it depends on releases existing to point at).

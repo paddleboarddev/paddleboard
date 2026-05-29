@@ -3,7 +3,8 @@ use crate::{
     DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool, FetchTool,
     FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
     ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool,
-    SandboxServiceTool, SandboxTool, SpawnAgentTool, SystemPromptTemplate, Template, Templates,
+    SandboxServiceTool, SandboxTool, SpawnAgentTool, SpawnScionAgentTool, SystemPromptTemplate,
+    Template, Templates,
     TerminalTool, ToolPermissionDecision, UpdatePlanTool, UpdateTitleTool, WebSearchTool,
     WriteFileTool, decide_permission_from_settings,
 };
@@ -1724,6 +1725,12 @@ impl Thread {
 
         if self.depth() < MAX_SUBAGENT_DEPTH {
             self.add_tool(SpawnAgentTool::new(environment));
+        }
+
+        // PaddleBoard: expose Scion delegation only when the scion CLI is installed,
+        // so the tool list stays clean on machines without it.
+        if paddleboard_scion::ScionCli::new().is_available() {
+            self.add_tool(SpawnScionAgentTool::new(self.project.clone()));
         }
     }
 
