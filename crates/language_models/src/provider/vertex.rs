@@ -24,7 +24,6 @@ use paddleboard_vertex::{
 use settings::{Settings, SettingsStore};
 pub use settings::VertexAvailableModel as AvailableModel;
 use std::sync::{Arc, LazyLock};
-use strum::IntoEnumIterator;
 use ui::{ConfiguredApiCard, List, ListBulletItem, prelude::*};
 use ui_input::InputField;
 use util::ResultExt;
@@ -35,8 +34,32 @@ const PROVIDER_NAME: LanguageModelProviderName =
 
 /// Marker URL the express API key is associated with in the keychain.
 const EXPRESS_KEY_URL: &str = "https://aiplatform.googleapis.com";
-const DEFAULT_LOCATION: &str = "us-central1";
+/// Default to the `global` location: the newest models (Gemini 3, the `-latest`
+/// aliases) are only published there, and the 2.5 family is available there too.
+const DEFAULT_LOCATION: &str = "global";
 const VERTEX_API_KEY_VAR: &str = "VERTEX_API_KEY";
+
+/// Curated default model list for Vertex — these are confirmed available on the
+/// `global` location. (Vertex publishes specific model versions per project/region,
+/// so the consumer-Gemini ids aren't reused; users add region-specific ids via the
+/// `available_models` setting.) Gemini context windows are ~1M tokens.
+const VERTEX_MODELS: &[(&str, &str)] = &[
+    ("gemini-2.5-pro", "Gemini 2.5 Pro"),
+    ("gemini-3-flash-preview", "Gemini 3 Flash (Preview)"),
+    ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+    ("gemini-flash-latest", "Gemini Flash (Latest)"),
+    ("gemini-flash-lite-latest", "Gemini Flash Lite (Latest)"),
+];
+const VERTEX_MODEL_MAX_TOKENS: u64 = 1_048_576;
+
+fn vertex_model(name: &str, display_name: &str) -> google_ai::Model {
+    google_ai::Model::Custom {
+        name: name.to_string(),
+        display_name: Some(display_name.to_string()),
+        max_tokens: VERTEX_MODEL_MAX_TOKENS,
+        mode: Default::default(),
+    }
+}
 
 static API_KEY_ENV_VAR: LazyLock<EnvVar> = LazyLock::new(|| EnvVar::new(VERTEX_API_KEY_VAR.into()));
 
@@ -211,20 +234,21 @@ impl LanguageModelProvider for VertexLanguageModelProvider {
     }
 
     fn default_model(&self, _cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        Some(self.create_language_model(google_ai::Model::default()))
+        Some(self.create_language_model(vertex_model("gemini-2.5-pro", "Gemini 2.5 Pro")))
     }
 
     fn default_fast_model(&self, _cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        Some(self.create_language_model(google_ai::Model::default_fast()))
+        Some(self.create_language_model(vertex_model(
+            "gemini-3-flash-preview",
+            "Gemini 3 Flash (Preview)",
+        )))
     }
 
     fn provided_models(&self, cx: &App) -> Vec<Arc<dyn LanguageModel>> {
         let mut models = BTreeMap::default();
 
-        for model in google_ai::Model::iter() {
-            if !matches!(model, google_ai::Model::Custom { .. }) {
-                models.insert(model.id().to_string(), model);
-            }
+        for (name, display_name) in VERTEX_MODELS {
+            models.insert(name.to_string(), vertex_model(name, display_name));
         }
 
         for model in &VertexLanguageModelProvider::settings(cx).available_models {
