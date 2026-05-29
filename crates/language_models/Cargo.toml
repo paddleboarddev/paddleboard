@@ -53,6 +53,7 @@ ollama = { workspace = true, features = ["schemars"] }
 open_ai = { workspace = true, features = ["schemars"] }
 opencode = { workspace = true, features = ["schemars"] }
 open_router = { workspace = true, features = ["schemars"] }
+paddleboard_vertex.workspace = true
 rand.workspace = true
 release_channel.workspace = true
 schemars.workspace = true

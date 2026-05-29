@@ -4,6 +4,8 @@ pub mod cloud;
 pub mod copilot_chat;
 pub mod deepseek;
 pub mod google;
+// PaddleBoard: Vertex AI provider (addition over upstream Zed).
+pub mod vertex;
 pub mod lmstudio;
 pub mod mistral;
 pub mod ollama;

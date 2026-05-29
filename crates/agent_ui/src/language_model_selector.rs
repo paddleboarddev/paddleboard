@@ -56,7 +56,9 @@ pub fn language_model_selector(
 
 fn all_models(cx: &App) -> GroupedModels {
     let lm_registry = LanguageModelRegistry::global(cx).read(cx);
-    let providers = lm_registry.visible_providers();
+    let mut providers = lm_registry.visible_providers();
+    // PaddleBoard: match the agent settings provider order (cloud-hyperscaler group together).
+    crate::agent_configuration::paddleboard_order_providers(&mut providers);
 
     let mut favorites_index = FavoritesIndex::default();
 

@@ -5687,6 +5687,15 @@ impl AgentPanel {
             .h(Tab::container_height(cx))
             .flex_shrink_0()
             .max_w_full()
+            // PaddleBoard: this toolbar is the window's top row (no title bar above it). On
+            // macOS the traffic-light buttons sit at the window's top-left, so when the panel
+            // occupies that corner — docked left, or zoomed to fill the window — reserve space
+            // for them or they cover the title.
+            .when(
+                cfg!(target_os = "macos")
+                    && (self.zoomed || matches!(self.position(window, cx), DockPosition::Left)),
+                |this| this.pl(px(72.)),
+            )
             .bg(cx.theme().colors().tab_bar_background)
             .border_b_1()
             .border_color(cx.theme().colors().border)

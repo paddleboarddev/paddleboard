@@ -9870,6 +9870,7 @@ dependencies = [
  "open_ai",
  "open_router",
  "opencode",
+ "paddleboard_vertex",
  "parking_lot",
  "pretty_assertions",
  "rand 0.9.4",
@@ -12851,6 +12852,20 @@ dependencies = [
  "ui",
  "ui_input",
  "workspace",
+]
+
+[[package]]
+name = "paddleboard_vertex"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures 0.3.32",
+ "google_ai",
+ "http_client",
+ "jsonwebtoken",
+ "log",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

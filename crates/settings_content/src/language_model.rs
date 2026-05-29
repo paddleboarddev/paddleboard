@@ -14,6 +14,8 @@ pub struct AllLanguageModelSettingsContent {
     pub bedrock: Option<AmazonBedrockSettingsContent>,
     pub deepseek: Option<DeepseekSettingsContent>,
     pub google: Option<GoogleSettingsContent>,
+    // PaddleBoard: Vertex AI (Gemini Enterprise) provider — addition over upstream Zed.
+    pub vertex: Option<VertexSettingsContent>,
     pub lmstudio: Option<LmStudioSettingsContent>,
     pub mistral: Option<MistralSettingsContent>,
     pub ollama: Option<OllamaSettingsContent>,
@@ -363,6 +365,31 @@ pub struct GoogleSettingsContent {
 #[with_fallible_options]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, MergeFrom)]
 pub struct GoogleAvailableModel {
+    pub name: String,
+    pub display_name: Option<String>,
+    pub max_tokens: u64,
+    pub mode: Option<ModelMode>,
+}
+
+// PaddleBoard: Vertex AI (Gemini Enterprise) settings. Full Vertex uses a
+// service-account key file (`credentials_path`) + `project_id`/`location`;
+// Express mode uses an API key stored in the keychain (not here).
+#[with_fallible_options]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema, MergeFrom)]
+pub struct VertexSettingsContent {
+    /// GCP project id (required for service-account mode).
+    pub project_id: Option<String>,
+    /// GCP region, e.g. "us-central1" (required for service-account mode).
+    pub location: Option<String>,
+    /// Path to a service-account JSON key file. When set, full Vertex is used.
+    pub credentials_path: Option<String>,
+    pub available_models: Option<Vec<VertexAvailableModel>>,
+}
+
+// PaddleBoard: mirrors GoogleAvailableModel (Vertex reuses the Gemini schema).
+#[with_fallible_options]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, MergeFrom)]
+pub struct VertexAvailableModel {
     pub name: String,
     pub display_name: Option<String>,
     pub max_tokens: u64,

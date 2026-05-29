@@ -166,6 +166,20 @@ enum AgentIcon {
     Path(SharedString),
 }
 
+// PaddleBoard: shared provider ordering for the settings list and the model picker —
+// Zed first, then the cloud-hyperscaler group (Amazon Bedrock + the two Google offerings)
+// together, then everything else alphabetically by display name.
+pub(crate) fn paddleboard_order_providers(providers: &mut [Arc<dyn LanguageModelProvider>]) {
+    providers.sort_by_key(|provider| {
+        let group = match provider.id().0.as_ref() {
+            "zed.dev" => 0,
+            "amazon-bedrock" | "google" | "vertex" => 1,
+            _ => 2,
+        };
+        (group, provider.name().0.to_lowercase())
+    });
+}
+
 impl AgentConfiguration {
     fn render_section_title(
         &mut self,
@@ -428,7 +442,9 @@ impl AgentConfiguration {
         &mut self,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
-        let providers = LanguageModelRegistry::read_global(cx).visible_providers();
+        let mut providers = LanguageModelRegistry::read_global(cx).visible_providers();
+        // PaddleBoard: group cloud-hyperscaler providers together (shared with the model picker).
+        paddleboard_order_providers(&mut providers);
 
         let popover_menu = PopoverMenu::new("add-provider-popover")
             .trigger(

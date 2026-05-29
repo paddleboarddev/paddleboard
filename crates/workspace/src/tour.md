@@ -70,6 +70,7 @@ Run multiple deep agents in parallel, each in its own container and git worktree
 A dedicated panel for switching the active language model provider without opening settings.
 - Dock it wherever is convenient and change providers as you work.
 - **ChatGPT Subscription auth**: sign in with your ChatGPT Plus or Pro account via OAuth — no API key needed. The flow opens in the embedded browser panel; tokens persist in PB's credential store.
+- **Vertex AI (Gemini Enterprise)**: run Gemini through your own GCP project — point `language_models.vertex` at a service-account key (`project_id` + `location` + `credentials_path`), or paste a Vertex Express API key for a quick start.
 
 ### 10. Multi-Workspace
 Keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads.
