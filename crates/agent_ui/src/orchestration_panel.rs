@@ -12,7 +12,9 @@ use gpui_tokio::Tokio;
 // PaddleBoard: Scion orchestration support
 use multi_buffer::MultiBuffer;
 use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli};
-use paddleboard_scion_ui::{ScionStore, ScionStoreEvent, ScionStoreGlobal};
+use paddleboard_scion_ui::{
+    ScionEvent, ScionEventKind, ScionStore, ScionStoreEvent, ScionStoreGlobal,
+};
 use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
 use workspace::{
     Toast, Workspace,
@@ -380,6 +382,10 @@ impl OrchestrationPanel {
         }
 
         let agents = store_read.agents().to_vec();
+        // Collect owned data now so the `store_read` borrow ends before the row
+        // loop below needs `&mut cx`.
+        let recent_events: Vec<ScionEvent> =
+            store_read.events().iter().rev().take(10).cloned().collect();
 
         let mut elements: Vec<gpui::AnyElement> = Vec::new();
 
@@ -414,6 +420,52 @@ impl OrchestrationPanel {
         } else {
             for agent in &agents {
                 elements.push(self.render_scion_agent_row(agent, cx));
+            }
+        }
+
+        // PaddleBoard: live activity feed — the same lifecycle transitions that are
+        // emitted to OpenTelemetry, surfaced in-panel (newest first).
+        if !recent_events.is_empty() {
+            elements.push(
+                h_flex()
+                    .h_7()
+                    .px_2()
+                    .mt_2()
+                    .border_b_1()
+                    .border_color(cx.theme().colors().border_variant)
+                    .items_center()
+                    .child(
+                        Label::new("Activity")
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .into_any_element(),
+            );
+            for event in recent_events {
+                let summary_color = match event.kind {
+                    ScionEventKind::Discovered => Color::Accent,
+                    ScionEventKind::Phase => Color::Default,
+                    ScionEventKind::Activity => Color::Muted,
+                    ScionEventKind::Disappeared => Color::Error,
+                };
+                elements.push(
+                    h_flex()
+                        .px_2()
+                        .py_0p5()
+                        .gap_1p5()
+                        .items_center()
+                        .child(
+                            Label::new(event.agent.clone())
+                                .size(LabelSize::Small)
+                                .color(Color::Default),
+                        )
+                        .child(
+                            Label::new(event.summary.clone())
+                                .size(LabelSize::Small)
+                                .color(summary_color),
+                        )
+                        .into_any_element(),
+                );
             }
         }
 
