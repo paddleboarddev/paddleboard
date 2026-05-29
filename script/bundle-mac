@@ -9,9 +9,11 @@ open_result=false
 local_install=false
 can_code_sign=false
 
+# PaddleBoard: signing identity/team are env-overridable so the fork can sign with its
+# own Apple Developer account. Defaults stay Zed's for upstream parity / local dev.
 # This must match the team in the provisioning profile.
-IDENTITY="Zed Industries, Inc."
-APPLE_NOTARIZATION_TEAM="MQ55VZLNZQ"
+IDENTITY="${MACOS_SIGNING_IDENTITY:-Zed Industries, Inc.}"
+APPLE_NOTARIZATION_TEAM="${APPLE_NOTARIZATION_TEAM:-MQ55VZLNZQ}"
 
 # Function for displaying help info
 help_info() {
@@ -196,7 +198,12 @@ function sign_app_binaries() {
     download_git "${target_triple}" "${app_path}/Contents/MacOS/git"
 
     # Note: The app identifier for our development builds is the same as the app identifier for nightly.
-    cp crates/paddleboard/contents/$channel/embedded.provisionprofile "${app_path}/Contents/"
+    # PaddleBoard: the bundled provisioning profile is tied to Zed's team. When signing with a
+    # different identity (PB's own Apple account), skip it — Developer ID distribution doesn't
+    # require an embedded profile and our entitlements declare no associated-domains.
+    if [[ -z "${MACOS_SIGNING_IDENTITY:-}" ]]; then
+        cp crates/paddleboard/contents/$channel/embedded.provisionprofile "${app_path}/Contents/"
+    fi
 
     if [[ $can_code_sign = true ]]; then
         echo "Code signing binaries"

@@ -14,6 +14,18 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 - **Verified:** `cargo check -p agent` + `-p paddleboard` clean; 3 new serde tests pass; clippy clean on the new code. Not live-tested (needs a running `scion` daemon + Docker/Podman).
 - **Follow-ups:** live-test against a real daemon; surface OTEL (token/tool-call) stream in the panel (still open); on merge, update WELCOME.md + run `/update-tour` for the new delegation tool.
 
+### Release pipeline — Phase 1 (macOS Apple Silicon, signed)
+
+- Decided scope (with user): releases **+ in-app auto-update**, **macOS Apple Silicon** first, **real Apple Developer signing**. This is Phase 1 (the release pipeline foundation); in-app auto-update reactivation is Phase 2 (it depends on releases existing to point at).
+- **Found the inherited release scripts were Zed-stale:** `determine-release-channel` read `crates/zed/RELEASE_CHANNEL` + `get-crate-version zed` (no `crates/zed` exists — crate is `paddleboard`); `bundle-mac` hardcoded Zed's signing identity/team. Good news: `bundle-mac` already implements full sign + notarize + DMG, and `zed.entitlements` has **no associated-domains** (pure hardened-runtime caps) → works with any Developer ID cert, no universal-links/team entanglement.
+- **Changes (all `// PaddleBoard:` tagged):**
+  - `script/determine-release-channel` — `zed` → `paddleboard` crate + RELEASE_CHANNEL path.
+  - `script/bundle-mac` — `IDENTITY`/`APPLE_NOTARIZATION_TEAM` now env-overridable (`MACOS_SIGNING_IDENTITY` etc.), defaulting to Zed's for local/upstream parity; skip copying Zed's provisioning profile when self-signing (Developer ID dist doesn't need it).
+  - `.github/workflows/release.yml` — new tag-driven (`v*`) workflow on `macos-14`: forces stable channel, validates tag == crate version, builds/signs/notarizes via `bundle-mac aarch64-apple-darwin`, publishes a **draft** GitHub Release with the DMG.
+- **Verified:** `bash -n` clean on both scripts; workflow YAML parses.
+- **Blocked on user:** add 6 repo secrets (Developer ID `.p12` as base64, password, App Store Connect API `.p8` + key id + issuer id, and the signing identity string) — guide provided. Tag must match crate version (`v0.232.0`).
+- **Next (Phase 2):** reactivate `auto_update.rs` to poll GitHub Releases, compare version, download + install the signed DMG. Currently neutered (shows "auto-updates disabled" prompt).
+
 ### Repo migration to the paddleboarddev org
 
 - Executed the org move (gated on the same-day usability audit). Three repos now live under `github.com/paddleboarddev`:
