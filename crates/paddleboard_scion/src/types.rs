@@ -264,8 +264,11 @@ impl StartAgentOptions {
         if let Some(ref branch) = self.branch {
             args.extend_from_slice(&["-b".into(), branch.clone()]);
         }
-        if self.detached {
-            args.push("-d".into());
+        // PaddleBoard: scion runs agents in a detached container by default and has
+        // no `-d` flag (passing it errors with "unknown shorthand flag: 'd'"). Only
+        // pass `-a`/`--attach` when a non-detached run is explicitly requested.
+        if !self.detached {
+            args.push("-a".into());
         }
         if self.no_auth {
             args.push("--no-auth".into());
@@ -421,8 +424,21 @@ mod tests {
         assert!(args.contains(&"claude-code".into()));
         assert!(args.contains(&"-b".into()));
         assert!(args.contains(&"feature/auth".into()));
-        assert!(args.contains(&"-d".into()));
+        // Detached is scion's default and has no flag — neither `-d` nor `-a`.
+        assert!(!args.contains(&"-d".into()));
+        assert!(!args.contains(&"-a".into()));
         assert!(!args.contains(&"--no-auth".into()));
+    }
+
+    #[test]
+    fn non_detached_options_pass_attach() {
+        let options = StartAgentOptions {
+            detached: false,
+            ..Default::default()
+        };
+        let args = options.to_args();
+        assert!(args.contains(&"-a".into()));
+        assert!(!args.contains(&"-d".into()));
     }
 
     #[test]

@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Scion live-test → fixed stale `-d` start flag
+
+- Live-tested the integration against a **real installed scion** (`go1.24.1`, `~/go/bin/scion`) + **Podman 5.8.2**. Had to cycle the Podman VM first — it reported "running" but `podman ps` refused the socket (stale after sleep); `scion list` surfaced this as `podman ps failed: exit status 125`.
+- **Validated against real scion:** `version`, `list` (`[]` once the runtime is up), and `templates list` JSON all parse exactly as the `paddleboard_scion` types expect; the `stop --all`, `logs -f`/`--tail`, `sync from`, `look -n`, `list --all`/`--running` flags are all still valid.
+- **Bug found + fixed:** current scion runs agents **detached by default and has no `-d` flag** — `scion start … -d` exits 1 with *"unknown shorthand flag: 'd'"*. `StartAgentOptions::to_args()` appended `-d` whenever `detached` (the default), so **every `scion start` from PaddleBoard — the Start Agent modal AND the new `spawn_scion_agent` tool — would have failed.** Fixed to emit `-a`/`--attach` only when *not* detached (detached default emits nothing). Updated + added unit tests (28 pass).
+- **Couldn't fully launch an agent:** scion pulls harness images from a local registry (`localhost:5000/scion/scion-gemini:latest`) that isn't running — a scion-side environment prereq (registry + harness creds), not a PaddleBoard issue. The corrected `start` reached image-pull, i.e. past the entire PB command/flag surface.
+- **Verified:** `cargo check -p paddleboard` clean; `paddleboard_scion` 28 tests pass.
+
 ### Scion: live activity feed in the orchestration panel
 
 - Closed the other open Scion gap (follow-up "1"): **surfaced the OTEL lifecycle stream in the panel.** `detect_transitions` already computed phase/activity/discovered/disappeared transitions but only emitted them to OTEL via `tracing` — now they're also retained in a capped (60) ring buffer on `ScionStore` (new `ScionEvent`/`ScionEventKind` + `events()` accessor) and rendered as a newest-first **"Activity"** feed under the Scion section in `orchestration_panel.rs`, color-coded by kind.
