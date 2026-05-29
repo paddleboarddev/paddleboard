@@ -4,26 +4,28 @@ use gpui::{App, ClipboardItem, PromptLevel, actions};
 use system_specs::{CopySystemSpecsIntoClipboard, SystemSpecs};
 use util::ResultExt;
 use workspace::Workspace;
-use paddleboard_actions::feedback::{EmailZed, FileBugReport, RequestFeature};
+use paddleboard_actions::feedback::{FileBugReport, RequestFeature};
 
 actions!(
     zed,
     [
-        /// Opens the Zed repository on GitHub.
+        /// Opens the PaddleBoard repository on GitHub.
         OpenZedRepo,
         /// Copies installed extensions to the clipboard for bug reports.
         CopyInstalledExtensionsIntoClipboard
     ]
 );
 
-const PADDLEBOARD_REPO_URL: &str = "https://github.com/zed-industries/zed";
+// PaddleBoard: feedback points at the PaddleBoard repo, not zed-industries/zed.
+const PADDLEBOARD_REPO_URL: &str = "https://github.com/jasonsmithio/paddleboard";
 
-const REQUEST_FEATURE_URL: &str = "https://github.com/zed-industries/zed/discussions/new/choose";
+const REQUEST_FEATURE_URL: &str =
+    "https://github.com/jasonsmithio/paddleboard/discussions/new/choose";
 
 fn file_bug_report_url(specs: &SystemSpecs) -> String {
     format!(
         concat!(
-            "https://github.com/zed-industries/zed/issues/new",
+            "https://github.com/jasonsmithio/paddleboard/issues/new",
             "?",
             "template=10_bug_report.yml",
             "&",
@@ -31,18 +33,6 @@ fn file_bug_report_url(specs: &SystemSpecs) -> String {
         ),
         urlencoding::encode(&specs.to_string())
     )
-}
-
-fn email_zed_url(specs: &SystemSpecs) -> String {
-    format!(
-        concat!("mailto:hi@zed.dev", "?", "body={}"),
-        email_body(specs)
-    )
-}
-
-fn email_body(specs: &SystemSpecs) -> String {
-    let body = format!("\n\nSystem Information:\n\n{}", specs);
-    urlencoding::encode(&body).to_string()
 }
 
 pub fn init(cx: &mut App) {
@@ -96,18 +86,8 @@ pub fn init(cx: &mut App) {
                 })
                 .detach();
             })
-            .register_action(move |_, _: &EmailZed, window, cx| {
-                let specs =
-                    SystemSpecs::new(window, cx, telemetry::os_name(), telemetry::os_version());
-                cx.spawn_in(window, async move |_, cx| {
-                    let specs = specs.await;
-                    cx.update(|_, cx| {
-                        cx.open_url(&email_zed_url(&specs));
-                    })
-                    .log_err();
-                })
-                .detach();
-            })
+            // PaddleBoard: removed the "Email Us" action — it mailed hi@zed.dev
+            // (Zed Industries), and there is no PaddleBoard support inbox to repoint it to.
             .register_action(move |_, _: &OpenZedRepo, _, cx| {
                 cx.open_url(PADDLEBOARD_REPO_URL);
             });

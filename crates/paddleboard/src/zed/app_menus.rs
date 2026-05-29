@@ -304,7 +304,6 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                 MenuItem::separator(),
                 MenuItem::action("File Bug Report...", paddleboard_actions::feedback::FileBugReport),
                 MenuItem::action("Request Feature...", paddleboard_actions::feedback::RequestFeature),
-                MenuItem::action("Email Us...", paddleboard_actions::feedback::EmailZed),
                 MenuItem::separator(),
                 // PaddleBoard: point at PB repo instead of zed.dev
                 MenuItem::action("PaddleBoard Repository", feedback::OpenZedRepo),

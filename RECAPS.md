@@ -4,6 +4,33 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-29
+
+### Fix user-facing Zed branding slips
+
+- Followed the audit's deeper "stranger-ready" sweep (4-way parallel investigation of install/auth/secrets/branding). Functional verdict: a stranger can build + run + use it with their own keys (no hard blockers, no secrets, licensing clean). The gap was *presentational* — several spots still read as "Zed".
+- **Fixed (all `// PaddleBoard:` tagged):**
+  - `crates/feedback/src/feedback.rs` — repointed File Bug Report / Request Feature / repo links from `zed-industries/zed` to `jasonsmithio/paddleboard` (fork has the issue templates), and **removed the "Email Us" action** (mailed `hi@zed.dev`; no PB support inbox to repoint to). Dropped `EmailZed` from `paddleboard_actions`, its handler, and the Help-menu item.
+  - `crates/windows_resources/src/windows_resources.rs` — Windows product names Zed → PaddleBoard.
+  - `crates/paddleboard/Cargo.toml` — `osx_url_schemes ["zed"] → ["paddleboard"]` (×4). This was a *mismatch bug*: the app already parses `paddleboard://` everywhere (CLI/main/instance/modal), but macOS was registering `zed://`.
+  - `crates/recent_projects/src/remote_servers.rs` — "Open Zed Log" → "Open PaddleBoard Log".
+- **Intentionally preserved (per user caution):** cloud LLM provider display name "Zed" (`PADDLEBOARD_CLOUD_PROVIDER_NAME`, renamed *to* Zed on 2026-05-28 — it's Zed's hosted service); macOS window `tabbing_identifier: "zed"` (internal grouping key); `actions!(zed, …)` namespace + `OpenZedRepo` action name (functional identifiers, keymap risk).
+- **Verified:** `cargo check` clean across `feedback`, `paddleboard_actions`, `recent_projects`, `windows_resources`, and the `paddleboard` binary. Committed (`fbbdf53abf`) and pushed to PR #59. feedback.rs's new `jasonsmithio/paddleboard` URLs added to the migration note's deferred-rewrite list.
+- **Follow-up:** distribution is still the only "user ready" gap — build-from-source, no released binaries. Release pipeline / auto-update infra remains unscoped (see [[project-upgrade-server]]).
+
+### "Usable for anyone" audit (gates the paddleboarddev migration)
+
+- Ran the pre-migration usability sweep. Repo is largely clean: `assets/settings/default.json` has `"context_servers": {}` (no bundled filesystem MCP — the prior worry), telemetry hard-disabled, Vertex self-service, no email/contact leaks, and no `jasonsmithio`/personal refs in `script/`, `ci/`, or `.github/`.
+- **Fixed (doc/litter, reversible):**
+  - `README.md` — rewrote the stale "Built-in language servers for Java, Kotlin, PHP, and Swift… LSP attaches automatically" bullet, which contradicted the shipped tiered/opt-in model. Now describes the *Ready to use* tier vs `Manage Languages` opt-in (Java/Kotlin/PHP/C#/C++ with prereqs shown), Swift via platform toolchain, linking the WELCOME.md deep-dive. This was a correctness bug a new user reads first.
+  - `ARCHITECTURE.md` — removed the personal absolute path (`/Users/jaysmith/Projects/Tools/PaddleBoard`) from the scope line.
+  - `git rm fix_cli_toast.pl` — a spent one-off Perl script committed in the initial fork commit (it had already hardcoded the install_cli string).
+  - Deleted two untracked live-test screenshots from the working tree.
+- **Deferred to migration day** (correct today, mechanical rewrite with the org move): hardcoded `jasonsmithio/paddleboard` URLs in `auto_update.rs` (×3), `auto_update_ui.rs:125`, and `zed.rs:108-109` (`DOCS_URL`/`STATUS_URL`). Enumerated in the [[project-repo-migration]] memory note so the migration is mechanical. RECAPS PR links are historical — left as-is.
+- **Landed:** committed (`25978e3f24`) and opened PR #59 (`chore/usability-audit-cleanup`).
+
+---
+
 ## 2026-05-28
 
 ### Vertex config in-app + friendly errors ("usable for anyone")
