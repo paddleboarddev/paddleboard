@@ -6,6 +6,15 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-28
 
+### Vertex auth: add gcloud / ADC (no stored key)
+
+- Driven by the user's preference for a long-term solution that doesn't store a credential on disk. Added a third Vertex auth mode that borrows short-lived tokens from the gcloud CLI (Application Default Credentials).
+- **`paddleboard_vertex`:** new `GcloudTokenProvider` shells out to `gcloud auth print-access-token` (cached ~50min via the shared freshness check) and returns a Bearer token; new `VertexAuth::Gcloud` variant; the regional Bearer transport is shared with service-account mode (Express still uses the global `?key=`). Added `smol` dep; new URL unit test (6 total pass).
+- **`provider/vertex.rs`:** `State` holds a `GcloudTokenProvider`; `resolve_auth` precedence is service-account → Express → **gcloud** (default no-key path); `is_authenticated` = stored credential OR `project_id` set; the no-project error covers gcloud too; config view lists gcloud as the recommended option.
+- **No new settings field** — pure precedence: set `project_id`/`location` and run `gcloud auth login` and it just works; add `credentials_path` or an Express key to override.
+- **Verified:** `cargo build -p paddleboard` clean; clippy clean; crate tests pass. WELCOME/tour/memory updated.
+- **Follow-up:** still needs a real end-to-end run against GCP (the only un-live-tested provider). gcloud token has no reported expiry, so we cache conservatively at 3000s.
+
 ### Live test: Manage Languages (C++/PHP/C#) — PASS
 
 - Opened a scratch project with `main.cpp` + `index.php`, launched, opened the `Manage Languages` modal, clicked Install on PHP, C++ (and C#).
