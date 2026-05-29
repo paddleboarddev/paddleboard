@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Docs: Scion delegation tool + "not Apple-notarized" note
+
+- **Scion wrap-up (docs):** now that `spawn_scion_agent` landed (PR #63), synced the user-facing docs per the WELCOME+tour convention. Added the delegation tool to `WELCOME.md` (Scion section), `crates/workspace/src/tour.md` (in-app tour), and the README Scion bullet — an agent can hand a subtask to a container+worktree-isolated Scion agent instead of an in-process sub-agent.
+- **Apple-notarization note:** added a clear ⚠️ note to `README.md` (under Status) that PaddleBoard isn't yet code-signed/notarized with an Apple Developer ID — distributed macOS builds will trip Gatekeeper until that's set up; build-from-source is unaffected. Also added a subtle note on the website (`paddleboarddev/site`).
+- **Still open (Scion):** live-test against a real `scion` daemon (needs Docker/Podman); surface the OTEL token/tool-call stream *in* the orchestration panel (telemetry is emitted but not yet rendered). These are net-new work, not doc wrap-up — flagged, not done.
+- **Note:** the tour file is sticky (written only if absent) — fine now since there are no released binaries / existing users.
+
 ### Website logo + redesign (cross-repo: paddleboarddev/site)
 
 - Cross-repo note — these changes landed in **`paddleboarddev/site`**, not this repo (logged here because the recap convention lives here; the site repo has no RECAPS).

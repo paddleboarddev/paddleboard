@@ -63,6 +63,7 @@ Run multiple deep agents in parallel, each in its own container and git worktree
 - Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, and template.
 - The **Orchestration Panel** shows a **Scion Agents** section below native threads. Each row shows the agent's phase (provisioning → running → stopped) and activity (working, thinking, waiting, etc.).
 - Right-click any agent row for **View Logs** (opens a live-streaming log tab that tails output in real time), **Sync Changes** (pulls changes into your local copy and shows a toast), or **Stop Agent**.
+- **Agents can delegate to Scion themselves:** with the CLI installed, the agent gains a `spawn_scion_agent` tool — it hands a subtask to a container + worktree-isolated agent (instead of an in-process sub-agent that shares your workspace), waits for it, and returns the result.
 - Activity badges show what the agent is doing: "executing · Edit", "thinking", "waiting", etc.
 - Status colors: accent = running, warning = needs attention, error = errored, muted = stopped.
 - **OpenTelemetry tracing:** Enable `"paddleboard_otel": { "enabled": true }` in settings (or `PADDLEBOARD_OTEL_ENABLED=1`) to export agent lifecycle telemetry via OTLP. Poll cycles, CLI commands, and phase/activity transitions appear as spans and events in Jaeger, Tempo, or any OTEL-compatible collector.
