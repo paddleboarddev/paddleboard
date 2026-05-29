@@ -18,7 +18,9 @@ use language_model::{
     LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
     LanguageModelToolSchemaFormat, RateLimiter,
 };
-use paddleboard_vertex::{ServiceAccountKey, TokenProvider, VertexAuth, stream_generate_content};
+use paddleboard_vertex::{
+    GcloudTokenProvider, ServiceAccountKey, TokenProvider, VertexAuth, stream_generate_content,
+};
 use settings::{Settings, SettingsStore};
 pub use settings::VertexAvailableModel as AvailableModel;
 use std::sync::{Arc, LazyLock};
@@ -57,25 +59,29 @@ pub struct State {
     /// Cached service-account token minter, keyed by the credentials file path
     /// it was built from (so the OAuth token cache survives across requests).
     token_provider: Option<(String, Arc<TokenProvider>)>,
+    /// Borrows short-lived tokens from the `gcloud` CLI — the no-stored-key path.
+    gcloud_provider: Arc<GcloudTokenProvider>,
     sa_error: Option<SharedString>,
 }
 
 impl State {
-    fn is_authenticated(&self) -> bool {
+    /// Whether a stored credential (service-account key or Express API key) is
+    /// configured. gcloud auth is handled separately since it stores nothing.
+    fn has_stored_credential(&self) -> bool {
         self.token_provider.is_some() || self.api_key_state.has_key()
     }
 
-    /// Resolves the auth method to use for a request: service account if a key
-    /// file is loaded, otherwise the Express API key.
+    /// Resolves the auth method for a request. Precedence: a loaded service-account
+    /// key, then an Express API key, then gcloud (Application Default Credentials) —
+    /// the default no-stored-key path, which needs only `project_id`/`location` plus
+    /// a `gcloud auth login`.
     fn resolve_auth(&self) -> Result<VertexAuth> {
         if let Some((_, provider)) = &self.token_provider {
             Ok(VertexAuth::ServiceAccount(provider.clone()))
         } else if let Some(key) = self.api_key_state.key(EXPRESS_KEY_URL) {
             Ok(VertexAuth::ApiKey(key.to_string()))
         } else {
-            bail!(
-                "Vertex AI (Gemini Enterprise) is not configured (set a service-account key file or an Express API key)"
-            )
+            Ok(VertexAuth::Gcloud(self.gcloud_provider.clone()))
         }
     }
 
@@ -131,7 +137,7 @@ impl State {
             // Authenticated if either the service account or the Express key loaded;
             // otherwise surface the Express key's "not found" error.
             let authenticated = this
-                .read_with(cx, |this, _| this.is_authenticated())
+                .read_with(cx, |this, _| this.has_stored_credential())
                 .unwrap_or(false);
             if authenticated { Ok(()) } else { express_result }
         })
@@ -160,6 +166,7 @@ impl VertexLanguageModelProvider {
                 api_key_state: ApiKeyState::new(EXPRESS_KEY_URL.into(), (*API_KEY_ENV_VAR).clone()),
                 credentials_provider,
                 token_provider: None,
+                gcloud_provider: Arc::new(GcloudTokenProvider::new()),
                 sa_error: None,
             }
         });
@@ -239,7 +246,9 @@ impl LanguageModelProvider for VertexLanguageModelProvider {
     }
 
     fn is_authenticated(&self, cx: &App) -> bool {
-        self.state.read(cx).is_authenticated()
+        // A stored credential (service-account key or Express API key), or the
+        // gcloud path — which needs no stored key, just a `project_id` to target.
+        self.state.read(cx).has_stored_credential() || Self::settings(cx).project_id.is_some()
     }
 
     fn authenticate(&self, cx: &mut App) -> Task<Result<(), AuthenticateError>> {
@@ -293,8 +302,14 @@ impl VertexLanguageModel {
         async move {
             let (auth, project_id, location) = resolved;
             let auth = auth?;
-            if matches!(auth, VertexAuth::ServiceAccount(_)) && project_id.is_none() {
-                bail!("Vertex service-account mode requires a `project_id` in settings");
+            if matches!(
+                auth,
+                VertexAuth::ServiceAccount(_) | VertexAuth::Gcloud(_)
+            ) && project_id.is_none()
+            {
+                bail!(
+                    "Vertex needs a `project_id` (and `location`) in settings for service-account or gcloud auth"
+                );
             }
             let project = project_id.unwrap_or_default();
             stream_generate_content(http_client.as_ref(), &auth, &project, &location, request)
@@ -491,9 +506,12 @@ impl Render for ConfigurationView {
                 .child(
                     List::new()
                         .child(ListBulletItem::new(
-                            "Full Vertex: set `language_models.vertex.project_id`, \
-                             `location`, and `credentials_path` (a service-account JSON key) \
-                             in settings.",
+                            "Recommended (no stored key): run `gcloud auth login`, then set \
+                             `language_models.vertex.project_id` and `location` in settings. \
+                             PaddleBoard borrows short-lived tokens from gcloud.",
+                        ))
+                        .child(ListBulletItem::new(
+                            "Service account: also set `credentials_path` to a key file in settings.",
                         ))
                         .child(ListBulletItem::new(
                             "Quick start (Express): paste a Vertex API key below and press enter.",

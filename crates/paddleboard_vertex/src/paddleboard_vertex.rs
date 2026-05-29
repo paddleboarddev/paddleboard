@@ -48,8 +48,11 @@ impl ServiceAccountKey {
 /// How a Vertex request is authenticated.
 #[derive(Clone)]
 pub enum VertexAuth {
-    /// Full Vertex via a service account — uses an OAuth2 bearer token.
+    /// Full Vertex via a service-account key — mints an OAuth2 bearer token.
     ServiceAccount(std::sync::Arc<TokenProvider>),
+    /// Full Vertex via short-lived tokens borrowed from the `gcloud` CLI
+    /// (Application Default Credentials). Nothing is stored on disk.
+    Gcloud(std::sync::Arc<GcloudTokenProvider>),
     /// Vertex Express mode via an API key (`?key=` on the global endpoint).
     ApiKey(String),
 }
@@ -166,9 +169,69 @@ fn token_is_fresh(expires_at: u64, now: u64) -> bool {
     expires_at > now.saturating_add(TOKEN_EXPIRY_SKEW_SECS)
 }
 
+/// `gcloud auth print-access-token` does not report the token lifetime; Google
+/// access tokens last ~1h, so cache conservatively.
+const GCLOUD_TOKEN_TTL_SECS: u64 = 3000;
+
+/// Borrows short-lived access tokens from the `gcloud` CLI (Application Default
+/// Credentials). No credential is stored on disk by PaddleBoard — `gcloud`
+/// manages the user's login and refresh.
+#[derive(Default)]
+pub struct GcloudTokenProvider {
+    cached: Mutex<Option<CachedToken>>,
+}
+
+impl GcloudTokenProvider {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn token(&self) -> Result<String> {
+        let now = now_unix();
+        if let Some(token) = self.cached.lock().ok().and_then(|guard| {
+            guard
+                .as_ref()
+                .filter(|cached| token_is_fresh(cached.expires_at, now))
+                .map(|cached| cached.token.clone())
+        }) {
+            return Ok(token);
+        }
+
+        let output = smol::process::Command::new("gcloud")
+            .args(["auth", "print-access-token"])
+            .output()
+            .await
+            .context(
+                "running `gcloud auth print-access-token` — is the gcloud CLI installed and on PATH?",
+            )?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            bail!(
+                "`gcloud auth print-access-token` failed — run `gcloud auth login`. Details: {}",
+                stderr.trim()
+            );
+        }
+        let token = String::from_utf8(output.stdout)
+            .context("gcloud token was not valid UTF-8")?
+            .trim()
+            .to_string();
+        if token.is_empty() {
+            bail!("gcloud returned an empty access token; run `gcloud auth login`");
+        }
+
+        if let Ok(mut guard) = self.cached.lock() {
+            *guard = Some(CachedToken {
+                token: token.clone(),
+                expires_at: now_unix() + GCLOUD_TOKEN_TTL_SECS,
+            });
+        }
+        Ok(token)
+    }
+}
+
 /// Builds the Vertex `streamGenerateContent` URL for the given auth mode.
-/// Service-account uses the regional endpoint with the project/location path;
-/// Express mode uses the global endpoint with a `?key=`.
+/// Service-account and gcloud use the regional endpoint with the project/location
+/// path (Bearer auth); Express mode uses the global endpoint with a `?key=`.
 pub fn vertex_stream_url(
     auth: &VertexAuth,
     project: &str,
@@ -176,7 +239,7 @@ pub fn vertex_stream_url(
     model_id: &str,
 ) -> String {
     match auth {
-        VertexAuth::ServiceAccount(_) => format!(
+        VertexAuth::ServiceAccount(_) | VertexAuth::Gcloud(_) => format!(
             "https://{location}-aiplatform.googleapis.com/v1/projects/{project}/locations/{location}/publishers/google/models/{model_id}:streamGenerateContent?alt=sse"
         ),
         VertexAuth::ApiKey(key) => format!(
@@ -203,8 +266,12 @@ pub async fn stream_generate_content(
         .method(Method::POST)
         .uri(uri)
         .header("Content-Type", "application/json");
-    if let VertexAuth::ServiceAccount(provider) = auth {
-        let token = provider.token(client).await?;
+    let bearer = match auth {
+        VertexAuth::ServiceAccount(provider) => Some(provider.token(client).await?),
+        VertexAuth::Gcloud(provider) => Some(provider.token().await?),
+        VertexAuth::ApiKey(_) => None,
+    };
+    if let Some(token) = bearer {
         builder = builder.header("Authorization", format!("Bearer {token}"));
     }
 
@@ -280,6 +347,16 @@ mod tests {
         assert_eq!(
             url,
             "https://us-central1-aiplatform.googleapis.com/v1/projects/proj/locations/us-central1/publishers/google/models/gemini-2.0-flash:streamGenerateContent?alt=sse"
+        );
+    }
+
+    #[test]
+    fn gcloud_url_is_regional_with_project() {
+        let auth = VertexAuth::Gcloud(std::sync::Arc::new(GcloudTokenProvider::new()));
+        let url = vertex_stream_url(&auth, "proj", "us-east1", "gemini-2.0-flash");
+        assert_eq!(
+            url,
+            "https://us-east1-aiplatform.googleapis.com/v1/projects/proj/locations/us-east1/publishers/google/models/gemini-2.0-flash:streamGenerateContent?alt=sse"
         );
     }
 
