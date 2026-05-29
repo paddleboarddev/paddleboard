@@ -6,11 +6,12 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
-### Website logo (cross-repo: paddleboarddev/site)
+### Website logo + redesign (cross-repo: paddleboarddev/site)
 
-- Cross-repo note — the change landed in **`paddleboarddev/site`**, not this repo. A `paddleboard_logo.svg` (512×512 squircle mark) had been dropped at that repo's root, where Hugo wouldn't publish it and nothing referenced it.
-- Moved it into `static/`, swapped the placeholder 🛶 emoji in the header brand for the real logo, wired it up as the favicon, and added small flex styles so the logo + wordmark align. Verified with a clean `hugo --gc --minify` build. Opened as `paddleboarddev/site` PR #1.
-- Pure presentation; no content/config changes. (Logged here because the recap convention lives in this repo; the site repo has no RECAPS.)
+- Cross-repo note — these changes landed in **`paddleboarddev/site`**, not this repo (logged here because the recap convention lives here; the site repo has no RECAPS).
+- **Logo:** the `paddleboard_logo.svg` (512×512 squircle, Catppuccin palette) had been dropped at the site repo root where Hugo wouldn't publish it. Moved it into `static/`, used it in the nav brand + favicon.
+- **Redesign:** rebuilt the minimal scaffold into a knative.dev-style landing page themed on the logo's colors — sticky nav, dark gradient hero (logo + gradient headline + alpha pill + CTAs), six-card feature grid, gradient CTA band, multi-column footer. Copy is driven from `hugo.toml` params (tagline/subtitle/feature list); full color system in `main.css` derived from the logo gradients (board = sky→blue, paddle = yellow→pink).
+- **Verified:** clean `hugo --gc --minify` build; visually checked at mobile + desktop widths via the preview tool (hero, feature grid, CTA band, footer all render correctly). Shipped as `paddleboarddev/site` PR #1 (retitled "Redesign landing page with logo and palette").
 
 ### Repo migration to the paddleboarddev org
 
