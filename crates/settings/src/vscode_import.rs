@@ -226,6 +226,7 @@ impl VsCodeSettings {
             // leave as None so PaddleBoard's defaults apply.
             paddleboard_sandbox: None,
             paddleboard_otel: None,
+            paddleboard_scion: None,
             feature_flags: None,
             instrumentation: None,
         }

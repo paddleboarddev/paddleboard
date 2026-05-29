@@ -499,6 +499,7 @@ fn main() {
         gpui_tokio::init(cx);
         paddleboard_sandbox_settings::init(cx);
         paddleboard_otel_settings::init(cx);
+        paddleboard_scion_settings::init(cx);
         paddleboard_sandbox_prereqs_ui::init(cx);
         paddleboard_agent_frameworks::init(cx);
         paddleboard_ai_dock::init(cx);
