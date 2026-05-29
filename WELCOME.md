@@ -163,6 +163,8 @@ When [Scion](https://github.com/GoogleCloudPlatform/scion) is installed, a **Sci
 
 Install Scion with `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then use `scion: Start Agent` from the command palette to launch your first container-isolated agent.
 
+**Delegating to Scion from an agent.** When the `scion` CLI is installed, agents gain a `spawn_scion_agent` tool. Instead of spawning an in-process sub-agent that shares your workspace, an agent can hand a well-scoped subtask to a Scion agent running in its own container and git worktree — true isolation for parallel work that writes to disk. The tool starts the agent, optionally waits for it to finish, returns the final phase plus a tail of its logs, and can `sync` the result back into your project when it completes.
+
 #### OpenTelemetry tracing
 
 PaddleBoard can export Scion agent lifecycle telemetry via **OpenTelemetry** to an external collector (Jaeger, Tempo, Grafana, etc.). When enabled, every poll cycle, CLI command, and agent state transition is captured as a trace span or event — useful for debugging multi-agent sessions or measuring agent efficiency.
