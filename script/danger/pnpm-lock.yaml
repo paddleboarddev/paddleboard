@@ -338,8 +338,8 @@ packages:
     resolution: {integrity: sha512-rksPWtoZb2ZpT5OVgtmy0KHVM+Dca3iVwWY9ifwhcexfjebtgjg3wmrUt9PvJ59XIYBcknQeYHD8IAnVlh9lAw==}
     hasBin: true
 
-  qs@6.15.1:
-    resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
+  qs@6.15.2:
+    resolution: {integrity: sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw==}
     engines: {node: '>=0.6'}
 
   readline-sync@1.4.10:
@@ -424,12 +424,12 @@ snapshots:
   '@gitbeaker/core@38.12.1':
     dependencies:
       '@gitbeaker/requester-utils': 38.12.1
-      qs: 6.15.1
+      qs: 6.15.2
       xcase: 2.0.1
 
   '@gitbeaker/requester-utils@38.12.1':
     dependencies:
-      qs: 6.15.1
+      qs: 6.15.2
       xcase: 2.0.1
 
   '@gitbeaker/rest@38.12.1':
@@ -762,7 +762,7 @@ snapshots:
       colors: 1.4.0
       minimist: 1.2.8
 
-  qs@6.15.1:
+  qs@6.15.2:
     dependencies:
       side-channel: 1.1.0
 
