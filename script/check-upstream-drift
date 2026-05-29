@@ -33,8 +33,11 @@ UPSTREAM_REF="${UPSTREAM_REF:-${UPSTREAM_REMOTE}/main}"
 # than this since the baseline, the --check flag treats it as a warning.
 CRATE_DELTA_THRESHOLD="${CRATE_DELTA_THRESHOLD:-5000}"
 # Total PaddleBoard tags threshold: if the tag count grows by more than
-# this since the baseline, --check treats it as a warning.
-TAG_DELTA_THRESHOLD="${TAG_DELTA_THRESHOLD:-5}"
+# this since the baseline, --check treats it as a warning. Tuned up from 5 —
+# a single intentional feature (e.g. a new provider) legitimately adds 10-20
+# `// PaddleBoard:` tags, so 5 fired on every normal session. 25 still catches
+# an unexpectedly large jump in fork divergence between baseline refreshes.
+TAG_DELTA_THRESHOLD="${TAG_DELTA_THRESHOLD:-25}"
 
 DO_FETCH=1
 DO_CHECK=0

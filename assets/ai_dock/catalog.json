@@ -59,6 +59,22 @@
       "homepage": "https://langchain-ai.github.io/langgraph/",
       "featured": false,
       "install_command": "pip install langgraph-cli[inmem]"
+    },
+    {
+      "id": "crewai",
+      "name": "CrewAI",
+      "description": "Framework for orchestrating role-playing, autonomous AI agent crews. Scaffold and run locally.",
+      "homepage": "https://www.crewai.com/",
+      "featured": false,
+      "install_command": "pip install crewai"
+    },
+    {
+      "id": "autogen",
+      "name": "AutoGen",
+      "description": "Microsoft's multi-agent framework. Launch AutoGen Studio, a local web UI for building agents.",
+      "homepage": "https://microsoft.github.io/autogen/",
+      "featured": false,
+      "install_command": "pip install autogenstudio"
     }
   ],
   "skills": [

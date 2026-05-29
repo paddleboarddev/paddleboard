@@ -29,7 +29,7 @@ pub(crate) fn init(cx: &mut App) {
                             command: "adk",
                             args: &["web"],
                             label: "ADK Web",
-                            fallback_port: 8000,
+                            fallback_port: Some(8000),
                             get_state: |s| &mut s.adk,
                         },
                     );

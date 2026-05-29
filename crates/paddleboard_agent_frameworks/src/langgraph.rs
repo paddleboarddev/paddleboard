@@ -29,7 +29,7 @@ pub(crate) fn init(cx: &mut App) {
                             command: "langgraph",
                             args: &["dev"],
                             label: "LangGraph Studio",
-                            fallback_port: 2024,
+                            fallback_port: Some(2024),
                             get_state: |s| &mut s.langgraph,
                         },
                     );

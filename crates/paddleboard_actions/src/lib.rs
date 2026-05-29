@@ -977,3 +977,33 @@ pub mod languages {
         ]
     );
 }
+
+pub mod crewai {
+    use gpui::actions;
+
+    actions!(
+        crewai,
+        [
+            /// Opens a modal to scaffold a new CrewAI crew project.
+            ScaffoldAgent,
+            /// Runs `crewai run` to execute the crew.
+            RunAgent,
+            /// Stops the running CrewAI process.
+            StopAgent,
+        ]
+    );
+}
+
+pub mod autogen {
+    use gpui::actions;
+
+    actions!(
+        autogen,
+        [
+            /// Launches AutoGen Studio (`autogenstudio ui`).
+            RunAgent,
+            /// Stops the running AutoGen Studio server.
+            StopAgent,
+        ]
+    );
+}

@@ -65,6 +65,14 @@ Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `ad
 - **Project detection** — when you open a workspace that contains `agent.py` or `agent.yaml`, PaddleBoard shows a toast notification with a **Run Agent** button so you can launch the dev server in one click.
 - **AI Dock entry** — Google ADK appears in the Agents tab of the AI Dock. If the `adk` CLI isn't on your PATH, a **Set Up** button opens a terminal with `pip install google-adk`.
 
+**Beyond ADK**, the same command-palette pattern works for several agent frameworks, each auto-detected from your project and surfaced with a toast:
+
+- **LangGraph** — `langgraph: Run Agent` launches `langgraph dev` (LangGraph Studio); detected from `langgraph.json`.
+- **CrewAI** — `crewai: Scaffold Agent` runs `crewai create crew <name>`; `crewai: Run Agent` runs `crewai run` (one-shot, streamed to a tab — no server); detected when `crewai` is in your `pyproject.toml`/`requirements.txt`.
+- **AutoGen** — `autogen: Run Agent` launches AutoGen Studio (`autogenstudio ui`), a local web UI on port 8081 surfaced in Forwarded Ports; detected when `autogen` is a project dependency.
+
+Each also appears in the AI Dock's Agents tab with a **Set Up** button that installs the CLI (`pip install …`).
+
 For sandboxed execution via the agent, you can also ask in a chat thread: **"Run `adk web` in the sandbox, forwarding GOOGLE_API_KEY."** The agent will call `sandbox_service_tool` and the URL lands in the Forwarded Ports row.
 
 The `forward_env` field accepts a list of host env var **names** only — values are read by the tool at run time and passed to the container via `podman run -e`, never serialized into the conversation.

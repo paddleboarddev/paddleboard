@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-05-27",
+  "generated_at": "2026-05-28",
   "upstream_ref": "zed/main",
-  "upstream_sha": "80a4042ff5",
-  "head_sha": "6f5216c443",
+  "upstream_sha": "27c566c212",
+  "head_sha": "bdc6a984fb",
   "crates": {
-    "agent": {"files": 27, "insertions": 25562, "deletions": 1461, "tags": 0},
-    "agent_ui": {"files": 30, "insertions": 4308, "deletions": 1508, "tags": 12},
-    "buffer_diff": {"files": 2, "insertions": 146, "deletions": 120, "tags": 0},
-    "client": {"files": 5, "insertions": 59, "deletions": 232, "tags": 2},
-    "editor": {"files": 18, "insertions": 318, "deletions": 2248, "tags": 0},
-    "gpui": {"files": 9, "insertions": 47, "deletions": 225, "tags": 0},
-    "language": {"files": 3, "insertions": 9, "deletions": 9, "tags": 0},
+    "agent": {"files": 24, "insertions": 25231, "deletions": 1253, "tags": 0},
+    "agent_ui": {"files": 26, "insertions": 4378, "deletions": 343, "tags": 24},
+    "buffer_diff": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "client": {"files": 5, "insertions": 59, "deletions": 246, "tags": 2},
+    "editor": {"files": 14, "insertions": 173, "deletions": 1223, "tags": 0},
+    "gpui": {"files": 12, "insertions": 40, "deletions": 1666, "tags": 0},
+    "language": {"files": 3, "insertions": 20, "deletions": 62, "tags": 0},
     "language_core": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
-    "lsp": {"files": 1, "insertions": 1, "deletions": 5, "tags": 0},
-    "multi_buffer": {"files": 2, "insertions": 518, "deletions": 518, "tags": 0},
-    "project": {"files": 12, "insertions": 246, "deletions": 818, "tags": 1},
-    "rope": {"files": 1, "insertions": 1, "deletions": 1, "tags": 0},
-    "settings_content": {"files": 6, "insertions": 153, "deletions": 12, "tags": 6},
-    "text": {"files": 2, "insertions": 2, "deletions": 2, "tags": 0},
-    "workspace": {"files": 13, "insertions": 228, "deletions": 1967, "tags": 2}
+    "lsp": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "multi_buffer": {"files": 4, "insertions": 25, "deletions": 101, "tags": 0},
+    "project": {"files": 11, "insertions": 254, "deletions": 56, "tags": 6},
+    "rope": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "settings_content": {"files": 7, "insertions": 232, "deletions": 8, "tags": 12},
+    "text": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "workspace": {"files": 13, "insertions": 233, "deletions": 1956, "tags": 2}
   },
-  "totals": {"files": 131, "insertions": 31598, "deletions": 9126, "tags": 23}
+  "totals": {"files": 119, "insertions": 30645, "deletions": 6914, "tags": 46}
 }
