@@ -6,6 +6,17 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Day wrap-up + feature backlog captured
+
+- Closed out a big day: usability audit + doc/litter cleanup → **org migration** to `paddleboarddev` (paddleboard transferred-private, site + docs repos created) → website logo + **knative-style redesign** (deployed) → **release pipeline** Phase 1 (signed macOS, unmerged pending Apple secrets) → **Scion**: delegation tool, activity feed, live-test (fixed the `-d` flag bug), and made it **opt-in**. All landed PRs merged; no open PRs.
+- **Memory updated:** Scion note marked shipped/opt-in/closed; migration/website/release notes current; MEMORY.md index refreshed.
+- **New feature backlog captured for next session** (not started — user opted to break):
+  1. **Git Login** — save GitHub/GitLab/BitBucket credentials ([[project-git-login-idea]]). Large/sensitive; design first.
+  2. **Swift → optional** — move into the opt-in install tier like Kotlin ([[project-language-tiers]]). Small/bounded.
+  3. **README→website sync skill** — a `/update-tour`-style skill ([[project-docs-and-site-automation]]). Small.
+  4. **How-To Docs** — content for the `docs` repo; gated on the mdBook-vs-Hugo toolchain decision ([[project-docs-and-site-automation]]).
+- **Other open threads:** Apple Developer signing (for real releases) + Phase 2 in-app auto-update (gated on going public); org domain verification + paddleboard.dev HTTPS cert provisioning.
+
 ### Scion is now opt-in (settings-gated, default off)
 
 - Made Scion an explicit opt-in instead of auto-activating whenever the `scion` CLI happens to be on `PATH`. Mirrors the `OtelSettings` pattern exactly.
