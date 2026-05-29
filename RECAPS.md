@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-29
 
+### Website logo + redesign (cross-repo: paddleboarddev/site)
+
+- Cross-repo note — these changes landed in **`paddleboarddev/site`**, not this repo (logged here because the recap convention lives here; the site repo has no RECAPS).
+- **Logo:** the `paddleboard_logo.svg` (512×512 squircle, Catppuccin palette) had been dropped at the site repo root where Hugo wouldn't publish it. Moved it into `static/`, used it in the nav brand + favicon.
+- **Redesign:** rebuilt the minimal scaffold into a knative.dev-style landing page themed on the logo's colors — sticky nav, dark gradient hero (logo + gradient headline + alpha pill + CTAs), six-card feature grid, gradient CTA band, multi-column footer. Copy is driven from `hugo.toml` params (tagline/subtitle/feature list); full color system in `main.css` derived from the logo gradients (board = sky→blue, paddle = yellow→pink).
+- **Verified:** clean `hugo --gc --minify` build; visually checked at mobile + desktop widths via the preview tool (hero, feature grid, CTA band, footer all render correctly). Shipped as `paddleboarddev/site` PR #1 (retitled "Redesign landing page with logo and palette").
+
 ### Scion: spawn_scion_agent delegation tool
 
 - Re-verified the Scion integration (the 16-day-old memory note was stale): it's substantially **built** already (`paddleboard_scion` CLI wrapper, `paddleboard_scion_ui` polling store, orchestration-panel section with start modal / streaming logs / sync). The one missing piece — and the original "why" — was a way for a PaddleBoard *agent* to delegate to an isolated Scion agent. Built that.
