@@ -17,15 +17,15 @@ actions!(
 );
 
 // PaddleBoard: feedback points at the PaddleBoard repo, not zed-industries/zed.
-const PADDLEBOARD_REPO_URL: &str = "https://github.com/jasonsmithio/paddleboard";
+const PADDLEBOARD_REPO_URL: &str = "https://github.com/paddleboarddev/paddleboard";
 
 const REQUEST_FEATURE_URL: &str =
-    "https://github.com/jasonsmithio/paddleboard/discussions/new/choose";
+    "https://github.com/paddleboarddev/paddleboard/discussions/new/choose";
 
 fn file_bug_report_url(specs: &SystemSpecs) -> String {
     format!(
         concat!(
-            "https://github.com/jasonsmithio/paddleboard/issues/new",
+            "https://github.com/paddleboarddev/paddleboard/issues/new",
             "?",
             "template=10_bug_report.yml",
             "&",
