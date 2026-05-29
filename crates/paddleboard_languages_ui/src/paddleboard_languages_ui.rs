@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use gpui::{
     Action as _, App, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Render,
-    Window,
+    ScrollHandle, Window,
 };
 use language::{LanguageName, LanguageServerName, language_settings::all_language_settings};
 use project::Project;
@@ -121,6 +121,7 @@ enum InstallState {
 pub struct ManageLanguagesModal {
     project: Entity<Project>,
     states: HashMap<&'static str, InstallState>,
+    scroll_handle: ScrollHandle,
     focus_handle: FocusHandle,
 }
 
@@ -156,6 +157,7 @@ impl ManageLanguagesModal {
         Self {
             project,
             states,
+            scroll_handle: ScrollHandle::new(),
             focus_handle: cx.focus_handle(),
         }
     }
@@ -371,7 +373,7 @@ impl Focusable for ManageLanguagesModal {
 impl ModalView for ManageLanguagesModal {}
 
 impl Render for ManageLanguagesModal {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .id("manage-languages-modal")
             .key_context("ManageLanguagesModal")
@@ -391,9 +393,13 @@ impl Render for ManageLanguagesModal {
                     )
                     .child(
                         v_flex()
+                            .id("manage-languages-body")
                             .px_3()
                             .pb_2()
                             .gap_3()
+                            .max_h(vh(0.7, window))
+                            .overflow_y_scroll()
+                            .track_scroll(&self.scroll_handle)
                             .child(self.render_ready_section())
                             .child(self.render_install_section(cx)),
                     ),
