@@ -6,6 +6,11 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### README→website sync skill (`/update-site`)
+
+- Created `.claude/skills/update-site/SKILL.md` — the website analogue of `/update-tour`. Reads this repo's `README.md` and reconciles the **separate `paddleboarddev/site` repo**'s `hugo.toml` params (tagline/subtitle/description) + `[[params.features]]` cards, builds with `hugo`, and opens a PR there. Encodes "translate dev-detail → marketing copy, don't dump"; notes the Apple/status disclaimer has its own spot (the CTA band).
+- **Validation run:** compared the README's 11 differentiators against the site's **6 curated cards** — the site is already a faithful, intentionally-curated reflection (Scion/sandbox/forwarded-ports/etc. are power-user detail deliberately left off the homepage). No sync PR needed now; the skill earns its keep on *future* README shifts.
+
 ### Swift moved to the opt-in language tier
 
 - **Enabled HTTPS enforcement on paddleboard.dev** — the Let's Encrypt cert provisioned overnight (state `approved`, site serves 200), so flipped `https_enforced=true` on the Pages site.
