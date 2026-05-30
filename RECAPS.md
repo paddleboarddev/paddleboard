@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### Git Login — Phase 3: management modal (feature complete)
+
+- Built the **"Manage Git Logins" modal** + `git_login: Manage` command — the user-facing piece that writes tokens to the keychain. `crates/git_ui/src/git_login_modal.rs`: provider quick-buttons (GitHub/GitLab/BitBucket) that prefill host + token-username, editable host/username/token (masked) fields, a "Create a token →" link with scopes hint per provider, and Save/Remove; a status line reports "Signed in as X" / "(from env var)" / "Not signed in". Modeled on `add_llm_provider_modal` (`InputField`, `Modal`/`Section`/`ModalFooter`).
+- Action `paddleboard_actions::git_login::Manage`; registered via `git_login_modal::register` in `git_ui::init`. No `main.rs` change needed (git_ui already inits).
+- **Naming:** "Git Login(s)", not "Store" (per the no-purchasing-metaphor preference).
+- Docs: README bullet + WELCOME section + tour section #12, and fixed a duplicated language-tier bullet the Swift change had left.
+- **Verified:** `git_ui` + full `paddleboard` build clean; clippy clean. **Git Login is now feature-complete (PAT, v1 = git HTTPS auth).** The only thing not exercised on this machine is the real keychain save→push round-trip (needs a real PAT + private repo — user-supplied); the askpass path itself is proven via the env-var fallback.
+
 ### Git Login — Phase 2: askpass injection
 
 - Wired saved logins into git's HTTPS auth. `git_ui::git_panel::askpass_delegate` now parses git's prompt (`paddleboard_git_login::parse_git_prompt`), looks up a saved login via `paddleboard_credentials_provider::global`, and answers git's Username/Password prompt **directly through the askpass channel** — skipping the modal. If there's no saved login it falls back to the existing `AskPassModal`, unchanged.
