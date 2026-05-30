@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### Git Login — Phase 1: credential store crate
+
+- Planned the **Git Login** feature (approved): save GitHub/GitLab/BitBucket Personal Access Tokens in the OS keychain so git HTTPS clone/fetch/push authenticate without prompting. **PAT-first** (no OAuth — needs shipped client secrets); **v1 = auto-answer the askpass prompt**. Plan: `~/.claude/plans/enchanted-napping-firefly.md`. Phased into 3 PRs.
+- **Phase 1 (this PR):** new `paddleboard_git_login` crate — `save`/`load`/`delete` keyed by a normalized host URL, wrapping the shared `credentials_provider::CredentialsProvider` (macOS Keychain; dev JSON fallback). Env-var fallback (`GITHUB_TOKEN`/`GITLAB_TOKEN`/`BITBUCKET_TOKEN`) wins, mirroring `language_model::api_key::ApiKeyState`. `KNOWN_PROVIDERS` table (host, PAT-creation URL, scopes hint, token-username convention: GitHub `x-access-token`, GitLab `oauth2`, BitBucket `x-token-auth`). No UI/wiring yet.
+- **Reused, didn't reinvent:** the existing keychain abstraction (same one LLM keys use) — tokens never touch settings/plaintext.
+- **Verified:** 5 tests pass — host-key normalization, provider lookup, env-token resolution (injected env getter), and an async save→load→delete roundtrip + empty-token rejection using an in-memory fake provider (never touches the real keychain). Clippy clean.
+- **Next:** Phase 2 = askpass injection in `git_ui` (the part that makes saved creds actually answer git's prompts); Phase 3 = manage-logins modal + `git_login: Manage` action + docs.
+
 ### README→website sync skill (`/update-site`)
 
 - Created `.claude/skills/update-site/SKILL.md` — the website analogue of `/update-tour`. Reads this repo's `README.md` and reconciles the **separate `paddleboarddev/site` repo**'s `hugo.toml` params (tagline/subtitle/description) + `[[params.features]]` cards, builds with `hugo`, and opens a PR there. Encodes "translate dev-detail → marketing copy, don't dump"; notes the Apple/status disclaimer has its own spot (the CTA band).
