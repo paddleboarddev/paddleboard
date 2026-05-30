@@ -189,6 +189,7 @@ dependencies = [
  "paddleboard_env_vars",
  "paddleboard_sandbox_prereqs_state",
  "paddleboard_sandbox_settings",
+ "paddleboard_scion",
  "parking_lot",
  "paths",
  "pretty_assertions",
