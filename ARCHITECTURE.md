@@ -1,7 +1,7 @@
 # PaddleBoard — Architecture Report
 
 _Date: 2026-04-16_
-_Scope: Overall architecture of the repository at `/Users/jaysmith/Projects/Tools/PaddleBoard`_
+_Scope: Overall architecture of the PaddleBoard repository_
 
 ## 1. What this repository is
 

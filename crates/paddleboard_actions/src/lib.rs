@@ -379,8 +379,7 @@ pub mod feedback {
     actions!(
         feedback,
         [
-            /// Opens email client to send feedback to Zed support.
-            EmailZed,
+            // PaddleBoard: dropped EmailZed (mailed hi@zed.dev; no PB support inbox).
             /// Opens the bug report form.
             FileBugReport,
             /// Opens the feature request form.

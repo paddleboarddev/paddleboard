@@ -287,7 +287,7 @@ identifier = "dev.paddleboard.PaddleBoard-Dev"
 name = "PaddleBoard Dev"
 osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
-osx_url_schemes = ["zed"]
+osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-nightly]
 icon = ["resources/app-icon-nightly@2x.png", "resources/app-icon-nightly.png"]
@@ -295,7 +295,7 @@ identifier = "dev.paddleboard.PaddleBoard-Nightly"
 name = "PaddleBoard Nightly"
 osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
-osx_url_schemes = ["zed"]
+osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-preview]
 icon = ["resources/app-icon-preview@2x.png", "resources/app-icon-preview.png"]
@@ -303,7 +303,7 @@ identifier = "dev.paddleboard.PaddleBoard-Preview"
 name = "PaddleBoard Preview"
 osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
-osx_url_schemes = ["zed"]
+osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-stable]
 icon = ["resources/app-icon@2x.png", "resources/app-icon.png"]
@@ -311,7 +311,7 @@ identifier = "dev.paddleboard.PaddleBoard"
 name = "PaddleBoard"
 osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
-osx_url_schemes = ["zed"]
+osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.cargo-machete]
 ignored = ["profiling", "zstd", "tracing"]
