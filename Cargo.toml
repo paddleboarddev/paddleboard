@@ -240,6 +240,7 @@ members = [
     "crates/paddleboard_languages_ui",
     "crates/paddleboard_vertex",
     "crates/paddleboard_scion",
+    "crates/paddleboard_scion_settings",
     "crates/paddleboard_scion_ui",
     "crates/windows_resources",
     "crates/zeta_prompt",
@@ -509,6 +510,7 @@ paddleboard_ai_dock = { path = "crates/paddleboard_ai_dock" }
 paddleboard_languages_ui = { path = "crates/paddleboard_languages_ui" }
 paddleboard_vertex = { path = "crates/paddleboard_vertex" }
 paddleboard_scion = { path = "crates/paddleboard_scion" }
+paddleboard_scion_settings = { path = "crates/paddleboard_scion_settings" }
 paddleboard_scion_ui = { path = "crates/paddleboard_scion_ui" }
 edit_prediction = { path = "crates/edit_prediction" }
 edit_prediction_metrics = { path = "crates/edit_prediction_metrics" }

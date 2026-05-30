@@ -1727,9 +1727,11 @@ impl Thread {
             self.add_tool(SpawnAgentTool::new(environment));
         }
 
-        // PaddleBoard: expose Scion delegation only when the scion CLI is installed,
-        // so the tool list stays clean on machines without it.
-        if paddleboard_scion::ScionCli::new().is_available() {
+        // PaddleBoard: expose Scion delegation only when the integration is opted in
+        // (settings, default off) AND the scion CLI is installed.
+        if paddleboard_scion_settings::ScionSettings::get_global(cx).enabled
+            && paddleboard_scion::ScionCli::new().is_available()
+        {
             self.add_tool(SpawnScionAgentTool::new(self.project.clone()));
         }
     }

@@ -11,6 +11,7 @@ use gpui_tokio::Tokio;
 use paddleboard_scion::{
     AgentActivity, AgentInfo, AgentPhase, ScionCli, StartAgentOptions, TemplateInfo,
 };
+use settings::Settings;
 use workspace::{Toast, Workspace, notifications::NotificationId};
 
 pub use start_agent_modal::StartAgentModal;
@@ -329,6 +330,10 @@ pub fn init(cx: &mut App) {
         |workspace: &mut Workspace,
          _window: Option<&mut Window>,
          cx: &mut Context<Workspace>| {
+            // PaddleBoard: opt-in. Don't poll or register Scion unless enabled in settings.
+            if !paddleboard_scion_settings::ScionSettings::get_global(cx).enabled {
+                return;
+            }
             let project_dir = workspace
                 .project()
                 .read(cx)

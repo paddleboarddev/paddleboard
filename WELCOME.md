@@ -155,7 +155,7 @@ The tree updates in real time as threads start, finish, or spawn subagents.
 
 #### Scion agents
 
-When [Scion](https://github.com/GoogleCloudPlatform/scion) is installed, a **Scion Agents** section appears below the native threads. Each agent shows a color-coded status icon and live activity badge (e.g., "executing · Edit", "thinking"). Right-click an agent row for:
+The Scion integration is **opt-in** — enable it with `"paddleboard_scion": { "enabled": true }` in your settings (installing the CLI alone won't activate it). Once enabled and [Scion](https://github.com/GoogleCloudPlatform/scion) is installed, a **Scion Agents** section appears below the native threads. Each agent shows a color-coded status icon and live activity badge (e.g., "executing · Edit", "thinking"). Right-click an agent row for:
 
 - **View Logs** — opens a live-streaming log tab that tails `scion logs -f`. New lines appear in real time; the stream stops when you close the tab.
 - **Sync Changes** — pulls the agent's worktree changes into your local project. Shows a toast on success and refreshes the agent list.

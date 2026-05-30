@@ -15,6 +15,7 @@ use paddleboard_scion::{AgentInfo, AgentPhase, ScionCli};
 use paddleboard_scion_ui::{
     ScionEvent, ScionEventKind, ScionStore, ScionStoreEvent, ScionStoreGlobal,
 };
+use settings::Settings;
 use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
 use workspace::{
     Toast, Workspace,
@@ -375,6 +376,10 @@ impl Panel for OrchestrationPanel {
 impl OrchestrationPanel {
     // PaddleBoard: Scion agent section rendering
     fn render_scion_section(&self, cx: &mut Context<Self>) -> Option<gpui::AnyElement> {
+        // PaddleBoard: opt-in — hide the Scion section unless enabled in settings.
+        if !paddleboard_scion_settings::ScionSettings::get_global(cx).enabled {
+            return None;
+        }
         let store = self.scion_store.as_ref()?;
         let store_read = store.read(cx);
         if !store_read.is_available() {

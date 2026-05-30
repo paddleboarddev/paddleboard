@@ -10,6 +10,8 @@ pub mod merge_from;
 mod paddleboard_sandbox;
 // PaddleBoard: schema for OpenTelemetry trace export.
 mod paddleboard_otel;
+// PaddleBoard: schema for the Scion integration (opt-in).
+mod paddleboard_scion;
 mod project;
 mod serde_helper;
 mod terminal;
@@ -27,6 +29,7 @@ pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
 // PaddleBoard: re-export sandbox and OTEL content types alongside the rest.
 pub use paddleboard_otel::*;
+pub use paddleboard_scion::*;
 pub use paddleboard_sandbox::*;
 pub use project::*;
 use serde::de::DeserializeOwned;
@@ -270,6 +273,9 @@ pub struct SettingsContent {
 
     // PaddleBoard: configuration for OpenTelemetry trace export (opt-in).
     pub paddleboard_otel: Option<PaddleboardOtelContent>,
+
+    // PaddleBoard: configuration for the Scion integration (opt-in, default off).
+    pub paddleboard_scion: Option<PaddleboardScionContent>,
 
     /// Local overrides for feature flags, keyed by flag name.
     pub feature_flags: Option<FeatureFlagsMap>,
