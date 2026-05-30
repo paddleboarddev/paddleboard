@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### How-To docs shipped (cross-repo: paddleboarddev/docs)
+
+- Decided the docs toolchain: **mdBook** (the main repo's `docs/` already uses it — Rust-native; Hugo stays the *marketing site*). Confirmed the existing `docs/book.toml` uses Zed's custom `zed-html` renderer, which we did NOT reuse — plain mdBook for the new repo.
+- Scaffolded **`paddleboarddev/docs`** into an mdBook site (`book.toml`, `src/SUMMARY.md` + 9 guides: introduction, getting-started, LLM providers incl. Vertex/gcloud, AI Dock, agent frameworks, Scion opt-in, language tiers, Git Login, sandbox/MCP, settings reference). Content adapted from README/WELCOME into standalone how-tos.
+- Deploy via `.github/workflows/mdbook.yml` (mdBook 0.5.3 → GitHub Pages). **Live at https://paddleboarddev.github.io/docs/** (200, verified). `paddleboarddev/docs` PR #1 merged; Pages enabled (Actions source).
+- Cross-repo note logged here per the recap convention (the docs repo has no RECAPS). Hit a git-lock race from a lingering background push during setup — resolved; final branch pushed cleanly and PR'd (no direct main push, per the classifier).
+
 ### Git Login — Phase 3: management modal (feature complete)
 
 - Built the **"Manage Git Logins" modal** + `git_login: Manage` command — the user-facing piece that writes tokens to the keychain. `crates/git_ui/src/git_login_modal.rs`: provider quick-buttons (GitHub/GitLab/BitBucket) that prefill host + token-username, editable host/username/token (masked) fields, a "Create a token →" link with scopes hint per provider, and Save/Remove; a status line reports "Signed in as X" / "(from env var)" / "Not signed in". Modeled on `add_llm_provider_modal` (`InputField`, `Modal`/`Section`/`ModalFooter`).
