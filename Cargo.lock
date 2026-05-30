@@ -12739,6 +12739,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "paddleboard_git_login"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "credentials_provider",
+ "gpui",
+ "log",
+]
+
+[[package]]
 name = "paddleboard_languages_ui"
 version = "0.1.0"
 dependencies = [
