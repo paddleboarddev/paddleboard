@@ -271,7 +271,7 @@ pub fn check(_: &Check, window: &mut Window, cx: &mut App) {
     drop(window.prompt(
         gpui::PromptLevel::Info,
         "Auto-updates are disabled in PaddleBoard",
-        Some("Track new releases at https://github.com/jasonsmithio/paddleboard/releases."),
+        Some("Track new releases at https://github.com/paddleboarddev/paddleboard/releases."),
         &["Ok"],
         cx,
     ));
@@ -281,7 +281,7 @@ pub fn release_notes_url(_cx: &mut App) -> Option<String> {
     // PaddleBoard: the upstream Stable/Preview path built a URL through the cloud LLM API host
     // (zed.dev), and the Nightly/Dev paths hardcoded zed-industries/zed commit pages. All four
     // are wrong for PaddleBoard. Point every channel at PaddleBoard's GitHub releases page.
-    Some("https://github.com/jasonsmithio/paddleboard/releases".to_string())
+    Some("https://github.com/paddleboarddev/paddleboard/releases".to_string())
 }
 
 pub fn view_release_notes(_: &ViewReleaseNotes, cx: &mut App) -> Option<()> {
@@ -486,7 +486,7 @@ impl AutoUpdater {
         anyhow::bail!(
             "Remote development isn't supported in this PaddleBoard build: \
              no PaddleBoard remote-server binary is hosted. \
-             See https://github.com/jasonsmithio/paddleboard for status."
+             See https://github.com/paddleboarddev/paddleboard for status."
         );
 
         #[allow(unreachable_code, unused_variables)]
