@@ -4,6 +4,18 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ---
 
+## 2026-05-30
+
+### Swift moved to the opt-in language tier
+
+- **Enabled HTTPS enforcement on paddleboard.dev** — the Let's Encrypt cert provisioned overnight (state `approved`, site serves 200), so flipped `https_enforced=true` on the Pages site.
+- **Swift is now opt-in** (like Kotlin) instead of auto-on. Swift was built-in (`crates/languages/src/swift.rs`, server `sourcekit-lsp`, PATH-only from the toolchain) with no `default.json` entry, so it attached automatically. Now:
+  - Added a `Swift` `INSTALL_TIER` entry in `paddleboard_languages_ui` (`adapter: "sourcekit-lsp"`, prereq notes it's PATH-resolved from the Swift toolchain, not downloaded).
+  - Added `"Swift": { "language_servers": ["!sourcekit-lsp", "..."] }` to `assets/settings/default.json`.
+  - The coupling test (`builtin_adapters_are_disabled_by_default`) keeps the two in sync — passes; settings crate's default-parse tests pass.
+- Docs updated: README, WELCOME (now "six built-in" opt-in languages), and the in-app tour.
+- **Verified:** `paddleboard_languages_ui` 2 tests + `settings` 28 tests pass; `cargo check` clean.
+
 ## 2026-05-29
 
 ### Day wrap-up + feature backlog captured
