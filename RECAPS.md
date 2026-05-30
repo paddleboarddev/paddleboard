@@ -6,6 +6,14 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### Git Login — Phase 2: askpass injection
+
+- Wired saved logins into git's HTTPS auth. `git_ui::git_panel::askpass_delegate` now parses git's prompt (`paddleboard_git_login::parse_git_prompt`), looks up a saved login via `paddleboard_credentials_provider::global`, and answers git's Username/Password prompt **directly through the askpass channel** — skipping the modal. If there's no saved login it falls back to the existing `AskPassModal`, unchanged.
+- **Only auto-answers HTTPS:** `parse_git_prompt` matches `Username for '…'`/`Password for '…'` with an `http(s)` URL only — SSH key passphrases and host-key confirmations don't match, so they always reach the modal. Added the parser + `PromptKind` to the store crate with unit tests (incl. the SSH-passphrase negative case).
+- **Gotcha (recorded):** this fork's `AsyncApp::update` is **infallible** (`fn update<R>(&self, …) -> R`, not `Result`) — bind it directly; it can't go in a `let`-chain as a refutable pattern.
+- **Testable now:** with no save UI yet (Phase 3), the env-var fallback means setting `GITHUB_TOKEN` makes git HTTPS prompts auto-answer. Keychain-backed saves arrive with the Phase 3 modal.
+- **Verified:** store crate 6 tests pass; `git_ui` + full `paddleboard` build clean; clippy clean.
+
 ### Git Login — Phase 1: credential store crate
 
 - Planned the **Git Login** feature (approved): save GitHub/GitLab/BitBucket Personal Access Tokens in the OS keychain so git HTTPS clone/fetch/push authenticate without prompting. **PAT-first** (no OAuth — needs shipped client secrets); **v1 = auto-answer the askpass prompt**. Plan: `~/.claude/plans/enchanted-napping-firefly.md`. Phased into 3 PRs.
