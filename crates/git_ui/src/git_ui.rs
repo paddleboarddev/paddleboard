@@ -31,6 +31,7 @@ use crate::{commit_view::CommitView, git_panel::GitPanel, text_diff_view::TextDi
 
 mod askpass_modal;
 pub mod branch_picker;
+mod git_login_modal;
 mod commit_modal;
 pub mod commit_tooltip;
 pub mod commit_view;
@@ -80,6 +81,7 @@ pub fn init(cx: &mut App) {
         git_panel::register(workspace);
         repository_selector::register(workspace);
         git_picker::register(workspace);
+        git_login_modal::register(workspace);
 
         workspace.register_action(
             |workspace, action: &paddleboard_actions::CreateWorktree, window, cx| {

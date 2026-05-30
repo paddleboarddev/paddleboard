@@ -84,9 +84,14 @@ Keep multiple projects in one window, each as its own workspace with its own pan
 ### 11. Language Support — Two Tiers
 PaddleBoard keeps the default install lean and lets you add the rest with one click.
 - **Ready to use**: Rust, TypeScript, JavaScript, Python, Go, JSON, YAML, HTML/CSS attach automatically — open a file and the server downloads on first use.
-- **Install support** (run **`Manage Languages`** from the Command Palette): **Java**, **Kotlin** (JDK 17+), **PHP** (Node), **C#** (.NET), and **C++** (clangd) ship a built-in server — click Install and PaddleBoard downloads the binary. Each shows its prerequisite up front.
-- **Install support** (opt-in via `Manage Languages`): Java, Kotlin, PHP, C#, C++, and **Swift** (SourceKit-LSP from your toolchain, resolved from PATH). **Ruby** and **Dart** come from extensions.
+- **Install support** (run **`Manage Languages`**): **Java**, **Kotlin** (JDK 17+), **PHP** (Node), **C#** (.NET), **C++** (clangd), and **Swift** (SourceKit-LSP, PATH-resolved from your toolchain) ship a built-in server — click Install, prerequisite shown up front. **Ruby** and **Dart** come from extensions.
 - **Build tool context**: Java and Kotlin auto-detect Gradle/Maven projects and expose `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables.
+
+### 12. Git Login
+Save your git host credentials once so HTTPS git operations stop prompting.
+- Run **`git login: Manage`** → pick GitHub, GitLab, BitBucket (or a custom host), paste a Personal Access Token. Stored in your **OS keychain**.
+- `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
+- `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback. PAT-only for now; SSH is untouched.
 
 ---
 

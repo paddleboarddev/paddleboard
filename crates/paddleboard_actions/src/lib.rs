@@ -348,6 +348,18 @@ pub mod toast {
     );
 }
 
+pub mod git_login {
+    use gpui::actions;
+
+    actions!(
+        git_login,
+        [
+            /// Manage saved Git logins (credentials for GitHub, GitLab, and BitBucket).
+            Manage
+        ]
+    );
+}
+
 pub mod command_palette {
     use gpui::actions;
 
