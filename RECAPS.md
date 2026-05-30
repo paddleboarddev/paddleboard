@@ -6,6 +6,11 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### Point docs at docs.paddleboard.dev (cross-repo)
+
+- Set the **docs repo Pages custom domain to `docs.paddleboard.dev`** (cname via API) and repointed the **site's `docs` param** there (PR #3, `paddleboarddev/site`) — nav/footer/CTA Docs links now target the subdomain instead of the GitHub repo.
+- **Pending user DNS:** a `CNAME` record `docs` → `paddleboarddev.github.io` (subdomain → CNAME, not apex A records). HTTPS cert auto-provisions after DNS resolves (`.dev` = HTTPS-only). Until then docs.paddleboard.dev (and the github.io/docs redirect) won't resolve.
+
 ### How-To docs shipped (cross-repo: paddleboarddev/docs)
 
 - Decided the docs toolchain: **mdBook** (the main repo's `docs/` already uses it — Rust-native; Hugo stays the *marketing site*). Confirmed the existing `docs/book.toml` uses Zed's custom `zed-html` renderer, which we did NOT reuse — plain mdBook for the new repo.
