@@ -1,0 +1,21 @@
+[package]
+name = "paddleboard_git_login"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_git_login.rs"
+
+[dependencies]
+anyhow.workspace = true
+credentials_provider.workspace = true
+gpui.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
