@@ -6,6 +6,13 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### Git Login — verified live end-to-end
+
+- Live-tested the full feature: debug-built + launched the app on a throwaway **private** repo with an **HTTPS** remote. Confirmed the machine has no cached GitHub HTTPS credential (an HTTPS clone failed auth), so git genuinely falls through to PaddleBoard's askpass — making the test conclusive rather than accidentally passing via a cached helper.
+- Saved a GitHub PAT via `git login: Manage`, then **Push from PaddleBoard's git panel succeeded with no password prompt**; the commit landed on the remote (verified via the API). Proves the askpass injection supplies saved credentials for real.
+- **Git Login is now done + verified.** Cleanup: removed the `/tmp` clone; the throwaway repo `jasonsmithio/pb-git-login-test` and the test PAT should be deleted/revoked by the user (token lacks `delete_repo` scope).
+- Reusable gotcha captured in memory: dev machines often cache a github.com credential, so a naive push "passing" doesn't prove the feature — test against a host/repo with no cached cred (or disable the helper).
+
 ### Point docs at docs.paddleboard.dev (cross-repo)
 
 - Set the **docs repo Pages custom domain to `docs.paddleboard.dev`** (cname via API) and repointed the **site's `docs` param** there (PR #3, `paddleboarddev/site`) — nav/footer/CTA Docs links now target the subdomain instead of the GitHub repo.
