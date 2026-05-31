@@ -6,6 +6,25 @@ Running log of completed work sessions, newest first. Each entry summarizes a co
 
 ## 2026-05-30
 
+### Auto-update Phase 2 — designed, build deferred
+
+- **Design only** (no code changed). Saved to `~/.claude/plans/auto-update-phase-2-github-releases.md`, implementable cold; memory `project_upgrade_server.md` updated.
+- **Key call: no upgrade server** (user-confirmed). The updater queries the GitHub Releases API directly (`releases/latest` → `tag_name` + asset `browser_download_url`). Zero infra.
+- **Scoped it down from "big server build" to 3 seams:** the download→version-compare→dmg-mount→install→restart machinery is intact and already PB-aware (`target_path`→`PaddleBoard.dmg`, `install_release_macos` via `hdiutil`, `POLL_INTERVAL`=1hr, `poll()` present). Only severed: `init` poll loop (`:245`), `check` "disabled" prompt (`:254`), `get_release_asset` zed-cloud URL (`:576`); plus reactivate vestigial `AutoUpdateSetting` (`:218`).
+- **Self-gating, no kill-switch:** `releases/latest` skips drafts (Phase 1 ships drafts → "Publish" = go-live), private repo 404s the anon API → inert until public, notarized DMG → Gatekeeper validates.
+- **Preserved intentionally:** the existing neutered-state behavior (GitHub releases-page link, `PADDLEBOARD_UPDATE_EXPLANATION` escape) stays until build. macOS arm64 only; Stable channel only.
+- **Follow-up:** build is **deferred** (user choice) — can't live-test while private. Pick up on the go-public path (Apple secrets → tag → publish non-draft release).
+
+### docs.paddleboard.dev verified fully live
+
+- User added the DNS `CNAME` (`docs` → `paddleboarddev.github.io`); verified end-to-end: DNS resolves, **HTTPS 200 with valid cert**, Pages `https_enforced: true` / `cert_state: approved`, and `paddleboarddev.github.io/docs/` 301-redirects to the subdomain. Closes the last pending item from the docs thread.
+- Memory `project_docs_and_site_automation.md` flipped from "pending user DNS" → live.
+
+### Bump actions/checkout to v5 in CI
+
+- Swept the upstream-merge queue (caught up — PRs #43, #58 merged; next scheduled run ~06-01) and drift status (`--check` green; baseline correctly left unreset since it post-dates the last merge; `crates/editor` closest at +4,673/5,000 from upstream churn, resets on next merge).
+- **Quick win cleared:** the weekly merge run logged a Node 20 deprecation (`actions/checkout@v4`, force-migrated June 2). Bumped to `@v5` (Node 24-native) across `release.yml`, `merge_upstream_zed.yml`, `upstream-drift.yml`. PR #78, squash-merged; branch cleaned up. YAML-only, no behavior change.
+
 ### Git Login — verified live end-to-end
 
 - Live-tested the full feature: debug-built + launched the app on a throwaway **private** repo with an **HTTPS** remote. Confirmed the machine has no cached GitHub HTTPS credential (an HTTPS clone failed auth), so git genuinely falls through to PaddleBoard's askpass — making the test conclusive rather than accidentally passing via a cached helper.
