@@ -82,6 +82,17 @@ const INSTALL_TIER: &[InstallLanguage] = &[
         },
     },
     InstallLanguage {
+        key: "Swift",
+        display: "Swift",
+        // sourcekit-lsp ships with the Swift toolchain; it's resolved from PATH,
+        // never downloaded (see crates/languages/src/swift.rs).
+        prereq: "Requires the Swift toolchain (sourcekit-lsp on PATH)",
+        install: Install::Builtin {
+            adapter: "sourcekit-lsp",
+            enabled_servers: &["sourcekit-lsp", "..."],
+        },
+    },
+    InstallLanguage {
         key: "Ruby",
         display: "Ruby",
         prereq: "Provided by an extension",

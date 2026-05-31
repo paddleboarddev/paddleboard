@@ -2307,6 +2307,11 @@
         "plugins": ["prettier-plugin-svelte"],
       },
     },
+    // PaddleBoard: Swift is opt-in — sourcekit-lsp stays disabled until enabled
+    // via the Manage Languages modal (it ships with the Swift toolchain).
+    "Swift": {
+      "language_servers": ["!sourcekit-lsp", "..."],
+    },
     "TSX": {
       "language_servers": ["!typescript-language-server", "vtsls", "..."],
       "prettier": {
