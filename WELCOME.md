@@ -232,6 +232,17 @@ Location defaults to `global`, where the newest models live (Gemini 3 and the `-
 
 ---
 
+### Git Login
+
+Run **`git login: Manage`** from the command palette to save a Personal Access Token for **GitHub**, **GitLab**, **BitBucket**, or a custom host. Tokens are stored in your **OS keychain** (never in settings or plaintext). Once saved, git HTTPS `clone`/`fetch`/`push` authenticate silently — the password prompt only appears when there's no saved login.
+
+- The modal links straight to each provider's token page and shows the scopes to grant.
+- Environment variables work as a fallback: set `GITHUB_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` and git auth is answered from there.
+- PaddleBoard sends the conventional token username per provider (`x-access-token` for GitHub, `oauth2` for GitLab, `x-token-auth` for BitBucket) unless you set your own.
+- PAT-only today; SSH and host-key prompts are untouched (they still prompt as usual).
+
+---
+
 ### Built-in language servers
 
 PaddleBoard splits language support into two tiers so the default install stays lean and languages that need an external toolchain don't fail silently.
