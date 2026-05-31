@@ -7254,6 +7254,8 @@ dependencies = [
  "multi_buffer",
  "notifications",
  "paddleboard_actions",
+ "paddleboard_credentials_provider",
+ "paddleboard_git_login",
  "panel",
  "picker",
  "pretty_assertions",

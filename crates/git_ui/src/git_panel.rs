@@ -3327,15 +3327,41 @@ impl GitPanel {
         let operation = operation.into();
         let window = window.window_handle();
         AskPassDelegate::new(&mut cx.to_async(), move |prompt, tx, cx| {
-            window
-                .update(cx, |_, window, cx| {
-                    workspace.update(cx, |workspace, cx| {
-                        workspace.toggle_modal(window, cx, |window, cx| {
-                            AskPassModal::new(operation.clone(), prompt.into(), tx, window, cx)
-                        });
+            // PaddleBoard: answer git HTTPS auth prompts from a saved Git Login
+            // (keychain) when one exists for the host; otherwise fall back to the
+            // interactive prompt modal. SSH passphrases / host-key prompts don't
+            // match `parse_git_prompt` and always fall through to the modal.
+            let workspace = workspace.clone();
+            let operation = operation.clone();
+            cx.spawn(async move |cx| {
+                if let Some((url, kind)) = paddleboard_git_login::parse_git_prompt(&prompt) {
+                    let provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
+                    if let Ok(Some(login)) =
+                        paddleboard_git_login::load(&url, provider.as_ref(), cx).await
+                    {
+                        let answer = match kind {
+                            paddleboard_git_login::PromptKind::Username => login.username,
+                            paddleboard_git_login::PromptKind::Password => login.token,
+                        };
+                        if let Ok(password) =
+                            askpass::EncryptedPassword::try_from(answer.as_str())
+                        {
+                            tx.send(password).ok();
+                            return;
+                        }
+                    }
+                }
+                window
+                    .update(cx, |_, window, cx| {
+                        workspace.update(cx, |workspace, cx| {
+                            workspace.toggle_modal(window, cx, |window, cx| {
+                                AskPassModal::new(operation, prompt.into(), tx, window, cx)
+                            });
+                        })
                     })
-                })
-                .ok();
+                    .ok();
+            })
+            .detach();
         })
     }
 

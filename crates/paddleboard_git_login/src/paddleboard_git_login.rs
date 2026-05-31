@@ -167,6 +167,37 @@ pub async fn save(
         .await
 }
 
+/// What git is asking for in an askpass prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptKind {
+    Username,
+    Password,
+}
+
+/// Parse a git HTTPS askpass prompt into the target URL and what git wants.
+///
+/// git emits prompts like `Username for 'https://github.com': ` and
+/// `Password for 'https://x-access-token@github.com': `. Returns `None` for
+/// anything we should NOT auto-answer (SSH key passphrases, host-key
+/// confirmations, non-HTTP URLs) so those still fall through to the modal.
+pub fn parse_git_prompt(prompt: &str) -> Option<(String, PromptKind)> {
+    let kind = if prompt.starts_with("Username for ") {
+        PromptKind::Username
+    } else if prompt.starts_with("Password for ") {
+        PromptKind::Password
+    } else {
+        return None;
+    };
+    let start = prompt.find('\'')? + 1;
+    let rest = prompt.get(start..)?;
+    let end = rest.find('\'')?;
+    let url = &rest[..end];
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return None;
+    }
+    Some((url.to_string(), kind))
+}
+
 /// Delete the saved login for the given host or git URL.
 pub async fn delete(
     host_or_url: &str,
@@ -272,6 +303,33 @@ mod tests {
                 Ok(())
             })
         }
+    }
+
+    #[test]
+    fn parse_git_prompt_matches_https_only() {
+        assert_eq!(
+            parse_git_prompt("Username for 'https://github.com': "),
+            Some(("https://github.com".to_string(), PromptKind::Username))
+        );
+        assert_eq!(
+            parse_git_prompt("Password for 'https://x-access-token@github.com': "),
+            Some((
+                "https://x-access-token@github.com".to_string(),
+                PromptKind::Password
+            ))
+        );
+        // SSH key passphrase — must NOT be auto-answered.
+        assert_eq!(
+            parse_git_prompt("Enter passphrase for key '/home/u/.ssh/id_ed25519': "),
+            None
+        );
+        // Non-HTTP URL — leave to the modal.
+        assert_eq!(parse_git_prompt("Password for 'ssh://git@host': "), None);
+        // Host-key confirmation — leave to the modal.
+        assert_eq!(
+            parse_git_prompt("The authenticity of host 'github.com' can't be established."),
+            None
+        );
     }
 
     #[gpui::test]
