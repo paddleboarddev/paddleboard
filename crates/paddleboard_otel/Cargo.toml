@@ -1,0 +1,25 @@
+[package]
+name = "paddleboard_otel"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_otel.rs"
+
+[dependencies]
+anyhow.workspace = true
+gpui.workspace = true
+log.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+paddleboard_otel_settings.workspace = true
+settings.workspace = true
+tracing.workspace = true
+tracing-opentelemetry.workspace = true
+tracing-subscriber.workspace = true

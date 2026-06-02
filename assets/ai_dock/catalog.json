@@ -1,0 +1,188 @@
+{
+  "$schema_note": "PaddleBoard AI Dock catalog. Edit via PR. See crates/paddleboard_ai_dock/src/catalog.rs for the schema.",
+  "agents": [
+    {
+      "id": "zed-agent",
+      "name": "Zed Agent",
+      "description": "First-party agent backed by Anthropic, OpenAI, and Google models. Sign in to use.",
+      "homepage": "https://zed.dev/agent",
+      "featured": true,
+      "builtin_zed": true
+    },
+    {
+      "id": "claude-acp",
+      "name": "Claude",
+      "description": "Anthropic's Claude agent over ACP. Streaming tool use, persistent threads, multi-modal.",
+      "homepage": "https://docs.claude.com/en/docs/claude-code/overview",
+      "featured": true
+    },
+    {
+      "id": "codex-acp",
+      "name": "Codex",
+      "description": "OpenAI's terminal coding agent. Runs locally; bring your own API key.",
+      "homepage": "https://github.com/openai/codex",
+      "featured": true
+    },
+    {
+      "id": "github-copilot-cli",
+      "name": "Copilot",
+      "description": "GitHub's coding assistant. Sign in with your GitHub account.",
+      "homepage": "https://github.com/features/copilot",
+      "featured": true
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "description": "Cursor's agent over ACP. Connects to the Cursor backend.",
+      "homepage": "https://www.cursor.com/",
+      "featured": false
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "description": "Google's Gemini CLI over ACP. Sign in with your Google account or bring your own API key.",
+      "homepage": "https://github.com/google-gemini/gemini-cli",
+      "featured": true
+    },
+    {
+      "id": "google-adk",
+      "name": "Google ADK",
+      "description": "Google's Agent Development Kit. Scaffold and run AI agents locally.",
+      "homepage": "https://google.github.io/adk-docs/",
+      "featured": false,
+      "install_command": "pip install google-adk"
+    },
+    {
+      "id": "langgraph",
+      "name": "LangGraph",
+      "description": "LangChain's framework for building stateful, multi-actor agent applications.",
+      "homepage": "https://langchain-ai.github.io/langgraph/",
+      "featured": false,
+      "install_command": "pip install langgraph-cli[inmem]"
+    },
+    {
+      "id": "crewai",
+      "name": "CrewAI",
+      "description": "Framework for orchestrating role-playing, autonomous AI agent crews. Scaffold and run locally.",
+      "homepage": "https://www.crewai.com/",
+      "featured": false,
+      "install_command": "pip install crewai"
+    },
+    {
+      "id": "autogen",
+      "name": "AutoGen",
+      "description": "Microsoft's multi-agent framework. Launch AutoGen Studio, a local web UI for building agents.",
+      "homepage": "https://microsoft.github.io/autogen/",
+      "featured": false,
+      "install_command": "pip install autogenstudio"
+    }
+  ],
+  "skills": [
+    {
+      "id": "build",
+      "name": "/build",
+      "description": "Build PaddleBoard via cargo. Use `bundle` for a macOS .app, `install` to drop it into /Applications.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "update-tour",
+      "name": "/update-tour",
+      "description": "Sync the in-app first-launch tour with the latest WELCOME.md after a user-facing change.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "clippy",
+      "name": "/clippy",
+      "description": "Run ./script/clippy (the project's custom lint script) instead of raw cargo clippy.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "test",
+      "name": "/test",
+      "description": "Run tests for a specific crate, file, or the whole project. Parses arguments to pick the right cargo test invocation.",
+      "homepage": null,
+      "featured": true
+    },
+    {
+      "id": "check-drift",
+      "name": "/check-drift",
+      "description": "Run script/check-upstream-drift to see how far PaddleBoard has diverged from upstream Zed.",
+      "homepage": null,
+      "featured": false
+    },
+    {
+      "id": "verify",
+      "name": "/verify",
+      "description": "Run the app and confirm a change actually does what it's supposed to do.",
+      "homepage": null,
+      "featured": false,
+      "builtin": true
+    },
+    {
+      "id": "review",
+      "name": "/review",
+      "description": "Review a pull request.",
+      "homepage": null,
+      "featured": false,
+      "builtin": true
+    },
+    {
+      "id": "security-review",
+      "name": "/security-review",
+      "description": "Run a complete security review of pending changes on the current branch.",
+      "homepage": null,
+      "featured": false,
+      "builtin": true
+    }
+  ],
+  "mcp_servers": [
+    {
+      "id": "filesystem",
+      "name": "Filesystem",
+      "description": "Read, write, and list files under a directory you allow.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "featured": true
+    },
+    {
+      "id": "fetch",
+      "name": "Fetch",
+      "description": "HTTP fetch for URLs, returning markdown-converted text.",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+      "featured": true
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "description": "Inspect git history, branches, diffs, and blame for a repository.",
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "."],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/git",
+      "featured": true
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "description": "Read and write to GitHub repos, issues, and PRs via the GitHub API.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
+      "featured": false
+    },
+    {
+      "id": "puppeteer",
+      "name": "Puppeteer",
+      "description": "Headless browser automation: navigate pages, take screenshots, scrape content.",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer",
+      "featured": false
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[package]
+name = "paddleboard_sandbox_prereqs_state"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_sandbox_prereqs_state.rs"
+
+[dependencies]
+gpui.workspace = true
+gpui_tokio.workspace = true
+paddleboard_sandbox_prereqs.workspace = true
