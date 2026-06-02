@@ -37,13 +37,25 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 
 ## Building
 
-The upstream build process is unmodified:
+PaddleBoard builds with [Cargo](https://doc.rust-lang.org/cargo/), the same toolchain as upstream Zed.
 
-- [Building on macOS](./docs/src/development/macos.md)
-- [Building on Linux](./docs/src/development/linux.md)
-- [Building on Windows](./docs/src/development/windows.md)
+1. **Install the prerequisites.** System dependencies (Xcode, build tools, etc.) are identical to Zed's, so follow the platform guide below for those — but **clone this repository** (`paddleboarddev/paddleboard`), not the Zed repo those inherited docs point at:
+   - [macOS prerequisites](./docs/src/development/macos.md)
+   - [Linux prerequisites](./docs/src/development/linux.md)
+   - [Windows prerequisites](./docs/src/development/windows.md)
 
-Substitute `paddleboard` for `zed` when invoking cargo — for example, `cargo run -p paddleboard` instead of `cargo run -p zed`.
+2. **Run from source.** Substitute `paddleboard` for `zed` anywhere the inherited docs say `zed`:
+
+   ```bash
+   cargo run -p paddleboard
+   ```
+
+3. **Build a proper macOS app bundle** (optional) — produces `PaddleBoard.app` with the icon, dock name, and `paddleboard://` URL scheme. A plain `cargo build` only gives you `target/debug/paddleboard`, which macOS shows as a generic executable.
+
+   ```bash
+   ./script/bundle-mac -d -o    # debug .app (opens when done)
+   ./script/bundle-mac -o       # release .app + .dmg (what the release pipeline ships)
+   ```
 
 Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly.
 
