@@ -38,10 +38,16 @@ treat versions as monotonic. Never number downward.
    ```
 
    This builds a clean full-tree snapshot as a child of the current `public/main`, stamps
-   it with the noreply identity, force-free-pushes it, and pushes the `v0.X.0` tag. The
-   public repo grows a linear release history (`v0.3.0 → v0.4.0 → …`).
+   it with the noreply identity, force-free-pushes it, pushes the `v0.X.0` tag, **and
+   creates/updates the GitHub Release** for that tag in one go. The public repo grows a
+   linear release history (`v0.3.0 → v0.4.0 → …`).
+
+   Release notes default to your message + an auto Full-Changelog compare link to the
+   previous tag. For richer notes: `RELEASE_NOTES_FILE=notes.md bash script/publish-public.sh …`.
+   To push source + tag only (no Release): `SKIP_RELEASE=1 …`. Releases are marked
+   `--prerelease` until the signed-DMG pipeline lands.
 4. *(Once the signed-DMG pipeline exists — see below)* the tag triggers the build, which
-   uploads the notarized DMG to the public GitHub Release for `v0.X.0`.
+   uploads the notarized DMG to that same GitHub Release.
 
 ## First publish / resetting public history
 
