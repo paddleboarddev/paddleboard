@@ -343,5 +343,8 @@ cp target/${target_triple}/${target_dir}/paddleboard "${app_path}/Contents/MacOS
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
 sign_app_binaries
 
-sign_binary "target/$target_triple/release/remote_server"
-gzip -f --stdout --best target/$target_triple/release/remote_server > target/zed-remote-server-macos-$arch_suffix.gz
+# PaddleBoard: use ${target_dir} instead of a hardcoded release/ so `bundle-mac -d`
+# works — in a debug build remote_server lives in debug/, matching the paddleboard/cli
+# copies above. Upstream only ever bundles release, so this path was never exercised.
+sign_binary "target/$target_triple/${target_dir}/remote_server"
+gzip -f --stdout --best target/$target_triple/${target_dir}/remote_server > target/zed-remote-server-macos-$arch_suffix.gz
