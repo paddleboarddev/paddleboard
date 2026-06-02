@@ -160,55 +160,7 @@ Within a running workspace, user input becomes one of three things:
 - An editor/project mutation via `Entity::update`, which may trigger LSP, DAP, buffer_diff, or agent tool calls.
 - An AI interaction — the Agent Panel (`agent_ui::AgentPanel`) sends messages through a `Thread` (`crates/agent/src/thread.rs`); the `Thread` dispatches tool calls to registered `AgentTool` implementations (including PaddleBoard's `SandboxTool`), which in turn use `Project`, `ThreadEnvironment`, and the LLM provider abstractions.
 
-## 5. Observations worth acting on
-
-### 5.1 `browser::init` is never called
-
-`crates/browser/src/lib.rs` defines `pub fn init(cx: &mut App)`, which is the only place that registers an `OpenBrowser` action handler on `Workspace`. A repo-wide search (`grep -rn "browser::init" crates/`) returns nothing, and `crates/zed/src/main.rs` and `crates/zed/src/zed.rs` do not import or reference the `browser` crate (`zed/Cargo.toml` declares `browser.workspace = true` but no `.rs` file uses it).
-
-Practical consequence: the advertised "Press `Cmd-Shift-P` → `workspace: Open Browser`" flow in `tour.md` does nothing — the action type `workspace::OpenBrowser` is defined (in `crates/workspace/src/workspace.rs:14863`), but no handler is installed because `browser::init` never runs. The tour also references `workspace: Open Paddle Board Tour`, which _is_ wired up in `workspace.rs:779`, so that part works.
-
-The minimal fix is to call `browser::init(cx);` somewhere in the initialisation sequence in `main.rs` (alongside `editor::init(cx)` et al.) and ensure `use browser;` is imported. The `wry` backend currently hard-codes `https://google.com` inside the init handler, so a more complete fix should also accept the URL from the `OpenBrowser` action or a prompt.
-
-### 5.2 `SandboxTool` shell quoting is brittle
-
-`sandbox_tool.rs:129–136` builds the Podman command as a single `format!` string with the user-supplied command wrapped in single quotes and escaped with `replace("'", "'\\''")`. That pattern works for well-behaved commands, but the outer quoting assumes the caller runs this string through one more layer of `bash -c` (which is what the agent terminal does). The multi-layer quoting plus the bound-in path interpolation (`'{}:{}'`, `-w '{}'`) is easy to get wrong if paths ever contain single quotes or unusual characters. A safer form is to let Podman take the command as separate argv entries (`podman run ... image bash -c "$CMD"` with `$CMD` passed via environment, or use `--entrypoint`).
-
-Relatedly, `-v '<wd>:<wd>'` mounts the host path at the _same_ absolute path inside the container. This makes host filesystem paths observable inside the sandbox, weakens the "deep isolation" claim in `tour.md`, and can confuse tools that assume `/workspace` or `/app` conventions. Consider mounting at a fixed in-container path (e.g. `/workspace`) and passing `-w /workspace`, so agent output doesn't leak host paths.
-
-### 5.3 `SandboxTool::working_dir` uses fragile path comparison
-
-`working_dir()` compares `input.cd` to `worktree.abs_path().to_string_lossy()` via exact string equality (`sandbox_tool.rs:270–276`). Trailing slashes, symlinks, case differences on case-insensitive filesystems, or any normalisation drift between what the LLM emits and what the worktree stores will produce a spurious "invalid working directory" error. Using `Path::canonicalize` (or at minimum comparing `Path` values rather than strings) would be more forgiving.
-
-### 5.4 Silent error discards violate the project's own coding guidelines
-
-The project's coding guidelines state: _"Never silently discard errors with `let _ =` on fallible operations."_ The `OpenPaddleBoardTour` action handler added by the fork does exactly that on both file writes:
-
-```rust
-// crates/workspace/src/workspace.rs:785–790
-if !tour_path.exists() {
-    let _ = std::fs::write(&tour_path, include_str!("tour.md"));
-}
-if !marker_path.exists() {
-    let _ = std::fs::write(&marker_path, "seen");
-}
-```
-
-Preferred forms per the rules would be `.log_err()` or an explicit `match`/`if let Err(...)`. (There is a separate, pre-existing `let _ = self.send_keystrokes_impl(...)` at line 3282, but that is upstream Zed code; the two tour writes are fork-introduced.)
-
-### 5.5 `browser` and `codestral` crates pin `edition = "2021"`
-
-Every other member crate inherits `edition.workspace = true` (`= "2024"`). `crates/browser/Cargo.toml` and `crates/codestral/Cargo.toml` are the two exceptions. For `browser`, this is fork-added. Switching it to `edition.workspace = true` is a one-line change and matches the rest of the tree. It also avoids confusion if any 2024-edition syntax is introduced in `browser` later.
-
-### 5.6 `browser` crate does not follow the project guidance for new crates
-
-The project guidance says: _"When creating new crates, prefer specifying the library root path in `Cargo.toml` using `[lib] path = "...rs"` instead of the default `lib.rs`, to maintain consistent and descriptive naming (e.g., `gpui.rs` or `main.rs`)."_ The `browser` crate uses the default `src/lib.rs` with no `[lib]` stanza. Most other crates in the tree follow the recommended pattern (`crates/gpui/src/gpui.rs`, `crates/editor/src/editor.rs`, `crates/agent/src/agent.rs`, etc.). Renaming `crates/browser/src/lib.rs` to `crates/browser/src/browser.rs` and adding `[lib] path = "src/browser.rs"` would bring it in line.
-
-### 5.7 The `browser` crate is macOS-only in practice
-
-The `Window::add_webview`/`update_webview` trait methods have default no-op implementations in `crates/gpui/src/platform.rs:642–643`, and a real implementation only in `crates/gpui_macos/src/window.rs:1429–1470`. On Linux and Windows the browser item will render but never mount a web view. This is probably intentional for v0.1, but it is not documented anywhere (`tour.md` doesn't mention platform restrictions). Either a Linux/Windows implementation or an explicit "macOS-only" note in the tour would be clearer.
-
-## 6. Quick navigation reference
+## 5. Quick navigation reference
 
 If you want to go straight to a specific area:
 
