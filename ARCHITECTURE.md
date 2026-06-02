@@ -180,9 +180,9 @@ Relatedly, `-v '<wd>:<wd>'` mounts the host path at the _same_ absolute path ins
 
 `working_dir()` compares `input.cd` to `worktree.abs_path().to_string_lossy()` via exact string equality (`sandbox_tool.rs:270–276`). Trailing slashes, symlinks, case differences on case-insensitive filesystems, or any normalisation drift between what the LLM emits and what the worktree stores will produce a spurious "invalid working directory" error. Using `Path::canonicalize` (or at minimum comparing `Path` values rather than strings) would be more forgiving.
 
-### 5.4 Silent error discards violate the project's own `.rules`
+### 5.4 Silent error discards violate the project's own coding guidelines
 
-`.rules` explicitly states: _"Never silently discard errors with `let _ =` on fallible operations."_ The `OpenPaddleBoardTour` action handler added by the fork does exactly that on both file writes:
+The project's coding guidelines state: _"Never silently discard errors with `let _ =` on fallible operations."_ The `OpenPaddleBoardTour` action handler added by the fork does exactly that on both file writes:
 
 ```rust
 // crates/workspace/src/workspace.rs:785–790
@@ -200,9 +200,9 @@ Preferred forms per the rules would be `.log_err()` or an explicit `match`/`if l
 
 Every other member crate inherits `edition.workspace = true` (`= "2024"`). `crates/browser/Cargo.toml` and `crates/codestral/Cargo.toml` are the two exceptions. For `browser`, this is fork-added. Switching it to `edition.workspace = true` is a one-line change and matches the rest of the tree. It also avoids confusion if any 2024-edition syntax is introduced in `browser` later.
 
-### 5.6 `browser` crate does not follow the `.rules` guidance for new crates
+### 5.6 `browser` crate does not follow the project guidance for new crates
 
-`.rules` says: _"When creating new crates, prefer specifying the library root path in `Cargo.toml` using `[lib] path = "...rs"` instead of the default `lib.rs`, to maintain consistent and descriptive naming (e.g., `gpui.rs` or `main.rs`)."_ The `browser` crate uses the default `src/lib.rs` with no `[lib]` stanza. Most other crates in the tree follow the recommended pattern (`crates/gpui/src/gpui.rs`, `crates/editor/src/editor.rs`, `crates/agent/src/agent.rs`, etc.). Renaming `crates/browser/src/lib.rs` to `crates/browser/src/browser.rs` and adding `[lib] path = "src/browser.rs"` would bring it in line.
+The project guidance says: _"When creating new crates, prefer specifying the library root path in `Cargo.toml` using `[lib] path = "...rs"` instead of the default `lib.rs`, to maintain consistent and descriptive naming (e.g., `gpui.rs` or `main.rs`)."_ The `browser` crate uses the default `src/lib.rs` with no `[lib]` stanza. Most other crates in the tree follow the recommended pattern (`crates/gpui/src/gpui.rs`, `crates/editor/src/editor.rs`, `crates/agent/src/agent.rs`, etc.). Renaming `crates/browser/src/lib.rs` to `crates/browser/src/browser.rs` and adding `[lib] path = "src/browser.rs"` would bring it in line.
 
 ### 5.7 The `browser` crate is macOS-only in practice
 

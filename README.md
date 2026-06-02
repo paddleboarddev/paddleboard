@@ -27,7 +27,7 @@ Every Zed feature still works. The additions, all reachable from the command pal
 
 See [WELCOME.md](./WELCOME.md) for the deep-dive on each feature, including a worked example of building and running a [Google ADK](https://google.github.io/adk-docs/) agent end-to-end inside the sandbox.
 
-We've also deliberately disabled some upstream behavior: telemetry is hard-disabled (events drop at `Telemetry::report_event`, settings toggles removed from onboarding) and Zed Pro trial upsells are inert. See [FORK_HYGIENE.md](./FORK_HYGIENE.md) for the policy.
+We've also deliberately disabled some upstream behavior: telemetry is hard-disabled (events drop at `Telemetry::report_event`, settings toggles removed from onboarding) and Zed Pro trial upsells are inert.
 
 ## What's inherited from Zed
 
@@ -45,13 +45,13 @@ The upstream build process is unmodified:
 
 Substitute `paddleboard` for `zed` when invoking cargo — for example, `cargo run -p paddleboard` instead of `cargo run -p zed`.
 
-For agent contributors, see [`CLAUDE.md`](./CLAUDE.md) for project-specific coding guidelines and [`FORK_HYGIENE.md`](./FORK_HYGIENE.md) for the rules around keeping fork divergence merge-friendly.
+Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly.
 
 ---
 
 ## Relationship to upstream Zed
 
-A scheduled workflow merges `zed-industries/zed:main` into this repo every Monday. Conflicts open a draft PR for manual resolution; clean merges open a normal PR. Most fork-specific code lives in `paddleboard_*` crates so it never touches upstream files. Where we do edit a shared file, the change is tagged with `// PaddleBoard: <reason>` so future merge resolution stays mechanical. Full policy in [FORK_HYGIENE.md](./FORK_HYGIENE.md).
+A scheduled workflow merges `zed-industries/zed:main` into this repo every Monday. Conflicts open a draft PR for manual resolution; clean merges open a normal PR. Most fork-specific code lives in `paddleboard_*` crates so it never touches upstream files. Where we do edit a shared file, the change is tagged with `// PaddleBoard: <reason>` so future merge resolution stays mechanical.
 
 ## License
 
