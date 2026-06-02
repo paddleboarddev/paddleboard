@@ -2,7 +2,9 @@
 description = "The fast, collaborative code editor."
 edition.workspace = true
 name = "paddleboard"
-version = "0.232.0"
+# PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
+# increment — keep-ours on the weekly merge if upstream tries to reset it.
+version = "0.1.0"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
