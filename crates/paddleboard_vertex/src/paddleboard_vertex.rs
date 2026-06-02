@@ -229,6 +229,18 @@ impl GcloudTokenProvider {
     }
 }
 
+/// PaddleBoard security: `project`/`location` come from user settings and are
+/// interpolated into the request host/path that the Google bearer token is sent to.
+/// Restrict them to the GCP segment charset (`[a-z0-9-]`) so a tampered setting like
+/// `evil.example.com.` cannot reshape the authority and exfiltrate the token (SSRF).
+fn is_valid_gcp_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 63
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
 /// Builds the Vertex `streamGenerateContent` URL for the given auth mode.
 /// Service-account and gcloud use the regional endpoint with the project/location
 /// path (Bearer auth); Express mode uses the global endpoint with a `?key=`.
@@ -268,6 +280,19 @@ pub async fn stream_generate_content(
     mut request: GenerateContentRequest,
 ) -> Result<BoxStream<'static, Result<GenerateContentResponse>>> {
     validate_generate_content_request(&request)?;
+    // Reject project/location values that could reshape the request authority before
+    // the bearer token is attached (see is_valid_gcp_segment). Express (ApiKey) mode
+    // uses the fixed global host, so only the Bearer modes need the location check.
+    anyhow::ensure!(
+        is_valid_gcp_segment(project),
+        "invalid Vertex project id: {project:?}"
+    );
+    if !matches!(auth, VertexAuth::ApiKey(_)) {
+        anyhow::ensure!(
+            is_valid_gcp_segment(location),
+            "invalid Vertex location: {location:?}"
+        );
+    }
     let model_id = mem::take(&mut request.model.model_id);
     let uri = vertex_stream_url(auth, project, location, &model_id);
 

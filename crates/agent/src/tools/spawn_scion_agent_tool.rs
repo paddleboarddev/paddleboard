@@ -120,6 +120,51 @@ fn error_output(name: Option<String>, error: impl Into<String>) -> SpawnScionAge
     }
 }
 
+// PaddleBoard: the `name`/`branch`/`template`/`task` fields are chosen freely by the
+// model and reach the `scion` CLI as argv (positional operands and flag values). With
+// no shell involved this is not command injection, but a value beginning with `-` would
+// be parsed by scion as an option (argv injection), and `name` is used as a worktree
+// slug, so `..`/`/` could escape the intended directory. Validate before spawning.
+fn is_safe_slug(value: &str, allow_slash: bool) -> bool {
+    !value.is_empty()
+        && value.len() <= 100
+        && !value.contains("..")
+        && value
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphanumeric())
+        && value.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') || (allow_slash && c == '/')
+        })
+}
+
+fn validate_scion_input(input: &SpawnScionAgentToolInput) -> Result<(), String> {
+    if !is_safe_slug(&input.name, false) {
+        return Err(format!(
+            "Invalid agent name {:?}: start with a letter/digit and use only [A-Za-z0-9._-].",
+            input.name
+        ));
+    }
+    if let Some(template) = &input.template
+        && !is_safe_slug(template, false)
+    {
+        return Err(format!(
+            "Invalid template {template:?}: start with a letter/digit and use only [A-Za-z0-9._-]."
+        ));
+    }
+    if let Some(branch) = &input.branch
+        && !is_safe_slug(branch, true)
+    {
+        return Err(format!(
+            "Invalid branch {branch:?}: start with a letter/digit and use only [A-Za-z0-9._/-]."
+        ));
+    }
+    if input.task.trim_start().starts_with('-') {
+        return Err("Invalid task: must not begin with '-'.".to_string());
+    }
+    Ok(())
+}
+
 impl AgentTool for SpawnScionAgentTool {
     type Input = SpawnScionAgentToolInput;
     type Output = SpawnScionAgentToolOutput;
@@ -166,6 +211,10 @@ impl AgentTool for SpawnScionAgentTool {
                 .map_err(|e| error_output(None, e.to_string()))?;
 
             let name = input.name.clone();
+
+            if let Err(message) = validate_scion_input(&input) {
+                return Err(error_output(Some(name), message));
+            }
 
             let cli = {
                 let mut cli = ScionCli::new();

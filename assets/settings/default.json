@@ -1473,12 +1473,15 @@
   //
   // Default: true
   "word_diff_enabled": true,
-  // Control what info is collected by Zed.
+  // PaddleBoard: telemetry is permanently disabled. These defaults must stay
+  // false to match TelemetrySettingsContent::default and the no-op report_event;
+  // the base JSON layer wins at runtime, so a `true` here re-enables the
+  // metrics_id/system_id identifiers even though event reporting is inert.
   "telemetry": {
     // Send debug info like crash reports.
-    "diagnostics": true,
+    "diagnostics": false,
     // Send anonymized usage data like what languages you're using Zed with.
-    "metrics": true,
+    "metrics": false,
   },
   // Whether to disable all AI features in Zed.
   //

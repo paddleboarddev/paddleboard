@@ -1,5 +1,9 @@
 **/*.db
 **/*.proptest-regressions
+# Editor/backup leftovers — must never be committed (and never shipped to the public repo)
+*.bak
+*.orig
+*.swp
 **/cargo-target
 **/target
 .webrtc-sys/

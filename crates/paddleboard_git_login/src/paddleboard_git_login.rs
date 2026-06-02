@@ -192,7 +192,11 @@ pub fn parse_git_prompt(prompt: &str) -> Option<(String, PromptKind)> {
     let rest = prompt.get(start..)?;
     let end = rest.find('\'')?;
     let url = &rest[..end];
-    if !(url.starts_with("http://") || url.starts_with("https://")) {
+    // PaddleBoard security: only auto-answer HTTPS prompts. Answering an `http://`
+    // prompt would hand the saved token to git for transmission in cleartext (and a
+    // malicious/redirected remote could coax it onto http). Let cleartext and non-HTTP
+    // prompts fall through to the interactive modal instead.
+    if !url.starts_with("https://") {
         return None;
     }
     Some((url.to_string(), kind))
@@ -325,6 +329,9 @@ mod tests {
         );
         // Non-HTTP URL — leave to the modal.
         assert_eq!(parse_git_prompt("Password for 'ssh://git@host': "), None);
+        // Cleartext http:// — must NOT be auto-answered (would leak the token in cleartext).
+        assert_eq!(parse_git_prompt("Password for 'http://github.com': "), None);
+        assert_eq!(parse_git_prompt("Username for 'http://github.com': "), None);
         // Host-key confirmation — leave to the modal.
         assert_eq!(
             parse_git_prompt("The authenticity of host 'github.com' can't be established."),
