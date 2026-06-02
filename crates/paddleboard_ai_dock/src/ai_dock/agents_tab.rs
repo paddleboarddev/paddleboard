@@ -70,7 +70,10 @@ fn render_agent_row(
     installed_agents: &AllAgentServersSettings,
     cx: &mut Context<AiDock>,
 ) -> AnyElement {
-    let installed = entry.builtin_zed || installed_agents.contains_key(&entry.id);
+    // PaddleBoard: don't auto-mark the built-in Zed agent as "Installed" — it isn't
+    // set up until the user signs in. Its opt-in is the "Sign In" action
+    // (zed_agent_button, still keyed on builtin_zed below), like every other agent.
+    let installed = installed_agents.contains_key(&entry.id);
     let registry_agent = registry_agents.iter().find(|a| a.id().as_ref() == entry.id);
 
     let cli_installed = entry.install_command.as_ref().and_then(|cmd| {
