@@ -25,10 +25,12 @@ use gpui::AsyncApp;
 use http_client::github::{AssetKind, GitHubLspBinaryVersion, latest_github_release};
 use http_client::github_download::{GithubBinaryMetadata, download_server_binary};
 pub use language::*;
-use lsp::{LanguageServerBinary, LanguageServerName};
+use lsp::{LanguageServerBinary, LanguageServerName, Uri};
+use project::lsp_store::language_server_settings;
+use serde_json::{Value, json};
 use smol::fs;
 use util::fs::{make_file_executable, remove_matching};
-use util::{ResultExt, maybe};
+use util::{ResultExt, maybe, merge_json_value_into};
 
 pub struct HarperLspAdapter;
 
@@ -227,5 +229,39 @@ impl LspInstaller for HarperLspAdapter {
 impl LspAdapter for HarperLspAdapter {
     fn name(&self) -> LanguageServerName {
         Self::SERVER_NAME
+    }
+
+    async fn workspace_configuration(
+        self: Arc<Self>,
+        delegate: &Arc<dyn LspAdapterDelegate>,
+        _: Option<Toolchain>,
+        _: Option<Uri>,
+        cx: &mut AsyncApp,
+    ) -> Result<Value> {
+        // PaddleBoard: ship a less-naggy default lint set for prose. Spelling and
+        // clear errors (a/an, repeated words, unclosed quotes) stay on; the most
+        // opinionated style linters are off because they fire constantly on
+        // casual Markdown and commit messages (which routinely start lowercase or
+        // run long). `diagnosticSeverity: hint` keeps any remaining flags as
+        // unobtrusive underlines. Users can re-enable any of this via
+        // `lsp.harper-ls.settings` — their values win via the merge below.
+        let mut harper_settings = json!({
+            "diagnosticSeverity": "hint",
+            "linters": {
+                "SentenceCapitalization": false,
+                "LongSentences": false,
+                "SpelledNumbers": false,
+            }
+        });
+
+        let user_settings = cx.update(|cx| {
+            language_server_settings(delegate.as_ref(), &self.name(), cx)
+                .and_then(|settings| settings.settings.clone())
+        });
+        if let Some(user_settings) = user_settings {
+            merge_json_value_into(user_settings, &mut harper_settings);
+        }
+
+        Ok(json!({ "harper-ls": harper_settings }))
     }
 }
