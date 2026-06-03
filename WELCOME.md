@@ -264,6 +264,8 @@ Two more — **Ruby** and **Dart** — get their language servers from extension
 
 **Build tool context** — Java and Kotlin files detect Gradle (`build.gradle`, `build.gradle.kts`) and Maven (`pom.xml`) projects automatically. The `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables are available in task templates for build/test workflows.
 
+**Prose checking** — Markdown files and git commit messages get spelling and grammar checking by default via [Harper](https://writewithharper.com) (`harper-ls`), an offline, privacy-first checker — no text leaves your machine. Misspellings and grammar slips show up as squiggles with quick-fix suggestions; the server downloads on first use, like the others.
+
 ---
 
 ## What PaddleBoard inherits from Zed

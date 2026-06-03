@@ -24,6 +24,9 @@ mod css;
 mod docker;
 mod eslint;
 mod go;
+// PaddleBoard: Harper spell/grammar checker (harper-ls) for prose languages,
+// downloaded from Automattic/harper GitHub releases.
+mod harper;
 // PaddleBoard: Java language support ($PATH-only — delegates jdtls
 // distribution to the user's package manager).
 mod java;
@@ -75,6 +78,9 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     let css_lsp_adapter = Arc::new(css::CssLspAdapter::new(node.clone()));
     // PaddleBoard: Dockerfile LSP (docker-langserver via npm).
     let dockerfile_lsp_adapter = Arc::new(docker::DockerfileLspAdapter::new(node.clone()));
+    // PaddleBoard: Harper spell/grammar checker (harper-ls), shared across prose
+    // languages (Markdown, git commit messages).
+    let harper_lsp_adapter = Arc::new(harper::HarperLspAdapter);
     let eslint_adapter = Arc::new(eslint::EsLintLspAdapter::new(node.clone(), fs.clone()));
     let go_context_provider = Arc::new(go::GoContextProvider);
     let go_lsp_adapter = Arc::new(go::GoLspAdapter);
@@ -202,7 +208,8 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
         },
         LanguageInfo {
             name: "markdown",
-            adapters: vec![],
+            // PaddleBoard: Harper spell/grammar checking for Markdown prose.
+            adapters: vec![harper_lsp_adapter.clone()],
             ..Default::default()
         },
         LanguageInfo {
@@ -282,6 +289,8 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
         },
         LanguageInfo {
             name: "gitcommit",
+            // PaddleBoard: Harper spell/grammar checking for commit messages.
+            adapters: vec![harper_lsp_adapter],
             ..Default::default()
         },
         LanguageInfo {

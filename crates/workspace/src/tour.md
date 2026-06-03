@@ -86,6 +86,7 @@ PaddleBoard keeps the default install lean and lets you add the rest with one cl
 - **Ready to use**: Rust, TypeScript, JavaScript, Python, Go, JSON, YAML, HTML/CSS, and **Dockerfile** attach automatically — open a file and the server downloads on first use. Dockerfiles get highlighting + `docker-langserver` out of the box.
 - **Install support** (run **`Manage Languages`**): **Java**, **Kotlin** (JDK 17+), **PHP** (Node), **C#** (.NET), **C++** (clangd), and **Swift** (SourceKit-LSP, PATH-resolved from your toolchain) ship a built-in server — click Install, prerequisite shown up front. **Ruby** and **Dart** come from extensions.
 - **Build tool context**: Java and Kotlin auto-detect Gradle/Maven projects and expose `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables.
+- **Prose checking**: Markdown and git commit messages get offline spelling + grammar squiggles via [Harper](https://writewithharper.com) — private, no text leaves your machine.
 
 ### 12. Git Login
 Save your git host credentials once so HTTPS git operations stop prompting.
