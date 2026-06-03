@@ -31,7 +31,7 @@ use util::ResultExt;
 
 const PROVIDER_ID: LanguageModelProviderId = LanguageModelProviderId::new("vertex");
 const PROVIDER_NAME: LanguageModelProviderName =
-    LanguageModelProviderName::new("Vertex AI (Gemini Enterprise)");
+    LanguageModelProviderName::new("Gemini Enterprise (Vertex AI)");
 
 /// Marker URL the express API key is associated with in the keychain.
 const EXPRESS_KEY_URL: &str = "https://aiplatform.googleapis.com";
@@ -470,7 +470,7 @@ impl ConfigurationView {
                 .label("Service-account key file (optional)")
         });
         let api_key_editor = cx
-            .new(|cx| InputField::new(window, cx, "Vertex Express API key").label("Express API key (optional)"));
+            .new(|cx| InputField::new(window, cx, "Gemini Enterprise Express API key").label("Express API key (optional)"));
 
         if let Some(project_id) = &settings.project_id {
             project_id_editor.update(cx, |field, cx| field.set_text(project_id, window, cx));
