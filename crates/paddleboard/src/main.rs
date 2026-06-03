@@ -452,6 +452,12 @@ fn main() {
             .spawn(async {
                 #[cfg(unix)]
                 util::load_login_shell_environment().await.log_err();
+                // PaddleBoard: after importing the login-shell PATH, make sure
+                // Podman's install dir is on it so sandbox detection and
+                // container launches find `podman` even when the GUI app's PATH
+                // (or the user's shell) omits it (e.g. /opt/podman/bin).
+                #[cfg(unix)]
+                paddleboard_sandbox_prereqs::ensure_podman_on_path();
                 shell_env_loaded_tx.send(()).ok();
             })
             .detach();
