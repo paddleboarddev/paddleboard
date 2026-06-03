@@ -13,3 +13,4 @@ after. Use the `- Added` / `- Fixed` / `- Improved` convention from CLAUDE.md.
 ## Next (v0.1.2)
 
 - Fixed the `paddleboard` CLI command silently breaking after a local install — `script/bundle-mac -i` now refreshes the `/usr/local/bin/paddleboard` symlink to point at the freshly-installed app on every install.
+- Fixed the CLI still saying "Zed" in user-facing output — the first-run open-behavior prompt and `paddleboard --help` text now say PaddleBoard and show `paddleboard …` example commands.

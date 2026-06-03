@@ -47,7 +47,7 @@ trait InstalledApp {
     name = "paddleboard",
     disable_version_flag = true,
     before_help = "The PaddleBoard CLI binary.
-This CLI is a separate binary that invokes Zed.
+This CLI is a separate binary that invokes PaddleBoard.
 
 Examples:
     `paddleboard`
@@ -58,7 +58,7 @@ Examples:
           Open your project in PaddleBoard
     `paddleboard -n path-to-file `
           Open file/folder in a new window",
-    after_help = "To read from stdin, append '-', e.g. 'ps axf | zed -'"
+    after_help = "To read from stdin, append '-', e.g. 'ps axf | paddleboard -'"
 )]
 struct Args {
     /// Wait for all of the given paths to be opened/closed before exiting.
@@ -75,7 +75,7 @@ struct Args {
     /// Reuse an existing window, replacing its workspace
     #[arg(short, long, overrides_with_all = ["add", "new", "existing", "classic"], hide = true)]
     reuse: bool,
-    /// Open in existing Zed window
+    /// Open in existing PaddleBoard window
     #[arg(short = 'e', long = "existing", overrides_with_all = ["add", "new", "reuse", "classic"])]
     existing: bool,
     /// Use the classic open behavior: new window for directories, reuse for files
@@ -95,10 +95,10 @@ struct Args {
     ///
     /// Use `path:line:column` syntax to open a file at the given line and column.
     paths_with_position: Vec<String>,
-    /// Print Zed's version and the app path.
+    /// Print PaddleBoard's version and the app path.
     #[arg(short, long)]
     version: bool,
-    /// Run zed in the foreground (useful for debugging)
+    /// Run PaddleBoard in the foreground (useful for debugging)
     #[arg(long)]
     foreground: bool,
     /// Custom path to Zed.app or the zed binary
@@ -133,7 +133,7 @@ struct Args {
     /// When directories are provided, recurses into them and shows all changed files in a single multi-diff view.
     #[arg(long, action = clap::ArgAction::Append, num_args = 2, value_names = ["OLD_PATH", "NEW_PATH"])]
     diff: Vec<String>,
-    /// Uninstall Zed from user system
+    /// Uninstall PaddleBoard from user system
     #[cfg(all(
         any(target_os = "linux", target_os = "macos"),
         not(feature = "no-bundled-uninstall")
@@ -812,18 +812,22 @@ fn prompt_open_behavior() -> Option<cli::CliBehaviorSetting> {
     }
 
     let blue = console::Style::new().blue();
+    // PaddleBoard: user-facing prompt rebranded Zed -> PaddleBoard (flags/paths unchanged).
     let items = [
         format!(
-            "Add to existing Zed window ({})",
-            blue.apply_to("zed --existing")
+            "Add to existing PaddleBoard window ({})",
+            blue.apply_to("paddleboard --existing")
         ),
-        format!("Open a new window ({})", blue.apply_to("zed --classic")),
+        format!(
+            "Open a new window ({})",
+            blue.apply_to("paddleboard --classic")
+        ),
     ];
 
     let prompt = format!(
         "Configure default behavior for {}\n{}",
-        blue.apply_to("zed <path>"),
-        console::style("You can change this later in Zed settings"),
+        blue.apply_to("paddleboard <path>"),
+        console::style("You can change this later in PaddleBoard settings"),
     );
 
     let selection = dialoguer::Select::new()
