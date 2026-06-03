@@ -247,7 +247,7 @@ Run **`git login: Manage`** from the command palette to save a Personal Access T
 
 PaddleBoard splits language support into two tiers so the default install stays lean and languages that need an external toolchain don't fail silently.
 
-**Ready to use** — self-contained servers (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, and more) are enabled by default. Open a matching file and the language server attaches automatically, downloading on first use and caching it.
+**Ready to use** — self-contained servers (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, Dockerfile, and more) are enabled by default. Open a matching file and the language server attaches automatically, downloading on first use and caching it. Dockerfiles get full syntax highlighting plus [docker-langserver](https://github.com/rcjsuen/dockerfile-language-server) (completion, hover, diagnostics) the moment you open a `Dockerfile` or `Containerfile`.
 
 **Install support** — languages that aren't enabled by default. Run **`Manage Languages`** from the command palette to add them. Six ship a built-in server; clicking **Install** writes the setting (and downloads the server binary where one is needed) so it's ready before you open a file:
 
@@ -263,6 +263,8 @@ Each row shows its prerequisite up front, so you opt into a heavier toolchain kn
 Two more — **Ruby** and **Dart** — get their language servers from extensions rather than a built-in adapter, so their row opens the Extensions page where you install the extension.
 
 **Build tool context** — Java and Kotlin files detect Gradle (`build.gradle`, `build.gradle.kts`) and Maven (`pom.xml`) projects automatically. The `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables are available in task templates for build/test workflows.
+
+**Prose checking** — Markdown files and git commit messages get spelling and grammar checking by default via [Harper](https://writewithharper.com) (`harper-ls`), an offline, privacy-first checker — no text leaves your machine. Misspellings and grammar slips show up as squiggles with quick-fix suggestions; the server downloads on first use, like the others. To keep a deliberate word (a name, an acronym, a coined term), put the cursor on it and open **Code Actions** (`cmd-.`) → **Add to dictionary**, and Harper won't flag it again. The default lint set is tuned to stay quiet on casual prose; re-enable the stricter style checks via `lsp.harper-ls.settings` if you want them.
 
 ---
 

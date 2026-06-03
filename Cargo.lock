@@ -7979,6 +7979,7 @@ dependencies = [
  "tree-sitter-cpp",
  "tree-sitter-css",
  "tree-sitter-diff",
+ "tree-sitter-dockerfile",
  "tree-sitter-gitcommit",
  "tree-sitter-go",
  "tree-sitter-gomod",
@@ -12476,7 +12477,7 @@ checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
 name = "paddleboard"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "acp_thread",
  "acp_tools",
@@ -19543,6 +19544,14 @@ name = "tree-sitter-diff"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfe1e5ca280a65dfe5ba4205c1bcc84edf486464fed315db53dee6da9a335889"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-dockerfile"
+version = "0.2.0"
 dependencies = [
  "cc",
  "tree-sitter-language",

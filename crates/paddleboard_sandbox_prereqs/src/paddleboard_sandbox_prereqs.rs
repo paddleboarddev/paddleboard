@@ -70,26 +70,27 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 /// Probe the host for Podman + gVisor availability. Each probe is bounded by
 /// a 2-second timeout so a stuck `podman machine` cannot stall the caller.
 pub async fn check() -> SandboxStatus {
-    let podman = check_podman().await;
-    let gvisor = check_gvisor(&podman).await;
+    let podman_bin = resolve_podman_bin();
+    let podman = check_podman(&podman_bin).await;
+    let gvisor = check_gvisor(&podman_bin, &podman).await;
     SandboxStatus { podman, gvisor }
 }
 
-async fn check_podman() -> PodmanStatus {
-    let version = match run_probe("podman", &["--version"]).await {
+async fn check_podman(podman_bin: &str) -> PodmanStatus {
+    let version = match run_probe(podman_bin, &["--version"]).await {
         Some(stdout) => stdout.trim().to_string(),
         None => return PodmanStatus::Missing,
     };
 
     // `podman info` reaches the daemon. On macOS the CLI can be installed while
     // the backing machine is stopped, which is why we treat that case separately.
-    match run_probe("podman", &["info", "--format", "json"]).await {
+    match run_probe(podman_bin, &["info", "--format", "json"]).await {
         Some(_) => PodmanStatus::Ready { version },
         None => PodmanStatus::InstalledNotRunning { version },
     }
 }
 
-async fn check_gvisor(podman: &PodmanStatus) -> GvisorStatus {
+async fn check_gvisor(podman_bin: &str, podman: &PodmanStatus) -> GvisorStatus {
     if Os::detect() == Os::Windows {
         return GvisorStatus::NotApplicable {
             reason: "gVisor only runs on Linux; it is not available on Windows.",
@@ -97,11 +98,12 @@ async fn check_gvisor(podman: &PodmanStatus) -> GvisorStatus {
     }
 
     let info_json = match podman {
-        PodmanStatus::Ready { .. } => match run_probe("podman", &["info", "--format", "json"]).await
-        {
-            Some(out) => out,
-            None => return GvisorStatus::Unknown,
-        },
+        PodmanStatus::Ready { .. } => {
+            match run_probe(podman_bin, &["info", "--format", "json"]).await {
+                Some(out) => out,
+                None => return GvisorStatus::Unknown,
+            }
+        }
         _ => return GvisorStatus::Unknown,
     };
 
@@ -126,7 +128,7 @@ async fn check_gvisor(podman: &PodmanStatus) -> GvisorStatus {
     // PaddleBoard: on macOS, `podman info` runs on the client and doesn't
     // reflect runtimes registered inside the Podman machine VM. Fall back to
     // probing runsc directly inside the VM.
-    if run_probe("podman", &["machine", "ssh", "--", "runsc", "--version"])
+    if run_probe(podman_bin, &["machine", "ssh", "--", "runsc", "--version"])
         .await
         .is_some_and(|out| out.contains("runsc version"))
     {
@@ -143,6 +145,94 @@ async fn run_probe(cmd: &str, args: &[&str]) -> Option<String> {
         return None;
     }
     Some(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+// PaddleBoard: well-known absolute locations where `podman` lands when it isn't
+// on the resolved PATH. GUI apps on macOS inherit a minimal PATH, and even after
+// `load_login_shell_environment()` the user's login shell may not export
+// Podman's dir (the official installer uses /opt/podman/bin; Homebrew uses
+// /opt/homebrew/bin on Apple Silicon). Probing these keeps "is Podman installed?"
+// from producing a false negative that pushes a user to reinstall what they have.
+const PODMAN_FALLBACK_PATHS: &[&str] = &[
+    "/opt/podman/bin/podman",   // official Podman macOS installer (podman.io pkg)
+    "/opt/homebrew/bin/podman", // Homebrew, Apple Silicon
+    "/usr/local/bin/podman",    // Homebrew on Intel / common Linux prefix
+    "/usr/bin/podman",          // Linux distro package
+];
+
+/// Decide which `podman` invocation to probe with: prefer the bare name when it
+/// resolves on `$PATH` (respecting the user's setup), otherwise the first
+/// existing well-known absolute path, else fall back to the bare name so the
+/// probe still runs and reports `Missing` honestly.
+fn choose_podman_bin(on_path: bool, exists: impl Fn(&str) -> bool) -> String {
+    if on_path {
+        return "podman".to_string();
+    }
+    for candidate in PODMAN_FALLBACK_PATHS {
+        if exists(candidate) {
+            return (*candidate).to_string();
+        }
+    }
+    "podman".to_string()
+}
+
+fn podman_binary_name() -> &'static str {
+    if cfg!(windows) { "podman.exe" } else { "podman" }
+}
+
+fn podman_on_path() -> bool {
+    std::env::var_os("PATH")
+        .map(|path| {
+            std::env::split_paths(&path).any(|dir| dir.join(podman_binary_name()).is_file())
+        })
+        .unwrap_or(false)
+}
+
+fn resolve_podman_bin() -> String {
+    choose_podman_bin(podman_on_path(), |candidate| {
+        std::path::Path::new(candidate).is_file()
+    })
+}
+
+/// PaddleBoard: ensure Podman's install directory is on `$PATH` for this process,
+/// so every `podman` invocation finds it — the prereqs probe here, plus the
+/// sandbox tool and REPL kernel in other crates that spawn `podman` by bare name.
+///
+/// GUI apps on macOS inherit a minimal `$PATH`, and even after the login-shell
+/// import the user's shell may not export Podman's dir (the official installer
+/// uses `/opt/podman/bin`). When `podman` already resolves on `$PATH`, this is a
+/// no-op; otherwise it prepends the first well-known install dir that exists.
+///
+/// Mutates the process environment, so call it exactly once during early startup
+/// — right after `load_login_shell_environment` — before any worker that reads
+/// `$PATH` is spawned.
+pub fn ensure_podman_on_path() {
+    if podman_on_path() {
+        return;
+    }
+    let Some(dir) = PODMAN_FALLBACK_PATHS
+        .iter()
+        .map(std::path::Path::new)
+        .find(|path| path.is_file())
+        .and_then(|path| path.parent())
+    else {
+        return;
+    };
+
+    let mut entries: Vec<std::path::PathBuf> = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect())
+        .unwrap_or_default();
+    if entries.iter().any(|entry| entry == dir) {
+        return;
+    }
+    entries.insert(0, dir.to_path_buf());
+
+    if let Ok(joined) = std::env::join_paths(entries) {
+        // SAFETY: matches the existing `set_var` in `load_login_shell_environment`
+        // — invoked once at early startup, in the same background task, before
+        // PATH-dependent workers spawn.
+        unsafe { std::env::set_var("PATH", joined) };
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -451,6 +541,38 @@ mod tests {
             .command
             .as_deref()
             .is_some_and(|cmd| cmd.contains("brew install podman"))));
+    }
+
+    #[test]
+    fn podman_on_path_uses_bare_name() {
+        // When podman resolves on PATH we must not second-guess it with absolute
+        // fallbacks — respect the user's environment.
+        let bin = choose_podman_bin(true, |_| panic!("should not probe fallbacks"));
+        assert_eq!(bin, "podman");
+    }
+
+    #[test]
+    fn podman_off_path_falls_back_to_install_location() {
+        // The macOS installer case that motivated this: not on PATH, but present
+        // at /opt/podman/bin/podman.
+        let bin = choose_podman_bin(false, |candidate| candidate == "/opt/podman/bin/podman");
+        assert_eq!(bin, "/opt/podman/bin/podman");
+    }
+
+    #[test]
+    fn podman_off_path_prefers_earliest_existing_fallback() {
+        // Both brew and the installer present → installer path wins by ordering.
+        let bin = choose_podman_bin(false, |candidate| {
+            candidate == "/opt/podman/bin/podman" || candidate == "/opt/homebrew/bin/podman"
+        });
+        assert_eq!(bin, "/opt/podman/bin/podman");
+    }
+
+    #[test]
+    fn podman_truly_absent_falls_back_to_bare_name() {
+        // Nothing anywhere → bare name so the probe still runs and reports Missing.
+        let bin = choose_podman_bin(false, |_| false);
+        assert_eq!(bin, "podman");
     }
 
     #[test]

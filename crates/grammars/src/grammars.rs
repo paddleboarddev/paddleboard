@@ -20,6 +20,11 @@ pub fn native_grammars() -> Vec<(&'static str, tree_sitter::Language)> {
         ("cpp", tree_sitter_cpp::LANGUAGE.into()),
         ("css", tree_sitter_css::LANGUAGE.into()),
         ("diff", tree_sitter_diff::LANGUAGE.into()),
+        // PaddleBoard: Dockerfile via vendored camdencheek/tree-sitter-dockerfile
+        // (MIT). The published crate pins tree-sitter 0.24, so the C source is
+        // vendored under crates/tree-sitter-dockerfile with a tree-sitter-language
+        // binding that resolves against workspace tree-sitter 0.26.
+        ("dockerfile", tree_sitter_dockerfile::LANGUAGE.into()),
         ("go", tree_sitter_go::LANGUAGE.into()),
         ("gomod", tree_sitter_go_mod::LANGUAGE.into()),
         ("gowork", tree_sitter_gowork::LANGUAGE.into()),
@@ -107,6 +112,37 @@ pub fn load_config_for_feature(name: &str, grammars_loaded: bool) -> LanguageCon
 /// Returns the file data as bytes, or `None` if the file does not exist.
 pub fn get_file(path: &str) -> Option<rust_embed::EmbeddedFile> {
     GrammarDir::get(path)
+}
+
+// PaddleBoard: guard the vendored Dockerfile grammar — make sure the C source
+// loads, the highlights query compiles against it (catches a node-name drift
+// that would silently break highlighting), and a sample parses cleanly.
+#[cfg(all(test, feature = "load-grammars"))]
+mod dockerfile_tests {
+    use super::*;
+
+    #[test]
+    fn dockerfile_grammar_and_highlights_load() {
+        let language: tree_sitter::Language = tree_sitter_dockerfile::LANGUAGE.into();
+
+        let queries = load_queries("dockerfile");
+        let highlights = queries
+            .highlights
+            .expect("dockerfile highlights query should be present");
+        tree_sitter::Query::new(&language, &highlights)
+            .expect("dockerfile highlights query should compile against the grammar");
+
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&language)
+            .expect("dockerfile grammar should load");
+        let source = "FROM alpine:3.19 AS build\nRUN echo hi\nCOPY . /app\nCMD [\"/app/run\"]\n";
+        let tree = parser.parse(source, None).expect("sample should parse");
+        assert!(
+            !tree.root_node().has_error(),
+            "sample Dockerfile parsed with errors"
+        );
+    }
 }
 
 /// Load all `.scm` query files for a given language name into a `LanguageQueries`.

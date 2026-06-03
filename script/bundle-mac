@@ -235,6 +235,20 @@ function sign_app_binaries() {
         rm -rf "/Applications/$bundle_name"
         mv "$app_path" "/Applications/$bundle_name"
         echo "Installed application bundle: /Applications/$bundle_name"
+
+        # PaddleBoard: refresh the `paddleboard` CLI symlink to point at the just-installed
+        # bundle. Without this, the symlink keeps pointing at a stale target/ build dir that
+        # gets wiped between builds, leaving `paddleboard` dangling on the user's PATH.
+        cli_link="/usr/local/bin/paddleboard"
+        cli_target="/Applications/$bundle_name/Contents/MacOS/cli"
+        if [ -w "$(dirname "$cli_link")" ]; then
+            ln -sf "$cli_target" "$cli_link"
+            echo "Refreshed CLI symlink: $cli_link -> $cli_target"
+        else
+            echo "Skipped CLI symlink refresh ($(dirname "$cli_link") not writable)."
+            echo "  Run manually: sudo ln -sf \"$cli_target\" \"$cli_link\""
+        fi
+
         if [ "$open_result" = true ]; then
             echo "Opening /Applications/$bundle_name"
             open "/Applications/$bundle_name"
