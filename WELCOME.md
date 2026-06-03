@@ -247,7 +247,7 @@ Run **`git login: Manage`** from the command palette to save a Personal Access T
 
 PaddleBoard splits language support into two tiers so the default install stays lean and languages that need an external toolchain don't fail silently.
 
-**Ready to use** — self-contained servers (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, and more) are enabled by default. Open a matching file and the language server attaches automatically, downloading on first use and caching it.
+**Ready to use** — self-contained servers (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, Dockerfile, and more) are enabled by default. Open a matching file and the language server attaches automatically, downloading on first use and caching it. Dockerfiles get full syntax highlighting plus [docker-langserver](https://github.com/rcjsuen/dockerfile-language-server) (completion, hover, diagnostics) the moment you open a `Dockerfile` or `Containerfile`.
 
 **Install support** — languages that aren't enabled by default. Run **`Manage Languages`** from the command palette to add them. Six ship a built-in server; clicking **Install** writes the setting (and downloads the server binary where one is needed) so it's ready before you open a file:
 

@@ -19,6 +19,9 @@ mod bash;
 mod c;
 mod cpp;
 mod css;
+// PaddleBoard: Dockerfile support (vendored grammar + docker-langserver LSP),
+// enabled by default.
+mod docker;
 mod eslint;
 mod go;
 // PaddleBoard: Java language support ($PATH-only — delegates jdtls
@@ -70,6 +73,8 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
     let bash_lsp_adapter = Arc::new(bash::BashLspAdapter::new(node.clone()));
     let c_lsp_adapter = Arc::new(c::CLspAdapter);
     let css_lsp_adapter = Arc::new(css::CssLspAdapter::new(node.clone()));
+    // PaddleBoard: Dockerfile LSP (docker-langserver via npm).
+    let dockerfile_lsp_adapter = Arc::new(docker::DockerfileLspAdapter::new(node.clone()));
     let eslint_adapter = Arc::new(eslint::EsLintLspAdapter::new(node.clone(), fs.clone()));
     let go_context_provider = Arc::new(go::GoContextProvider);
     let go_lsp_adapter = Arc::new(go::GoLspAdapter);
@@ -135,6 +140,15 @@ pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, node: NodeRuntime
         LanguageInfo {
             name: "diff",
             adapters: vec![],
+            ..Default::default()
+        },
+        // PaddleBoard: Dockerfile is a default-tier language (auto-installed
+        // docker-langserver), not opt-in — so it is NOT listed in the
+        // paddleboard_languages_ui INSTALL_TIER and is not `!`-disabled in
+        // default settings.
+        LanguageInfo {
+            name: "dockerfile",
+            adapters: vec![dockerfile_lsp_adapter],
             ..Default::default()
         },
         LanguageInfo {

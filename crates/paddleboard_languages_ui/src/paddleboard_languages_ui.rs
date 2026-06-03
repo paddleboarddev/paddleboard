@@ -119,6 +119,7 @@ const DEFAULT_TIER: &[&str] = &[
     "JSON",
     "YAML",
     "HTML/CSS",
+    "Dockerfile",
 ];
 
 #[derive(Clone)]

@@ -1,0 +1,27 @@
+# PaddleBoard: vendored Dockerfile grammar.
+#
+# The published `tree-sitter-dockerfile` crate (0.2.0) pins `tree-sitter = "0.24"`
+# as a real (non-dev) dependency and uses the old `language()` binding, so it
+# cannot resolve against the workspace's `tree-sitter 0.26`. Instead we vendor
+# the grammar's C source (parser.c + the heredoc external scanner) and expose it
+# through the version-independent `tree-sitter-language` shim, which `.into()`s
+# cleanly into the workspace `tree_sitter::Language`.
+#
+# Source: camdencheek/tree-sitter-dockerfile @ commit in VENDORED_COMMIT.txt (MIT).
+[package]
+name = "tree-sitter-dockerfile"
+version = "0.2.0"
+edition = "2021"
+license = "MIT"
+description = "Dockerfile grammar for tree-sitter (vendored for PaddleBoard)"
+publish = false
+build = "build.rs"
+
+[lib]
+path = "bindings/rust/tree_sitter_dockerfile.rs"
+
+[dependencies]
+tree-sitter-language = "0.1"
+
+[build-dependencies]
+cc = "1"
