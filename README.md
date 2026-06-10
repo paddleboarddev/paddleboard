@@ -40,12 +40,9 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 
 PaddleBoard builds with [Cargo](https://doc.rust-lang.org/cargo/), the same toolchain as upstream Zed.
 
-1. **Install the prerequisites.** System dependencies (Xcode, build tools, etc.) are identical to Zed's, so follow the platform guide below for those — but **clone this repository** (`paddleboarddev/paddleboard`), not the Zed repo those inherited docs point at:
-   - [macOS prerequisites](./docs/src/development/macos.md)
-   - [Linux prerequisites](./docs/src/development/linux.md)
-   - [Windows prerequisites](./docs/src/development/windows.md)
+1. **Install the prerequisites.** Follow [BUILDING.md](./BUILDING.md) — PaddleBoard's own guide, with macOS, Linux, and Windows sections (clone URL, system dependencies, and build commands).
 
-2. **Run from source.** Substitute `paddleboard` for `zed` anywhere the inherited docs say `zed`:
+2. **Run from source:**
 
    ```bash
    cargo run -p paddleboard
