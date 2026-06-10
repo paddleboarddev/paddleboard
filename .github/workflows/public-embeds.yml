@@ -24,3 +24,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check embedded paths against the public snapshot
         run: bash script/check-public-embeds
+      - name: Check for fork-rename breakage (zed-isms)
+        run: bash script/check-zed-isms
