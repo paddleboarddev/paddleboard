@@ -118,17 +118,19 @@ pub fn catalog(cx: &App) -> Arc<Catalog> {
 /// turns on the Skills tab's "Add to project" / "Add to user" buttons for
 /// that entry; returning `None` falls back to the homepage / disabled state.
 ///
-/// The `include_str!` paths point at the canonical files under
-/// `.claude/commands/`, not a duplicated copy under `assets/ai_dock/skills/`,
-/// so the slash command used in this repo and the bundled install copy can
-/// never drift.
+/// The canonical files live under `assets/ai_dock/skills/` — a path that ships
+/// in the public source snapshot. (They used to live under `.claude/commands/`,
+/// which publish-public.sh strips, so fresh clones of the public repo failed to
+/// compile.) The `.claude/commands/*.md` slash commands are symlinks to these
+/// files, so the command used in this repo and the bundled install copy still
+/// can't drift.
 pub fn bundled_skill_content(id: &str) -> Option<&'static str> {
     match id {
-        "build" => Some(include_str!("../../../.claude/commands/build.md")),
-        "update-tour" => Some(include_str!("../../../.claude/commands/update-tour.md")),
-        "clippy" => Some(include_str!("../../../.claude/commands/clippy.md")),
-        "test" => Some(include_str!("../../../.claude/commands/test.md")),
-        "check-drift" => Some(include_str!("../../../.claude/commands/check-drift.md")),
+        "build" => Some(include_str!("../../../assets/ai_dock/skills/build.md")),
+        "update-tour" => Some(include_str!("../../../assets/ai_dock/skills/update-tour.md")),
+        "clippy" => Some(include_str!("../../../assets/ai_dock/skills/clippy.md")),
+        "test" => Some(include_str!("../../../assets/ai_dock/skills/test.md")),
+        "check-drift" => Some(include_str!("../../../assets/ai_dock/skills/check-drift.md")),
         _ => None,
     }
 }

@@ -13,4 +13,4 @@ the `- Added` / `- Fixed` / `- Improved` convention from CLAUDE.md.
 
 ## Next (v0.1.3)
 
-_Nothing staged yet._
+- Fixed building PaddleBoard from the public repository failing with `couldn't read .claude/commands/update-tour.md` (and friends) — the AI Dock's bundled skill bodies are now embedded from `assets/ai_dock/skills/`, which ships in the public source snapshot.
