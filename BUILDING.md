@@ -55,7 +55,15 @@ Builds are expected to work but get less testing than macOS.
    script/linux
    ```
 
-   (To install them manually instead, the package list lives inside `script/linux`.)
+   Don't skip this — even on a well-provisioned dev box. Common libraries (fontconfig, alsa, glib) are often already present, but the build also needs less-common X11/XCB dev packages, and missing ones don't surface until the **final link step**, as `rust-lld: error: unable to find library -l<name>`. If you hit that, run `script/linux` (it knows the package names for apt, dnf, pacman, and zypper — and enables the extra RHEL repo some packages live in), or install the named library's dev package directly, e.g. for `-lxkbcommon-x11` and `-lX11-xcb`:
+
+   ```sh
+   sudo apt install libx11-xcb-dev libxkbcommon-x11-dev    # Debian/Ubuntu
+   sudo dnf install libX11-devel libxkbcommon-x11-devel    # Fedora/RHEL
+   sudo pacman -S libx11 libxkbcommon-x11                  # Arch
+   ```
+
+   Then rerun the build — it resumes at the link step, so it finishes quickly.
 
 **Run from source:**
 
