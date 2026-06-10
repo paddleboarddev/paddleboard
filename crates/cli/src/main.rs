@@ -873,10 +873,14 @@ mod linux {
                 let cli = env::current_exe()?;
                 let dir = cli.parent().context("no parent path for cli")?;
 
-                // libexec is the standard, lib/zed is for Arch (and other non-libexec distros),
-                // ./zed is for the target directory in development builds.
-                let possible_locations =
-                    ["../libexec/zed-editor", "../lib/zed/zed-editor", "./zed"];
+                // PaddleBoard: bundle-linux installs the editor as
+                // libexec/paddleboard-editor; ./paddleboard is the target
+                // directory in development builds.
+                let possible_locations = [
+                    "../libexec/paddleboard-editor",
+                    "../lib/paddleboard/paddleboard-editor",
+                    "./paddleboard",
+                ];
                 possible_locations
                     .iter()
                     .find_map(|p| dir.join(p).canonicalize().ok().filter(|path| path != &cli))

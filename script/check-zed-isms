@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# check-zed-isms — catch fork-rename breakage before it ships.
+#
+# PaddleBoard renamed crates/zed -> crates/paddleboard and the `zed` package ->
+# `paddleboard`, but upstream-inherited scripts and code keep referencing the
+# old names. Those references build/run fine in CI paths nobody exercises and
+# then explode on a user's machine (script/install-linux died on
+# `crates/zed/RELEASE_CHANNEL`; bundle-linux built `--package zed`, which does
+# not exist). This gate fails on the high-signal patterns:
+#
+#   - paths under crates/zed/            (the directory does not exist)
+#   - cargo refs to the `zed` package    (--package zed / -p zed / get-crate-version zed)
+#
+# Files that legitimately keep Zed names are allowlisted below — they are
+# upstream packaging/CI for formats PaddleBoard does not ship. If you PORT one
+# of them, remove it from the allowlist so regressions get caught.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Upstream-inherited files PaddleBoard does not use; kept un-ported to minimize
+# weekly-merge conflicts. Porting one? Remove it from this list.
+ALLOWLIST=(
+  "script/bundle-freebsd"            # FreeBSD packaging (mostly commented out upstream)
+  "script/bundle-windows.ps1"        # Windows packaging — port pending if Windows becomes a target
+  "script/snap-build"                # Snap packaging (not shipped)
+  "script/flatpak/"                  # Flatpak packaging (not shipped)
+  "script/upload-nightly"            # Zed nightly-release CI
+  "script/upload-extension-cli"      # Zed extension-registry CI
+  "script/zed-local"                 # Zed collab-dev helper
+  "script/generate-action-metadata"  # Zed docs CI
+  "script/lib/"                      # shared helpers for the above
+  "script/check-zed-isms"            # this gate (patterns appear in its own text)
+  ".github/CODEOWNERS.hold"          # parked upstream file, inert
+  "docs/"                            # inherited upstream docs (carry redirect banners instead)
+  "crates/paddleboard/resources/flatpak/"  # inert flatpak manifests (not shipped)
+  "crates/git_hosting_providers/"    # permalink tests use fictional crates/zed paths as fixtures
+)
+
+allowlisted() {
+  for entry in "${ALLOWLIST[@]}"; do
+    case "$1" in
+      "$entry"*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# Searched areas: scripts, workflows, source, and assets. Markdown prose is NOT
+# scanned — internal docs legitimately mention old paths when describing the
+# rename. sentry-cli's `-p zed` is its project flag, not a cargo package ref.
+mapfile -t hits < <(
+  {
+    grep -rnE 'crates/zed/' script/ .github/ crates/ assets/ 2>/dev/null \
+      | grep -v 'zed-industries/zed' || true
+    grep -rnE '(--package|-p) zed([^-_a-zA-Z0-9]|$)|get-crate-version zed([^-_a-zA-Z0-9]|$)' script/ .github/ 2>/dev/null \
+      | grep -v 'sentry-cli' || true
+  } | sort -u
+)
+
+failures=0
+for hit in "${hits[@]:-}"; do
+  [ -z "$hit" ] && continue
+  file="${hit%%:*}"
+  file="${file#./}"
+  if ! allowlisted "$file"; then
+    echo "ZED-ISM: $hit" >&2
+    failures=$((failures + 1))
+  fi
+done
+
+if [ "$failures" -gt 0 ]; then
+  echo "check-zed-isms: $failures reference(s) to renamed Zed paths/packages outside the allowlist." >&2
+  echo "Fix the reference (crates/zed -> crates/paddleboard, package zed -> paddleboard)," >&2
+  echo "or add the file to ALLOWLIST in script/check-zed-isms if it is unused upstream infra." >&2
+  exit 1
+fi
+echo "check-zed-isms: clean."

@@ -129,7 +129,7 @@ mod constants {
     use std::time::Duration;
 
     /// Baseline images are stored relative to this file
-    pub const BASELINE_DIR: &str = "crates/zed/test_fixtures/visual_tests";
+    pub const BASELINE_DIR: &str = "crates/paddleboard/test_fixtures/visual_tests";
 
     /// Embedded test image (Zed app icon) for visual tests.
     pub const EMBEDDED_TEST_IMAGE: &[u8] = include_bytes!("../resources/app-icon.png");

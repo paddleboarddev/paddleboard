@@ -41,6 +41,7 @@ use std::{
     ops::{Not, Range},
     pin::pin,
     sync::Arc,
+    time::Duration,
 };
 use ui::{
     CommonAnimationExt, IconButtonShape, KeyBinding, Toggleable, Tooltip, prelude::*,
@@ -282,6 +283,11 @@ enum InputPanel {
     Include,
 }
 
+// PaddleBoard: how long the query must be idle before search-as-you-type runs.
+// Long enough that intermediate prefixes of a steadily-typed query don't
+// search; short enough to feel immediate when the user pauses.
+const SEARCH_ON_TYPE_DEBOUNCE: Duration = Duration::from_millis(200);
+
 pub struct ProjectSearchView {
     workspace: WeakEntity<Workspace>,
     focus_handle: FocusHandle,
@@ -300,6 +306,9 @@ pub struct ProjectSearchView {
     pending_replace_all: bool,
     included_opened_only: bool,
     regex_language: Option<Arc<Language>>,
+    // PaddleBoard: pending debounced search-as-you-type run; replaced (and
+    // thereby cancelled) on every keystroke.
+    search_on_type_task: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -1002,6 +1011,33 @@ impl ProjectSearchView {
                         this.toggle_search_option(SearchOptions::CASE_SENSITIVE, cx);
                     }
                 }
+                // PaddleBoard: search-as-you-type (upstream Zed #9318). Each
+                // keystroke replaces the pending task, so the search runs once
+                // the user pauses for the debounce interval.
+                if let EditorEvent::Edited { .. } = event
+                    && EditorSettings::get_global(cx).search.search_on_type
+                {
+                    this.search_on_type_task = Some(cx.spawn(async move |this, cx| {
+                        cx.background_executor()
+                            .timer(SEARCH_ON_TYPE_DEBOUNCE)
+                            .await;
+                        this.update(cx, |this, cx| {
+                            let query = this.search_query_text(cx);
+                            // Skip when the query already ran (e.g. the user
+                            // pressed Enter inside the debounce window).
+                            let already_searched = this
+                                .entity
+                                .read(cx)
+                                .last_search_query_text
+                                .as_deref()
+                                == Some(query.as_str());
+                            if !query.is_empty() && !already_searched {
+                                this.search(cx);
+                            }
+                        })
+                        .ok();
+                    }));
+                }
                 cx.emit(ViewEvent::EditorEvent(event.clone()))
             }),
         );
@@ -1109,6 +1145,7 @@ impl ProjectSearchView {
             pending_replace_all: false,
             included_opened_only: false,
             regex_language: None,
+            search_on_type_task: None,
             _subscriptions: subscriptions,
         };
 
@@ -5558,6 +5595,74 @@ pub mod tests {
             let query_text = search_view.query_editor.read(cx).text(cx);
             assert_eq!(query_text, "Uppercase_Query");
         });
+    }
+
+    // PaddleBoard: search-as-you-type (upstream Zed #9318).
+    #[gpui::test]
+    async fn test_search_on_type(cx: &mut TestAppContext) {
+        init_test(cx);
+
+        let fs = FakeFs::new(cx.background_executor.clone());
+        fs.insert_tree(
+            path!("/dir"),
+            json!({
+                "one.rs": "const ONE: usize = 1;",
+            }),
+        )
+        .await;
+        let project = Project::test(fs.clone(), [path!("/dir").as_ref()], cx).await;
+        let window =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project.clone(), window, cx));
+        let workspace = window
+            .read_with(cx, |mw, _| mw.workspace().clone())
+            .unwrap();
+        let cx = &mut VisualTestContext::from_window(window.into(), cx);
+        let search = cx.new(|cx| ProjectSearch::new(project.clone(), cx));
+        let search_view = cx.add_window(|window, cx| {
+            ProjectSearchView::new(workspace.downgrade(), search.clone(), window, cx, None)
+        });
+
+        // Type into the query editor without pressing Enter.
+        search_view
+            .update(cx, |search_view, window, cx| {
+                search_view.query_editor.update(cx, |query_editor, cx| {
+                    query_editor.set_text("ONE", window, cx)
+                });
+            })
+            .unwrap();
+
+        // Before the debounce elapses, no search has run.
+        cx.executor().run_until_parked();
+        search_view
+            .update(cx, |search_view, _, cx| {
+                assert_eq!(
+                    search_view.entity.read(cx).last_search_query_text,
+                    None,
+                    "search ran before the debounce elapsed"
+                );
+            })
+            .unwrap();
+
+        // Once the debounce elapses, the search runs on its own.
+        cx.executor()
+            .advance_clock(SEARCH_ON_TYPE_DEBOUNCE + Duration::from_millis(50));
+        cx.executor().run_until_parked();
+        search_view
+            .update(cx, |search_view, _, cx| {
+                assert_eq!(
+                    search_view.entity.read(cx).last_search_query_text.as_deref(),
+                    Some("ONE"),
+                    "search-as-you-type did not run after the debounce"
+                );
+                let results = search_view
+                    .results_editor
+                    .update(cx, |editor, cx| editor.display_text(cx));
+                assert!(
+                    results.contains("const ONE"),
+                    "results editor should contain the match, got: {results:?}"
+                );
+            })
+            .unwrap();
     }
 
     fn init_test(cx: &mut TestAppContext) {

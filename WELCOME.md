@@ -266,6 +266,14 @@ Two more — **Ruby** and **Dart** — get their language servers from extension
 
 **Prose checking** — Markdown files and git commit messages get spelling and grammar checking by default via [Harper](https://writewithharper.com) (`harper-ls`), an offline, privacy-first checker — no text leaves your machine. Misspellings and grammar slips show up as squiggles with quick-fix suggestions; the server downloads on first use, like the others. To keep a deliberate word (a name, an acronym, a coined term), put the cursor on it and open **Code Actions** (`cmd-.`) → **Add to dictionary**, and Harper won't flag it again. The default lint set is tuned to stay quiet on casual prose; re-enable the stricter style checks via `lsp.harper-ls.settings` if you want them.
 
+### Search as you type
+
+Project search runs automatically as you type — results update a beat after you stop, no Enter required (the way VSCode behaves, and one of upstream Zed's most-requested changes, [zed#9318](https://github.com/zed-industries/zed/issues/9318)). Prefer the classic press-Enter behavior? Turn it off in settings:
+
+```json
+"search": { "search_on_type": false }
+```
+
 ---
 
 ## What PaddleBoard inherits from Zed

@@ -1,20 +1,20 @@
 #!/usr/bin/env sh
 set -eu
 
-# Downloads a tarball from https://zed.dev/releases and unpacks it
-# into ~/.local/. If you'd prefer to do this manually, instructions are at
-# https://zed.dev/docs/linux.
+# PaddleBoard: installs a locally built tarball (ZED_BUNDLE_PATH, set by
+# script/install-linux) into ~/.local/. PaddleBoard has no hosted release
+# server, so unlike upstream Zed this script never downloads anything —
+# invoking it without a local bundle is an error.
 
 main() {
     platform="$(uname -s)"
     arch="$(uname -m)"
     channel="${ZED_CHANNEL:-stable}"
-    ZED_VERSION="${ZED_VERSION:-latest}"
     # Use TMPDIR if available (for environments with non-standard temp directories)
     if [ -n "${TMPDIR:-}" ] && [ -d "${TMPDIR}" ]; then
-        temp="$(mktemp -d "$TMPDIR/zed-XXXXXX")"
+        temp="$(mktemp -d "$TMPDIR/paddleboard-XXXXXX")"
     else
-        temp="$(mktemp -d "/tmp/zed-XXXXXX")"
+        temp="$(mktemp -d "/tmp/paddleboard-XXXXXX")"
     fi
 
     if [ "$platform" = "Darwin" ]; then
@@ -54,10 +54,10 @@ main() {
 
     "$platform" "$@"
 
-    if [ "$(command -v zed)" = "$HOME/.local/bin/zed" ]; then
-        echo "Zed has been installed. Run with 'zed'"
+    if [ "$(command -v paddleboard)" = "$HOME/.local/bin/paddleboard" ]; then
+        echo "PaddleBoard has been installed. Run with 'paddleboard'"
     else
-        echo "To run Zed from your terminal, you must add ~/.local/bin to your PATH"
+        echo "To run PaddleBoard from your terminal, you must add ~/.local/bin to your PATH"
         echo "Run:"
 
         case "$SHELL" in
@@ -74,16 +74,17 @@ main() {
                 ;;
         esac
 
-        echo "To run Zed now, '~/.local/bin/zed'"
+        echo "To run PaddleBoard now, '~/.local/bin/paddleboard'"
     fi
 }
 
 linux() {
     if [ -n "${ZED_BUNDLE_PATH:-}" ]; then
-        cp "$ZED_BUNDLE_PATH" "$temp/zed-linux-$arch.tar.gz"
+        cp "$ZED_BUNDLE_PATH" "$temp/paddleboard-linux-$arch.tar.gz"
     else
-        echo "Downloading Zed version: $ZED_VERSION"
-        curl "https://cloud.zed.dev/releases/$channel/$ZED_VERSION/download?asset=zed&arch=$arch&os=linux&source=install.sh" > "$temp/zed-linux-$arch.tar.gz"
+        echo "PaddleBoard has no hosted Linux releases to download."
+        echo "Build and install from source instead:  ./script/install-linux"
+        exit 1
     fi
 
     suffix=""
@@ -94,68 +95,46 @@ linux() {
     appid=""
     case "$channel" in
       stable)
-        appid="dev.zed.Zed"
+        appid="dev.paddleboard.PaddleBoard"
         ;;
       nightly)
-        appid="dev.zed.Zed-Nightly"
+        appid="dev.paddleboard.PaddleBoard-Nightly"
         ;;
       preview)
-        appid="dev.zed.Zed-Preview"
+        appid="dev.paddleboard.PaddleBoard-Preview"
         ;;
       dev)
-        appid="dev.zed.Zed-Dev"
+        appid="dev.paddleboard.PaddleBoard-Dev"
         ;;
       *)
         echo "Unknown release channel: ${channel}. Using stable app ID."
-        appid="dev.zed.Zed"
+        appid="dev.paddleboard.PaddleBoard"
         ;;
     esac
 
     # Unpack
-    rm -rf "$HOME/.local/zed$suffix.app"
-    mkdir -p "$HOME/.local/zed$suffix.app"
-    tar -xzf "$temp/zed-linux-$arch.tar.gz" -C "$HOME/.local/"
+    rm -rf "$HOME/.local/paddleboard$suffix.app"
+    mkdir -p "$HOME/.local/paddleboard$suffix.app"
+    tar -xzf "$temp/paddleboard-linux-$arch.tar.gz" -C "$HOME/.local/"
 
     # Setup ~/.local directories
     mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
 
     # Link the binary
-    if [ -f "$HOME/.local/zed$suffix.app/bin/zed" ]; then
-        ln -sf "$HOME/.local/zed$suffix.app/bin/zed" "$HOME/.local/bin/zed"
-    else
-        # support for versions before 0.139.x.
-        ln -sf "$HOME/.local/zed$suffix.app/bin/cli" "$HOME/.local/bin/zed"
-    fi
+    ln -sf "$HOME/.local/paddleboard$suffix.app/bin/paddleboard" "$HOME/.local/bin/paddleboard"
 
     # Copy .desktop file
     desktop_file_path="$HOME/.local/share/applications/${appid}.desktop"
-    src_dir="$HOME/.local/zed$suffix.app/share/applications"
-    if [ -f "$src_dir/${appid}.desktop" ]; then
-        cp "$src_dir/${appid}.desktop" "${desktop_file_path}"
-    else
-        # Fallback for older tarballs
-        cp "$src_dir/zed$suffix.desktop" "${desktop_file_path}"
-    fi
-    sed -i "s|Icon=zed|Icon=$HOME/.local/zed$suffix.app/share/icons/hicolor/512x512/apps/zed.png|g" "${desktop_file_path}"
-    sed -i "s|Exec=zed|Exec=$HOME/.local/zed$suffix.app/bin/zed|g" "${desktop_file_path}"
+    src_dir="$HOME/.local/paddleboard$suffix.app/share/applications"
+    cp "$src_dir/${appid}.desktop" "${desktop_file_path}"
+    sed -i "s|Icon=paddleboard|Icon=$HOME/.local/paddleboard$suffix.app/share/icons/hicolor/512x512/apps/paddleboard.png|g" "${desktop_file_path}"
+    sed -i "s|Exec=paddleboard|Exec=$HOME/.local/paddleboard$suffix.app/bin/paddleboard|g" "${desktop_file_path}"
 }
 
 macos() {
-    echo "Downloading Zed version: $ZED_VERSION"
-    curl "https://cloud.zed.dev/releases/$channel/$ZED_VERSION/download?asset=zed&os=macos&arch=$arch&source=install.sh" > "$temp/Zed-$arch.dmg"
-    hdiutil attach -quiet "$temp/Zed-$arch.dmg" -mountpoint "$temp/mount"
-    app="$(cd "$temp/mount/"; echo *.app)"
-    echo "Installing $app"
-    if [ -d "/Applications/$app" ]; then
-        echo "Removing existing $app"
-        rm -rf "/Applications/$app"
-    fi
-    ditto "$temp/mount/$app" "/Applications/$app"
-    hdiutil detach -quiet "$temp/mount"
-
-    mkdir -p "$HOME/.local/bin"
-    # Link the binary
-    ln -sf "/Applications/$app/Contents/MacOS/cli" "$HOME/.local/bin/zed"
+    echo "PaddleBoard has no hosted macOS releases to download."
+    echo "Build and install from source instead:  ./script/bundle-mac -d -o -i"
+    exit 1
 }
 
 main "$@"
