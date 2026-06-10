@@ -94,6 +94,10 @@ Save your git host credentials once so HTTPS git operations stop prompting.
 - `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
 - `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback. PAT-only for now; SSH is untouched.
 
+### 13. Search As You Type
+Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
+- Prefer the classic behavior? Set `"search": { "search_on_type": false }` in settings.
+
 ---
 
 *You can always revisit this tour by opening the Command Palette (`Cmd-Shift-P`) and selecting **`workspace: Open Paddle Board Tour`**.*
