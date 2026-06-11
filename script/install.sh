@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-# PaddleBoard: installs a locally built tarball (ZED_BUNDLE_PATH, set by
+# PaddleBoard: installs a locally built tarball (PADDLEBOARD_BUNDLE_PATH, set by
 # script/install-linux) into ~/.local/. PaddleBoard has no hosted release
 # server, so unlike upstream Zed this script never downloads anything —
 # invoking it without a local bundle is an error.
@@ -9,7 +9,7 @@ set -eu
 main() {
     platform="$(uname -s)"
     arch="$(uname -m)"
-    channel="${ZED_CHANNEL:-stable}"
+    channel="${PADDLEBOARD_CHANNEL:-stable}"
     # Use TMPDIR if available (for environments with non-standard temp directories)
     if [ -n "${TMPDIR:-}" ] && [ -d "${TMPDIR}" ]; then
         temp="$(mktemp -d "$TMPDIR/paddleboard-XXXXXX")"
@@ -79,8 +79,8 @@ main() {
 }
 
 linux() {
-    if [ -n "${ZED_BUNDLE_PATH:-}" ]; then
-        cp "$ZED_BUNDLE_PATH" "$temp/paddleboard-linux-$arch.tar.gz"
+    if [ -n "${PADDLEBOARD_BUNDLE_PATH:-}" ]; then
+        cp "$PADDLEBOARD_BUNDLE_PATH" "$temp/paddleboard-linux-$arch.tar.gz"
     else
         echo "PaddleBoard has no hosted Linux releases to download."
         echo "Build and install from source instead:  ./script/install-linux"

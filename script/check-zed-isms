@@ -10,6 +10,9 @@
 #
 #   - paths under crates/zed/            (the directory does not exist)
 #   - cargo refs to the `zed` package    (--package zed / -p zed / get-crate-version zed)
+#   - ZED_* env vars in scripts          (the app reads PADDLEBOARD_*; a ZED_ export
+#                                         is invisible to it — bundle-mac shipped with
+#                                         ZED_BUNDLE so the bundled git went unused)
 #
 # Files that legitimately keep Zed names are allowlisted below — they are
 # upstream packaging/CI for formats PaddleBoard does not ship. If you PORT one
@@ -30,6 +33,11 @@ ALLOWLIST=(
   "script/zed-local"                 # Zed collab-dev helper
   "script/generate-action-metadata"  # Zed docs CI
   "script/lib/"                      # shared helpers for the above
+  "script/cargo"                     # Zed CI cargo wrapper
+  "script/randomized-test-ci"        # Zed collab randomized-test CI
+  "script/triage_project_sync.py"    # Zed issue-triage bot
+  "script/kube-shell"                # Zed collab kube tooling
+  "script/setup-dev-driver.ps1"      # Zed Windows dev tooling
   "script/check-zed-isms"            # this gate (patterns appear in its own text)
   ".github/CODEOWNERS.hold"          # parked upstream file, inert
   "docs/"                            # inherited upstream docs (carry redirect banners instead)
@@ -55,6 +63,7 @@ mapfile -t hits < <(
       | grep -v 'zed-industries/zed' || true
     grep -rnE '(--package|-p) zed([^-_a-zA-Z0-9]|$)|get-crate-version zed([^-_a-zA-Z0-9]|$)' script/ .github/ 2>/dev/null \
       | grep -v 'sentry-cli' || true
+    grep -rnE '\bZED_[A-Z_]+' script/ 2>/dev/null || true
   } | sort -u
 )
 

@@ -13,4 +13,6 @@ the `- Added` / `- Fixed` / `- Improved` convention from CLAUDE.md.
 
 ## Next (v0.1.4)
 
-_Nothing staged yet._
+- Fixed macOS bundles not using the git binary they ship — the build exported `ZED_BUNDLE` while the app checks `PADDLEBOARD_BUNDLE` at compile time, so PaddleBoard silently fell back to the system git instead of the bundled one.
+- Fixed Linux source installs not getting the "you built from source — rebuild to update" message baked in (same env-var mismatch, `ZED_UPDATE_EXPLANATION` vs `PADDLEBOARD_UPDATE_EXPLANATION`).
+- Improved fork hygiene: all packaging scripts now use `PADDLEBOARD_*` environment variables, and CI fails if a `ZED_*` variable sneaks back in.

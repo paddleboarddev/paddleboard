@@ -32,7 +32,7 @@ prompt_remove_preferences() {
 
 main() {
     platform="$(uname -s)"
-    channel="${ZED_CHANNEL:-stable}"
+    channel="${PADDLEBOARD_CHANNEL:-stable}"
 
     if [ "$platform" = "Darwin" ]; then
         platform="macos"
