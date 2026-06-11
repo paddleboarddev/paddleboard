@@ -42,6 +42,8 @@ PaddleBoard builds with [Cargo](https://doc.rust-lang.org/cargo/), the same tool
 
 1. **Install the prerequisites.** Follow [BUILDING.md](./BUILDING.md) — PaddleBoard's own guide, with macOS, Linux, and Windows sections (clone URL, system dependencies, and build commands).
 
+   > **On Linux?** The build needs a bunch of system libraries (X11/XCB, fontconfig, glib, ALSA, …). To err on the side of caution, run `./script/linux` first — it auto-installs them via your package manager (apt, dnf, pacman, zypper, and more). Skipping it ends in `rust-lld: error: unable to find library` at the final link step.
+
 2. **Run from source:**
 
    ```bash
