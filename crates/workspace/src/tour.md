@@ -99,6 +99,12 @@ Save your git host credentials once so HTTPS git operations stop prompting.
 Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
 - Prefer the classic behavior? Set `"search": { "search_on_type": false }` in settings.
 
+### 14. Agent Context Gauge
+Watch the status bar while an agent thread runs — a percentage shows how much of the model's context window you've used. 🌊
+- Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
+- Goes yellow near the limit, red past it; hidden when no thread is active.
+- Purely local — reads counts the thread already tracks. Telemetry stays off.
+
 ---
 
 *You can always revisit this tour by opening the Command Palette (`Cmd-Shift-P`) and selecting **`workspace: Open Paddle Board Tour`**.*

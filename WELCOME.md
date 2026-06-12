@@ -279,6 +279,15 @@ Project search runs automatically as you type — results update a beat after yo
 
 ---
 
+### Agent context gauge
+
+A status-bar meter shows how much of the model's context window the active agent thread has used — the percentage ticks up as the conversation grows, turning yellow as you approach the limit and red when you've hit it. Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
+
+- Appears only while a thread has token usage; otherwise it stays out of your way.
+- **Purely local.** It reads the counts the agent thread already tracks on your machine — PaddleBoard's telemetry stays hard-disabled, and nothing is reported anywhere.
+
+---
+
 ## What PaddleBoard inherits from Zed
 
 Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vim mode, remote development, extension system, collaborative editing, inline AI assistant, edit predictions, Jupyter notebooks, and the full GPUI-based GPU-accelerated rendering pipeline. See [Zed's documentation](https://zed.dev/docs) for details on anything not listed here.

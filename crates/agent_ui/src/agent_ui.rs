@@ -5,6 +5,8 @@ mod agent_model_selector;
 mod agent_panel;
 mod agent_registry_ui;
 mod mcp_servers_ui;
+// PaddleBoard: status-bar context-window gauge for the active agent thread.
+mod usage_status_item;
 pub mod orchestration_panel;
 mod branch_names;
 mod thread_history;
@@ -80,6 +82,7 @@ pub use crate::agent_panel::{
 pub use crate::orchestration_panel::OrchestrationPanel;
 use crate::agent_registry_ui::AgentRegistryPage;
 pub use crate::mcp_servers_ui::{McpServersView, McpStatusItem};
+pub use crate::usage_status_item::UsageStatusItem;
 pub use crate::inline_assistant::InlineAssistant;
 pub use crate::thread_metadata_store::ThreadId;
 pub use agent_diff::{AgentDiffPane, AgentDiffToolbar};
