@@ -92,6 +92,7 @@ PaddleBoard keeps the default install lean and lets you add the rest with one cl
 Save your git host credentials once so HTTPS git operations stop prompting.
 - Run **`git login: Manage`** → pick GitHub, GitLab, BitBucket (or a custom host), paste a Personal Access Token. Stored in your **OS keychain**.
 - `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
+- When the prompt does appear, tick **"Remember on this device"** as you submit — saved to the keychain, no prompt next time.
 - `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback. PAT-only for now; SSH is untouched.
 
 ### 13. Search As You Type
