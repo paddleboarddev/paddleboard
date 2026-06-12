@@ -31,7 +31,8 @@ use crate::{commit_view::CommitView, git_panel::GitPanel, text_diff_view::TextDi
 
 mod askpass_modal;
 pub mod branch_picker;
-mod git_login_modal;
+// PaddleBoard: pub so the visual test runner can open the modal directly.
+pub mod git_login_modal;
 mod commit_modal;
 pub mod commit_tooltip;
 pub mod commit_view;
