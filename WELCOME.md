@@ -236,7 +236,8 @@ Location defaults to `global`, where the newest models live (Gemini 3 and the `-
 
 Run **`git login: Manage`** from the command palette to save a Personal Access Token for **GitHub**, **GitLab**, **BitBucket**, or a custom host. Tokens are stored in your **OS keychain** (never in settings or plaintext). Once saved, git HTTPS `clone`/`fetch`/`push` authenticate silently — the password prompt only appears when there's no saved login.
 
-- The modal links straight to each provider's token page and shows the scopes to grant.
+- The modal lists each provider with its sign-in status at a glance — click a row to select it, or remove a saved login right from the list.
+- It links straight to each provider's token page and shows the scopes to grant.
 - Environment variables work as a fallback: set `GITHUB_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` and git auth is answered from there.
 - PaddleBoard sends the conventional token username per provider (`x-access-token` for GitHub, `oauth2` for GitLab, `x-token-auth` for BitBucket) unless you set your own.
 - No saved login yet? When git's password prompt does appear, check **"Remember on this device"** before submitting and the credential is saved to your keychain — the next operation authenticates silently.

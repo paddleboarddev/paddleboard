@@ -14,12 +14,25 @@ pub fn register(workspace: &mut Workspace) {
     });
 }
 
+/// Saved-login state for one provider row in the list.
+enum RowStatus {
+    Loading,
+    NotSignedIn,
+    SignedIn { username: String, from_env: bool },
+}
+
+struct LoginRow {
+    provider: &'static paddleboard_git_login::KnownProvider,
+    status: RowStatus,
+}
+
 pub struct GitLoginModal {
     focus_handle: FocusHandle,
     host: Entity<InputField>,
     username: Entity<InputField>,
     token: Entity<InputField>,
     status: Option<SharedString>,
+    rows: Vec<LoginRow>,
 }
 
 impl GitLoginModal {
@@ -55,9 +68,68 @@ impl GitLoginModal {
             username,
             token,
             status: None,
+            rows: KNOWN_PROVIDERS
+                .iter()
+                .map(|provider| LoginRow {
+                    provider,
+                    status: RowStatus::Loading,
+                })
+                .collect(),
         };
         this.reload_status(cx);
+        this.reload_rows(cx);
         this
+    }
+
+    /// Refresh the saved-login state shown on each provider row. The keychain
+    /// API has no enumeration, so the list covers the known providers (custom
+    /// hosts are still managed through the form below).
+    fn reload_rows(&self, cx: &mut Context<Self>) {
+        let provider = paddleboard_credentials_provider::global(cx);
+        cx.spawn(async move |this, cx| {
+            let mut statuses = Vec::with_capacity(KNOWN_PROVIDERS.len());
+            for known in KNOWN_PROVIDERS {
+                let login = paddleboard_git_login::load(known.url, provider.as_ref(), cx)
+                    .await
+                    .ok()
+                    .flatten();
+                statuses.push(match login {
+                    Some(login) => RowStatus::SignedIn {
+                        username: login.username,
+                        from_env: login.from_env,
+                    },
+                    None => RowStatus::NotSignedIn,
+                });
+            }
+            this.update(cx, |this, cx| {
+                this.rows = KNOWN_PROVIDERS
+                    .iter()
+                    .zip(statuses)
+                    .map(|(provider, status)| LoginRow { provider, status })
+                    .collect();
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// Delete the saved login behind a provider row.
+    fn remove_row(&mut self, host: &'static str, cx: &mut Context<Self>) {
+        let provider = paddleboard_credentials_provider::global(cx);
+        cx.spawn(async move |this, cx| {
+            let result = paddleboard_git_login::delete(host, provider.as_ref(), cx).await;
+            this.update(cx, |this, cx| {
+                this.status = Some(match result {
+                    Ok(()) => format!("Removed login for {host}").into(),
+                    Err(err) => format!("Failed to remove: {err}").into(),
+                });
+                this.reload_rows(cx);
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Prefill the form for a known provider when its button is clicked.
@@ -117,6 +189,7 @@ impl GitLoginModal {
                     Ok(()) => "Saved to keychain".into(),
                     Err(err) => format!("Failed to save: {err}").into(),
                 });
+                this.reload_rows(cx);
                 cx.notify();
             })
             .ok();
@@ -134,6 +207,7 @@ impl GitLoginModal {
                     Ok(()) => "Removed".into(),
                     Err(err) => format!("Failed to remove: {err}").into(),
                 });
+                this.reload_rows(cx);
                 cx.notify();
             })
             .ok();
@@ -161,15 +235,64 @@ impl Render for GitLoginModal {
         let host = self.host.read(cx).text(cx);
         let matched = known_provider(&host);
 
-        let provider_buttons = h_flex().gap_1().children(KNOWN_PROVIDERS.iter().map(|provider| {
-            let selected = matched.map(|m| m.url) == Some(provider.url);
-            Button::new(SharedString::from(provider.name), provider.name)
-                .toggle_state(selected)
+        let login_list = v_flex().children(self.rows.iter().enumerate().map(|(ix, row)| {
+            let selected = matched.map(|m| m.url) == Some(row.provider.url);
+            let (status_label, status_color, signed_in, from_env) = match &row.status {
+                RowStatus::Loading => ("…".to_string(), Color::Muted, false, false),
+                RowStatus::NotSignedIn => ("Not signed in".to_string(), Color::Muted, false, false),
+                RowStatus::SignedIn {
+                    username,
+                    from_env: true,
+                } => (
+                    format!("Signed in as {username} (environment variable)"),
+                    Color::Success,
+                    true,
+                    true,
+                ),
+                RowStatus::SignedIn { username, .. } => (
+                    format!("Signed in as {username}"),
+                    Color::Success,
+                    true,
+                    false,
+                ),
+            };
+            h_flex()
+                .id(("git-login-row", ix))
+                .justify_between()
+                .px_1()
+                .py_0p5()
+                .rounded_sm()
+                .when(selected, |this| {
+                    this.bg(cx.theme().colors().element_selected)
+                })
+                .hover(|this| this.bg(cx.theme().colors().element_hover))
                 .on_click(cx.listener({
-                    let host = provider.url;
-                    let username = provider.token_username;
+                    let host = row.provider.url;
+                    let username = row.provider.token_username;
                     move |this, _, window, cx| this.select_provider(host, username, window, cx)
                 }))
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .child(Label::new(row.provider.name))
+                        .child(
+                            Label::new(status_label)
+                                .size(LabelSize::Small)
+                                .color(status_color),
+                        ),
+                )
+                // Env-var logins have nothing in the keychain to remove; the
+                // form's Remove still works if a shadowed keychain entry exists.
+                .when(signed_in && !from_env, |this| {
+                    this.child(
+                        Button::new(("git-login-remove", ix), "Remove")
+                            .label_size(LabelSize::Small)
+                            .on_click(cx.listener({
+                                let host = row.provider.url;
+                                move |this, _, _, cx| this.remove_row(host, cx)
+                            })),
+                    )
+                })
         }));
 
         v_flex()
@@ -186,7 +309,7 @@ impl Render for GitLoginModal {
                     ))
                     .section(
                         Section::new()
-                            .child(provider_buttons)
+                            .child(login_list)
                             .child(self.host.clone())
                             .child(self.username.clone())
                             .child(self.token.clone())
