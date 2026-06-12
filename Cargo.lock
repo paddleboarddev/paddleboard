@@ -12750,8 +12750,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "credentials_provider",
+ "futures 0.3.32",
  "gpui",
+ "http_client",
  "log",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
