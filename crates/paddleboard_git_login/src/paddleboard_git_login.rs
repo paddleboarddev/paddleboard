@@ -7,6 +7,8 @@
 //! settings or plaintext. This crate is the storage/model layer; the
 //! management UI and the askpass injection live in `git_ui` and the app.
 
+pub mod device_flow;
+
 use anyhow::{Context as _, Result, anyhow};
 use credentials_provider::CredentialsProvider;
 use gpui::AsyncApp;
