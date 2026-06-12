@@ -95,6 +95,23 @@ pub fn credential_key(host_or_url: &str) -> String {
     format!("https://{host}")
 }
 
+/// Extract the username embedded in a git URL, e.g.
+/// `https://x-access-token@github.com/owner/repo` -> `x-access-token`.
+///
+/// git's `Password for '<url>'` askpass prompts carry the username this way, so
+/// this is what lets save-on-submit know which username to store alongside a
+/// token. Returns `None` when the URL has no `user@` part.
+pub fn url_username(url: &str) -> Option<String> {
+    let without_scheme = url.split_once("://").map_or(url, |(_scheme, rest)| rest);
+    let (userinfo, _host) = without_scheme.rsplit_once('@')?;
+    let username = userinfo.split(':').next().unwrap_or(userinfo);
+    if username.is_empty() {
+        None
+    } else {
+        Some(username.to_string())
+    }
+}
+
 /// Find the known provider matching a host or URL, if any.
 pub fn known_provider(host_or_url: &str) -> Option<&'static KnownProvider> {
     let key = credential_key(host_or_url);
@@ -219,6 +236,24 @@ mod tests {
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Mutex;
+
+    #[test]
+    fn url_username_extracts_embedded_user() {
+        assert_eq!(
+            url_username("https://x-access-token@github.com"),
+            Some("x-access-token".to_string())
+        );
+        assert_eq!(
+            url_username("https://oauth2@gitlab.com/owner/repo.git"),
+            Some("oauth2".to_string())
+        );
+        assert_eq!(
+            url_username("https://user:secret@bitbucket.org"),
+            Some("user".to_string())
+        );
+        assert_eq!(url_username("https://github.com"), None);
+        assert_eq!(url_username("https://@github.com"), None);
+    }
 
     #[test]
     fn credential_key_normalizes_hosts_and_urls() {
