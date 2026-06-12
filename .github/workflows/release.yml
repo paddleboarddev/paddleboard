@@ -51,6 +51,10 @@ jobs:
           APPLE_NOTARIZATION_KEY: ${{ secrets.APPLE_NOTARIZATION_KEY }}
           APPLE_NOTARIZATION_KEY_ID: ${{ secrets.APPLE_NOTARIZATION_KEY_ID }}
           APPLE_NOTARIZATION_ISSUER_ID: ${{ secrets.APPLE_NOTARIZATION_ISSUER_ID }}
+          # Public OAuth client id (no secret) baked into the binary at compile
+          # time via option_env! — enables "Sign in with GitHub" in Git Logins.
+          # Unset until the OAuth app is registered; builds work fine without it.
+          PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
         run: script/bundle-mac aarch64-apple-darwin
 
       - name: Publish draft release
