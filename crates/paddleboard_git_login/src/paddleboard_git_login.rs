@@ -7,9 +7,48 @@
 //! settings or plaintext. This crate is the storage/model layer; the
 //! management UI and the askpass injection live in `git_ui` and the app.
 
+pub mod device_flow;
+
 use anyhow::{Context as _, Result, anyhow};
 use credentials_provider::CredentialsProvider;
 use gpui::AsyncApp;
+use std::collections::HashMap;
+use std::sync::{LazyLock, RwLock};
+
+/// Process-wide cache of saved tokens, keyed by [`credential_key`]. Exists so
+/// code with no GPUI context access (e.g. the GitHub hosting provider's API
+/// requests) can reuse saved logins. Populated by `load`/`save` (and primed at
+/// startup via [`prime_token_cache`]); cleared by `delete` or by a `load` that
+/// finds nothing. External keychain edits are not reflected until the next
+/// `load`.
+static TOKEN_CACHE: LazyLock<RwLock<HashMap<String, String>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
+/// Get the cached token for a host or git URL, if a login has been loaded or
+/// saved during this session.
+pub fn cached_token(host_or_url: &str) -> Option<String> {
+    let cache = TOKEN_CACHE.read().ok()?;
+    cache.get(&credential_key(host_or_url)).cloned()
+}
+
+fn set_cached_token(key: String, token: Option<String>) {
+    if let Ok(mut cache) = TOKEN_CACHE.write() {
+        match token {
+            Some(token) => cache.insert(key, token),
+            None => cache.remove(&key),
+        };
+    }
+}
+
+/// Load every known provider's saved login once so [`cached_token`] works for
+/// non-GPUI consumers. Call once at startup; failures are logged, not fatal.
+pub async fn prime_token_cache(provider: &dyn CredentialsProvider, cx: &AsyncApp) {
+    for known in KNOWN_PROVIDERS {
+        if let Err(error) = load(known.url, provider, cx).await {
+            log::warn!("failed to load saved git login for {}: {error:#}", known.url);
+        }
+    }
+}
 
 /// A git hosting provider PaddleBoard knows how to help you log in to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +134,23 @@ pub fn credential_key(host_or_url: &str) -> String {
     format!("https://{host}")
 }
 
+/// Extract the username embedded in a git URL, e.g.
+/// `https://x-access-token@github.com/owner/repo` -> `x-access-token`.
+///
+/// git's `Password for '<url>'` askpass prompts carry the username this way, so
+/// this is what lets save-on-submit know which username to store alongside a
+/// token. Returns `None` when the URL has no `user@` part.
+pub fn url_username(url: &str) -> Option<String> {
+    let without_scheme = url.split_once("://").map_or(url, |(_scheme, rest)| rest);
+    let (userinfo, _host) = without_scheme.rsplit_once('@')?;
+    let username = userinfo.split(':').next().unwrap_or(userinfo);
+    if username.is_empty() {
+        None
+    } else {
+        Some(username.to_string())
+    }
+}
+
 /// Find the known provider matching a host or URL, if any.
 pub fn known_provider(host_or_url: &str) -> Option<&'static KnownProvider> {
     let key = credential_key(host_or_url);
@@ -127,6 +183,7 @@ pub async fn load(
 ) -> Result<Option<GitLogin>> {
     if let Some((username, token)) = resolve_env_token(host_or_url, |name| std::env::var(name).ok())
     {
+        set_cached_token(credential_key(host_or_url), Some(token.clone()));
         return Ok(Some(GitLogin {
             username: username.to_string(),
             token,
@@ -139,13 +196,17 @@ pub async fn load(
         Some((username, token_bytes)) => {
             let token = String::from_utf8(token_bytes)
                 .with_context(|| format!("stored git token for {key} is not valid UTF-8"))?;
+            set_cached_token(key, Some(token.clone()));
             Ok(Some(GitLogin {
                 username,
                 token,
                 from_env: false,
             }))
         }
-        None => Ok(None),
+        None => {
+            set_cached_token(key, None);
+            Ok(None)
+        }
     }
 }
 
@@ -164,7 +225,9 @@ pub async fn save(
     let key = credential_key(host_or_url);
     provider
         .write_credentials(&key, username, token.as_bytes(), cx)
-        .await
+        .await?;
+    set_cached_token(key, Some(token.to_string()));
+    Ok(())
 }
 
 /// What git is asking for in an askpass prompt.
@@ -209,7 +272,9 @@ pub async fn delete(
     cx: &AsyncApp,
 ) -> Result<()> {
     let key = credential_key(host_or_url);
-    provider.delete_credentials(&key, cx).await
+    provider.delete_credentials(&key, cx).await?;
+    set_cached_token(key, None);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -219,6 +284,24 @@ mod tests {
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Mutex;
+
+    #[test]
+    fn url_username_extracts_embedded_user() {
+        assert_eq!(
+            url_username("https://x-access-token@github.com"),
+            Some("x-access-token".to_string())
+        );
+        assert_eq!(
+            url_username("https://oauth2@gitlab.com/owner/repo.git"),
+            Some("oauth2".to_string())
+        );
+        assert_eq!(
+            url_username("https://user:secret@bitbucket.org"),
+            Some("user".to_string())
+        );
+        assert_eq!(url_username("https://github.com"), None);
+        assert_eq!(url_username("https://@github.com"), None);
+    }
 
     #[test]
     fn credential_key_normalizes_hosts_and_urls() {
@@ -269,6 +352,17 @@ mod tests {
     impl FakeProvider {
         fn new() -> Self {
             Self(Mutex::new(HashMap::new()))
+        }
+
+        fn insert(&self, host: &str, username: &str, token: &str) {
+            self.0.lock().unwrap().insert(
+                credential_key(host),
+                (username.to_string(), token.as_bytes().to_vec()),
+            );
+        }
+
+        fn clear(&self, host: &str) {
+            self.0.lock().unwrap().remove(&credential_key(host));
         }
     }
 
@@ -375,6 +469,35 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(load("github.com", &provider, &async_cx).await.unwrap(), None);
+    }
+
+    #[gpui::test]
+    async fn token_cache_follows_save_load_delete(cx: &mut gpui::TestAppContext) {
+        // Unique host: the cache is process-global and other tests touch
+        // github.com.
+        let host = "https://cache-test.example.com";
+        let provider = FakeProvider::new();
+        let async_cx = cx.to_async();
+
+        assert_eq!(cached_token(host), None);
+
+        save(host, "octocat", "cached_secret", &provider, &async_cx)
+            .await
+            .unwrap();
+        assert_eq!(cached_token(host), Some("cached_secret".to_string()));
+
+        delete(host, &provider, &async_cx).await.unwrap();
+        assert_eq!(cached_token(host), None);
+
+        // A load that finds a credential repopulates the cache...
+        provider.insert(host, "octocat", "reloaded_secret");
+        load(host, &provider, &async_cx).await.unwrap();
+        assert_eq!(cached_token(host), Some("reloaded_secret".to_string()));
+
+        // ...and a load that finds nothing clears a stale entry.
+        provider.clear(host);
+        load(host, &provider, &async_cx).await.unwrap();
+        assert_eq!(cached_token(host), None);
     }
 
     #[gpui::test]

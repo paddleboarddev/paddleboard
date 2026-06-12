@@ -31,7 +31,8 @@ use crate::{commit_view::CommitView, git_panel::GitPanel, text_diff_view::TextDi
 
 mod askpass_modal;
 pub mod branch_picker;
-mod git_login_modal;
+// PaddleBoard: pub so the visual test runner can open the modal directly.
+pub mod git_login_modal;
 mod commit_modal;
 pub mod commit_tooltip;
 pub mod commit_view;
@@ -69,6 +70,15 @@ pub fn get_provider_icon(name: &str) -> IconName {
 pub fn init(cx: &mut App) {
     editor::set_blame_renderer(blame_ui::GitBlameRenderer, cx);
     commit_view::init(cx);
+
+    // PaddleBoard: prime the saved-login token cache so hosting-provider API
+    // requests (e.g. GitHub commit-author lookups in blame) can authenticate
+    // without GPUI context access at the request site.
+    cx.spawn(async move |cx| {
+        let provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
+        paddleboard_git_login::prime_token_cache(provider.as_ref(), cx).await;
+    })
+    .detach();
 
     cx.observe_new(|editor: &mut Editor, _, cx| {
         conflict_view::register_editor(editor, editor.buffer().clone(), cx);

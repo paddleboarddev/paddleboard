@@ -1,12 +1,12 @@
 use askpass::EncryptedPassword;
 use editor::Editor;
 use futures::channel::oneshot;
-use gpui::{AppContext, DismissEvent, Entity, EventEmitter, Focusable, Styled};
+use gpui::{AppContext, DismissEvent, Entity, EventEmitter, Focusable, Styled, TaskExt};
 use ui::{
-    ActiveTheme, AnyElement, App, Button, Clickable, Color, Context, DynamicSpacing, Headline,
-    HeadlineSize, Icon, IconName, IconSize, InteractiveElement, IntoElement, Label, LabelCommon,
-    LabelSize, ParentElement, Render, SharedString, StyledExt, StyledTypography, Window, div,
-    h_flex, v_flex,
+    ActiveTheme, AnyElement, App, Button, Checkbox, Clickable, Color, Context, DynamicSpacing,
+    Headline, HeadlineSize, Icon, IconName, IconSize, InteractiveElement, IntoElement, Label,
+    LabelCommon, LabelSize, ParentElement, Render, SharedString, StyledExt, StyledTypography,
+    ToggleState, Window, div, h_flex, v_flex,
 };
 use util::maybe;
 use workspace::ModalView;
@@ -17,6 +17,10 @@ pub(crate) struct AskPassModal {
     prompt: SharedString,
     editor: Entity<Editor>,
     tx: Option<oneshot::Sender<EncryptedPassword>>,
+    // PaddleBoard: when the prompt is an HTTPS password prompt with an embedded
+    // username, offer to save the submitted token as a Git Login (keychain).
+    remember_target: Option<(String, String)>,
+    remember: bool,
 }
 
 impl EventEmitter<DismissEvent> for AskPassModal {}
@@ -44,11 +48,19 @@ impl AskPassModal {
             }
             editor
         });
+        let remember_target = paddleboard_git_login::parse_git_prompt(&prompt)
+            .filter(|(_, kind)| *kind == paddleboard_git_login::PromptKind::Password)
+            .and_then(|(url, _)| {
+                let username = paddleboard_git_login::url_username(&url)?;
+                Some((url, username))
+            });
         Self {
             operation,
             prompt,
             editor,
             tx: Some(tx),
+            remember_target,
+            remember: false,
         }
     }
 
@@ -64,6 +76,19 @@ impl AskPassModal {
                 this.clear(window, cx);
                 text
             });
+            // PaddleBoard: save-on-submit. The keychain write races the git
+            // operation on purpose — answering git must not wait on the keychain.
+            if self.remember && !text.is_empty() {
+                if let Some((url, username)) = self.remember_target.clone() {
+                    let token = text.clone();
+                    let provider = paddleboard_credentials_provider::global(cx);
+                    cx.spawn(async move |_, cx| {
+                        paddleboard_git_login::save(&url, &username, &token, provider.as_ref(), cx)
+                            .await
+                    })
+                    .detach_and_log_err(cx);
+                }
+            }
             let pw = askpass::EncryptedPassword::try_from(text.as_ref()).ok()?;
             text.zeroize();
             tx.send(pw).ok();
@@ -71,6 +96,26 @@ impl AskPassModal {
         });
 
         cx.emit(DismissEvent);
+    }
+
+    fn render_remember(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        self.remember_target.as_ref()?;
+        Some(
+            h_flex()
+                .px_3()
+                .pb_2()
+                .bg(cx.theme().colors().editor_background)
+                .child(
+                    Checkbox::new("remember-credential", self.remember.into())
+                        .label("Remember on this device (saved to your keychain)")
+                        .label_size(LabelSize::Small)
+                        .on_click(cx.listener(|this, state: &ToggleState, _window, cx| {
+                            this.remember = *state == ToggleState::Selected;
+                            cx.notify();
+                        })),
+                )
+                .into_any_element(),
+        )
     }
 
     fn render_hint(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -142,6 +187,7 @@ impl Render for AskPassModal {
                     .child(self.prompt.clone())
                     .child(self.editor.clone()),
             )
+            .children(self.render_remember(cx))
             .children(self.render_hint(cx))
     }
 }

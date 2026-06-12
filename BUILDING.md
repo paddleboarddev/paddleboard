@@ -77,7 +77,7 @@ cargo run -p paddleboard
 ./script/install-linux
 ```
 
-> **Linker errors mentioning `aws_lc_sys` / `__isoc23_sscanf`?** That's a known aws-lc-rs incompatibility with GCC ≥ 14. Work around it with `export REMOTE_SERVER_TARGET=x86_64-unknown-linux-gnu` before `script/install-linux`. Details: [zed#24880](https://github.com/zed-industries/zed/issues/24880).
+> **Linker errors mentioning `aws_lc_sys` / `__isoc23_sscanf`?** That's a known aws-lc-rs incompatibility with GCC ≥ 14 when linking the static musl `remote_server` ([zed#24880](https://github.com/zed-industries/zed/issues/24880)). PaddleBoard fixed this permanently by switching rustls to the `ring` crypto provider, so you shouldn't see it on a current checkout — if you do, you're likely on an older tag, and the workaround is `export REMOTE_SERVER_TARGET=x86_64-unknown-linux-gnu` before building (links `remote_server` against glibc instead of musl).
 
 ## Windows
 

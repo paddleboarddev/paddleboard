@@ -7211,6 +7211,7 @@ dependencies = [
  "http_client",
  "indoc",
  "itertools 0.14.0",
+ "paddleboard_git_login",
  "pretty_assertions",
  "regex",
  "serde",
@@ -12477,7 +12478,7 @@ checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
 name = "paddleboard"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "acp_thread",
  "acp_tools",
@@ -12512,6 +12513,7 @@ dependencies = [
  "copilot_chat",
  "copilot_ui",
  "crashes",
+ "credentials_provider",
  "csv_preview",
  "dap_adapters",
  "db",
@@ -12578,6 +12580,7 @@ dependencies = [
  "paddleboard_actions",
  "paddleboard_agent_frameworks",
  "paddleboard_ai_dock",
+ "paddleboard_credentials_provider",
  "paddleboard_env_vars",
  "paddleboard_languages_ui",
  "paddleboard_otel",
@@ -12747,8 +12750,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "credentials_provider",
+ "futures 0.3.32",
  "gpui",
+ "http_client",
  "log",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

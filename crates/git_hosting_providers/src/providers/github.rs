@@ -139,6 +139,10 @@ impl Github {
 
         if let Ok(github_token) = std::env::var("GITHUB_TOKEN") {
             request = request.header("Authorization", format!("Bearer {}", github_token));
+        } else if let Some(token) = paddleboard_git_login::cached_token(self.base_url.as_str()) {
+            // PaddleBoard: fall back to a saved Git Login token so commit author
+            // lookups work on private repos and skip the unauthenticated rate limit.
+            request = request.header("Authorization", format!("Bearer {token}"));
         }
 
         let mut response = client

@@ -623,6 +623,23 @@ fn run_visual_tests(project_path: PathBuf, update_baseline: bool) -> Result<()> 
         }
     }
 
+    // PaddleBoard Test 11: Manage Git Logins modal provider list
+    println!("\n--- Test 11: git_login_modal ---");
+    match run_git_login_modal_visual_test(app_state.clone(), &mut cx, update_baseline) {
+        Ok(TestResult::Passed) => {
+            println!("✓ git_login_modal: PASSED");
+            passed += 1;
+        }
+        Ok(TestResult::BaselineUpdated(_)) => {
+            println!("✓ git_login_modal: Baselines updated");
+            updated += 1;
+        }
+        Err(e) => {
+            eprintln!("✗ git_login_modal: FAILED - {}", e);
+            failed += 1;
+        }
+    }
+
     // Clean up the main workspace's worktree to stop background scanning tasks
     // This prevents "root path could not be canonicalized" errors when main() drops temp_dir
     workspace_window
@@ -1459,6 +1476,144 @@ fn run_settings_ui_subpage_visual_tests(
             Ok(TestResult::BaselineUpdated(p.clone()))
         }
     }
+}
+
+/// PaddleBoard: a fixed in-memory credentials provider so the git-login modal
+/// visual test never touches the real keychain (or the development credentials
+/// file in the user's config dir). Reads come from the seeded map; writes and
+/// deletes are accepted and dropped.
+#[cfg(target_os = "macos")]
+struct StaticCredentialsProvider {
+    credentials: std::collections::HashMap<String, (String, Vec<u8>)>,
+}
+
+#[cfg(target_os = "macos")]
+impl credentials_provider::CredentialsProvider for StaticCredentialsProvider {
+    fn read_credentials<'a>(
+        &'a self,
+        url: &'a str,
+        _cx: &'a gpui::AsyncApp,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Option<(String, Vec<u8>)>>> + 'a>>
+    {
+        let result = self.credentials.get(url).cloned();
+        Box::pin(async move { Ok(result) })
+    }
+
+    fn write_credentials<'a>(
+        &'a self,
+        _url: &'a str,
+        _username: &'a str,
+        _password: &'a [u8],
+        _cx: &'a gpui::AsyncApp,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+
+    fn delete_credentials<'a>(
+        &'a self,
+        _url: &'a str,
+        _cx: &'a gpui::AsyncApp,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+/// PaddleBoard: visual test for the Manage Git Logins modal's provider list.
+///
+/// Seeds a stub credentials provider with a saved GitLab login so the capture
+/// covers all three row states at once: GitHub (selected by default, not signed
+/// in), GitLab (signed in, with a Remove button), and Bitbucket (not signed in).
+///
+/// NOTE: `paddleboard_git_login::load` checks GITHUB_TOKEN / GITLAB_TOKEN /
+/// BITBUCKET_TOKEN before the credentials provider, so run the runner with
+/// those unset or the row statuses (and the baseline comparison) will differ.
+#[cfg(target_os = "macos")]
+fn run_git_login_modal_visual_test(
+    app_state: Arc<AppState>,
+    cx: &mut VisualTestAppContext,
+    update_baseline: bool,
+) -> Result<TestResult> {
+    cx.update(|cx| {
+        let mut credentials = std::collections::HashMap::new();
+        credentials.insert(
+            "https://gitlab.com".to_string(),
+            ("oauth2".to_string(), b"visual-test-dummy-token".to_vec()),
+        );
+        cx.set_global(paddleboard_credentials_provider::ZedCredentialsProvider(
+            Arc::new(StaticCredentialsProvider { credentials }),
+        ));
+    });
+
+    let window_size = size(px(1280.0), px(800.0));
+    let bounds = Bounds {
+        origin: point(px(0.0), px(0.0)),
+        size: window_size,
+    };
+
+    let project = cx.update(|cx| {
+        project::Project::local(
+            app_state.client.clone(),
+            app_state.node_runtime.clone(),
+            app_state.user_store.clone(),
+            app_state.languages.clone(),
+            app_state.fs.clone(),
+            None,
+            project::LocalProjectFlags {
+                init_worktree_trust: false,
+                ..Default::default()
+            },
+            cx,
+        )
+    });
+
+    let workspace_window: WindowHandle<MultiWorkspace> = cx
+        .update(|cx| {
+            cx.open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(bounds)),
+                    focus: false,
+                    show: false,
+                    ..Default::default()
+                },
+                |window, cx| {
+                    let workspace = cx.new(|cx| {
+                        Workspace::new(None, project.clone(), app_state.clone(), window, cx)
+                    });
+                    cx.new(|cx| MultiWorkspace::new(workspace, window, cx))
+                },
+            )
+        })
+        .context("Failed to open workspace window for git login modal test")?;
+
+    cx.run_until_parked();
+
+    workspace_window
+        .update(cx, |multi_workspace, window, cx| {
+            let workspace = multi_workspace.workspace().clone();
+            workspace.update(cx, |workspace, cx| {
+                workspace.toggle_modal(window, cx, |window, cx| {
+                    git_ui::git_login_modal::GitLoginModal::new(window, cx)
+                });
+            });
+        })
+        .context("Failed to open the git login modal")?;
+
+    cx.run_until_parked();
+
+    cx.update_window(workspace_window.into(), |_, window, _cx| {
+        window.refresh();
+    })?;
+    cx.run_until_parked();
+
+    let result = run_visual_test("git_login_modal", workspace_window.into(), cx, update_baseline)?;
+
+    cx.update_window(workspace_window.into(), |_, window, _cx| {
+        window.remove_window();
+    })
+    .log_err();
+    cx.run_until_parked();
+
+    Ok(result)
 }
 
 /// Runs visual tests for the diff review button in git diff views.

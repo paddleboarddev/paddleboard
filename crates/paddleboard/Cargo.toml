@@ -4,7 +4,7 @@ edition.workspace = true
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
-version = "0.1.3"
+version = "0.1.4"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -38,6 +38,9 @@ visual-tests = [
     "dep:tempfile",
     "dep:action_log",
     "dep:agent_servers",
+    # PaddleBoard: stub credentials provider for the git-login modal visual test
+    "dep:credentials_provider",
+    "dep:paddleboard_credentials_provider",
     "workspace/test-support",
     "project/test-support",
     "editor/test-support",
@@ -128,6 +131,9 @@ clock = { workspace = true, optional = true }
 acp_thread.workspace = true
 action_log = { workspace = true, optional = true }
 agent_servers = { workspace = true, optional = true }
+# PaddleBoard: visual-tests-only, for stubbing the keychain in the git-login modal test
+credentials_provider = { workspace = true, optional = true }
+paddleboard_credentials_provider = { workspace = true, optional = true }
 gpui_tokio.workspace = true
 rayon.workspace = true
 

@@ -92,11 +92,19 @@ PaddleBoard keeps the default install lean and lets you add the rest with one cl
 Save your git host credentials once so HTTPS git operations stop prompting.
 - Run **`git login: Manage`** → pick GitHub, GitLab, BitBucket (or a custom host), paste a Personal Access Token. Stored in your **OS keychain**.
 - `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
-- `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback. PAT-only for now; SSH is untouched.
+- When the prompt does appear, tick **"Remember on this device"** as you submit — saved to the keychain, no prompt next time.
+- `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback; SSH is untouched.
+- On GitHub, builds with an OAuth client id offer **Sign in with GitHub (browser)** — approve a short code on github.com and you're done.
 
 ### 13. Search As You Type
 Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
 - Prefer the classic behavior? Set `"search": { "search_on_type": false }` in settings.
+
+### 14. Agent Context Gauge
+Watch the status bar while an agent thread runs — a percentage shows how much of the model's context window you've used. 🌊
+- Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
+- Goes yellow near the limit, red past it; hidden when no thread is active.
+- Purely local — reads counts the thread already tracks. Telemetry stays off.
 
 ---
 

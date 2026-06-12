@@ -236,10 +236,14 @@ Location defaults to `global`, where the newest models live (Gemini 3 and the `-
 
 Run **`git login: Manage`** from the command palette to save a Personal Access Token for **GitHub**, **GitLab**, **BitBucket**, or a custom host. Tokens are stored in your **OS keychain** (never in settings or plaintext). Once saved, git HTTPS `clone`/`fetch`/`push` authenticate silently — the password prompt only appears when there's no saved login.
 
-- The modal links straight to each provider's token page and shows the scopes to grant.
+- The modal lists each provider with its sign-in status at a glance — click a row to select it, or remove a saved login right from the list.
+- It links straight to each provider's token page and shows the scopes to grant.
 - Environment variables work as a fallback: set `GITHUB_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` and git auth is answered from there.
 - PaddleBoard sends the conventional token username per provider (`x-access-token` for GitHub, `oauth2` for GitLab, `x-token-auth` for BitBucket) unless you set your own.
-- PAT-only today; SSH and host-key prompts are untouched (they still prompt as usual).
+- No saved login yet? When git's password prompt does appear, check **"Remember on this device"** before submitting and the credential is saved to your keychain — the next operation authenticates silently.
+- Saved GitHub logins also authenticate PaddleBoard's GitHub API requests (commit-author avatars in blame), so private repos work and you skip the unauthenticated rate limit. `GITHUB_TOKEN` still wins when set.
+- **Sign in with GitHub (browser):** builds configured with an OAuth client id show a one-click sign-in — PaddleBoard displays a short code, you approve it on github.com, and the token lands in your keychain automatically (the same device flow the `gh` CLI uses; no client secret involved). PATs always work regardless, and they're the path for GitLab/Bitbucket, which don't offer a device flow.
+- SSH and host-key prompts are untouched (they still prompt as usual).
 
 ---
 
@@ -273,6 +277,15 @@ Project search runs automatically as you type — results update a beat after yo
 ```json
 "search": { "search_on_type": false }
 ```
+
+---
+
+### Agent context gauge
+
+A status-bar meter shows how much of the model's context window the active agent thread has used — the percentage ticks up as the conversation grows, turning yellow as you approach the limit and red when you've hit it. Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
+
+- Appears only while a thread has token usage; otherwise it stays out of your way.
+- **Purely local.** It reads the counts the agent thread already tracks on your machine — PaddleBoard's telemetry stays hard-disabled, and nothing is reported anywhere.
 
 ---
 
