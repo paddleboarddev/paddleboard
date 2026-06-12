@@ -241,6 +241,7 @@ Run **`git login: Manage`** from the command palette to save a Personal Access T
 - Environment variables work as a fallback: set `GITHUB_TOKEN`, `GITLAB_TOKEN`, or `BITBUCKET_TOKEN` and git auth is answered from there.
 - PaddleBoard sends the conventional token username per provider (`x-access-token` for GitHub, `oauth2` for GitLab, `x-token-auth` for BitBucket) unless you set your own.
 - No saved login yet? When git's password prompt does appear, check **"Remember on this device"** before submitting and the credential is saved to your keychain — the next operation authenticates silently.
+- Saved GitHub logins also authenticate PaddleBoard's GitHub API requests (commit-author avatars in blame), so private repos work and you skip the unauthenticated rate limit. `GITHUB_TOKEN` still wins when set.
 - PAT-only today; SSH and host-key prompts are untouched (they still prompt as usual).
 
 ---
