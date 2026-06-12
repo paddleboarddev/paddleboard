@@ -12,3 +12,5 @@ Then reset this file back to an empty `## Next` section for the cycle after. Use
 the `- Added` / `- Fixed` / `- Improved` convention from CLAUDE.md.
 
 ## Next (v0.1.5)
+
+- Fixed `script/install.sh` failing with `SHELL: parameter not set` in environments without a login shell (Docker builds, CI).
