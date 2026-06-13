@@ -14,10 +14,11 @@ path = "src/git_ui.rs"
 
 [features]
 test-support = ["multi_buffer/test-support", "remote_connection/test-support"]
-# PaddleBoard: collab is removed from the fork, so upstream's optional `call`
-# dependency is gone; keep the feature name declared (empty) so the
-# upstream-shaped `#[cfg(feature = "call")]` gates stay valid but inert.
-call = []
+# PaddleBoard: upstream's optional `call` feature (collab co-authors) is removed
+# with the rest of collaboration. The `#[cfg(feature = "call")]` gates remain in
+# place but are never enabled (`unexpected_cfgs` is allowed workspace-wide), so
+# that code is always excluded — declaring the feature would let `--all-features`
+# try to compile it against the deleted `call` crate.
 
 [dependencies]
 agent_settings.workspace = true

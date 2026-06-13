@@ -714,7 +714,7 @@ impl ContextServerStore {
         }
         // PaddleBoard: create a shared stderr log handle for inline logs + live streaming.
         let (log_handle, log_rx) = context_server::StderrLogHandle::new();
-        self.server_logs.insert(id.clone(), (log_handle.buffer.clone(), log_rx));
+        self.server_logs.insert(id.clone(), (log_handle.buffer, log_rx));
 
         let task = cx.spawn({
             let id = server.id();

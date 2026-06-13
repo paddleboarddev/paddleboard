@@ -1174,6 +1174,10 @@ impl From<&PeerId> for CollaboratorId {
     }
 }
 
+// PaddleBoard: retained from upstream's collaborator-following but unused here
+// (human collab is stripped; only agent-following remains). Kept to minimize the
+// diff against upstream on weekly merges.
+#[allow(dead_code)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct Follower {
     project_id: Option<u64>,
@@ -1382,6 +1386,9 @@ pub struct Workspace {
     panes_by_item: HashMap<EntityId, WeakEntity<Pane>>,
     active_pane: Entity<Pane>,
     last_active_center_pane: Option<WeakEntity<Pane>>,
+    // PaddleBoard: set only by the stripped collaborator-following path; kept to
+    // match upstream's struct layout for merge-friendliness.
+    #[allow(dead_code)]
     last_active_view_id: Option<proto::ViewId>,
     status_bar: Entity<StatusBar>,
     pub(crate) modal_layer: Entity<ModalLayer>,
@@ -1463,6 +1470,8 @@ impl AutoWatch {
 
 struct FollowerView {
     view: Box<dyn FollowableItemHandle>,
+    // PaddleBoard: unused after collab-following removal; kept for merge parity.
+    #[allow(dead_code)]
     location: Option<proto::PanelId>,
 }
 
@@ -3240,13 +3249,6 @@ impl Workspace {
                 if close_intent == CloseIntent::CloseWindow {
                     this.removing = true;
                 }
-            })?;
-
-            let workspace_count = cx.update(|_window, cx| {
-                cx.windows()
-                    .iter()
-                    .filter(|window| window.downcast::<MultiWorkspace>().is_some())
-                    .count()
             })?;
 
             #[cfg(target_os = "macos")]

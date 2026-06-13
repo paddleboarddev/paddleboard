@@ -1121,7 +1121,7 @@ impl EditPredictionButton {
                     .link_with_handler(
                         "Learn More",
                         OpenBrowser {
-                            url: zed_urls::edit_prediction_docs(cx).into(),
+                            url: zed_urls::edit_prediction_docs(cx),
                         }
                         .boxed_clone(),
                         |_window, _cx| {
