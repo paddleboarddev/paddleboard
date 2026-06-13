@@ -8,7 +8,7 @@
 //! alongside the storage so the sidebar's preview rendering can't drift from
 //! the format we persist.
 
-use agent::ZED_AGENT_ID;
+use agent::PADDLEBOARD_AGENT_ID;
 use agent_client_protocol::schema as acp;
 use anyhow::Context as _;
 use db::kvp::KeyValueStore;
@@ -171,8 +171,8 @@ pub fn empty_draft_placeholder_label(
     agent_id: &AgentId,
     cx: &App,
 ) -> SharedString {
-    let agent_name = if agent_id.as_ref() == ZED_AGENT_ID.as_ref() {
-        SharedString::from(ZED_AGENT_ID.to_string())
+    let agent_name = if agent_id.as_ref() == PADDLEBOARD_AGENT_ID.as_ref() {
+        SharedString::from(PADDLEBOARD_AGENT_ID.to_string())
     } else {
         workspace
             .map(|ws| ws.read(cx).project().read(cx).agent_server_store().clone())

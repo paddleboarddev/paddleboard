@@ -1024,6 +1024,18 @@ impl ExtensionImports for WasmState {
                                 command: None,
                                 settings: Some(settings),
                             })?),
+                            project::project_settings::ContextServerSettings::SandboxedStdio {
+                                enabled: _,
+                                command,
+                                ..
+                            } => Ok(serde_json::to_string(&settings::ContextServerSettings {
+                                command: Some(settings::CommandSettings {
+                                    path: command.path.to_str().map(|path| path.to_string()),
+                                    arguments: Some(command.args),
+                                    env: command.env.map(|env| env.into_iter().collect()),
+                                }),
+                                settings: None,
+                            })?),
                             project::project_settings::ContextServerSettings::Http { .. } => {
                                 bail!("remote context server settings not supported in 0.6.0")
                             }

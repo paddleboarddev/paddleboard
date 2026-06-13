@@ -190,6 +190,22 @@ pub enum ContextServerSettings {
         #[serde(flatten)]
         command: ContextServerCommand,
     },
+    /// PaddleBoard: an MCP server run inside a Podman + gVisor sandbox.
+    SandboxedStdio {
+        /// Whether the context server is enabled.
+        #[serde(default = "default_true")]
+        enabled: bool,
+        #[serde(flatten)]
+        command: ContextServerCommand,
+        /// Container image to run the MCP server inside.
+        image: String,
+        /// Names of host env vars to forward into the container via `podman run -e`.
+        #[serde(default)]
+        forward_env: Vec<String>,
+        /// Mount the active worktree at `/workspace` inside the container.
+        #[serde(default = "default_true")]
+        mount_worktree: bool,
+    },
     Http {
         /// Whether the context server is enabled.
         #[serde(default = "default_true")]
@@ -233,6 +249,19 @@ impl From<settings::ContextServerSettingsContent> for ContextServerSettings {
                 remote,
                 command,
             },
+            settings::ContextServerSettingsContent::SandboxedStdio {
+                enabled,
+                command,
+                image,
+                forward_env,
+                mount_worktree,
+            } => ContextServerSettings::SandboxedStdio {
+                enabled,
+                command,
+                image,
+                forward_env,
+                mount_worktree,
+            },
             settings::ContextServerSettingsContent::Extension {
                 enabled,
                 remote,
@@ -272,6 +301,19 @@ impl Into<settings::ContextServerSettingsContent> for ContextServerSettings {
                 enabled,
                 remote,
                 command,
+            },
+            ContextServerSettings::SandboxedStdio {
+                enabled,
+                command,
+                image,
+                forward_env,
+                mount_worktree,
+            } => settings::ContextServerSettingsContent::SandboxedStdio {
+                enabled,
+                command,
+                image,
+                forward_env,
+                mount_worktree,
             },
             ContextServerSettings::Extension {
                 enabled,
@@ -328,6 +370,7 @@ impl ContextServerSettings {
     pub fn enabled(&self) -> bool {
         match self {
             ContextServerSettings::Stdio { enabled, .. } => *enabled,
+            ContextServerSettings::SandboxedStdio { enabled, .. } => *enabled,
             ContextServerSettings::Http { enabled, .. } => *enabled,
             ContextServerSettings::Extension { enabled, .. } => *enabled,
         }
@@ -336,6 +379,7 @@ impl ContextServerSettings {
     pub fn set_enabled(&mut self, enabled: bool) {
         match self {
             ContextServerSettings::Stdio { enabled: e, .. } => *e = enabled,
+            ContextServerSettings::SandboxedStdio { enabled: e, .. } => *e = enabled,
             ContextServerSettings::Http { enabled: e, .. } => *e = enabled,
             ContextServerSettings::Extension { enabled: e, .. } => *e = enabled,
         }

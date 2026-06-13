@@ -26,6 +26,102 @@ use paddleboard_actions::assistant::InlineAssist;
 
 use prompt_store::*;
 
+// PaddleBoard: Upstream's "rules → skills" migration trimmed `PromptStore` down to a
+// read-only view (`load` + `all_prompt_metadata`), dropping `search`, `metadata`,
+// `first`, `save`, `save_metadata`, `delete`, and `PromptId::can_edit`. PaddleBoard
+// keeps the standalone Rules Library window, so the read-only helpers below
+// reimplement the removed *query* methods locally against `all_prompt_metadata`,
+// preserving their exact behavior. The removed *mutation* methods have no
+// replacement now that the backing store no longer exposes a write path; see
+// `unsupported_store_write` for how that is handled.
+
+/// Local reimplementation of the removed `PromptStore::search`. Mirrors the old
+/// behavior: empty query returns every entry, otherwise a fuzzy match over titles,
+/// with default rules sorted first.
+fn search_metadata(
+    store: &PromptStore,
+    query: String,
+    cancellation_flag: Arc<AtomicBool>,
+    cx: &App,
+) -> Task<Vec<PromptMetadata>> {
+    let cached_metadata = store.all_prompt_metadata();
+    let executor = cx.background_executor().clone();
+    cx.background_spawn(async move {
+        let mut matches = if query.is_empty() {
+            cached_metadata
+        } else {
+            let candidates = cached_metadata
+                .iter()
+                .enumerate()
+                .filter_map(|(index, metadata)| {
+                    Some(fuzzy::StringMatchCandidate::new(
+                        index,
+                        metadata.title.as_ref()?,
+                    ))
+                })
+                .collect::<Vec<_>>();
+            let string_matches = fuzzy::match_strings(
+                &candidates,
+                &query,
+                false,
+                true,
+                100,
+                &cancellation_flag,
+                executor,
+            )
+            .await;
+            string_matches
+                .into_iter()
+                .filter_map(|string_match| cached_metadata.get(string_match.candidate_id).cloned())
+                .collect()
+        };
+        matches.sort_by_key(|metadata| std::cmp::Reverse(metadata.default));
+        matches
+    })
+}
+
+/// Local reimplementation of the removed `PromptStore::metadata`.
+fn metadata_for(store: &PromptStore, prompt_id: PromptId) -> Option<PromptMetadata> {
+    store
+        .all_prompt_metadata()
+        .into_iter()
+        .find(|metadata| metadata.id == prompt_id)
+}
+
+/// Local reimplementation of the removed `PromptStore::first`. The metadata cache is
+/// kept sorted by the store, so the first entry matches the old behavior.
+fn first_metadata(store: &PromptStore) -> Option<PromptMetadata> {
+    store.all_prompt_metadata().into_iter().next()
+}
+
+/// Local reimplementation of the removed `PromptId::can_edit`. Matches the old
+/// upstream logic: user rules are editable, and the only built-in (the commit
+/// message prompt) was editable too.
+fn prompt_can_edit(prompt_id: PromptId) -> bool {
+    match prompt_id.as_built_in() {
+        Some(built_in) => match built_in {
+            BuiltInPrompt::CommitMessage => true,
+        },
+        None => true,
+    }
+}
+
+// PaddleBoard: The new read-only `PromptStore` has no write path (its `env`/`bodies`
+// handles are private to the prompt_store crate), so edits/deletes made in this
+// window can no longer be persisted to the prompt database. Routing the former
+// `save`/`save_metadata`/`delete` calls through this helper keeps in-session editing
+// working (the editors and picker still reflect changes for the lifetime of the
+// window) while making the loss of persistence explicit instead of silent. If
+// PaddleBoard wants durable rule editing again, it must re-expose a write API on
+// `PromptStore` (the one upstream-shaped change we are intentionally not making here).
+fn unsupported_store_write(operation: &str) -> Task<Result<()>> {
+    log::warn!(
+        "rules_library: `{operation}` is not persisted — upstream's rules→skills \
+         migration made PromptStore read-only; changes apply only for this session"
+    );
+    Task::ready(Ok(()))
+}
+
 pub fn init(cx: &mut App) {
     prompt_store::init(cx);
 }
@@ -236,7 +332,7 @@ impl PickerDelegate for RulePickerDelegate {
         cx: &mut Context<Picker<Self>>,
     ) -> Task<()> {
         let cancellation_flag = Arc::new(AtomicBool::default());
-        let search = self.store.read(cx).search(query, cancellation_flag, cx);
+        let search = search_metadata(self.store.read(cx), query, cancellation_flag, cx);
 
         let prev_prompt_id = self
             .filtered_entries
@@ -540,7 +636,7 @@ impl RulesLibrary {
     pub fn new_rule(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         // If we already have an untitled rule, use that instead
         // of creating a new one.
-        if let Some(metadata) = self.store.read(cx).first()
+        if let Some(metadata) = first_metadata(self.store.read(cx))
             && metadata.title.is_none()
         {
             self.load_rule(metadata.id, true, window, cx);
@@ -548,9 +644,7 @@ impl RulesLibrary {
         }
 
         let prompt_id = PromptId::new();
-        let save = self.store.update(cx, |store, cx| {
-            store.save(prompt_id, None, false, "".into(), cx)
-        });
+        let save = unsupported_store_write("save (new rule)");
         self.picker
             .update(cx, |picker, cx| picker.refresh(window, cx));
         cx.spawn_in(window, async move |this, cx| {
@@ -565,12 +659,17 @@ impl RulesLibrary {
     pub fn save_rule(&mut self, prompt_id: PromptId, window: &mut Window, cx: &mut Context<Self>) {
         const SAVE_THROTTLE: Duration = Duration::from_millis(500);
 
-        if !prompt_id.can_edit() {
+        if !prompt_can_edit(prompt_id) {
             return;
         }
 
-        let rule_metadata = self.store.read(cx).metadata(prompt_id).unwrap();
-        let rule_editor = self.rule_editors.get_mut(&prompt_id).unwrap();
+        // Guard that the rule still exists in the store before scheduling a save.
+        let Some(_rule_metadata) = metadata_for(self.store.read(cx), prompt_id) else {
+            return;
+        };
+        let Some(rule_editor) = self.rule_editors.get_mut(&prompt_id) else {
+            return;
+        };
         let title = rule_editor.title_editor.read(cx).text(cx);
         let body = rule_editor.body_editor.update(cx, |editor, cx| {
             editor
@@ -583,7 +682,6 @@ impl RulesLibrary {
                 .clone()
         });
 
-        let store = self.store.clone();
         let executor = cx.background_executor().clone();
 
         rule_editor.next_title_and_body_to_save = Some((title, body));
@@ -598,19 +696,13 @@ impl RulesLibrary {
                                 .take()
                         })?;
 
-                        if let Some((title, body)) = title_and_body {
-                            let title = if title.trim().is_empty() {
-                                None
-                            } else {
-                                Some(SharedString::from(title))
-                            };
-                            cx.update(|_window, cx| {
-                                store.update(cx, |store, cx| {
-                                    store.save(prompt_id, title, rule_metadata.default, body, cx)
-                                })
-                            })?
-                            .await
-                            .log_err();
+                        if title_and_body.is_some() {
+                            // PaddleBoard: persistence removed upstream (see
+                            // `unsupported_store_write`); the edited title/body stay
+                            // in the editor buffers for this session. We still drain
+                            // `next_title_and_body_to_save` above so the throttle loop
+                            // terminates as before.
+                            unsupported_store_write("save (rule edit)").await.log_err();
                             this.update_in(cx, |this, window, cx| {
                                 this.picker
                                     .update(cx, |picker, cx| picker.refresh(window, cx));
@@ -686,13 +778,12 @@ impl RulesLibrary {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.store.update(cx, move |store, cx| {
-            if let Some(rule_metadata) = store.metadata(prompt_id) {
-                store
-                    .save_metadata(prompt_id, rule_metadata.title, !rule_metadata.default, cx)
-                    .detach_and_log_err(cx);
-            }
-        });
+        if metadata_for(self.store.read(cx), prompt_id).is_some() {
+            // PaddleBoard: toggling a rule's default flag is no longer persisted —
+            // the read-only store dropped `save_metadata` (see
+            // `unsupported_store_write`).
+            unsupported_store_write("save_metadata (toggle default)").detach();
+        }
         self.picker
             .update(cx, |picker, cx| picker.refresh(window, cx));
         cx.notify();
@@ -712,7 +803,7 @@ impl RulesLibrary {
                     .update(cx, |editor, cx| window.focus(&editor.focus_handle(cx), cx));
             }
             self.set_active_rule(Some(prompt_id), window, cx);
-        } else if let Some(rule_metadata) = self.store.read(cx).metadata(prompt_id) {
+        } else if let Some(rule_metadata) = metadata_for(self.store.read(cx), prompt_id) {
             let language_registry = self.language_registry.clone();
             let rule = self.store.read(cx).load(prompt_id, cx);
             self.pending_load = cx.spawn_in(window, async move |this, cx| {
@@ -739,7 +830,7 @@ impl RulesLibrary {
                             });
 
                             let mut editor = Editor::for_buffer(buffer, None, window, cx);
-                            if !prompt_id.can_edit() {
+                            if !prompt_can_edit(prompt_id) {
                                 editor.set_read_only(true);
                                 editor.set_show_edit_predictions(Some(false), window, cx);
                             }
@@ -839,7 +930,7 @@ impl RulesLibrary {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(metadata) = self.store.read(cx).metadata(prompt_id) {
+        if let Some(metadata) = metadata_for(self.store.read(cx), prompt_id) {
             let confirmation = window.prompt(
                 PromptLevel::Warning,
                 &format!(
@@ -858,9 +949,11 @@ impl RulesLibrary {
                             this.set_active_rule(None, window, cx);
                         }
                         this.rule_editors.remove(&prompt_id);
-                        this.store
-                            .update(cx, |store, cx| store.delete(prompt_id, cx))
-                            .detach_and_log_err(cx);
+                        // PaddleBoard: the read-only store dropped `delete`; the rule
+                        // is removed from this session's editor/picker but cannot be
+                        // purged from the backing database (see
+                        // `unsupported_store_write`).
+                        unsupported_store_write("delete (rule)").detach();
                         this.picker
                             .update(cx, |picker, cx| picker.refresh(window, cx));
                         cx.notify();
@@ -904,9 +997,17 @@ impl RulesLibrary {
 
             let new_id = PromptId::new();
             let body = rule.body_editor.read(cx).text(cx);
-            let save = self.store.update(cx, |store, cx| {
-                store.save(new_id, Some(title.into()), false, body.into(), cx)
-            });
+            // PaddleBoard: the read-only store dropped `save`, so a duplicated rule
+            // can no longer be written to the database and therefore cannot be
+            // re-loaded through the store. We still compute its title/body and log
+            // the limitation rather than silently doing nothing (see
+            // `unsupported_store_write`).
+            log::warn!(
+                "rules_library: duplicate rule {new_id} (title {title:?}, {} body bytes) \
+                 not persisted — PromptStore is read-only after the rules→skills migration",
+                body.len()
+            );
+            let save = unsupported_store_write("save (duplicate rule)");
             self.picker
                 .update(cx, |picker, cx| picker.refresh(window, cx));
             cx.spawn_in(window, async move |this, cx| {
@@ -1105,7 +1206,7 @@ impl RulesLibrary {
                     )
                 }
             })
-            .child(div().flex_grow().child(self.picker.clone()))
+            .child(div().flex_grow(1.).child(self.picker.clone()))
     }
 
     fn render_active_rule_editor(
@@ -1223,12 +1324,12 @@ impl RulesLibrary {
         div()
             .id("rule-editor")
             .h_full()
-            .flex_grow()
+            .flex_grow(1.)
             .border_l_1()
             .border_color(cx.theme().colors().border)
             .bg(cx.theme().colors().editor_background)
             .children(self.active_rule_id.and_then(|prompt_id| {
-                let rule_metadata = self.store.read(cx).metadata(prompt_id)?;
+                let rule_metadata = metadata_for(self.store.read(cx), prompt_id)?;
                 let rule_editor = &self.rule_editors[&prompt_id];
                 let focus_handle = rule_editor.body_editor.focus_handle(cx);
                 let built_in = prompt_id.is_built_in();
@@ -1272,7 +1373,7 @@ impl RulesLibrary {
                                 .on_action(cx.listener(Self::inline_assist))
                                 .on_action(cx.listener(Self::move_up_from_body))
                                 .h_full()
-                                .flex_grow()
+                                .flex_grow(1.)
                                 .child(
                                     h_flex()
                                         .py_2()

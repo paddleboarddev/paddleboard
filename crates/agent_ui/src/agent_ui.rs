@@ -840,7 +840,7 @@ fn update_command_palette_filter(cx: &mut App) {
             }
 
             match edit_prediction_provider {
-                EditPredictionProvider::None | EditPredictionProvider::Experimental(_) => {
+                EditPredictionProvider::None => {
                     filter.hide_namespace("edit_prediction");
                     filter.hide_namespace("copilot");
                     filter.hide_action_types(&edit_prediction_actions);

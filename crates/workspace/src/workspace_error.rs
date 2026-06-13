@@ -108,7 +108,7 @@ impl ErrorAction {
         self
     }
 
-    pub fn link(label: impl Into<SharedString>, url: impl Into<Arc<str>>) -> Self {
+    pub fn link(label: impl Into<SharedString>, url: impl Into<String>) -> Self {
         Self::new(label, OpenBrowser { url: url.into() }).with_end_icon(IconName::ArrowUpRight)
     }
 }

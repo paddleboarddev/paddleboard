@@ -1763,6 +1763,40 @@ impl ContentMask<Pixels> {
 }
 
 impl Window {
+    // PaddleBoard: embedded webview (browser panel) controls, forwarded to the
+    // platform window's wry-backed webview.
+    /// Adds a webview at the given bounds within this window.
+    pub fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {
+        self.platform_window.add_webview(url, bounds);
+    }
+
+    /// Updates the bounds of the existing webview in this window.
+    pub fn update_webview(&mut self, bounds: Bounds<Pixels>) {
+        self.platform_window.update_webview(bounds);
+    }
+
+    /// Shows the webview after it has been hidden.
+    pub fn show_webview(&mut self) {
+        self.platform_window.show_webview();
+    }
+
+    /// Hides the webview without destroying it.
+    pub fn hide_webview(&mut self) {
+        self.platform_window.hide_webview();
+    }
+
+    /// Destroys the webview entirely. A subsequent `add_webview` will create a new one.
+    pub fn remove_webview(&mut self) {
+        self.platform_window.remove_webview();
+    }
+
+    /// Navigates the existing webview to a new URL.
+    pub fn navigate_webview(&mut self, url: &str) {
+        self.platform_window.navigate_webview(url);
+    }
+}
+
+impl Window {
     fn mark_view_dirty(&mut self, view_id: EntityId) {
         // Mark ancestor views as dirty. If already in the `dirty_views` set, then all its ancestors
         // should already be dirty.

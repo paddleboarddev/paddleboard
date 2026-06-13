@@ -5815,6 +5815,7 @@ impl AgentPanel {
                                     window.dispatch_action(
                                         Box::new(paddleboard_actions::OpenSettingsAt {
                                             path: "agent.skills".to_string(),
+                                            target: None,
                                         }),
                                         cx,
                                     );

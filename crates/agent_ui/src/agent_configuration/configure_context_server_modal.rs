@@ -523,6 +523,14 @@ impl ConfigureContextServerModal {
                     id: server_id,
                     command,
                 }),
+                // PaddleBoard: the modal has no dedicated sandbox UI, so a sandboxed
+                // server is edited through the same command-based target as a plain Stdio one.
+                ContextServerSettings::SandboxedStdio { command, .. } => {
+                    Some(ConfigurationTarget::Existing {
+                        id: server_id,
+                        command,
+                    })
+                }
                 ContextServerSettings::Http {
                     enabled: _,
                     url,

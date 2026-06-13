@@ -134,6 +134,22 @@ actions!(
     ]
 );
 
+// PaddleBoard: actions for the Git Graph history view (in the `git_graph` crate).
+actions!(
+    git_graph,
+    [
+        /// Opens the Git Graph Tab.
+        Open,
+    ]
+);
+
+/// Opens the Git Graph Tab at a specific commit.
+#[derive(Clone, PartialEq, serde::Deserialize, schemars::JsonSchema, gpui::Action)]
+#[action(namespace = git_graph)]
+pub struct OpenAtCommit {
+    pub sha: String,
+}
+
 fn prompt<T>(
     msg: &str,
     detail: Option<&str>,

@@ -19,6 +19,8 @@ font-kit = ["dep:font-kit"]
 screen-capture = ["gpui/screen-capture"]
 
 [dependencies]
+# PaddleBoard: embedded webview (browser panel) integration.
+wry.workspace = true
 gpui.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]

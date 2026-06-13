@@ -1041,7 +1041,10 @@ impl EditPredictionButton {
                 .separator()
                 .link(
                     "Go to Copilot Settings",
-                    OpenBrowser { url: settings_url }.boxed_clone(),
+                    OpenBrowser {
+                        url: settings_url.to_string(),
+                    }
+                    .boxed_clone(),
                 )
                 .action("Sign Out", copilot::SignOut.boxed_clone());
             menu

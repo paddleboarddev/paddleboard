@@ -44,19 +44,18 @@ pub use toast_layer::{ToastAction, ToastLayer, ToastView};
 
 use anyhow::{Context as _, Result, anyhow};
 use client::{
-    ChannelId, Client, ErrorExt, ParticipantIndex, Status, TypedEnvelope, User, UserStore,
+    Client, ErrorExt, UserStore,
     proto::{self, ErrorCode, PanelId, PeerId},
 };
 use collections::{HashMap, HashSet, TypeIdHashMap, hash_map};
 use dock::{Dock, DockPosition, PanelButtons, PanelHandle, RESIZE_HANDLE_SIZE};
-use fs::Fs;
 use futures::{
     Future, FutureExt, StreamExt,
     channel::{
         mpsc::{self, UnboundedReceiver, UnboundedSender},
         oneshot,
     },
-    future::{Shared, try_join_all},
+    future::Shared,
 };
 use gpui::{
     Action, AnyEntity, AnyView, AnyWeakView, App, AsyncApp, AsyncWindowContext, Axis, Bounds,
@@ -1155,8 +1154,6 @@ pub struct PreviousWorkspaceState {
 
 pub struct WorkspaceStore {
     workspaces: HashSet<(gpui::AnyWindowHandle, WeakEntity<Workspace>)>,
-    client: Arc<Client>,
-    _subscriptions: Vec<client::Subscription>,
 }
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -1402,7 +1399,6 @@ pub struct Workspace {
     app_state: Arc<AppState>,
     dispatching_keystrokes: Rc<RefCell<DispatchingKeystrokes>>,
     _subscriptions: Vec<Subscription>,
-    _apply_leader_updates: Task<Result<()>>,
     _observe_current_user: Task<Result<()>>,
     _schedule_serialize_workspace: Option<Task<()>>,
     _serialize_workspace_task: Option<Task<()>>,
@@ -5695,7 +5691,8 @@ impl Workspace {
             .cloned()
     }
 
-    fn start_following(
+    // PaddleBoard: pub so agent-following can be driven from tests in other crates.
+    pub fn start_following(
         &mut self,
         leader_id: CollaboratorId,
         window: &mut Window,
@@ -7193,8 +7190,7 @@ impl Workspace {
             .flex()
             .overflow_hidden()
             .flex_none()
-            .child(dock.clone())
-            .children(leader_border);
+            .child(dock.clone());
 
         // Apply sizing only when the dock is open. When closed the dock is still
         // included in the element tree so its focus handle remains mounted — without
