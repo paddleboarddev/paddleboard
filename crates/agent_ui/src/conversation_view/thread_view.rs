@@ -10560,12 +10560,20 @@ pub(crate) fn open_link(
             // PaddleBoard: the Rules Library is kept; route rule mentions to it
             // instead of upstream's rules-to-skills migration toast.
             MentionUri::Rule { id, .. } => {
-                let prompt_store::PromptId::User { uuid } = id else {
+                // PaddleBoard: upstream made `Rule.id` an opaque JSON value
+                // (`{"User":{"uuid":"…"}}`); recover the user-prompt UUID for the
+                // Rules Library route.
+                let Some(uuid) = id
+                    .get("User")
+                    .and_then(|user| user.get("uuid"))
+                    .and_then(|value| value.as_str())
+                    .and_then(|raw| uuid::Uuid::parse_str(raw).ok())
+                else {
                     return;
                 };
                 window.dispatch_action(
                     Box::new(paddleboard_actions::assistant::OpenRulesLibrary {
-                        prompt_to_select: Some(uuid.0),
+                        prompt_to_select: Some(uuid),
                     }),
                     cx,
                 )

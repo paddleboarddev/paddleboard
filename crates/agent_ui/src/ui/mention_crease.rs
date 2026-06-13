@@ -8,7 +8,6 @@ use gpui::{
     pulsating_between,
 };
 use language::Buffer;
-use prompt_store::PromptId;
 use rope::Point;
 use settings::Settings;
 use theme_settings::ThemeSettings;
@@ -376,19 +375,26 @@ fn open_thread(
 
 fn open_rule(
     _workspace: &mut Workspace,
-    id: PromptId,
+    // PaddleBoard: upstream made `MentionUri::Rule.id` an opaque JSON value
+    // (`{"User":{"uuid":"…"}}`) rather than a typed PromptId.
+    id: serde_json::Value,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
     use paddleboard_actions::assistant::OpenRulesLibrary;
 
-    let PromptId::User { uuid } = id else {
+    let Some(uuid) = id
+        .get("User")
+        .and_then(|user| user.get("uuid"))
+        .and_then(|value| value.as_str())
+        .and_then(|raw| uuid::Uuid::parse_str(raw).ok())
+    else {
         return;
     };
 
     window.dispatch_action(
         Box::new(OpenRulesLibrary {
-            prompt_to_select: Some(uuid.0),
+            prompt_to_select: Some(uuid),
         }),
         cx,
     );

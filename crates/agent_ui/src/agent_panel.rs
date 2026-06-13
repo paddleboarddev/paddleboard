@@ -84,6 +84,8 @@ use language_model::LanguageModelRegistry;
 use notifications::status_toast::StatusToast;
 use project::{Project, ProjectPath, Worktree};
 use settings::TerminalDockPosition;
+// PaddleBoard: skill creator modal entry points.
+use skill_creator::{SkillCreatorOpenMode, is_supported_skill_url, open_skill_creator};
 use settings::{NotifyWhenAgentWaiting, Settings, update_settings_file};
 
 use terminal::{Event as TerminalEvent, terminal_settings::TerminalSettings};

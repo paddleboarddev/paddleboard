@@ -51,6 +51,15 @@ impl AgentConnectionEntry {
             AgentConnectionEntry::Error { .. } => AgentConnectionStatus::Disconnected,
         }
     }
+
+    /// PaddleBoard: thread-history overlay for external/Gemini agents. The
+    /// connected state does not carry a per-connection [`crate::ThreadHistory`],
+    /// so this returns `None` until the session-list plumbing is wired through.
+    /// The overlay entry points (`open_history`/`history_for_selected_agent`)
+    /// are currently dead code, so this is inert rather than a regression.
+    pub fn history(&self) -> Option<gpui::Entity<crate::ThreadHistory>> {
+        None
+    }
 }
 
 pub enum AgentConnectionEntryEvent {
