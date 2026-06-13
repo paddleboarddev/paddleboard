@@ -1,5 +1,4 @@
 pub mod http;
-mod sandboxed_stdio_transport;
 mod stdio_transport;
 
 use anyhow::Result;
@@ -8,7 +7,6 @@ use futures::Stream;
 use std::pin::Pin;
 
 pub use http::*;
-pub use sandboxed_stdio_transport::*;
 pub use stdio_transport::*;
 
 #[async_trait]

@@ -25,7 +25,7 @@ use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_
 use itertools::Itertools;
 use rand::Rng as _;
 use registry::ContextServerDescriptorRegistry;
-use remote::RemoteClient;
+use remote::{Interactive, RemoteClient};
 use rpc::{AnyProtoClient, TypedEnvelope, proto};
 use settings::{Settings as _, SettingsStore};
 use util::{ResultExt as _, rel_path::RelPath};
@@ -722,7 +722,7 @@ impl ContextServerStore {
             let configuration = configuration.clone();
 
             async move |this, cx| {
-                let new_state = match server.clone().start_with_log(Some(log_handle), cx).await {
+                let new_state = match server.clone().start(cx).await {
                     Ok(_) => {
                         debug_assert!(server.client().is_some());
                         ContextServerState::Running {
@@ -848,6 +848,7 @@ impl ContextServerStore {
                     &response.env.into_iter().collect(),
                     root_dir,
                     None,
+                    Interactive::Yes,
                 )
             })?;
 
