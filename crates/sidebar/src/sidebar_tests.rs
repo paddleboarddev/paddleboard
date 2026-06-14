@@ -14,7 +14,7 @@ use agent_ui::{
 };
 use chrono::DateTime;
 use fs::{FakeFs, Fs};
-use gpui::TestAppContext;
+use gpui::{Action as _, TestAppContext};
 use pretty_assertions::assert_eq;
 use project::AgentId;
 use settings::SettingsStore;
