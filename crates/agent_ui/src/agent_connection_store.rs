@@ -52,13 +52,19 @@ impl AgentConnectionEntry {
         }
     }
 
-    pub fn history(&self) -> Option<Entity<crate::thread_history::ThreadHistory>> {
+    /// PaddleBoard: thread-history overlay for external/Gemini agents. The
+    /// connected state does not carry a per-connection [`crate::ThreadHistory`],
+    /// so this returns `None` until the session-list plumbing is wired through.
+    /// The overlay entry points (`open_history`/`history_for_selected_agent`)
+    /// are currently dead code, so this is inert rather than a regression.
+    pub fn history(&self) -> Option<gpui::Entity<crate::ThreadHistory>> {
         None
     }
 }
 
 pub enum AgentConnectionEntryEvent {
     NewVersionAvailable(SharedString),
+    LoadingStatusChanged(Option<SharedString>),
 }
 
 impl EventEmitter<AgentConnectionEntryEvent> for AgentConnectionEntry {}
@@ -153,7 +159,8 @@ impl AgentConnectionStore {
             return entry.clone();
         }
 
-        let (mut new_version_rx, connect_task) = self.start_connection(server, cx);
+        let (mut new_version_rx, mut loading_status_rx, connect_task) =
+            self.start_connection(server, cx);
         let connect_task = connect_task.shared();
 
         let entry = cx.new(|_cx| AgentConnectionEntry::Connecting {
@@ -209,6 +216,7 @@ impl AgentConnectionStore {
         .detach();
 
         cx.spawn({
+            let key = key.clone();
             let entry = entry.downgrade();
             async move |this, cx| {
                 while let Ok(version) = new_version_rx.recv().await {
@@ -238,6 +246,31 @@ impl AgentConnectionStore {
         })
         .detach();
 
+        cx.spawn({
+            let entry = entry.downgrade();
+            async move |this, cx| {
+                while let Ok(status) = loading_status_rx.recv().await {
+                    let status = status.map(SharedString::from);
+                    let key = key.clone();
+                    let entry = entry.clone();
+                    this.update(cx, move |this, cx| {
+                        if this.entries.get(&key) != entry.upgrade().as_ref() {
+                            return;
+                        }
+
+                        entry
+                            .update(cx, move |_entry, cx| {
+                                cx.emit(AgentConnectionEntryEvent::LoadingStatusChanged(status));
+                            })
+                            .ok();
+                        cx.notify();
+                    })
+                    .ok();
+                }
+            }
+        })
+        .detach();
+
         entry
     }
 
@@ -250,7 +283,9 @@ impl AgentConnectionStore {
         let store = store.read(cx);
         self.entries.retain(|key, _| match key {
             Agent::NativeAgent => true,
-            Agent::Gemini => store.external_agents.contains_key("gemini"),
+            Agent::Gemini => store
+                .external_agents
+                .contains_key(&project::AgentId::new("gemini")),
             Agent::Custom { id } => store.external_agents.contains_key(id),
             #[cfg(any(test, feature = "test-support"))]
             Agent::Stub => true,
@@ -264,12 +299,18 @@ impl AgentConnectionStore {
         cx: &mut Context<Self>,
     ) -> (
         Receiver<Option<String>>,
+        Receiver<Option<String>>,
         Task<Result<AgentConnectedState, LoadError>>,
     ) {
         let (new_version_tx, new_version_rx) = watch::channel::<Option<String>>(None);
+        let (loading_status_tx, loading_status_rx) = watch::channel::<Option<String>>(None);
 
         let agent_server_store = self.project.read(cx).agent_server_store().clone();
-        let delegate = AgentServerDelegate::new(agent_server_store, Some(new_version_tx));
+        let delegate = AgentServerDelegate::new(
+            agent_server_store,
+            Some(new_version_tx),
+            Some(loading_status_tx),
+        );
 
         let connect_task = server.connect(delegate, self.project.clone(), cx);
         let connect_task = cx.spawn(async move |_this, _cx| match connect_task.await {
@@ -279,6 +320,6 @@ impl AgentConnectionStore {
                 Err(err) => Err(LoadError::Other(SharedString::from(err.to_string()))),
             },
         });
-        (new_version_rx, connect_task)
+        (new_version_rx, loading_status_rx, connect_task)
     }
 }

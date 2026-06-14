@@ -5,10 +5,6 @@ description: "Guide to building zed for linux for Zed development."
 
 # Building Zed for Linux
 
-<!-- PaddleBoard: inherited upstream doc, kept for merge hygiene. -->
-
-> **Building PaddleBoard?** Use [BUILDING.md](../../../BUILDING.md) at the repo root instead. This is Zed's upstream guide — the system dependencies below still apply, but clone `paddleboarddev/paddleboard` and substitute `paddleboard` for `zed` in the commands.
-
 ## Repository
 
 Clone the [Zed repository](https://github.com/zed-industries/zed).

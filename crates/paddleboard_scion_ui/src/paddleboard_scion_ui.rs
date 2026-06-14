@@ -386,8 +386,7 @@ fn handle_start_agent(
     cx: &mut Context<Workspace>,
 ) {
     if !store.read(cx).is_available() {
-        workspace.show_error(
-            &anyhow::anyhow!(
+        workspace.show_error(anyhow::anyhow!(
                 "Scion is not installed. Install it with: \
                  go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest"
             ),
@@ -406,7 +405,7 @@ fn handle_stop_agent(
 ) {
     let running = store.read(cx).running_agents();
     let Some(first) = running.first() else {
-        workspace.show_error(&anyhow::anyhow!("No running Scion agents to stop."), cx);
+        workspace.show_error(anyhow::anyhow!("No running Scion agents to stop."), cx);
         return;
     };
 
@@ -421,7 +420,7 @@ fn handle_stop_agent(
             }
             Err(err) => {
                 this.update(cx, |workspace, cx| {
-                    workspace.show_error(&err, cx);
+                    workspace.show_error(err, cx);
                 })
                 .ok();
             }
@@ -437,7 +436,7 @@ fn handle_sync_from(
 ) {
     let agents = store.read(cx).agents();
     let Some(first) = agents.first() else {
-        workspace.show_error(&anyhow::anyhow!("No Scion agents to sync from."), cx);
+        workspace.show_error(anyhow::anyhow!("No Scion agents to sync from."), cx);
         return;
     };
 
@@ -463,7 +462,7 @@ fn handle_sync_from(
             }
             Err(err) => {
                 this.update(cx, |workspace, cx| {
-                    workspace.show_error(&err, cx);
+                    workspace.show_error(err, cx);
                 })
                 .ok();
             }
@@ -479,7 +478,7 @@ fn handle_show_logs(
 ) {
     let agents = store.read(cx).agents();
     let Some(first) = agents.first() else {
-        workspace.show_error(&anyhow::anyhow!("No Scion agents to show logs for."), cx);
+        workspace.show_error(anyhow::anyhow!("No Scion agents to show logs for."), cx);
         return;
     };
 
@@ -497,7 +496,7 @@ fn handle_show_logs(
             }
             Err(err) => {
                 this.update(cx, |workspace, cx| {
-                    workspace.show_error(&err, cx);
+                    workspace.show_error(err, cx);
                 })
                 .ok();
             }

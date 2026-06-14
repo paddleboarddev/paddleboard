@@ -1125,7 +1125,7 @@
     },
   },
   {
-    "context": "GitCommit > Editor",
+    "context": "GitCommit > Editor && mode == auto_height",
     "use_key_equivalents": true,
     "bindings": {
       "enter": "editor::Newline",
@@ -1177,6 +1177,12 @@
     "bindings": {
       "cmd-shift-a": "file_finder::ToggleSplitMenu",
       "cmd-shift-i": "file_finder::ToggleFilterMenu",
+    },
+  },
+  {
+    "context": "FileFinder > Picker > Editor && end_of_input",
+    "bindings": {
+      "right": "file_finder::OpenWithoutDismiss",
     },
   },
   {
@@ -1617,6 +1623,7 @@
     "use_key_equivalents": true,
     "bindings": {
       "cmd-w": "workspace::CloseWindow",
+      "cmd-enter": "skill_creator::SaveSkill",
       "tab": "skill_creator::FocusNextField",
       "shift-tab": "skill_creator::FocusPreviousField",
     },
@@ -1626,6 +1633,7 @@
     "use_key_equivalents": true,
     "bindings": {
       "cmd-w": "workspace::CloseWindow",
+      "cmd-enter": "skill_creator::SaveSkill",
       "tab": "skill_creator::FocusNextField",
       "shift-tab": "skill_creator::FocusPreviousField",
     },

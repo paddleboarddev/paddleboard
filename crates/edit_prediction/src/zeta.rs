@@ -1,17 +1,18 @@
 use crate::{
-    CurrentEditPrediction, DebugEvent, EditPredictionFinishedDebugEvent, EditPredictionId,
-    EditPredictionModelInput, EditPredictionStartedDebugEvent, EditPredictionStore, StoredEvent,
-    ZedUpdateRequiredError, buffer_path_with_id_fallback,
+    CloudRequestTimeoutError, CurrentEditPrediction, DebugEvent, EditPredictionFinishedDebugEvent,
+    EditPredictionId, EditPredictionModelInput, EditPredictionStartedDebugEvent,
+    EditPredictionStore, ZedUpdateRequiredError, buffer_path_with_id_fallback,
     cursor_excerpt::{self, compute_cursor_excerpt, compute_syntax_ranges},
+    data_collection::UncommittedDiffResult,
     prediction::EditPredictionResult,
 };
-use anyhow::Result;
-use buffer_diff::BufferDiff;
+use anyhow::{Context as _, Result};
 use std::env;
 use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };
 use edit_prediction_types::PredictedCursorPosition;
+use futures::future::Shared;
 use gpui::{App, AppContext as _, Entity, Task, TaskExt, WeakEntity, prelude::*};
 use language::{
     Buffer, BufferSnapshot, DiagnosticSeverity, EditPredictionPromptFormat, OffsetRangeExt as _,
@@ -20,12 +21,15 @@ use language::{
 use release_channel::AppVersion;
 use text::{Anchor, Bias, Point};
 use ui::SharedString;
-use workspace::notifications::{ErrorMessagePrompt, NotificationId, show_app_notification};
+use workspace::notifications::simple_message_notification::MessageNotification;
+use workspace::notifications::{NotificationId, show_app_notification};
+use workspace::workspace_error::{ErrorAction, ErrorSeverity, WorkspaceError};
 use zeta_prompt::{ParsedOutput, ZetaPromptInput};
 
 use std::{ops::Range, path::Path, sync::Arc};
 use zeta_prompt::{
-    ZetaFormat, format_zeta_prompt, get_prefill, parse_zeta2_model_output, stop_tokens_for_format,
+    ZetaFormat, excerpt_range_for_format, format_zeta_prompt, get_prefill,
+    parse_zeta2_model_output, stop_tokens_for_format,
     zeta1::{self, EDITABLE_REGION_END_MARKER},
 };
 
@@ -41,23 +45,22 @@ use crate::open_ai_compatible::{
 // return `Ok(None)` so the caller treats it as "nothing to predict"
 // and either falls back to other providers (Copilot, Codestral,
 // Ollama, Mercury, FIM-via-OpenAI-compatible) or shows no inline
-// suggestion. Function signature, name, and call sites are unchanged.
+// suggestion. Function signature, name, and call sites match
+// upstream so merges stay mechanical.
 #[allow(unused_variables)]
 pub fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
-    capture_data: Option<(
-        Vec<StoredEvent>,
-        Task<Result<collections::HashMap<Arc<Path>, Entity<BufferDiff>>>>,
-    )>,
+    capture_data: Option<Shared<Task<UncommittedDiffResult>>>,
+    repo_url: Option<String>,
     cx: &mut Context<EditPredictionStore>,
 ) -> Task<Result<Option<EditPredictionResult>>> {
     cx.background_spawn(async move { anyhow::Ok(None) })
 }
 
-// PaddleBoard: the original 450-line Zeta request implementation was
-// removed. It was #[cfg(any())]-gated dead code. The active utility
-// functions below are still used by Mercury, FIM, and other providers.
+// PaddleBoard: the original Zeta request implementation was removed.
+// The active utility functions below are still used by Mercury, FIM,
+// and other providers.
 
 fn handle_api_response<T>(
     this: &WeakEntity<EditPredictionStore>,
@@ -77,6 +80,11 @@ fn handle_api_response<T>(
             Ok(data)
         }
         Err(err) => {
+            if err.is::<CloudRequestTimeoutError>() {
+                this.update(cx, |this, cx| this.back_off_requests_after_timeout(cx))
+                    .ok();
+            }
+
             if err.is::<ZedUpdateRequiredError>() {
                 cx.update(|cx| {
                     this.update(cx, |this, _cx| {
@@ -84,14 +92,33 @@ fn handle_api_response<T>(
                     })
                     .ok();
 
-                    let error_message: SharedString = err.to_string().into();
+                    let message: SharedString = err.to_string().into();
+
+                    struct UpdateRequiredError {
+                        message: SharedString,
+                    }
+                    impl WorkspaceError for UpdateRequiredError {
+                        fn primary_message(&self) -> SharedString {
+                            self.message.clone()
+                        }
+                        fn severity(&self) -> ErrorSeverity {
+                            ErrorSeverity::Critical
+                        }
+                        fn primary_action(&self) -> ErrorAction {
+                            ErrorAction::link("Update Zed", "https://zed.dev/releases")
+                        }
+                    }
+
                     show_app_notification(
                         NotificationId::unique::<ZedUpdateRequiredError>(),
                         cx,
                         move |cx| {
-                            cx.new(|cx| {
-                                ErrorMessagePrompt::new(error_message.clone(), cx)
-                                    .with_link_button("Update Zed", "https://zed.dev/releases")
+                            cx.new({
+                                let message = message.clone();
+                                move |cx| {
+                                    let error = UpdateRequiredError { message };
+                                    MessageNotification::from_workspace_error(error, cx)
+                                }
                             })
                         },
                     );

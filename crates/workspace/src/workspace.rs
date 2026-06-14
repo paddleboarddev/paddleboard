@@ -25,9 +25,9 @@ mod theme_preview;
 mod toast_layer;
 mod toolbar;
 pub mod welcome;
+pub mod workspace_error;
 mod workspace_settings;
 
-pub use crate::notifications::NotificationFrame;
 pub use dock::Panel;
 pub use multi_workspace::{
     CloseWorkspaceSidebar, DraggedSidebar, FocusWorkspaceSidebar, MoveProjectToNewWindow,
@@ -47,7 +47,7 @@ use client::{
     Client, ErrorExt, UserStore,
     proto::{self, ErrorCode, PanelId, PeerId},
 };
-use collections::{HashMap, HashSet, hash_map};
+use collections::{HashMap, HashSet, TypeIdHashMap, hash_map};
 use dock::{Dock, DockPosition, PanelButtons, PanelHandle, RESIZE_HANDLE_SIZE};
 use futures::{
     Future, FutureExt, StreamExt,
@@ -121,7 +121,7 @@ pub use status_bar::{HideStatusItem, StatusItemView, add_hide_button_entry};
 use std::{
     any::TypeId,
     borrow::Cow,
-    cell::RefCell,
+    cell::{Cell, RefCell},
     cmp,
     collections::VecDeque,
     env,
@@ -136,13 +136,14 @@ use std::{
     time::Duration,
 };
 use task::{DebugScenario, SharedTaskContext, SpawnInTerminal};
-use theme::{ActiveTheme, SystemAppearance};
+use theme::{ActiveTheme, ClientDecorationsExt, SystemAppearance};
 use theme_settings::ThemeSettings;
 pub use toolbar::{
     PaneSearchBarCallbacks, Toolbar, ToolbarItemEvent, ToolbarItemLocation, ToolbarItemView,
 };
 pub use ui;
 use ui::{Window, prelude::*};
+use url::Url;
 use util::{
     ResultExt, TryFutureExt,
     paths::{PathStyle, SanitizedPath},
@@ -572,16 +573,16 @@ pub enum CloseIntent {
 #[derive(Clone)]
 pub struct Toast {
     id: NotificationId,
-    msg: Cow<'static, str>,
+    message: Cow<'static, str>,
     autohide: bool,
     on_click: Option<(Cow<'static, str>, Arc<dyn Fn(&mut Window, &mut App)>)>,
 }
 
 impl Toast {
-    pub fn new<I: Into<Cow<'static, str>>>(id: NotificationId, msg: I) -> Self {
+    pub fn new<I: Into<Cow<'static, str>>>(id: NotificationId, message: I) -> Self {
         Toast {
             id,
-            msg: msg.into(),
+            message: message.into(),
             on_click: None,
             autohide: false,
         }
@@ -605,7 +606,7 @@ impl Toast {
 impl PartialEq for Toast {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
-            && self.msg == other.msg
+            && self.message == other.message
             && self.on_click.is_some() == other.on_click.is_some()
     }
 }
@@ -838,7 +839,7 @@ type BuildProjectItemForPathFn =
 
 #[derive(Clone, Default)]
 struct ProjectItemRegistry {
-    build_project_item_fns_by_type: HashMap<TypeId, BuildProjectItemFn>,
+    build_project_item_fns_by_type: TypeIdHashMap<BuildProjectItemFn>,
     build_project_item_for_path_fns: Vec<BuildProjectItemForPathFn>,
 }
 
@@ -966,17 +967,49 @@ pub fn register_project_item<I: ProjectItem>(cx: &mut App) {
 }
 
 #[derive(Default)]
-pub struct FollowableViewRegistry(HashMap<TypeId, fn(&AnyView) -> Box<dyn FollowableItemHandle>>);
+pub struct FollowableViewRegistry(TypeIdHashMap<FollowableViewDescriptor>);
+
+struct FollowableViewDescriptor {
+    from_state_proto: fn(
+        Entity<Workspace>,
+        ViewId,
+        &mut Option<proto::view::Variant>,
+        &mut Window,
+        &mut App,
+    ) -> Option<Task<Result<Box<dyn FollowableItemHandle>>>>,
+    to_followable_view: fn(&AnyView) -> Box<dyn FollowableItemHandle>,
+}
 
 impl Global for FollowableViewRegistry {}
 
 impl FollowableViewRegistry {
     pub fn register<I: FollowableItem>(cx: &mut App) {
-        cx.default_global::<Self>()
-            .0
-            .insert(TypeId::of::<I>(), |view| {
-                Box::new(view.clone().downcast::<I>().unwrap())
-            });
+        cx.default_global::<Self>().0.insert(
+            TypeId::of::<I>(),
+            FollowableViewDescriptor {
+                from_state_proto: |workspace, id, state, window, cx| {
+                    I::from_state_proto(workspace, id, state, window, cx).map(|task| {
+                        cx.foreground_executor()
+                            .spawn(async move { Ok(Box::new(task.await?) as Box<_>) })
+                    })
+                },
+                to_followable_view: |view| Box::new(view.clone().downcast::<I>().unwrap()),
+            },
+        );
+    }
+
+    pub fn from_state_proto(
+        workspace: Entity<Workspace>,
+        view_id: ViewId,
+        mut state: Option<proto::view::Variant>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Option<Task<Result<Box<dyn FollowableItemHandle>>>> {
+        cx.update_default_global(|this: &mut Self, cx| {
+            this.0.values().find_map(|descriptor| {
+                (descriptor.from_state_proto)(workspace.clone(), view_id, &mut state, window, cx)
+            })
+        })
     }
 
     pub fn to_followable_view(
@@ -985,8 +1018,8 @@ impl FollowableViewRegistry {
     ) -> Option<Box<dyn FollowableItemHandle>> {
         let this = cx.try_global::<Self>()?;
         let view = view.into();
-        let to_followable = this.0.get(&view.entity_type())?;
-        Some(to_followable(&view))
+        let descriptor = this.0.get(&view.entity_type())?;
+        Some((descriptor.to_followable_view)(&view))
     }
 }
 
@@ -1007,7 +1040,7 @@ struct SerializableItemDescriptor {
 #[derive(Default)]
 struct SerializableItemRegistry {
     descriptors_by_kind: HashMap<Arc<str>, SerializableItemDescriptor>,
-    descriptors_by_type: HashMap<TypeId, SerializableItemDescriptor>,
+    descriptors_by_type: TypeIdHashMap<SerializableItemDescriptor>,
 }
 
 impl Global for SerializableItemRegistry {}
@@ -1139,6 +1172,16 @@ impl From<&PeerId> for CollaboratorId {
     fn from(peer_id: &PeerId) -> Self {
         CollaboratorId::PeerId(*peer_id)
     }
+}
+
+// PaddleBoard: retained from upstream's collaborator-following but unused here
+// (human collab is stripped; only agent-following remains). Kept to minimize the
+// diff against upstream on weekly merges.
+#[allow(dead_code)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+struct Follower {
+    project_id: Option<u64>,
+    peer_id: PeerId,
 }
 
 impl AppState {
@@ -1343,6 +1386,10 @@ pub struct Workspace {
     panes_by_item: HashMap<EntityId, WeakEntity<Pane>>,
     active_pane: Entity<Pane>,
     last_active_center_pane: Option<WeakEntity<Pane>>,
+    // PaddleBoard: set only by the stripped collaborator-following path; kept to
+    // match upstream's struct layout for merge-friendliness.
+    #[allow(dead_code)]
+    last_active_view_id: Option<proto::ViewId>,
     status_bar: Entity<StatusBar>,
     pub(crate) modal_layer: Entity<ModalLayer>,
     toast_layer: Entity<ToastLayer>,
@@ -1382,6 +1429,13 @@ pub struct Workspace {
     _panels_task: Option<Task<Result<()>>>,
     sidebar_focus_handle: Option<FocusHandle>,
     multi_workspace: Option<WeakEntity<MultiWorkspace>>,
+    /// Shared with the parent `MultiWorkspace` and any sibling workspaces: holds
+    /// the id of the single workspace currently presented in this OS window.
+    /// `MultiWorkspace` is the only writer; workspaces only read it to decide
+    /// whether they may write the shared window's title and edited indicator. We
+    /// use this instead of going through the `multi_workspace` field to avoid
+    /// reading it as we might end up in a double lease otherwise.
+    active_workspace_id: Option<Rc<Cell<EntityId>>>,
     active_worktree_creation: ActiveWorktreeCreation,
     deferred_save_items: Vec<Box<dyn WeakItemHandle>>,
 }
@@ -1401,9 +1455,24 @@ pub struct FollowerState {
     items_by_leader_view_id: HashMap<ViewId, FollowerView>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutoWatch {
+    Off,
+    Active { watched_peer: Option<PeerId> },
+    Paused,
+}
+
+impl AutoWatch {
+    pub fn enabled(&self) -> bool {
+        matches!(self, AutoWatch::Active { .. } | AutoWatch::Paused)
+    }
+}
 
 struct FollowerView {
     view: Box<dyn FollowableItemHandle>,
+    // PaddleBoard: unused after collab-following removal; kept for merge parity.
+    #[allow(dead_code)]
+    location: Option<proto::PanelId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1496,6 +1565,11 @@ impl Workspace {
 
                 project::Event::DisconnectedFromHost => {
                     this.update_window_edited(window, cx);
+                    let leaders_to_unfollow =
+                        this.follower_states.keys().copied().collect::<Vec<_>>();
+                    for leader_id in leaders_to_unfollow {
+                        this.unfollow(leader_id, window, cx);
+                    }
                 }
 
                 project::Event::DisconnectedFromRemote {
@@ -1736,6 +1810,7 @@ impl Workspace {
             panes_by_item: Default::default(),
             active_pane: center_pane.clone(),
             last_active_center_pane: Some(center_pane.downgrade()),
+            last_active_view_id: None,
             status_bar,
             modal_layer,
             toast_layer,
@@ -1779,6 +1854,7 @@ impl Workspace {
             removing: false,
             sidebar_focus_handle: None,
             multi_workspace,
+            active_workspace_id: None,
             active_worktree_creation: ActiveWorktreeCreation::default(),
             open_in_dev_container: false,
             _dev_container_task: None,
@@ -2509,12 +2585,14 @@ impl Workspace {
     pub fn set_multi_workspace(
         &mut self,
         multi_workspace: WeakEntity<MultiWorkspace>,
+        active_workspace_id: Rc<Cell<EntityId>>,
         cx: &mut App,
     ) {
         self.status_bar.update(cx, |status_bar, cx| {
             status_bar.set_multi_workspace(multi_workspace.clone(), cx);
         });
         self.multi_workspace = Some(multi_workspace);
+        self.active_workspace_id = Some(active_workspace_id);
     }
 
     pub fn app_state(&self) -> &Arc<AppState> {
@@ -2928,7 +3006,8 @@ impl Workspace {
                     }
                     Err(err) => {
                         let rx = workspace.update_in(cx, |workspace, window, cx| {
-                            workspace.show_portal_error(err.to_string(), cx);
+                            workspace
+                                .show_error(workspace_error::PortalError::new(err.to_string()), cx);
                             let prompt = workspace.on_prompt_for_open_path.take().unwrap();
                             let rx = prompt(workspace, lister, window, cx);
                             workspace.on_prompt_for_open_path = Some(prompt);
@@ -2984,7 +3063,8 @@ impl Workspace {
                 Ok(path) => path,
                 Err(err) => {
                     let rx = workspace.update_in(cx, |workspace, window, cx| {
-                        workspace.show_portal_error(err.to_string(), cx);
+                        workspace
+                            .show_error(workspace_error::PortalError::new(err.to_string()), cx);
 
                         let prompt = workspace.on_prompt_for_new_path.take().unwrap();
                         let rx = prompt(workspace, lister, suggested_name, window, cx);
@@ -3169,13 +3249,6 @@ impl Workspace {
                 if close_intent == CloseIntent::CloseWindow {
                     this.removing = true;
                 }
-            })?;
-
-            let _workspace_count = cx.update(|_window, cx| {
-                cx.windows()
-                    .iter()
-                    .filter(|window| window.downcast::<MultiWorkspace>().is_some())
-                    .count()
             })?;
 
             #[cfg(target_os = "macos")]
@@ -3549,8 +3622,23 @@ impl Workspace {
                 let fs = fs.clone();
                 let pane = pane.clone();
                 let task = cx.spawn(async move |cx| {
-                    let (_worktree, project_path) = project_path?;
-                    if fs.is_dir(&abs_path).await {
+                    let (worktree, project_path) = project_path?;
+                    let (entry_is_directory, worktree_is_local) =
+                        worktree.read_with(cx, |worktree, _| {
+                            let entry = if project_path.path.as_unix_str().is_empty() {
+                                worktree.root_entry()
+                            } else {
+                                worktree.entry_for_path(&project_path.path)
+                            };
+                            (entry.map(|entry| entry.is_dir()), worktree.is_local())
+                        });
+                    let is_directory = match entry_is_directory {
+                        Some(is_directory) => is_directory,
+                        None if worktree_is_local => fs.is_dir(&abs_path).await,
+                        None => false,
+                    };
+
+                    if is_directory {
                         // Opening a directory should not race to update the active entry.
                         // We'll select/reveal a deterministic final entry after all paths finish opening.
                         None
@@ -3702,10 +3790,7 @@ impl Workspace {
     ) {
         let project = self.project.read(cx);
         if project.is_via_collab() {
-            self.show_error(
-                &anyhow!("You cannot add folders to someone else's project"),
-                cx,
-            );
+            self.show_error("You cannot add folders to someone else's project", cx);
             return;
         }
         let paths = self.prompt_for_open_path(
@@ -4532,6 +4617,108 @@ impl Workspace {
                 )
             })
         })
+    }
+
+    /// Opens a URL or file path, intelligently routing to the appropriate handler:
+    ///
+    /// - `http://` and `https://` URLs are opened in the system's default browser
+    /// - `file://` URIs are opened as files in the editor
+    /// - Paths without a URL scheme are treated as file paths:
+    ///   - Absolute paths are opened directly
+    ///   - Relative paths are first resolved against `base_path` (if provided),
+    ///     then against visible project worktrees
+    /// - Other URI schemes (e.g., `mailto:`, `vscode:`) are passed to the system handler
+    ///
+    /// # Arguments
+    /// * `url_or_path` - The URL or file path to open
+    /// * `base_path` - Optional base directory for resolving relative paths (e.g., the
+    ///   directory containing a markdown file). If not provided, relative paths are
+    ///   resolved against project worktrees.
+    ///
+    /// This method provides a unified way to handle links that may be either URLs
+    /// or file paths, such as those found in markdown documents, terminal output,
+    /// or LSP responses.
+    pub fn open_url_or_file(
+        &mut self,
+        url_or_path: &str,
+        base_path: Option<&Path>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let mut open_abs_path = |this: &mut Self, path, cx: &mut _| {
+            let url_or_path = url_or_path.to_owned();
+            let task = this.open_abs_path(
+                path,
+                OpenOptions {
+                    visible: Some(OpenVisible::None),
+                    ..Default::default()
+                },
+                window,
+                cx,
+            );
+            (**cx)
+                .spawn(async move |cx| {
+                    if let Err(_) = task.await {
+                        cx.update(|cx| cx.open_url(&url_or_path));
+                    }
+                })
+                .detach();
+        };
+
+        if let Ok(url) = Url::parse(url_or_path) {
+            match url.scheme() {
+                "http" | "https" => cx.open_url(url_or_path),
+                "file" => open_abs_path(self, PathBuf::from(url.path()), cx),
+                _ => cx.open_url(url_or_path),
+            }
+            return;
+        }
+
+        // Not a valid URL - treat as a file path
+        let project = self.project();
+        let path_style = project.read(cx).path_style(cx);
+
+        // If it's an absolute path, open it directly
+        if path_style.is_absolute(url_or_path) {
+            open_abs_path(self, PathBuf::from(url_or_path), cx);
+            return;
+        }
+
+        let path = Path::new(url_or_path);
+        // Try to resolve relative path against base_path first
+        if let Some(base) = base_path
+            // TODO: remotes, the exists check below hits the local FS, unsure
+            // if this runs on the remote or not
+            && project.read(cx).is_local()
+        {
+            let resolved = path_style.join(base, path).map(PathBuf::from);
+            if let Some(resolved) = resolved
+                && resolved.exists()
+            {
+                open_abs_path(self, resolved, cx);
+                return;
+            }
+        }
+
+        // Try to resolve against project worktrees
+        if let Some(project_path) =
+            project.update(cx, |project, cx| project.find_project_path(url_or_path, cx))
+        {
+            let url_or_path = url_or_path.to_owned();
+            let task = self.open_path(project_path, None, true, window, cx);
+            (**cx)
+                .spawn(async move |cx| {
+                    if let Err(_) = task.await {
+                        cx.update(|cx| cx.open_url(&url_or_path));
+                    }
+                })
+                .detach();
+            return;
+        }
+
+        // Couldn't resolve as a file path - try opening as URL anyway
+        // (the OS might be able to handle it)
+        cx.open_url(url_or_path);
     }
 
     pub fn split_path(
@@ -5506,7 +5693,8 @@ impl Workspace {
             .cloned()
     }
 
-    fn start_following(
+    // PaddleBoard: pub so agent-following can be driven from tests in other crates.
+    pub fn start_following(
         &mut self,
         leader_id: CollaboratorId,
         window: &mut Window,
@@ -5587,7 +5775,31 @@ impl Workspace {
         self.update_window_title(window, cx);
     }
 
+    /// Whether this workspace may write the platform window's title and edited
+    /// indicator.
+    ///
+    /// In a multi-workspace window several workspaces share one platform
+    /// window, so only the active one is allowed to write that chrome —
+    /// otherwise a background workspace's project/item events would clobber the
+    /// active workspace's title. `MultiWorkspace` publishes the active
+    /// workspace's id into the shared `active_workspace_id` cell, which we
+    /// simply compare against our own id. A workspace with no shared cell (e.g.
+    /// a plain test window) owns its window unconditionally.
+    fn owns_window_chrome(&self) -> bool {
+        match &self.active_workspace_id {
+            Some(active_workspace_id) => active_workspace_id.get() == self.weak_self.entity_id(),
+            None => true,
+        }
+    }
+
     fn update_window_title(&mut self, window: &mut Window, cx: &mut App) {
+        if !self.owns_window_chrome() {
+            return;
+        }
+        self.apply_window_title(window, cx);
+    }
+
+    fn apply_window_title(&mut self, window: &mut Window, cx: &mut App) {
         let project = self.project().read(cx);
         let mut title = String::new();
 
@@ -5647,12 +5859,43 @@ impl Workspace {
         self.last_window_title = Some(title);
     }
 
+    fn is_window_edited(&self, cx: &App) -> bool {
+        !self.project.read(cx).is_disconnected(cx) && !self.dirty_items.is_empty()
+    }
+
     fn update_window_edited(&mut self, window: &mut Window, cx: &mut App) {
-        let is_edited = !self.project.read(cx).is_disconnected(cx) && !self.dirty_items.is_empty();
+        if !self.owns_window_chrome() {
+            return;
+        }
+        let is_edited = self.is_window_edited(cx);
         if is_edited != self.window_edited {
             self.window_edited = is_edited;
             window.set_window_edited(self.window_edited)
         }
+    }
+
+    /// Re-applies this workspace's title and edited indicator to the platform
+    /// window, bypassing the change-detection caches.
+    ///
+    /// Several workspaces can share a single platform window (a multi-workspace
+    /// window). The `last_window_title`/`window_edited` caches assume the
+    /// window's title and edited state reflect *this* workspace, but after the
+    /// active workspace changes those values may have been set by a different
+    /// workspace. Clearing the caches forces the values to be re-applied so the
+    /// window reflects the newly-active workspace.
+    ///
+    /// This is only ever invoked for the workspace that just became active, so
+    /// it writes directly rather than going through `update_window_title` /
+    /// `update_window_edited`, whose change-detection caches would otherwise
+    /// suppress the write when this workspace's computed title/edited state
+    /// matches what *it* last set (even though the shared window currently
+    /// shows a different workspace's state).
+    pub fn refresh_window_state(&mut self, window: &mut Window, cx: &mut App) {
+        self.last_window_title = None;
+        self.apply_window_title(window, cx);
+
+        self.window_edited = self.is_window_edited(cx);
+        window.set_window_edited(self.window_edited);
     }
 
     fn update_item_dirty_state(
@@ -5761,7 +6004,10 @@ impl Workspace {
                     });
 
                     view.map(|view| {
-                        entry.insert(FollowerView { view })
+                        entry.insert(FollowerView {
+                            view,
+                            location: None,
+                        })
                     })
                 }
             };
@@ -8108,6 +8354,7 @@ actions!(
         /// Shares the current project with collaborators.
         ShareProject,
         /// Shares your screen with collaborators.
+        ScreenShare,
         /// Copies the current room name and session id for debugging purposes.
         CopyRoomId,
     ]
@@ -8609,7 +8856,7 @@ pub fn open_paths(
                 workspace.update(cx, |workspace, cx| {
                     for item in open_task.iter().flatten() {
                         if let Err(e) = item {
-                            workspace.show_error(&e, cx);
+                            workspace.show_error(format!("Error: {e}"), cx);
                         }
                     }
                 });
@@ -8944,10 +9191,10 @@ async fn open_remote_project_inner(
         for error in project_path_errors {
             if error.error_code() == proto::ErrorCode::DevServerProjectPathDoesNotExist {
                 if let Some(path) = error.error_tag("path") {
-                    workspace.show_error(&anyhow!("'{path}' does not exist"), cx)
+                    workspace.show_error(format!("'{path}' does not exist"), cx)
                 }
             } else {
-                workspace.show_error(&error, cx)
+                workspace.show_error(format!("{error}"), cx)
             }
         }
     });
@@ -9069,6 +9316,12 @@ pub fn client_side_decorations(
         Decorations::Server => Tiling::default(),
         Decorations::Client { tiling } => tiling,
     };
+    let corner_tiling = Tiling {
+        top: tiling.top || border_radius_tiling.top,
+        bottom: tiling.bottom || border_radius_tiling.bottom,
+        left: tiling.left || border_radius_tiling.left,
+        right: tiling.right || border_radius_tiling.right,
+    };
 
     match decorations {
         Decorations::Client { .. } => window.set_client_inset(theme::CLIENT_SIDE_DECORATION_SHADOW),
@@ -9084,34 +9337,7 @@ pub fn client_side_decorations(
         .map(|div| match decorations {
             Decorations::Server => div,
             Decorations::Client { .. } => div
-                .when(
-                    !(tiling.top
-                        || tiling.right
-                        || border_radius_tiling.top
-                        || border_radius_tiling.right),
-                    |div| div.rounded_tr(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                )
-                .when(
-                    !(tiling.top
-                        || tiling.left
-                        || border_radius_tiling.top
-                        || border_radius_tiling.left),
-                    |div| div.rounded_tl(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                )
-                .when(
-                    !(tiling.bottom
-                        || tiling.right
-                        || border_radius_tiling.bottom
-                        || border_radius_tiling.right),
-                    |div| div.rounded_br(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                )
-                .when(
-                    !(tiling.bottom
-                        || tiling.left
-                        || border_radius_tiling.bottom
-                        || border_radius_tiling.left),
-                    |div| div.rounded_bl(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                )
+                .rounded_client_corners(corner_tiling)
                 .when(!tiling.top, |div| {
                     div.pt(theme::CLIENT_SIDE_DECORATION_SHADOW)
                 })
@@ -9166,34 +9392,7 @@ pub fn client_side_decorations(
                     Decorations::Server => div,
                     Decorations::Client { .. } => div
                         .border_color(cx.theme().colors().border)
-                        .when(
-                            !(tiling.top
-                                || tiling.right
-                                || border_radius_tiling.top
-                                || border_radius_tiling.right),
-                            |div| div.rounded_tr(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                        )
-                        .when(
-                            !(tiling.top
-                                || tiling.left
-                                || border_radius_tiling.top
-                                || border_radius_tiling.left),
-                            |div| div.rounded_tl(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                        )
-                        .when(
-                            !(tiling.bottom
-                                || tiling.right
-                                || border_radius_tiling.bottom
-                                || border_radius_tiling.right),
-                            |div| div.rounded_br(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                        )
-                        .when(
-                            !(tiling.bottom
-                                || tiling.left
-                                || border_radius_tiling.bottom
-                                || border_radius_tiling.left),
-                            |div| div.rounded_bl(theme::CLIENT_SIDE_DECORATION_ROUNDING),
-                        )
+                        .rounded_client_corners(corner_tiling)
                         .when(!tiling.top, |div| div.border_t(BORDER_SIZE))
                         .when(!tiling.bottom, |div| div.border_b(BORDER_SIZE))
                         .when(!tiling.left, |div| div.border_l(BORDER_SIZE))
@@ -14258,6 +14457,93 @@ mod tests {
         });
     }
 
+    #[gpui::test]
+    async fn test_window_title_follows_active_workspace(cx: &mut TestAppContext) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        fs.insert_tree(path!("/root1"), json!({ "a.txt": "" }))
+            .await;
+        fs.insert_tree(path!("/root2"), json!({ "b.txt": "" }))
+            .await;
+
+        let project_a = Project::test(fs.clone(), [path!("/root1").as_ref()], cx).await;
+        let project_b = Project::test(fs, [path!("/root2").as_ref()], cx).await;
+
+        let multi_workspace_handle =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project_a.clone(), window, cx));
+        let workspace_a = multi_workspace_handle
+            .read_with(cx, |mw, _| mw.workspace().clone())
+            .unwrap();
+
+        let cx = &mut VisualTestContext::from_window(multi_workspace_handle.into(), cx);
+        cx.run_until_parked();
+        assert_eq!(cx.window_title().as_deref(), Some("root1"));
+
+        // Activating a second workspace must update the shared window's title.
+        multi_workspace_handle
+            .update(cx, |mw, window, cx| {
+                mw.test_add_workspace(project_b.clone(), window, cx)
+            })
+            .unwrap();
+        cx.run_until_parked();
+        assert_eq!(cx.window_title().as_deref(), Some("root2"));
+
+        // Switching back must update the title again, even though workspace A's
+        // own computed title hasn't changed since it was last active. This is
+        // the regression: the per-workspace title cache was stale relative to
+        // the shared window title.
+        multi_workspace_handle
+            .update(cx, |mw, window, cx| {
+                mw.activate(workspace_a.clone(), None, window, cx);
+            })
+            .unwrap();
+        cx.run_until_parked();
+        assert_eq!(cx.window_title().as_deref(), Some("root1"));
+    }
+
+    #[gpui::test]
+    async fn test_background_workspace_does_not_clobber_window_title(cx: &mut TestAppContext) {
+        init_test(cx);
+        let fs = FakeFs::new(cx.executor());
+        fs.insert_tree(path!("/root1"), json!({ "a.txt": "" }))
+            .await;
+        fs.insert_tree(path!("/root2"), json!({ "b.txt": "" }))
+            .await;
+        fs.insert_tree(path!("/root3"), json!({ "c.txt": "" }))
+            .await;
+
+        let project_a = Project::test(fs.clone(), [path!("/root1").as_ref()], cx).await;
+        let project_b = Project::test(fs.clone(), [path!("/root2").as_ref()], cx).await;
+
+        let multi_workspace_handle =
+            cx.add_window(|window, cx| MultiWorkspace::test_new(project_a.clone(), window, cx));
+
+        let cx = &mut VisualTestContext::from_window(multi_workspace_handle.into(), cx);
+        cx.run_until_parked();
+        assert_eq!(cx.window_title().as_deref(), Some("root1"));
+
+        // Switch to workspace B; workspace A becomes a background workspace whose
+        // event subscriptions are still live.
+        multi_workspace_handle
+            .update(cx, |mw, window, cx| {
+                mw.test_add_workspace(project_b.clone(), window, cx)
+            })
+            .unwrap();
+        cx.run_until_parked();
+        assert_eq!(cx.window_title().as_deref(), Some("root2"));
+
+        // A title-affecting change in the background workspace A must not touch
+        // the shared window's title, which belongs to the active workspace B.
+        project_a
+            .update(cx, |project, cx| {
+                project.find_or_create_worktree(path!("/root3"), true, cx)
+            })
+            .await
+            .unwrap();
+        cx.run_until_parked();
+        assert_eq!(cx.window_title().as_deref(), Some("root2"));
+    }
+
     fn pane_items_paths(pane: &Entity<Pane>, cx: &App) -> Vec<String> {
         pane.read(cx)
             .items()
@@ -14545,6 +14831,51 @@ mod tests {
         });
         let path = workspace.read_with(cx, |workspace, cx| workspace.most_recent_active_path(cx));
         assert_eq!(path, None);
+    }
+
+    #[gpui::test]
+    async fn test_open_url_or_file_routes_urls(cx: &mut TestAppContext) {
+        init_test(cx);
+
+        let fs = FakeFs::new(cx.executor());
+        fs.insert_tree(
+            "/root",
+            json!({
+                "file.txt": "content",
+                "subdir": {
+                    "nested.txt": "nested content"
+                }
+            }),
+        )
+        .await;
+
+        let project = Project::test(fs, [path!("/root").as_ref()], cx).await;
+        let (workspace, cx) =
+            cx.add_window_view(|window, cx| Workspace::test_new(project.clone(), window, cx));
+
+        // Test opening an HTTPS URL - should go to open_url
+        workspace.update_in(cx, |workspace, window, cx| {
+            workspace.open_url_or_file("https://example.com", None, window, cx);
+        });
+        assert_eq!(cx.opened_url(), Some("https://example.com".to_string()));
+
+        // Test opening an HTTP URL - should go to open_url
+        workspace.update_in(cx, |workspace, window, cx| {
+            workspace.open_url_or_file("http://example.com", None, window, cx);
+        });
+        assert_eq!(cx.opened_url(), Some("http://example.com".to_string()));
+
+        // Test opening other URI schemes - should go to open_url
+        workspace.update_in(cx, |workspace, window, cx| {
+            workspace.open_url_or_file("mailto:test@example.com", None, window, cx);
+        });
+        assert_eq!(cx.opened_url(), Some("mailto:test@example.com".to_string()));
+
+        // Test opening a path that doesn't exist and doesn't match project - should fallback to open_url
+        workspace.update_in(cx, |workspace, window, cx| {
+            workspace.open_url_or_file("nonexistent.txt", None, window, cx);
+        });
+        assert_eq!(cx.opened_url(), Some("nonexistent.txt".to_string()));
     }
 }
 

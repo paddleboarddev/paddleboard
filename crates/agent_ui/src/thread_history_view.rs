@@ -545,7 +545,7 @@ impl Render for ThreadHistoryView {
                     .id("list-container")
                     .relative()
                     .overflow_hidden()
-                    .flex_grow();
+                    .flex_grow(1.);
 
                 if has_no_history {
                     view.justify_center().items_center().child(
@@ -569,7 +569,7 @@ impl Render for ThreadHistoryView {
                         .p_1()
                         .pr_4()
                         .track_scroll(&self.scroll_handle)
-                        .flex_grow(),
+                        .flex_grow(1.),
                     )
                     .vertical_scrollbar_for(&self.scroll_handle, window, cx)
                 }

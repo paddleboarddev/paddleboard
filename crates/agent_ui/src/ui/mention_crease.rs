@@ -8,7 +8,6 @@ use gpui::{
     pulsating_between,
 };
 use language::Buffer;
-use prompt_store::PromptId;
 use rope::Point;
 use settings::Settings;
 use theme_settings::ThemeSettings;
@@ -221,43 +220,11 @@ fn open_skill_file(
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
-    // Built-in skills have synthetic paths that don't exist on disk.
-    // Open a read-only buffer with the embedded content instead.
-    //
-    // The buffer is intentionally not registered with the project's buffer
-    // store: it has no on-disk backing, isn't searchable, and `Project::
-    // create_local_buffer` panics for remote projects (SSH/collab), which
-    // would crash Zed if a user clicked a built-in skill mention while
-    // connected to a remote project.
+    // Built-in skills have synthetic paths with no on-disk file, so show their
+    // embedded content in a local buffer instead.
     if let Some(content) = agent_skills::builtin_skill_content(&skill_file_path) {
-        let languages = workspace.project().read(cx).languages().clone();
-        let buffer = cx.new(|cx| Buffer::local(content, cx));
-        // Set markdown highlighting asynchronously — the buffer
-        // opens instantly and the highlighting appears once loaded.
-        cx.spawn({
-            let buffer = buffer.clone();
-            async move |_, cx| {
-                if let Ok(markdown) = languages.language_for_name("Markdown").await {
-                    buffer.update(cx, |buffer, cx| buffer.set_language(Some(markdown), cx));
-                }
-            }
-        })
-        .detach();
-        let editor = cx.new(|cx| {
-            let mut editor = Editor::for_buffer(buffer, None, window, cx);
-            editor.set_read_only(true);
-            let title = skill_file_path
-                .parent()
-                .and_then(|p| p.file_name())
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "built-in skill".into());
-            editor
-                .buffer()
-                .update(cx, |buffer, cx| buffer.set_title(title, cx));
-            editor
-        });
-        let pane = workspace.active_pane().clone();
-        workspace.add_item(pane, Box::new(editor), None, true, true, window, cx);
+        let title = skill_content_buffer_title(&skill_file_path);
+        open_skill_content_buffer(workspace, title, content, window, cx);
         return;
     }
 
@@ -272,6 +239,51 @@ fn open_skill_file(
             cx,
         )
         .detach_and_log_err(cx);
+}
+
+fn skill_content_buffer_title(skill_file_path: &std::path::Path) -> String {
+    skill_file_path
+        .parent()
+        .and_then(|p| p.file_name())
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "skill".into())
+}
+
+/// Open `content` as a local, read-only Markdown buffer, for skills with no
+/// openable file in the active project (built-in skills, and migrated rules on
+/// remote/collab projects). It's deliberately not registered with the project's
+/// buffer store: that keeps it out of search and avoids
+/// `Project::create_local_buffer` panicking on remote projects.
+fn open_skill_content_buffer(
+    workspace: &mut Workspace,
+    title: String,
+    content: impl Into<String>,
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+) {
+    let languages = workspace.project().read(cx).languages().clone();
+    let buffer = cx.new(|cx| Buffer::local(content, cx));
+    // Set markdown highlighting asynchronously — the buffer
+    // opens instantly and the highlighting appears once loaded.
+    cx.spawn({
+        let buffer = buffer.clone();
+        async move |_, cx| {
+            if let Ok(markdown) = languages.language_for_name("Markdown").await {
+                buffer.update(cx, |buffer, cx| buffer.set_language(Some(markdown), cx));
+            }
+        }
+    })
+    .detach();
+    let editor = cx.new(|cx| {
+        let mut editor = Editor::for_buffer(buffer, None, window, cx);
+        editor.set_read_only(true);
+        editor
+            .buffer()
+            .update(cx, |buffer, cx| buffer.set_title(title, cx));
+        editor
+    });
+    let pane = workspace.active_pane().clone();
+    workspace.add_item(pane, Box::new(editor), None, true, true, window, cx);
 }
 
 fn open_file(
@@ -363,19 +375,26 @@ fn open_thread(
 
 fn open_rule(
     _workspace: &mut Workspace,
-    id: PromptId,
+    // PaddleBoard: upstream made `MentionUri::Rule.id` an opaque JSON value
+    // (`{"User":{"uuid":"…"}}`) rather than a typed PromptId.
+    id: serde_json::Value,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
     use paddleboard_actions::assistant::OpenRulesLibrary;
 
-    let PromptId::User { uuid } = id else {
+    let Some(uuid) = id
+        .get("User")
+        .and_then(|user| user.get("uuid"))
+        .and_then(|value| value.as_str())
+        .and_then(|raw| uuid::Uuid::parse_str(raw).ok())
+    else {
         return;
     };
 
     window.dispatch_action(
         Box::new(OpenRulesLibrary {
-            prompt_to_select: Some(uuid.0),
+            prompt_to_select: Some(uuid),
         }),
         cx,
     );

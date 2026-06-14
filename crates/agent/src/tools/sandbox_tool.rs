@@ -188,8 +188,13 @@ impl AgentTool for SandboxTool {
                 .environment
                 .create_terminal(
                     command.clone(),
+                    // PaddleBoard: this tool builds its own `podman run` invocation
+                    // (with `-e` forwarding) inside `command`, so it passes no extra
+                    // env and no upstream sandbox_wrap.
+                    Vec::new(),
                     Some(working_dir),
                     Some(COMMAND_OUTPUT_LIMIT),
+                    None,
                     cx,
                 )
                 .await

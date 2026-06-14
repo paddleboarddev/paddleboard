@@ -86,18 +86,13 @@ pub enum EditPredictionProvider {
     Ollama,
     OpenAiCompatibleApi,
     Mercury,
-    Experimental(&'static str),
 }
-
-const EXPERIMENTAL_ZETA2_EDIT_PREDICTION_PROVIDER_NAME: &str = "zeta2";
 
 impl<'de> Deserialize<'de> for EditPredictionProvider {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        use serde::de::Error as _;
-
         #[derive(Deserialize)]
         #[serde(rename_all = "snake_case")]
         pub enum Content {
@@ -108,7 +103,6 @@ impl<'de> Deserialize<'de> for EditPredictionProvider {
             Ollama,
             OpenAiCompatibleApi,
             Mercury,
-            Experimental(String),
         }
 
         Ok(match Content::deserialize(deserializer)? {
@@ -121,25 +115,12 @@ impl<'de> Deserialize<'de> for EditPredictionProvider {
             // `EditPredictionProvider::Zed` enum variant is preserved so
             // anything that constructs it programmatically still
             // compiles; only the user-facing settings entry point is
-            // redirected. Same treatment for the experimental "zeta2"
-            // alias below.
+            // redirected.
             Content::Zed => EditPredictionProvider::None,
             Content::Codestral => EditPredictionProvider::Codestral,
             Content::Ollama => EditPredictionProvider::Ollama,
             Content::OpenAiCompatibleApi => EditPredictionProvider::OpenAiCompatibleApi,
             Content::Mercury => EditPredictionProvider::Mercury,
-            Content::Experimental(name)
-                if name == EXPERIMENTAL_ZETA2_EDIT_PREDICTION_PROVIDER_NAME =>
-            {
-                // PaddleBoard: same as `Content::Zed` above.
-                EditPredictionProvider::None
-            }
-            Content::Experimental(name) => {
-                return Err(D::Error::custom(format!(
-                    "Unknown experimental edit prediction provider: {}",
-                    name
-                )));
-            }
         })
     }
 }
@@ -153,8 +134,7 @@ impl EditPredictionProvider {
             | EditPredictionProvider::Codestral
             | EditPredictionProvider::Ollama
             | EditPredictionProvider::OpenAiCompatibleApi
-            | EditPredictionProvider::Mercury
-            | EditPredictionProvider::Experimental(_) => false,
+            | EditPredictionProvider::Mercury => false,
         }
     }
 
@@ -167,7 +147,6 @@ impl EditPredictionProvider {
             EditPredictionProvider::None => None,
             EditPredictionProvider::Ollama => Some("Ollama"),
             EditPredictionProvider::OpenAiCompatibleApi => Some("OpenAI-Compatible API"),
-            EditPredictionProvider::Experimental(name) => Some(name),
         }
     }
 }

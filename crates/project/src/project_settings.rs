@@ -190,6 +190,7 @@ pub enum ContextServerSettings {
         #[serde(flatten)]
         command: ContextServerCommand,
     },
+    /// PaddleBoard: an MCP server run inside a Podman + gVisor sandbox.
     SandboxedStdio {
         /// Whether the context server is enabled.
         #[serde(default = "default_true")]
@@ -199,7 +200,6 @@ pub enum ContextServerSettings {
         /// Container image to run the MCP server inside.
         image: String,
         /// Names of host env vars to forward into the container via `podman run -e`.
-        /// Values stay out of the agent's context.
         #[serde(default)]
         forward_env: Vec<String>,
         /// Mount the active worktree at `/workspace` inside the container.
