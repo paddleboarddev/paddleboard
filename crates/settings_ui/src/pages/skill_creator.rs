@@ -9,7 +9,7 @@ use fs::Fs;
 use futures::AsyncReadExt;
 use gpui::{
     App, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle, Subscription, Task, TextStyle,
-    WeakEntity, WindowHandle, actions,
+    WeakEntity, WindowHandle,
 };
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Request, StatusCode, Url};
 use language::{Buffer, language_settings::SoftWrap};
@@ -25,10 +25,10 @@ use workspace::MultiWorkspace;
 
 use crate::{SettingsUiFile, SettingsWindow, all_projects};
 
-actions!(
-    skill_creator,
-    [SaveSkill, Cancel, FocusNextField, FocusPreviousField,]
-);
+// PaddleBoard: reuse the action types from the `skill_creator` crate rather than
+// re-declaring them — declaring them again registers the same `skill_creator::*`
+// action names twice, which newer gpui rejects with a startup panic.
+use skill_creator::{Cancel, FocusNextField, FocusPreviousField, SaveSkill};
 
 const URL_FIELD_TAB_INDEX: isize = 1;
 const NAME_FIELD_TAB_INDEX: isize = 2;
