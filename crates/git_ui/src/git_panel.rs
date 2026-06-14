@@ -134,21 +134,12 @@ actions!(
     ]
 );
 
-// PaddleBoard: actions for the Git Graph history view (in the `git_graph` crate).
-actions!(
-    git_graph,
-    [
-        /// Opens the Git Graph Tab.
-        Open,
-    ]
-);
-
-/// Opens the Git Graph Tab at a specific commit.
-#[derive(Clone, PartialEq, serde::Deserialize, schemars::JsonSchema, gpui::Action)]
-#[action(namespace = git_graph)]
-pub struct OpenAtCommit {
-    pub sha: String,
-}
+// PaddleBoard: the Git Graph actions are defined once in the `git_graph` module;
+// re-export them here so the `git_graph` crate's `git_ui::git_panel::{Open,
+// OpenAtCommit}` references resolve. Re-exporting (not re-declaring) avoids
+// registering the actions a second time — newer gpui panics on duplicate action
+// names, which previously went unnoticed.
+pub use crate::git_graph::{Open, OpenAtCommit};
 
 fn prompt<T>(
     msg: &str,
