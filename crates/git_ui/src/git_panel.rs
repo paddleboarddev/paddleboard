@@ -134,12 +134,25 @@ actions!(
     ]
 );
 
-// PaddleBoard: the Git Graph actions are defined once in the `git_graph` module;
-// re-export them here so the `git_graph` crate's `git_ui::git_panel::{Open,
-// OpenAtCommit}` references resolve. Re-exporting (not re-declaring) avoids
-// registering the actions a second time — newer gpui panics on duplicate action
-// names, which previously went unnoticed.
-pub use crate::git_graph::{Open, OpenAtCommit};
+// PaddleBoard: actions for the Git Graph history view (lives in the `git_graph`
+// crate). Defined here in git_panel so the crate can reference
+// `git_ui::git_panel::{Open, OpenAtCommit}` — this is the v0.1.4 layout. Do NOT
+// also adopt upstream's `git_ui::git_graph` module: it re-registers the same
+// `git_graph::*` action names and newer gpui panics on duplicates.
+actions!(
+    git_graph,
+    [
+        /// Opens the Git Graph Tab.
+        Open,
+    ]
+);
+
+/// Opens the Git Graph Tab at a specific commit.
+#[derive(Clone, PartialEq, serde::Deserialize, schemars::JsonSchema, gpui::Action)]
+#[action(namespace = git_graph)]
+pub struct OpenAtCommit {
+    pub sha: String,
+}
 
 fn prompt<T>(
     msg: &str,
@@ -5045,12 +5058,12 @@ impl GitPanel {
                                 .tooltip(|_window, cx| {
                                     Tooltip::for_action(
                                         "Open Git Graph",
-                                        &crate::git_graph::Open,
+                                        &Open,
                                         cx,
                                     )
                                 })
                                 .on_click(|_, window, cx| {
-                                    window.dispatch_action(crate::git_graph::Open.boxed_clone(), cx)
+                                    window.dispatch_action(Open.boxed_clone(), cx)
                                 }),
                         ),
                 ),
