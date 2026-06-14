@@ -149,6 +149,20 @@ pub struct IncreaseBufferFontSize {
 pub struct OpenSettingsAt {
     /// A path to a specific setting (e.g. `theme.mode`)
     pub path: String,
+    /// The settings file to select before opening `path`. When omitted, the
+    /// existing settings file selection is preserved.
+    #[serde(default)]
+    pub target: Option<OpenSettingsAtTarget>,
+}
+
+/// `OpenSettingsAt` path of the agent skills page in the settings UI.
+pub const AGENT_SKILLS_SETTINGS_PATH: &str = "agent.skills";
+
+#[derive(PartialEq, Clone, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OpenSettingsAtTarget {
+    User,
+    Project { worktree_id: usize },
 }
 
 /// Resets the buffer font size to the default value.

@@ -807,7 +807,7 @@ impl OrchestrationPanel {
                 }
                 Err(err) => {
                     workspace.update(cx, |workspace, cx| {
-                        workspace.show_error(&err, cx);
+                        workspace.show_error(err, cx);
                     });
                 }
             }
@@ -831,7 +831,7 @@ impl OrchestrationPanel {
                 }
                 Err(err) => {
                     workspace.update(cx, |workspace, cx| {
-                        workspace.show_error(&err, cx);
+                        workspace.show_error(err, cx);
                     });
                 }
             }

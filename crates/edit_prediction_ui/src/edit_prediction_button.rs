@@ -506,9 +506,7 @@ impl Render for EditPredictionButton {
                 div().child(popover_menu.into_any_element())
             }
 
-            EditPredictionProvider::None | EditPredictionProvider::Experimental(_) => {
-                div().hidden()
-            }
+            EditPredictionProvider::None => div().hidden(),
         }
     }
 }
@@ -632,6 +630,7 @@ impl EditPredictionButton {
                     window.dispatch_action(
                         OpenSettingsAt {
                             path: "edit_predictions.providers".to_string(),
+                            target: None,
                         }
                         .boxed_clone(),
                         cx,
@@ -647,39 +646,38 @@ impl EditPredictionButton {
     ) -> Entity<ContextMenu> {
         let fs = self.fs.clone();
         let project = self.project.clone();
-        ContextMenu::build(window, cx, |menu, _, _cx| {
-            menu.entry("Sign In to Copilot", None, move |window, cx| {
-                telemetry::event!(
-                    "Edit Prediction Menu Action",
-                    action = "sign_in",
-                    provider = "copilot",
-                );
-                if let Some(copilot) = EditPredictionStore::try_global(cx).and_then(|store| {
-                    store.update(cx, |this, cx| {
-                        this.start_copilot_for_project(&project.upgrade()?, cx)
-                    })
-                }) {
-                    copilot_ui::initiate_sign_in(copilot, window, cx);
-                }
-            })
-            .entry("Disable Copilot", None, {
-                let fs = fs.clone();
-                move |_window, cx| {
+        ContextMenu::build(window, cx, |menu, _, cx| {
+            let menu = menu
+                .entry("Sign In to Copilot", None, move |window, cx| {
                     telemetry::event!(
                         "Edit Prediction Menu Action",
-                        action = "disable_provider",
+                        action = "sign_in",
                         provider = "copilot",
                     );
-                    hide_copilot(fs.clone(), cx)
-                }
-            })
-            .separator()
-            .entry("Use PaddleBoard AI", None, {
-                let fs = fs.clone();
-                move |_window, cx| {
-                    set_completion_provider(fs.clone(), cx, EditPredictionProvider::Zed)
-                }
-            })
+                    if let Some(copilot) = EditPredictionStore::try_global(cx).and_then(|store| {
+                        store.update(cx, |this, cx| {
+                            this.start_copilot_for_project(&project.upgrade()?, cx)
+                        })
+                    }) {
+                        copilot_ui::initiate_sign_in(copilot, window, cx);
+                    }
+                })
+                .entry("Disable Copilot", None, {
+                    let fs = fs.clone();
+                    move |_window, cx| {
+                        telemetry::event!(
+                            "Edit Prediction Menu Action",
+                            action = "disable_provider",
+                            provider = "copilot",
+                        );
+                        hide_copilot(fs.clone(), cx)
+                    }
+                });
+
+            let menu =
+                self.add_provider_switching_section(menu, EditPredictionProvider::Copilot, cx);
+            let menu = self.add_configure_providers_item(menu);
+            menu
         })
     }
 
@@ -715,14 +713,16 @@ impl EditPredictionButton {
 
             match language_state.clone() {
                 Some((language, false)) => {
-                    menu = menu.item(
-                        entry
-                            .disabled(true)
-                            .documentation_aside(DocumentationSide::Left, move |_cx| {
-                                Label::new(format!("Edit predictions cannot be toggled for this buffer because they are disabled for {}", language.name()))
-                                    .into_any_element()
-                            })
-                    );
+                    menu = menu.item(entry.disabled(true).documentation_aside(
+                        DocumentationSide::Left,
+                        move |_cx| {
+                            Label::new(format!(
+                                "Edit predictions are disabled for {}",
+                                language.name()
+                            ))
+                            .into_any_element()
+                        },
+                    ));
                 }
                 Some(_) | None => menu = menu.item(entry),
             }
@@ -1041,7 +1041,10 @@ impl EditPredictionButton {
                 .separator()
                 .link(
                     "Go to Copilot Settings",
-                    OpenBrowser { url: settings_url }.boxed_clone(),
+                    OpenBrowser {
+                        url: settings_url.to_string(),
+                    }
+                    .boxed_clone(),
                 )
                 .action("Sign Out", copilot::SignOut.boxed_clone());
             menu
@@ -1631,12 +1634,10 @@ fn emit_edit_prediction_menu_opened(
     );
 }
 
-fn copilot_settings_url(enterprise_uri: Option<&str>) -> String {
+fn copilot_settings_url(enterprise_uri: Option<&str>) -> Arc<str> {
     match enterprise_uri {
-        Some(uri) => {
-            format!("{}{}", uri.trim_end_matches('/'), COPILOT_SETTINGS_PATH)
-        }
-        None => COPILOT_SETTINGS_URL.to_string(),
+        Some(uri) => format!("{}{}", uri.trim_end_matches('/'), COPILOT_SETTINGS_PATH).into(),
+        None => COPILOT_SETTINGS_URL.into(),
     }
 }
 
@@ -1672,7 +1673,7 @@ mod tests {
             )
         });
 
-        assert_eq!(url, "https://my-company.ghe.com/settings/copilot");
+        assert_eq!(url.as_ref(), "https://my-company.ghe.com/settings/copilot");
     }
 
     #[gpui::test]
@@ -1702,7 +1703,7 @@ mod tests {
             )
         });
 
-        assert_eq!(url, "https://my-company.ghe.com/settings/copilot");
+        assert_eq!(url.as_ref(), "https://my-company.ghe.com/settings/copilot");
     }
 
     #[gpui::test]
@@ -1723,6 +1724,6 @@ mod tests {
             )
         });
 
-        assert_eq!(url, "https://github.com/settings/copilot");
+        assert_eq!(url.as_ref(), "https://github.com/settings/copilot");
     }
 }

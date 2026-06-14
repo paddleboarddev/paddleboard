@@ -25,6 +25,7 @@ agent_servers.workspace = true
 agent_settings.workspace = true
 agent_skills.workspace = true
 anyhow.workspace = true
+# PaddleBoard: sandbox_service_tool uses the browser crate's forwarded ports
 browser.workspace = true
 chrono.workspace = true
 client.workspace = true
@@ -38,6 +39,7 @@ fs.workspace = true
 futures.workspace = true
 git.workspace = true
 gpui.workspace = true
+# PaddleBoard: spawn_scion_agent_tool uses gpui_tokio outside tests
 gpui_tokio.workspace = true
 handlebars = { workspace = true, features = ["rust-embed"] }
 heck.workspace = true
@@ -67,6 +69,7 @@ streaming_diff.workspace = true
 strsim.workspace = true
 task.workspace = true
 telemetry.workspace = true
+tempfile.workspace = true
 text.workspace = true
 thiserror.workspace = true
 ui.workspace = true
@@ -83,11 +86,13 @@ paddleboard_sandbox_settings.workspace = true
 zstd.workspace = true
 
 [dev-dependencies]
+assets.workspace = true
 async-io.workspace = true
 agent_servers = { workspace = true, "features" = ["test-support"] }
 client = { workspace = true, "features" = ["test-support"] }
 clock = { workspace = true, "features" = ["test-support"] }
 context_server = { workspace = true, "features" = ["test-support"] }
+criterion.workspace = true
 ctor.workspace = true
 db = { workspace = true, "features" = ["test-support"] }
 editor = { workspace = true, "features" = ["test-support"] }
@@ -101,13 +106,19 @@ language_model = { workspace = true, "features" = ["test-support"] }
 lsp = { workspace = true, "features" = ["test-support"] }
 pretty_assertions.workspace = true
 project = { workspace = true, "features" = ["test-support"] }
+proptest.workspace = true
 rand.workspace = true
 reqwest_client.workspace = true
 settings = { workspace = true, "features" = ["test-support"] }
-tempfile.workspace = true
 
 theme = { workspace = true, "features" = ["test-support"] }
+theme_settings.workspace = true
 
 unindent = { workspace = true }
 
 zlog.workspace = true
+
+[[bench]]
+name = "edit_file_tool"
+harness = false
+required-features = ["test-support"]

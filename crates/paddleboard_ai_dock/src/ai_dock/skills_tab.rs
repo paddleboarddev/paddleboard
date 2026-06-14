@@ -273,7 +273,7 @@ fn write_skill_file(dir: &PathBuf, id: &str, content: &str) -> std::io::Result<(
 fn report_install_error(modal: &AiDock, message: String, cx: &mut Context<AiDock>) {
     if let Some(workspace) = modal.workspace.upgrade() {
         workspace.update(cx, |workspace, cx| {
-            workspace.show_error(&anyhow::anyhow!(message), cx);
+            workspace.show_error(anyhow::anyhow!(message), cx);
         });
     } else {
         log::error!("paddleboard_ai_dock: install error (no workspace to notify): {message}");

@@ -60,7 +60,8 @@ main() {
         echo "To run PaddleBoard from your terminal, you must add ~/.local/bin to your PATH"
         echo "Run:"
 
-        case "$SHELL" in
+        # PaddleBoard: ${SHELL:-} — SHELL is unset in containers/CI (set -u).
+        case "${SHELL:-}" in
             *zsh)
                 echo "   echo 'export PATH=\$HOME/.local/bin:\$PATH' >> ~/.zshrc"
                 echo "   source ~/.zshrc"

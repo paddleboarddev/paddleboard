@@ -163,10 +163,13 @@ fn cleanup_old_hang_traces() {
 
 fn save_hang_trace(
     main_thread_id: ThreadId,
-    background_executor: &gpui::BackgroundExecutor,
+    _background_executor: &gpui::BackgroundExecutor,
     hang_time: chrono::DateTime<chrono::Local>,
 ) {
-    let thread_timings = background_executor.dispatcher().get_all_timings();
+    // PaddleBoard: upstream moved per-thread timings off the dispatcher into the
+    // `gpui::profiler` free function; capture both completed and running tasks so
+    // a hang trace shows what each thread is currently stuck on.
+    let thread_timings = gpui::get_all_timings(gpui::TasksIncluded::CompletedAndRunning);
     let thread_timings = thread_timings
         .into_iter()
         .map(|mut timings| {

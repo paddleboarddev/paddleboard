@@ -865,13 +865,12 @@ impl platform::Host for WasmState {
                 "macos" => platform::Os::Mac,
                 "linux" => platform::Os::Linux,
                 "windows" => platform::Os::Windows,
-                _ => panic!("unsupported os"),
+                _ => bail!("unsupported os"),
             },
             match env::consts::ARCH {
                 "aarch64" => platform::Architecture::Aarch64,
-                "x86" => platform::Architecture::X86,
                 "x86_64" => platform::Architecture::X8664,
-                _ => panic!("unsupported architecture"),
+                _ => bail!("unsupported architecture"),
             },
         ))
     }
@@ -1009,11 +1008,6 @@ impl ExtensionImports for WasmState {
                                 enabled: _,
                                 command,
                                 ..
-                            }
-                            | project::project_settings::ContextServerSettings::SandboxedStdio {
-                                enabled: _,
-                                command,
-                                ..
                             } => Ok(serde_json::to_string(&settings::ContextServerSettings {
                                 command: Some(settings::CommandSettings {
                                     path: command.path.to_str().map(|path| path.to_string()),
@@ -1029,6 +1023,18 @@ impl ExtensionImports for WasmState {
                             } => Ok(serde_json::to_string(&settings::ContextServerSettings {
                                 command: None,
                                 settings: Some(settings),
+                            })?),
+                            project::project_settings::ContextServerSettings::SandboxedStdio {
+                                enabled: _,
+                                command,
+                                ..
+                            } => Ok(serde_json::to_string(&settings::ContextServerSettings {
+                                command: Some(settings::CommandSettings {
+                                    path: command.path.to_str().map(|path| path.to_string()),
+                                    arguments: Some(command.args),
+                                    env: command.env.map(|env| env.into_iter().collect()),
+                                }),
+                                settings: None,
                             })?),
                             project::project_settings::ContextServerSettings::Http { .. } => {
                                 bail!("remote context server settings not supported in 0.6.0")

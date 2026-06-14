@@ -153,6 +153,7 @@ impl CommitModal {
                 }
             }
             git_panel.set_modal_open(true, cx);
+            git_panel.load_local_committer(cx);
         });
 
         let dock = workspace.dock_at_position(git_panel.position(window, cx));
@@ -418,11 +419,11 @@ impl CommitModal {
             .child(
                 h_flex()
                     .gap_1()
-                    .flex_shrink()
+                    .flex_shrink_1()
                     .overflow_x_hidden()
                     .child(
                         h_flex()
-                            .flex_shrink()
+                            .flex_shrink_1()
                             .overflow_x_hidden()
                             .child(branch_picker),
                     )

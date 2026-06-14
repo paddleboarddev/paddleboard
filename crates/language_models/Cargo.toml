@@ -24,6 +24,7 @@ bedrock = { workspace = true, features = ["schemars"] }
 client.workspace = true
 cloud_api_client.workspace = true
 cloud_api_types.workspace = true
+# PaddleBoard: provider/cloud.rs retains the pre-refactor cloud provider body
 cloud_llm_client.workspace = true
 collections.workspace = true
 component.workspace = true
@@ -53,15 +54,16 @@ ollama = { workspace = true, features = ["schemars"] }
 open_ai = { workspace = true, features = ["schemars"] }
 opencode = { workspace = true, features = ["schemars"] }
 open_router = { workspace = true, features = ["schemars"] }
+# PaddleBoard: Google Vertex AI provider
 paddleboard_vertex.workspace = true
 rand.workspace = true
 release_channel.workspace = true
 schemars.workspace = true
-semver.workspace = true
 sha2.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 settings.workspace = true
+semver.workspace = true
 smol.workspace = true
 strum.workspace = true
 thiserror.workspace = true
@@ -75,6 +77,7 @@ x_ai = { workspace = true, features = ["schemars"] }
 [dev-dependencies]
 client = { workspace = true, features = ["test-support"] }
 clock = { workspace = true, features = ["test-support"] }
+cloud_llm_client.workspace = true
 db = { workspace = true, features = ["test-support"] }
 feature_flags.workspace = true
 gpui = { workspace = true, features = ["test-support"] }

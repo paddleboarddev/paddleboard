@@ -1,4 +1,5 @@
 pub mod http;
+// PaddleBoard: sandboxed (Podman + gVisor) MCP stdio transport.
 mod sandboxed_stdio_transport;
 mod stdio_transport;
 

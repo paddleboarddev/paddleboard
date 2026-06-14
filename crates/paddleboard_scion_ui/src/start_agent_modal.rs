@@ -108,7 +108,7 @@ impl StartAgentModal {
                 Err(err) => {
                     workspace
                         .update(cx, |workspace, cx| {
-                            workspace.show_error(&err, cx);
+                            workspace.show_error(err, cx);
                         })
                         .ok();
                 }

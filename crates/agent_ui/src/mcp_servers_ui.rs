@@ -995,7 +995,7 @@ impl Render for McpServersView {
                     let scroll_handle = &self.list;
                     this.child(
                         uniform_list("mcp-server-entries", count, cx.processor(Self::render_servers))
-                            .flex_grow()
+                            .flex_grow(1.)
                             .pb_4()
                             .track_scroll(scroll_handle),
                     )

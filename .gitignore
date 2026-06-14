@@ -65,3 +65,5 @@ site/
 # AI Dock smoke-test screenshots (verification evidence — local only)
 aidock-*.png
 .scion/
+# NixOS integration test state
+.nixos-test-history

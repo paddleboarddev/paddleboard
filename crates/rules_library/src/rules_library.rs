@@ -1,50 +1,96 @@
 use anyhow::Result;
-use collections::{HashMap, HashSet};
-use editor::SelectionEffects;
-use editor::{CurrentLineHighlight, Editor, EditorElement, EditorEvent, EditorStyle, actions::Tab};
+use collections::HashMap;
+use editor::{CurrentLineHighlight, Editor, EditorElement, EditorStyle, actions::Tab};
 use gpui::{
-    App, Bounds, DEFAULT_ADDITIONAL_WINDOW_SIZE, Entity, EventEmitter, Focusable, PromptLevel,
-    Subscription, Task, TaskExt, TextStyle, Tiling, TitlebarOptions, WindowBounds, WindowHandle,
-    WindowOptions, actions, point, size, transparent_black,
+    App, Bounds, DEFAULT_ADDITIONAL_WINDOW_SIZE, Entity, EventEmitter, Focusable, Subscription,
+    Task, TextStyle, Tiling, TitlebarOptions, WindowBounds, WindowHandle, WindowOptions, point,
+    size,
 };
 use language::{Buffer, LanguageRegistry, language_settings::SoftWrap};
 use language_model::{ConfiguredModel, LanguageModelRegistry};
 use picker::{Picker, PickerDelegate};
 use platform_title_bar::PlatformTitleBar;
 use release_channel::ReleaseChannel;
-use rope::Rope;
 use settings::{ActionSequence, Settings};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
-use std::time::Duration;
 use theme_settings::ThemeSettings;
 use ui::{Divider, ListItem, ListItemSpacing, ListSubHeader, Tooltip, prelude::*};
 use ui_input::ErasedEditor;
-use util::{ResultExt, TryFutureExt};
+use util::ResultExt;
 use workspace::{MultiWorkspace, Workspace, WorkspaceSettings, client_side_decorations};
 use paddleboard_actions::assistant::InlineAssist;
 
 use prompt_store::*;
 
+// PaddleBoard: Upstream's "rules → skills" migration trimmed `PromptStore` down to a
+// read-only view (`load` + `all_prompt_metadata`), dropping `search`, `metadata`,
+// `first`, `save`, `save_metadata`, `delete`, and `PromptId::can_edit`. Rather than
+// re-expose a write API on `PromptStore` — an upstream-shaped change that would
+// re-conflict on every weekly upstream merge, and that fights upstream's direction —
+// PaddleBoard keeps the Rules Library as a *read-only viewer*. Creating and editing
+// rules now lives in the file-based Skills system (the AI Dock Skills tab and the
+// `skill_creator` flow). The helpers below reimplement the removed *query* methods
+// locally against `all_prompt_metadata`, preserving their exact read behavior; all
+// former mutation paths (new / save / delete / duplicate / toggle-default) are gone
+// so the window no longer silently drops edits that can't be persisted.
+
+/// Local reimplementation of the removed `PromptStore::search`. Mirrors the old
+/// behavior: empty query returns every entry, otherwise a fuzzy match over titles,
+/// with default rules sorted first.
+fn search_metadata(
+    store: &PromptStore,
+    query: String,
+    cancellation_flag: Arc<AtomicBool>,
+    cx: &App,
+) -> Task<Vec<PromptMetadata>> {
+    let cached_metadata = store.all_prompt_metadata();
+    let executor = cx.background_executor().clone();
+    cx.background_spawn(async move {
+        let mut matches = if query.is_empty() {
+            cached_metadata
+        } else {
+            let candidates = cached_metadata
+                .iter()
+                .enumerate()
+                .filter_map(|(index, metadata)| {
+                    Some(fuzzy::StringMatchCandidate::new(
+                        index,
+                        metadata.title.as_ref()?,
+                    ))
+                })
+                .collect::<Vec<_>>();
+            let string_matches = fuzzy::match_strings(
+                &candidates,
+                &query,
+                false,
+                true,
+                100,
+                &cancellation_flag,
+                executor,
+            )
+            .await;
+            string_matches
+                .into_iter()
+                .filter_map(|string_match| cached_metadata.get(string_match.candidate_id).cloned())
+                .collect()
+        };
+        matches.sort_by_key(|metadata| std::cmp::Reverse(metadata.default));
+        matches
+    })
+}
+
+/// Local reimplementation of the removed `PromptStore::metadata`.
+fn metadata_for(store: &PromptStore, prompt_id: PromptId) -> Option<PromptMetadata> {
+    store
+        .all_prompt_metadata()
+        .into_iter()
+        .find(|metadata| metadata.id == prompt_id)
+}
+
 pub fn init(cx: &mut App) {
     prompt_store::init(cx);
 }
-
-actions!(
-    rules_library,
-    [
-        /// Creates a new rule in the rules library.
-        NewRule,
-        /// Deletes the selected rule.
-        DeleteRule,
-        /// Duplicates the selected rule.
-        DuplicateRule,
-        /// Toggles whether the selected rule is a default rule.
-        ToggleDefaultRule,
-        /// Restores a built-in rule to its default content.
-        RestoreDefaultContent
-    ]
-);
 
 pub trait InlineAssistDelegate {
     fn assist(
@@ -163,9 +209,6 @@ pub struct RulesLibrary {
 struct RuleEditor {
     title_editor: Entity<Editor>,
     body_editor: Entity<Editor>,
-    next_title_and_body_to_save: Option<(String, Rope)>,
-    pending_save: Option<Task<Option<()>>>,
-    _subscriptions: Vec<Subscription>,
 }
 
 enum RulePickerEntry {
@@ -180,11 +223,11 @@ struct RulePickerDelegate {
     filtered_entries: Vec<RulePickerEntry>,
 }
 
+// PaddleBoard: the picker is read-only now — it only navigates between rules. The
+// former `Deleted` / `ToggledDefault` events were mutation paths and are gone.
 enum RulePickerEvent {
     Selected { prompt_id: PromptId },
     Confirmed { prompt_id: PromptId },
-    Deleted { prompt_id: PromptId },
-    ToggledDefault { prompt_id: PromptId },
 }
 
 impl EventEmitter<RulePickerEvent> for Picker<RulePickerDelegate> {}
@@ -236,7 +279,7 @@ impl PickerDelegate for RulePickerDelegate {
         cx: &mut Context<Picker<Self>>,
     ) -> Task<()> {
         let cancellation_flag = Arc::new(AtomicBool::default());
-        let search = self.store.read(cx).search(query, cancellation_flag, cx);
+        let search = search_metadata(self.store.read(cx), query, cancellation_flag, cx);
 
         let prev_prompt_id = self
             .filtered_entries
@@ -334,12 +377,12 @@ impl PickerDelegate for RulePickerDelegate {
         ix: usize,
         selected: bool,
         _: &mut Window,
-        cx: &mut Context<Picker<Self>>,
+        _cx: &mut Context<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         match self.filtered_entries.get(ix)? {
             RulePickerEntry::Header(title) => {
                 let tooltip_text = if title.as_ref() == "Built-in Rules" {
-                    "Built-in rules are those included out of the box with Zed."
+                    "Built-in rules are those included out of the box."
                 } else {
                     "Default Rules are attached by default with every new thread."
                 };
@@ -378,60 +421,15 @@ impl PickerDelegate for RulePickerDelegate {
                                 .truncate()
                                 .mr_10(),
                         )
-                        .end_slot::<IconButton>((default && !prompt_id.is_built_in()).then(|| {
-                            IconButton::new("toggle-default-rule", IconName::Paperclip)
-                                .toggle_state(true)
-                                .icon_color(Color::Accent)
-                                .icon_size(IconSize::Small)
-                                .tooltip(Tooltip::text("Remove from Default Rules"))
-                                .on_click(cx.listener(move |_, _, _, cx| {
-                                    cx.emit(RulePickerEvent::ToggledDefault { prompt_id })
-                                }))
-                        }))
-                        .when(!prompt_id.is_built_in(), |this| {
-                            this.end_slot_on_hover(
-                                h_flex()
-                                    .child(
-                                        IconButton::new("delete-rule", IconName::Trash)
-                                            .icon_color(Color::Muted)
-                                            .icon_size(IconSize::Small)
-                                            .tooltip(Tooltip::text("Delete Rule"))
-                                            .on_click(cx.listener(move |_, _, _, cx| {
-                                                cx.emit(RulePickerEvent::Deleted { prompt_id })
-                                            })),
-                                    )
-                                    .child(
-                                        IconButton::new("toggle-default-rule", IconName::Plus)
-                                            .selected_icon(IconName::Dash)
-                                            .toggle_state(default)
-                                            .icon_size(IconSize::Small)
-                                            .icon_color(if default {
-                                                Color::Accent
-                                            } else {
-                                                Color::Muted
-                                            })
-                                            .map(|this| {
-                                                if default {
-                                                    this.tooltip(Tooltip::text(
-                                                        "Remove from Default Rules",
-                                                    ))
-                                                } else {
-                                                    this.tooltip(move |_window, cx| {
-                                                        Tooltip::with_meta(
-                                                            "Add to Default Rules",
-                                                            None,
-                                                            "Always included in every thread.",
-                                                            cx,
-                                                        )
-                                                    })
-                                                }
-                                            })
-                                            .on_click(cx.listener(move |_, _, _, cx| {
-                                                cx.emit(RulePickerEvent::ToggledDefault {
-                                                    prompt_id,
-                                                })
-                                            })),
-                                    ),
+                        // PaddleBoard: a non-interactive marker for default rules. The
+                        // former add/remove-default and delete buttons were the
+                        // window's mutation paths and are gone now that the store is
+                        // read-only.
+                        .when(default && !prompt_id.is_built_in(), |this| {
+                            this.end_slot(
+                                Icon::new(IconName::Paperclip)
+                                    .color(Color::Accent)
+                                    .size(IconSize::Small),
                             )
                         })
                         .into_any_element(),
@@ -528,174 +526,7 @@ impl RulesLibrary {
             RulePickerEvent::Confirmed { prompt_id } => {
                 self.load_rule(*prompt_id, true, window, cx);
             }
-            RulePickerEvent::ToggledDefault { prompt_id } => {
-                self.toggle_default_for_rule(*prompt_id, window, cx);
-            }
-            RulePickerEvent::Deleted { prompt_id } => {
-                self.delete_rule(*prompt_id, window, cx);
-            }
         }
-    }
-
-    pub fn new_rule(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // If we already have an untitled rule, use that instead
-        // of creating a new one.
-        if let Some(metadata) = self.store.read(cx).first()
-            && metadata.title.is_none()
-        {
-            self.load_rule(metadata.id, true, window, cx);
-            return;
-        }
-
-        let prompt_id = PromptId::new();
-        let save = self.store.update(cx, |store, cx| {
-            store.save(prompt_id, None, false, "".into(), cx)
-        });
-        self.picker
-            .update(cx, |picker, cx| picker.refresh(window, cx));
-        cx.spawn_in(window, async move |this, cx| {
-            save.await?;
-            this.update_in(cx, |this, window, cx| {
-                this.load_rule(prompt_id, true, window, cx)
-            })
-        })
-        .detach_and_log_err(cx);
-    }
-
-    pub fn save_rule(&mut self, prompt_id: PromptId, window: &mut Window, cx: &mut Context<Self>) {
-        const SAVE_THROTTLE: Duration = Duration::from_millis(500);
-
-        if !prompt_id.can_edit() {
-            return;
-        }
-
-        let rule_metadata = self.store.read(cx).metadata(prompt_id).unwrap();
-        let rule_editor = self.rule_editors.get_mut(&prompt_id).unwrap();
-        let title = rule_editor.title_editor.read(cx).text(cx);
-        let body = rule_editor.body_editor.update(cx, |editor, cx| {
-            editor
-                .buffer()
-                .read(cx)
-                .as_singleton()
-                .unwrap()
-                .read(cx)
-                .as_rope()
-                .clone()
-        });
-
-        let store = self.store.clone();
-        let executor = cx.background_executor().clone();
-
-        rule_editor.next_title_and_body_to_save = Some((title, body));
-        if rule_editor.pending_save.is_none() {
-            rule_editor.pending_save = Some(cx.spawn_in(window, async move |this, cx| {
-                async move {
-                    loop {
-                        let title_and_body = this.update(cx, |this, _| {
-                            this.rule_editors
-                                .get_mut(&prompt_id)?
-                                .next_title_and_body_to_save
-                                .take()
-                        })?;
-
-                        if let Some((title, body)) = title_and_body {
-                            let title = if title.trim().is_empty() {
-                                None
-                            } else {
-                                Some(SharedString::from(title))
-                            };
-                            cx.update(|_window, cx| {
-                                store.update(cx, |store, cx| {
-                                    store.save(prompt_id, title, rule_metadata.default, body, cx)
-                                })
-                            })?
-                            .await
-                            .log_err();
-                            this.update_in(cx, |this, window, cx| {
-                                this.picker
-                                    .update(cx, |picker, cx| picker.refresh(window, cx));
-                                cx.notify();
-                            })?;
-
-                            executor.timer(SAVE_THROTTLE).await;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    this.update(cx, |this, _cx| {
-                        if let Some(rule_editor) = this.rule_editors.get_mut(&prompt_id) {
-                            rule_editor.pending_save = None;
-                        }
-                    })
-                }
-                .log_err()
-                .await
-            }));
-        }
-    }
-
-    pub fn delete_active_rule(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_rule_id) = self.active_rule_id {
-            self.delete_rule(active_rule_id, window, cx);
-        }
-    }
-
-    pub fn duplicate_active_rule(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_rule_id) = self.active_rule_id {
-            self.duplicate_rule(active_rule_id, window, cx);
-        }
-    }
-
-    pub fn toggle_default_for_active_rule(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(active_rule_id) = self.active_rule_id {
-            self.toggle_default_for_rule(active_rule_id, window, cx);
-        }
-    }
-
-    pub fn restore_default_content_for_active_rule(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(active_rule_id) = self.active_rule_id {
-            self.restore_default_content(active_rule_id, window, cx);
-        }
-    }
-
-    pub fn restore_default_content(
-        &mut self,
-        prompt_id: PromptId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(built_in) = prompt_id.as_built_in() else {
-            return;
-        };
-
-        if let Some(rule_editor) = self.rule_editors.get(&prompt_id) {
-            rule_editor.body_editor.update(cx, |editor, cx| {
-                editor.set_text(built_in.default_content(), window, cx);
-            });
-        }
-    }
-
-    pub fn toggle_default_for_rule(
-        &mut self,
-        prompt_id: PromptId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.store.update(cx, move |store, cx| {
-            if let Some(rule_metadata) = store.metadata(prompt_id) {
-                store
-                    .save_metadata(prompt_id, rule_metadata.title, !rule_metadata.default, cx)
-                    .detach_and_log_err(cx);
-            }
-        });
-        self.picker
-            .update(cx, |picker, cx| picker.refresh(window, cx));
-        cx.notify();
     }
 
     pub fn load_rule(
@@ -712,7 +543,7 @@ impl RulesLibrary {
                     .update(cx, |editor, cx| window.focus(&editor.focus_handle(cx), cx));
             }
             self.set_active_rule(Some(prompt_id), window, cx);
-        } else if let Some(rule_metadata) = self.store.read(cx).metadata(prompt_id) {
+        } else if let Some(rule_metadata) = metadata_for(self.store.read(cx), prompt_id) {
             let language_registry = self.language_registry.clone();
             let rule = self.store.read(cx).load(prompt_id, cx);
             self.pending_load = cx.spawn_in(window, async move |this, cx| {
@@ -720,14 +551,15 @@ impl RulesLibrary {
                 let markdown = language_registry.language_for_name("Markdown").await;
                 this.update_in(cx, |this, window, cx| match rule {
                     Ok(rule) => {
+                        // PaddleBoard: the Rules Library is a read-only viewer now;
+                        // both editors are non-editable so the window can't surface
+                        // edits the read-only store would silently drop.
                         let title_editor = cx.new(|cx| {
                             let mut editor = Editor::single_line(window, cx);
                             editor.set_placeholder_text("Untitled", window, cx);
                             editor.set_text(rule_metadata.title.unwrap_or_default(), window, cx);
-                            if prompt_id.is_built_in() {
-                                editor.set_read_only(true);
-                                editor.set_show_edit_predictions(Some(false), window, cx);
-                            }
+                            editor.set_read_only(true);
+                            editor.set_show_edit_predictions(Some(false), window, cx);
                             editor
                         });
                         let body_editor = cx.new(|cx| {
@@ -739,10 +571,8 @@ impl RulesLibrary {
                             });
 
                             let mut editor = Editor::for_buffer(buffer, None, window, cx);
-                            if !prompt_id.can_edit() {
-                                editor.set_read_only(true);
-                                editor.set_show_edit_predictions(Some(false), window, cx);
-                            }
+                            editor.set_read_only(true);
+                            editor.set_show_edit_predictions(Some(false), window, cx);
                             editor.set_soft_wrap_mode(SoftWrap::EditorWidth, cx);
                             editor.set_show_gutter(false, cx);
                             editor.set_show_wrap_guides(false, cx);
@@ -754,34 +584,11 @@ impl RulesLibrary {
                             }
                             editor
                         });
-                        let _subscriptions = vec![
-                            cx.subscribe_in(
-                                &title_editor,
-                                window,
-                                move |this, editor, event, window, cx| {
-                                    this.handle_rule_title_editor_event(
-                                        prompt_id, editor, event, window, cx,
-                                    )
-                                },
-                            ),
-                            cx.subscribe_in(
-                                &body_editor,
-                                window,
-                                move |this, editor, event, window, cx| {
-                                    this.handle_rule_body_editor_event(
-                                        prompt_id, editor, event, window, cx,
-                                    )
-                                },
-                            ),
-                        ];
                         this.rule_editors.insert(
                             prompt_id,
                             RuleEditor {
                                 title_editor,
                                 body_editor,
-                                next_title_and_body_to_save: None,
-                                pending_save: None,
-                                _subscriptions,
                             },
                         );
                         this.set_active_rule(Some(prompt_id), window, cx);
@@ -831,92 +638,6 @@ impl RulesLibrary {
             }
         });
         cx.notify();
-    }
-
-    pub fn delete_rule(
-        &mut self,
-        prompt_id: PromptId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(metadata) = self.store.read(cx).metadata(prompt_id) {
-            let confirmation = window.prompt(
-                PromptLevel::Warning,
-                &format!(
-                    "Are you sure you want to delete {}",
-                    metadata.title.unwrap_or("Untitled".into())
-                ),
-                None,
-                &["Delete", "Cancel"],
-                cx,
-            );
-
-            cx.spawn_in(window, async move |this, cx| {
-                if confirmation.await.ok() == Some(0) {
-                    this.update_in(cx, |this, window, cx| {
-                        if this.active_rule_id == Some(prompt_id) {
-                            this.set_active_rule(None, window, cx);
-                        }
-                        this.rule_editors.remove(&prompt_id);
-                        this.store
-                            .update(cx, |store, cx| store.delete(prompt_id, cx))
-                            .detach_and_log_err(cx);
-                        this.picker
-                            .update(cx, |picker, cx| picker.refresh(window, cx));
-                        cx.notify();
-                    })?;
-                }
-                anyhow::Ok(())
-            })
-            .detach_and_log_err(cx);
-        }
-    }
-
-    pub fn duplicate_rule(
-        &mut self,
-        prompt_id: PromptId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(rule) = self.rule_editors.get(&prompt_id) {
-            const DUPLICATE_SUFFIX: &str = " copy";
-            let title_to_duplicate = rule.title_editor.read(cx).text(cx);
-            let existing_titles = self
-                .rule_editors
-                .iter()
-                .filter(|&(&id, _)| id != prompt_id)
-                .map(|(_, rule_editor)| rule_editor.title_editor.read(cx).text(cx))
-                .filter(|title| title.starts_with(&title_to_duplicate))
-                .collect::<HashSet<_>>();
-
-            let title = if existing_titles.is_empty() {
-                title_to_duplicate + DUPLICATE_SUFFIX
-            } else {
-                let mut i = 1;
-                loop {
-                    let new_title = format!("{title_to_duplicate}{DUPLICATE_SUFFIX} {i}");
-                    if !existing_titles.contains(&new_title) {
-                        break new_title;
-                    }
-                    i += 1;
-                }
-            };
-
-            let new_id = PromptId::new();
-            let body = rule.body_editor.read(cx).text(cx);
-            let save = self.store.update(cx, |store, cx| {
-                store.save(new_id, Some(title.into()), false, body.into(), cx)
-            });
-            self.picker
-                .update(cx, |picker, cx| picker.refresh(window, cx));
-            cx.spawn_in(window, async move |this, cx| {
-                save.await?;
-                this.update_in(cx, |rules_library, window, cx| {
-                    rules_library.load_rule(new_id, true, window, cx)
-                })
-            })
-            .detach_and_log_err(cx);
-        }
     }
 
     fn focus_active_rule(&mut self, _: &Tab, window: &mut Window, cx: &mut Context<Self>) {
@@ -1001,62 +722,37 @@ impl RulesLibrary {
         }
     }
 
-    fn handle_rule_title_editor_event(
-        &mut self,
-        prompt_id: PromptId,
-        title_editor: &Entity<Editor>,
-        event: &EditorEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            EditorEvent::BufferEdited => {
-                self.save_rule(prompt_id, window, cx);
-            }
-            EditorEvent::Blurred => {
-                title_editor.update(cx, |title_editor, cx| {
-                    title_editor.change_selections(
-                        SelectionEffects::no_scroll(),
-                        window,
-                        cx,
-                        |selections| {
-                            let cursor = selections.oldest_anchor().head();
-                            selections.select_anchor_ranges([cursor..cursor]);
-                        },
-                    );
-                });
-            }
-            _ => {}
-        }
-    }
-
-    fn handle_rule_body_editor_event(
-        &mut self,
-        prompt_id: PromptId,
-        body_editor: &Entity<Editor>,
-        event: &EditorEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            EditorEvent::BufferEdited => {
-                self.save_rule(prompt_id, window, cx);
-            }
-            EditorEvent::Blurred => {
-                body_editor.update(cx, |body_editor, cx| {
-                    body_editor.change_selections(
-                        SelectionEffects::no_scroll(),
-                        window,
-                        cx,
-                        |selections| {
-                            let cursor = selections.oldest_anchor().head();
-                            selections.select_anchor_ranges([cursor..cursor]);
-                        },
-                    );
-                });
-            }
-            _ => {}
-        }
+    // PaddleBoard: editing moved to the file-based Skills system. This banner points
+    // users there instead of leaving them to discover the viewer is read-only.
+    fn render_read_only_banner(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        h_flex()
+            .w_full()
+            .flex_none()
+            .items_start()
+            .gap_2()
+            .px_3()
+            .py_2()
+            .bg(cx.theme().colors().editor_background)
+            .border_b_1()
+            .border_color(cx.theme().colors().border)
+            .child(
+                Icon::new(IconName::Info)
+                    .size(IconSize::Small)
+                    .color(Color::Muted),
+            )
+            .child(
+                v_flex()
+                    .gap_0p5()
+                    .child(Label::new("Rules Library is read-only").size(LabelSize::Small))
+                    .child(
+                        Label::new(
+                            "Creating and editing rules has moved to Skills. Open the AI Dock \
+                             and switch to the Skills tab to add or edit a skill.",
+                        )
+                        .size(LabelSize::Small)
+                        .color(Color::Muted),
+                    ),
+            )
     }
 
     fn render_rule_list(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -1068,70 +764,20 @@ impl RulesLibrary {
             .w_64()
             .overflow_x_hidden()
             .bg(cx.theme().colors().panel_background)
-            .map(|this| {
-                if cfg!(target_os = "macos") {
-                    this.child(
-                        h_flex()
-                            .p(DynamicSpacing::Base04.rems(cx))
-                            .h_9()
-                            .w_full()
-                            .flex_none()
-                            .justify_end()
-                            .child(
-                                IconButton::new("new-rule", IconName::Plus)
-                                    .tooltip(move |_window, cx| {
-                                        Tooltip::for_action("New Rule", &NewRule, cx)
-                                    })
-                                    .on_click(|_, window, cx| {
-                                        window.dispatch_action(Box::new(NewRule), cx);
-                                    }),
-                            ),
-                    )
-                } else {
-                    this.child(
-                        h_flex().p_1().w_full().child(
-                            Button::new("new-rule", "New Rule")
-                                .full_width()
-                                .style(ButtonStyle::Outlined)
-                                .start_icon(
-                                    Icon::new(IconName::Plus)
-                                        .size(IconSize::Small)
-                                        .color(Color::Muted),
-                                )
-                                .on_click(|_, window, cx| {
-                                    window.dispatch_action(Box::new(NewRule), cx);
-                                }),
-                        ),
-                    )
-                }
-            })
-            .child(div().flex_grow().child(self.picker.clone()))
+            .child(div().flex_grow(1.).child(self.picker.clone()))
     }
 
     fn render_active_rule_editor(
         &self,
         editor: &Entity<Editor>,
-        read_only: bool,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let settings = ThemeSettings::get_global(cx);
-        let text_color = if read_only {
-            cx.theme().colors().text_muted
-        } else {
-            cx.theme().colors().text
-        };
 
         div()
             .w_full()
             .pl_1()
-            .border_1()
-            .border_color(transparent_black())
             .rounded_sm()
-            .when(!read_only, |this| {
-                this.group_hover("active-editor-header", |this| {
-                    this.border_color(cx.theme().colors().border_variant)
-                })
-            })
             .on_action(cx.listener(Self::move_down_from_title))
             .child(EditorElement::new(
                 &editor,
@@ -1139,7 +785,7 @@ impl RulesLibrary {
                     background: cx.theme().system().transparent,
                     local_player: cx.theme().players().local(),
                     text: TextStyle {
-                        color: text_color,
+                        color: cx.theme().colors().text,
                         font_family: settings.ui_font.family.clone(),
                         font_features: settings.ui_font.features.clone(),
                         font_size: HeadlineSize::Medium.rems().into(),
@@ -1157,65 +803,18 @@ impl RulesLibrary {
             ))
     }
 
-    fn render_duplicate_rule_button(&self) -> impl IntoElement {
-        IconButton::new("duplicate-rule", IconName::BookCopy)
-            .tooltip(move |_window, cx| Tooltip::for_action("Duplicate Rule", &DuplicateRule, cx))
-            .on_click(|_, window, cx| {
-                window.dispatch_action(Box::new(DuplicateRule), cx);
-            })
-    }
-
-    fn render_built_in_rule_controls(&self) -> impl IntoElement {
-        h_flex()
-            .gap_1()
-            .child(self.render_duplicate_rule_button())
-            .child(
-                IconButton::new("restore-default", IconName::RotateCcw)
-                    .tooltip(move |_window, cx| {
-                        Tooltip::for_action(
-                            "Restore to Default Content",
-                            &RestoreDefaultContent,
-                            cx,
-                        )
-                    })
-                    .on_click(|_, window, cx| {
-                        window.dispatch_action(Box::new(RestoreDefaultContent), cx);
-                    }),
-            )
-    }
-
-    fn render_regular_rule_controls(&self, default: bool) -> impl IntoElement {
+    fn render_default_indicator(&self) -> impl IntoElement {
         h_flex()
             .gap_1()
             .child(
-                IconButton::new("toggle-default-rule", IconName::Paperclip)
-                    .toggle_state(default)
-                    .when(default, |this| this.icon_color(Color::Accent))
-                    .map(|this| {
-                        if default {
-                            this.tooltip(Tooltip::text("Remove from Default Rules"))
-                        } else {
-                            this.tooltip(move |_window, cx| {
-                                Tooltip::with_meta(
-                                    "Add to Default Rules",
-                                    None,
-                                    "Always included in every thread.",
-                                    cx,
-                                )
-                            })
-                        }
-                    })
-                    .on_click(|_, window, cx| {
-                        window.dispatch_action(Box::new(ToggleDefaultRule), cx);
-                    }),
+                Icon::new(IconName::Paperclip)
+                    .size(IconSize::Small)
+                    .color(Color::Accent),
             )
-            .child(self.render_duplicate_rule_button())
             .child(
-                IconButton::new("delete-rule", IconName::Trash)
-                    .tooltip(move |_window, cx| Tooltip::for_action("Delete Rule", &DeleteRule, cx))
-                    .on_click(|_, window, cx| {
-                        window.dispatch_action(Box::new(DeleteRule), cx);
-                    }),
+                Label::new("Default Rule")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
             )
     }
 
@@ -1223,15 +822,15 @@ impl RulesLibrary {
         div()
             .id("rule-editor")
             .h_full()
-            .flex_grow()
+            .flex_grow(1.)
             .border_l_1()
             .border_color(cx.theme().colors().border)
             .bg(cx.theme().colors().editor_background)
             .children(self.active_rule_id.and_then(|prompt_id| {
-                let rule_metadata = self.store.read(cx).metadata(prompt_id)?;
+                let rule_metadata = metadata_for(self.store.read(cx), prompt_id)?;
                 let rule_editor = &self.rule_editors[&prompt_id];
                 let focus_handle = rule_editor.body_editor.focus_handle(cx);
-                let built_in = prompt_id.is_built_in();
+                let default = rule_metadata.default;
 
                 Some(
                     v_flex()
@@ -1251,20 +850,13 @@ impl RulesLibrary {
                                 .justify_between()
                                 .child(self.render_active_rule_editor(
                                     &rule_editor.title_editor,
-                                    built_in,
                                     cx,
                                 ))
-                                .child(h_flex().h_full().flex_shrink_0().map(|this| {
-                                    if built_in {
-                                        this.child(self.render_built_in_rule_controls())
-                                    } else {
-                                        this.child(
-                                            self.render_regular_rule_controls(
-                                                rule_metadata.default,
-                                            ),
-                                        )
-                                    }
-                                })),
+                                .child(
+                                    h_flex().h_full().flex_shrink_0().when(default, |this| {
+                                        this.child(self.render_default_indicator())
+                                    }),
+                                ),
                         )
                         .child(
                             div()
@@ -1272,7 +864,7 @@ impl RulesLibrary {
                                 .on_action(cx.listener(Self::inline_assist))
                                 .on_action(cx.listener(Self::move_up_from_body))
                                 .h_full()
-                                .flex_grow()
+                                .flex_grow(1.)
                                 .child(
                                     h_flex()
                                         .py_2()
@@ -1303,33 +895,22 @@ impl Render for RulesLibrary {
                         }
                     },
                 )
-                .on_action(cx.listener(|this, &NewRule, window, cx| this.new_rule(window, cx)))
-                .on_action(
-                    cx.listener(|this, &DeleteRule, window, cx| {
-                        this.delete_active_rule(window, cx)
-                    }),
-                )
-                .on_action(cx.listener(|this, &DuplicateRule, window, cx| {
-                    this.duplicate_active_rule(window, cx)
-                }))
-                .on_action(cx.listener(|this, &ToggleDefaultRule, window, cx| {
-                    this.toggle_default_for_active_rule(window, cx)
-                }))
-                .on_action(cx.listener(|this, &RestoreDefaultContent, window, cx| {
-                    this.restore_default_content_for_active_rule(window, cx)
-                }))
                 .size_full()
                 .overflow_hidden()
                 .font(ui_font)
                 .text_color(theme.colors().text)
                 .children(self.title_bar.clone())
+                // PaddleBoard: on macOS the title bar is a transparent overlay with no
+                // `PlatformTitleBar`, so reserve a strip for the traffic lights before
+                // any content is drawn.
+                .when(cfg!(target_os = "macos"), |this| {
+                    this.child(div().h(px(36.)).w_full().flex_none())
+                })
                 .bg(theme.colors().background)
+                .child(self.render_read_only_banner(cx))
                 .child(
                     h_flex()
                         .flex_1()
-                        .when(!cfg!(target_os = "macos"), |this| {
-                            this.border_t_1().border_color(cx.theme().colors().border)
-                        })
                         .child(self.render_rule_list(cx))
                         .child(self.render_active_rule(cx)),
                 ),

@@ -2,14 +2,11 @@ use crash_handler::{CrashEventResult, CrashHandler};
 use log::info;
 use minidumper::{LoopAction, MinidumpBinary, Server, SocketName};
 use parking_lot::Mutex;
-use release_channel::{RELEASE_CHANNEL, ReleaseChannel};
 use serde::{Deserialize, Serialize};
 use std::{panic::Location, pin::Pin};
 
 use system_specs::GpuSpecs;
 
-#[cfg(target_os = "macos")]
-use std::sync::atomic::AtomicU32;
 use std::{
     env,
     fs::{self, File},
@@ -28,26 +25,6 @@ pub use minidumper::Client;
 
 const CRASH_HANDLER_PING_TIMEOUT: Duration = Duration::from_secs(60);
 const CRASH_HANDLER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-
-#[allow(dead_code)]
-static PENDING_CRASH_SERVER_MESSAGES: Mutex<Vec<CrashServerMessage>> = Mutex::new(Vec::new());
-
-#[cfg(target_os = "macos")]
-#[allow(dead_code)]
-static PANIC_THREAD_ID: AtomicU32 = AtomicU32::new(0);
-
-#[allow(dead_code)]
-fn should_install_crash_handler() -> bool {
-    if let Ok(value) = env::var("PADDLEBOARD_GENERATE_MINIDUMPS") {
-        return value == "true" || value == "1";
-    }
-
-    if *RELEASE_CHANNEL == ReleaseChannel::Dev {
-        return false;
-    }
-
-    true
-}
 
 /// Force a backtrace to be printed on panic.
 pub fn force_backtrace() {

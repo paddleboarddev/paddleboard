@@ -205,8 +205,8 @@ impl ThreadHistory {
         self.sessions.iter().take(limit).cloned().collect()
     }
 
-    pub fn supports_delete(&self, cx: &App) -> bool {
-        self.session_list.supports_delete(cx)
+    pub fn supports_delete(&self, _cx: &App) -> bool {
+        self.session_list.supports_delete()
     }
 
     pub(crate) fn delete_session(

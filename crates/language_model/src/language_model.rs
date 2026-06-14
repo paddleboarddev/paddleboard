@@ -1,14 +1,15 @@
 mod api_key;
 mod model;
+// PaddleBoard: aliases for the cloud provider id/name (PADDLEBOARD_CLOUD_PROVIDER_*).
 mod provider;
 mod registry;
 mod request;
-pub mod tool_schema;
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod fake_provider;
 
 pub use language_model_core::*;
+pub use provider::*;
 
 use anyhow::Result;
 use futures::FutureExt;
@@ -22,19 +23,10 @@ pub use crate::api_key::{ApiKey, ApiKeyState};
 pub use crate::model::*;
 pub use crate::registry::*;
 pub use crate::request::{LanguageModelImageExt, gpui_size_to_image_size, image_size_to_gpui};
-pub use crate::tool_schema::LanguageModelToolSchemaFormat;
 pub use env_var::{EnvVar, env_var};
-pub use provider::*;
 
 pub fn init(cx: &mut App) {
     registry::init(cx);
-}
-
-#[derive(Clone, Debug)]
-pub struct LanguageModelCacheConfiguration {
-    pub max_cache_anchors: usize,
-    pub should_speculate: bool,
-    pub min_total_token: u64,
 }
 
 pub struct LanguageModelTextStream {

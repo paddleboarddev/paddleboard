@@ -422,7 +422,6 @@ pub mod graph_ql {
 mod octo_client {
     use anyhow::{Context, Result};
     use futures::TryStreamExt as _;
-    use itertools::Itertools as _;
     use jsonwebtoken::EncodingKey;
     use octocrab::{
         Octocrab, Page,
@@ -462,10 +461,6 @@ mod octo_client {
     }
 
     const PAGE_SIZE: u8 = 100;
-    #[allow(dead_code)]
-    const ORG: &str = "zed-industries";
-    #[allow(dead_code)]
-    const REPO: &str = "zed";
 
     pub struct OctocrabClient {
         client: Octocrab,
@@ -499,44 +494,11 @@ mod octo_client {
             Ok(Self { client })
         }
 
-        #[allow(dead_code)]
-        fn build_co_authors_query<'a>(shas: impl IntoIterator<Item = &'a CommitSha>) -> String {
-            const FRAGMENT: &str = r#"
-                ... on Commit {
-                    author {
-                        name
-                        email
-                        user { login }
-                    }
-                    authors(first: 10) {
-                        nodes {
-                            name
-                            email
-                            user { login }
-                        }
-                    }
-                }
-            "#;
-
-            let objects: String = shas
-                .into_iter()
-                .map(|commit_sha| {
-                    format!(
-                        "commit{sha}: object(oid: \"{sha}\") {{ {FRAGMENT} }}",
-                        sha = **commit_sha
-                    )
-                })
-                .join("\n");
-
-            format!("{{  repository(owner: \"{ORG}\", name: \"{REPO}\") {{ {objects}  }} }}")
-                .replace("\n", "")
-        }
-
-        async fn graphql<R: octocrab::FromResponse + DeserializeOwned>(
-            &self,
-            query: &serde_json::Value,
-        ) -> octocrab::Result<R> {
-            self.client.graphql(query).await
+        async fn graphql<R: DeserializeOwned>(&self, query: &serde_json::Value) -> Result<R> {
+            let response: serde_json::Value = self.client.graphql(query).await?;
+            let parsed: graph_ql::GraphQLResponse<R> = serde_json::from_value(response)
+                .context("Failed to parse GraphQL response envelope")?;
+            parsed.into_data()
         }
 
         async fn get_all<T: DeserializeOwned + 'static>(
@@ -658,7 +620,6 @@ mod octo_client {
             self.graphql::<graph_ql::CommitMetadataResponse>(&query)
                 .await
                 .map(|response| response.repository)
-                .map_err(|err| anyhow::anyhow!(err))
         }
 
         async fn get_commit_files(

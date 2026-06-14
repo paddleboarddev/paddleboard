@@ -117,7 +117,13 @@ impl StatusItemView for UsageStatusItem {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.sync(cx);
+        // PaddleBoard: the status bar calls this while the workspace entity is
+        // mid-update, so `sync` (which reads the workspace) would re-enter and
+        // panic. Defer it until the current update completes.
+        let this = cx.entity().downgrade();
+        cx.defer(move |cx| {
+            this.update(cx, |this, cx| this.sync(cx)).ok();
+        });
     }
 
     fn hide_setting(&self, _cx: &App) -> Option<HideStatusItem> {

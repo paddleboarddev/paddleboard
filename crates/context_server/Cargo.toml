@@ -36,6 +36,7 @@ serde.workspace = true
 settings.workspace = true
 sha2.workspace = true
 slotmap.workspace = true
+# PaddleBoard: used by the sandboxed_stdio MCP transport.
 smol.workspace = true
 tempfile.workspace = true
 url = { workspace = true, features = ["serde"] }

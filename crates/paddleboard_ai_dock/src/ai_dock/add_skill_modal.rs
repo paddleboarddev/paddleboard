@@ -66,8 +66,7 @@ impl AddSkillModal {
             None => {
                 if let Some(workspace) = self.workspace.upgrade() {
                     workspace.update(cx, |workspace, cx| {
-                        workspace.show_error(
-                            &anyhow::anyhow!(
+                        workspace.show_error(anyhow::anyhow!(
                                 "Could not resolve the {} skills directory.",
                                 self.scope.label()
                             ),
@@ -84,7 +83,7 @@ impl AddSkillModal {
             if let Some(workspace) = self.workspace.upgrade() {
                 workspace.update(cx, |workspace, cx| {
                     workspace
-                        .show_error(&anyhow::anyhow!("Failed to create /{name}: {err}"), cx);
+                        .show_error(anyhow::anyhow!("Failed to create /{name}: {err}"), cx);
                 });
             }
             return;

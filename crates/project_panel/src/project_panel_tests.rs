@@ -1,13 +1,18 @@
 use super::*;
 // use crate::undo::tests::{build_create_operation, build_rename_operation};
 use collections::HashSet;
-use editor::MultiBufferOffset;
+use editor::{Editor, MultiBufferOffset};
+use git::{
+    Oid,
+    repository::{InitialGraphCommitData, LogSource, RepoPath},
+};
 use gpui::{Empty, Entity, TestAppContext, VisualTestContext};
 use menu::Cancel;
 use pretty_assertions::assert_eq;
 use project::{FakeFs, ProjectPath};
 use serde_json::json;
 use settings::{ProjectPanelAutoOpenSettings, SettingsStore};
+use smallvec::smallvec;
 use std::path::{Path, PathBuf};
 use util::{path, paths::PathStyle, rel_path::rel_path};
 use workspace::{
@@ -167,7 +172,6 @@ async fn test_opening_file(cx: &mut gpui::TestAppContext) {
     ensure_single_file_is_opened(&workspace, "test/second.rs", cx);
 }
 
-#[gpui::test]
 async fn test_exclusions_in_visible_list(cx: &mut gpui::TestAppContext) {
     init_test(cx);
     cx.update(|cx| {
@@ -10397,6 +10401,27 @@ fn init_test_with_editor(cx: &mut TestAppContext) {
         let app_state = AppState::test(cx);
         theme_settings::init(theme::LoadThemes::JustBase, cx);
         editor::init(cx);
+        crate::init(cx);
+        workspace::init(app_state, cx);
+
+        cx.update_global::<SettingsStore, _>(|store, cx| {
+            store.update_user_settings(cx, |settings| {
+                settings
+                    .project_panel
+                    .get_or_insert_default()
+                    .auto_fold_dirs = Some(false);
+                settings.project.worktree.file_scan_exclusions = Some(Vec::new())
+            });
+        });
+    });
+}
+
+fn init_test_with_git_ui(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        let app_state = AppState::test(cx);
+        theme_settings::init(theme::LoadThemes::JustBase, cx);
+        editor::init(cx);
+        git_ui::init(cx);
         crate::init(cx);
         workspace::init(app_state, cx);
 

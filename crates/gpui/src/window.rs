@@ -17,7 +17,7 @@ use crate::{
     SystemWindowTabController, TabStopMap, TaffyLayoutEngine, Task, TextRenderingMode, TextStyle,
     TextStyleRefinement, ThermalState, TransformationMatrix, Underline, UnderlineStyle,
     WindowAppearance, WindowBackgroundAppearance, WindowBounds, WindowControls, WindowDecorations,
-    WindowOptions, WindowParams, WindowTextSystem, point, prelude::*, px, rems, size,
+    WindowOptions, WindowParams, WindowTextSystem, point, prelude::*, profiler, px, rems, size,
     transparent_black,
 };
 use anyhow::{Context as _, Result, anyhow};
@@ -52,14 +52,18 @@ use std::{
     rc::Rc,
     sync::{
         Arc, Weak,
-        atomic::{AtomicUsize, Ordering::SeqCst},
+        atomic::{AtomicBool, AtomicUsize, Ordering::SeqCst},
     },
     time::Duration,
 };
 use uuid::Uuid;
 
+pub(crate) mod a11y;
 mod prompts;
 
+use self::a11y::A11y;
+#[cfg(not(target_family = "wasm"))]
+use self::a11y::ROOT_NODE_ID;
 use crate::util::{
     atomic_incr_if_not_zero, ceil_to_device_pixel, floor_to_device_pixel, round_half_toward_zero,
     round_half_toward_zero_f64, round_stroke_to_device_pixel, round_to_device_pixel,
@@ -1021,6 +1025,7 @@ pub struct Window {
     captured_hitbox: Option<HitboxId>,
     #[cfg(any(feature = "inspector", debug_assertions))]
     inspector: Option<Entity<Inspector>>,
+    pub(crate) a11y: A11y,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1244,35 +1249,6 @@ fn default_bounds(display_id: Option<DisplayId>, cx: &mut App) -> WindowBounds {
 }
 
 impl Window {
-    /// Adds a webview at the given bounds within this window.
-    pub fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {
-        self.platform_window.add_webview(url, bounds);
-    }
-
-    /// Updates the bounds of the existing webview in this window.
-    pub fn update_webview(&mut self, bounds: Bounds<Pixels>) {
-        self.platform_window.update_webview(bounds);
-    }
-
-    /// Shows the webview after it has been hidden.
-    pub fn show_webview(&mut self) {
-        self.platform_window.show_webview();
-    }
-
-    /// Hides the webview without destroying it.
-    pub fn hide_webview(&mut self) {
-        self.platform_window.hide_webview();
-    }
-
-    /// Destroys the webview entirely. A subsequent `add_webview` will create a new one.
-    pub fn remove_webview(&mut self) {
-        self.platform_window.remove_webview();
-    }
-
-    /// Navigates the existing webview to a new URL.
-    pub fn navigate_webview(&mut self, url: &str) {
-        self.platform_window.navigate_webview(url);
-    }
     pub(crate) fn new(
         handle: AnyWindowHandle,
         options: WindowOptions,
@@ -1352,6 +1328,86 @@ impl Window {
             WindowBounds::Fullscreen(_) => platform_window.toggle_fullscreen(),
             WindowBounds::Maximized(_) => platform_window.zoom(),
             WindowBounds::Windowed(_) => {}
+        }
+
+        let accessibility_force_disabled = cx.accessibility_force_disabled;
+        let a11y_active_flag = Arc::new(AtomicBool::new(false));
+
+        #[cfg(not(target_family = "wasm"))]
+        if !accessibility_force_disabled {
+            let initial_tree = accesskit::TreeUpdate {
+                nodes: vec![(ROOT_NODE_ID, accesskit::Node::new(accesskit::Role::Window))],
+                tree: Some(accesskit::Tree::new(ROOT_NODE_ID)),
+                tree_id: accesskit::TreeId::ROOT,
+                focus: ROOT_NODE_ID,
+            };
+            let (activation_sender, activation_receiver) = async_channel::unbounded::<()>();
+            let (deactivation_sender, deactivation_receiver) = async_channel::unbounded::<()>();
+            let (action_sender, action_receiver) =
+                async_channel::unbounded::<accesskit::ActionRequest>();
+
+            platform_window.a11y_init(crate::A11yCallbacks {
+                activation: {
+                    let active_flag = a11y_active_flag.clone();
+                    Box::new(move || {
+                        log::info!("Accessibility activated");
+                        active_flag.store(true, SeqCst);
+                        activation_sender.send_blocking(()).log_err();
+                        Some(initial_tree.clone())
+                    })
+                },
+                action: Box::new(move |request| {
+                    action_sender.send_blocking(request).log_err();
+                }),
+                deactivation: {
+                    let active_flag = a11y_active_flag.clone();
+                    Box::new(move || {
+                        log::info!("Accessibility deactivated");
+                        active_flag.store(false, SeqCst);
+                        deactivation_sender.send_blocking(()).log_err();
+                    })
+                },
+            });
+
+            // A11y can be activated at any time, and so we cannot compute a
+            // correct `TreeUpdate` on-demand. When this happens, we return a
+            // default empty `TreeUpdate`.
+            //
+            // So we force a new frame, which will then send a correct `TreeUpdate`.
+            let mut async_cx = cx.to_async();
+            cx.foreground_executor()
+                .spawn(async move {
+                    while activation_receiver.recv().await.is_ok() {
+                        handle
+                            .update(&mut async_cx, |_, window, _| window.refresh())
+                            .log_err();
+                    }
+                })
+                .detach();
+
+            let mut async_cx = cx.to_async();
+            cx.foreground_executor()
+                .spawn(async move {
+                    while deactivation_receiver.recv().await.is_ok() {
+                        handle
+                            .update(&mut async_cx, |_, window, _| window.refresh())
+                            .log_err();
+                    }
+                })
+                .detach();
+
+            let mut async_cx = cx.to_async();
+            cx.foreground_executor()
+                .spawn(async move {
+                    while let Ok(request) = action_receiver.recv().await {
+                        handle
+                            .update(&mut async_cx, |_, window, cx| {
+                                window.handle_a11y_action(request, cx);
+                            })
+                            .log_err();
+                    }
+                })
+                .detach();
         }
 
         platform_window.on_close(Box::new({
@@ -1662,6 +1718,7 @@ impl Window {
             captured_hitbox: None,
             #[cfg(any(feature = "inspector", debug_assertions))]
             inspector: None,
+            a11y: A11y::new(a11y_active_flag, accessibility_force_disabled),
         })
     }
 
@@ -1702,6 +1759,40 @@ impl ContentMask<Pixels> {
     pub fn intersect(&self, other: &Self) -> Self {
         let bounds = self.bounds.intersect(&other.bounds);
         ContentMask { bounds }
+    }
+}
+
+impl Window {
+    // PaddleBoard: embedded webview (browser panel) controls, forwarded to the
+    // platform window's wry-backed webview.
+    /// Adds a webview at the given bounds within this window.
+    pub fn add_webview(&mut self, url: &str, bounds: Bounds<Pixels>) {
+        self.platform_window.add_webview(url, bounds);
+    }
+
+    /// Updates the bounds of the existing webview in this window.
+    pub fn update_webview(&mut self, bounds: Bounds<Pixels>) {
+        self.platform_window.update_webview(bounds);
+    }
+
+    /// Shows the webview after it has been hidden.
+    pub fn show_webview(&mut self) {
+        self.platform_window.show_webview();
+    }
+
+    /// Hides the webview without destroying it.
+    pub fn hide_webview(&mut self) {
+        self.platform_window.hide_webview();
+    }
+
+    /// Destroys the webview entirely. A subsequent `add_webview` will create a new one.
+    pub fn remove_webview(&mut self) {
+        self.platform_window.remove_webview();
+    }
+
+    /// Navigates the existing webview to a new URL.
+    pub fn navigate_webview(&mut self, url: &str) {
+        self.platform_window.navigate_webview(url);
     }
 }
 
@@ -2254,6 +2345,12 @@ impl Window {
         self.platform_window.set_title(title);
     }
 
+    /// Sets the position of the macOS traffic light buttons.
+    #[cfg(target_os = "macos")]
+    pub fn set_traffic_light_position(&self, position: Point<Pixels>) {
+        self.platform_window.set_traffic_light_position(position);
+    }
+
     /// Sets the application identifier.
     pub fn set_app_id(&mut self, app_id: &str) {
         self.platform_window.set_app_id(app_id);
@@ -2649,6 +2746,11 @@ impl Window {
         self.invalidator.set_phase(DrawPhase::Prepaint);
         self.tooltip_bounds.take();
 
+        self.a11y.sync_active_flag();
+        if self.a11y.is_active() {
+            self.a11y.begin_frame();
+        }
+
         let _inspector_width: Pixels = rems(30.0).to_pixels(self.rem_size());
         let root_size = {
             #[cfg(any(feature = "inspector", debug_assertions))]
@@ -2715,6 +2817,26 @@ impl Window {
 
         #[cfg(any(feature = "inspector", debug_assertions))]
         self.paint_inspector_hitbox(cx);
+
+        // a11y may have been activated/deactivated halfway through the frame
+        let a11y_active_start_of_frame = self.a11y.is_active();
+        self.a11y.sync_active_flag();
+        let a11y_active_end_of_frame = self.a11y.is_active();
+
+        let should_send_a11y_update = a11y_active_start_of_frame && a11y_active_end_of_frame;
+
+        if a11y_active_start_of_frame {
+            // clear the builder state regardless
+            let tree_update = self.a11y.end_frame();
+
+            if should_send_a11y_update {
+                log::debug!(
+                    "Sending a11y tree update: {} nodes",
+                    tree_update.nodes.len()
+                );
+                self.platform_window.a11y_tree_update(tree_update);
+            }
+        }
     }
 
     fn prepaint_tooltip(&mut self, cx: &mut App) -> Option<AnyElement> {
@@ -4881,7 +5003,9 @@ impl Window {
             .remove(&action.as_any().type_id())
         {
             for listener in &global_listeners {
+                profiler::update_running_action(action, cx);
                 listener(action.as_any(), DispatchPhase::Capture, cx);
+                profiler::save_action_timing();
                 if !cx.propagate_event {
                     break;
                 }
@@ -4911,7 +5035,9 @@ impl Window {
             {
                 let any_action = action.as_any();
                 if action_type == any_action.type_id() {
+                    profiler::update_running_action(action, cx);
                     listener(any_action, DispatchPhase::Capture, self, cx);
+                    profiler::save_action_timing();
 
                     if !cx.propagate_event {
                         return;
@@ -4931,7 +5057,9 @@ impl Window {
                 let any_action = action.as_any();
                 if action_type == any_action.type_id() {
                     cx.propagate_event = false; // Actions stop propagation by default during the bubble phase
+                    profiler::update_running_action(action, cx);
                     listener(any_action, DispatchPhase::Bubble, self, cx);
+                    profiler::save_action_timing();
 
                     if !cx.propagate_event {
                         return;
@@ -4948,7 +5076,9 @@ impl Window {
             for listener in global_listeners.iter().rev() {
                 cx.propagate_event = false; // Actions stop propagation by default during the bubble phase
 
+                profiler::update_running_action(action, cx);
                 listener(action.as_any(), DispatchPhase::Bubble, cx);
+                profiler::save_action_timing();
                 if !cx.propagate_event {
                     break;
                 }
@@ -5323,6 +5453,87 @@ impl Window {
     /// with the window, for others it's just a simple global function call.
     pub fn play_system_bell(&self) {
         self.platform_window.play_system_bell()
+    }
+
+    /// Register a listener for an accessibility action on a specific node.
+    /// The listener will be called when a screen reader requests the given
+    /// action on the node identified by `node_id`.
+    ///
+    /// See the [accessibility guide](crate::_accessibility) for an overview.
+    pub fn on_a11y_action(
+        &mut self,
+        node_id: accesskit::NodeId,
+        action: accesskit::Action,
+        listener: impl FnMut(Option<&accesskit::ActionData>, &mut Window, &mut App) + 'static,
+    ) {
+        self.a11y
+            .action_listeners
+            .entry(node_id)
+            .or_default()
+            .push((action, Box::new(listener)));
+    }
+
+    #[cfg(not(target_family = "wasm"))]
+    pub(crate) fn handle_a11y_action(&mut self, request: accesskit::ActionRequest, cx: &mut App) {
+        // Take listeners out temporarily so the closures can borrow Window
+        // mutably, then restore them afterward.
+        if let Some(mut listeners) = self.a11y.action_listeners.remove(&request.target_node) {
+            let extra_data = request.data.as_ref();
+            let mut matched = false;
+            for (action, listener) in &mut listeners {
+                if *action == request.action {
+                    listener(extra_data, self, cx);
+                    matched = true;
+                }
+            }
+            self.a11y
+                .action_listeners
+                .insert(request.target_node, listeners);
+            if matched {
+                return;
+            }
+        }
+
+        // Fall back to built-in action handling.
+        match request.action {
+            accesskit::Action::Click => {
+                if let Some(bounds) = self.a11y.node_bounds.get(&request.target_node).copied() {
+                    let center = bounds.center();
+                    let mouse_down = PlatformInput::MouseDown(crate::MouseDownEvent {
+                        button: MouseButton::Left,
+                        position: center,
+                        modifiers: Modifiers::default(),
+                        click_count: 1,
+                        first_mouse: false,
+                    });
+                    let mouse_up = PlatformInput::MouseUp(MouseUpEvent {
+                        button: MouseButton::Left,
+                        position: center,
+                        modifiers: Modifiers::default(),
+                        click_count: 1,
+                    });
+                    self.dispatch_event(mouse_down, cx);
+                    self.dispatch_event(mouse_up, cx);
+                }
+            }
+            accesskit::Action::Focus => {
+                if let Some(focus_id) = self.a11y.focus_ids.get(&request.target_node).copied()
+                    && let Some(handle) = FocusHandle::for_id(focus_id, &cx.focus_handles)
+                {
+                    self.focus(&handle, cx);
+                }
+            }
+            accesskit::Action::Blur => {
+                self.blur();
+            }
+            _ => {
+                log::debug!(
+                    "Unhandled a11y action: {:?} on {:?}",
+                    request.action,
+                    request.target_node
+                );
+            }
+        }
     }
 
     /// Toggles the inspector mode on this window.

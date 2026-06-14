@@ -20,11 +20,18 @@ pub const GITHUB_ACCESS_TOKEN_URL: &str = "https://github.com/login/oauth/access
 /// Scope granting git read/write on the user's repositories.
 pub const GITHUB_OAUTH_SCOPES: &str = "repo";
 
+/// PaddleBoard's registered GitHub OAuth App client id. Device flow uses no
+/// client secret, so this public id is safe to ship in source — it's what lets
+/// the OAuth sign-in light up for everyone building from a release, not just
+/// developers who export the env var below.
+const DEFAULT_GITHUB_OAUTH_CLIENT_ID: &str = "Ov23lirhSNtJAomztkd7";
+
 /// The OAuth client id for PaddleBoard's GitHub OAuth app. Device flow uses no
 /// client secret, so a public id is safe to bake into builds. Resolution:
-/// runtime env var first (so it's testable without a rebuild), then the value
-/// baked at compile time by the packaging scripts. `None` hides the OAuth
-/// sign-in UI entirely — PATs always work regardless.
+/// runtime env var first (so it's testable without a rebuild), then a value
+/// baked at compile time by the packaging scripts, then the shipped default
+/// above. Returns `None` only if every source resolves empty (e.g. the default
+/// is blanked out), which hides the OAuth sign-in UI — PATs always work regardless.
 pub fn github_oauth_client_id() -> Option<String> {
     std::env::var("PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID")
         .ok()
@@ -33,6 +40,11 @@ pub fn github_oauth_client_id() -> Option<String> {
             option_env!("PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID")
                 .map(str::to_string)
                 .filter(|value| !value.is_empty())
+        })
+        .or_else(|| {
+            Some(DEFAULT_GITHUB_OAUTH_CLIENT_ID)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
         })
 }
 
