@@ -1,3 +1,4 @@
+mod a2a;
 mod adk;
 mod autogen;
 mod crewai;
@@ -17,6 +18,7 @@ pub(crate) struct FrameworkStates {
     pub langgraph: FrameworkState,
     pub crewai: FrameworkState,
     pub autogen: FrameworkState,
+    pub a2a: FrameworkState,
 }
 
 impl gpui::Global for FrameworkStates {}
@@ -33,6 +35,7 @@ pub fn init(cx: &mut App) {
     langgraph::init(cx);
     crewai::init(cx);
     autogen::init(cx);
+    a2a::init(cx);
 }
 
 pub(crate) fn parse_port_from_line(line: &str) -> Option<u16> {

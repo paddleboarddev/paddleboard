@@ -70,6 +70,7 @@ Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `ad
 - **LangGraph** — `langgraph: Run Agent` launches `langgraph dev` (LangGraph Studio); detected from `langgraph.json`.
 - **CrewAI** — `crewai: Scaffold Agent` runs `crewai create crew <name>`; `crewai: Run Agent` runs `crewai run` (one-shot, streamed to a tab — no server); detected when `crewai` is in your `pyproject.toml`/`requirements.txt`.
 - **AutoGen** — `autogen: Run Agent` launches AutoGen Studio (`autogenstudio ui`), a local web UI on port 8081 surfaced in Forwarded Ports; detected when `autogen` is a project dependency.
+- **A2A** — `a2a: Run Agent` launches a local [A2A](https://a2a-protocol.org/) agent server with `uv run .` (the a2a-samples convention), surfacing its port (9999 for the helloworld sample) in Forwarded Ports; detected when `a2a-sdk` is a project dependency. Requires `uv` on your PATH. This runs *your* A2A server locally — PaddleBoard doesn't yet speak the A2A protocol itself.
 
 Each also appears in the AI Dock's Agents tab with a **Set Up** button that installs the CLI (`pip install …`).
 
