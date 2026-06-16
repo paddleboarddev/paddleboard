@@ -26,6 +26,9 @@ pub(crate) fn init(cx: &mut App) {
                             args: &["run", "."],
                             label: "A2A Agent",
                             fallback_port: Some(9999),
+                            // A2A's `/` is a POST-only JSON-RPC/SSE endpoint (a browser GET
+                            // returns 405); the Agent Card is the viewable surface.
+                            landing_path: Some("/.well-known/agent-card.json"),
                             get_state: |s| &mut s.a2a,
                         },
                     );

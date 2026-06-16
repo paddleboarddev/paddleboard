@@ -182,6 +182,7 @@ pub(crate) fn run_framework_server(
         let mut lines_seen = 0u32;
         let label = config.label;
         let fallback_port = config.fallback_port;
+        let landing_path = config.landing_path;
 
         while let Ok(line) = line_rx.recv().await {
             lines_seen += 1;
@@ -191,13 +192,13 @@ pub(crate) fn run_framework_server(
             {
                 if let Some(port) = parse_port_from_line(&line) {
                     port_registered = true;
-                    register_port(&mut *cx, &workspace_handle, label, port);
+                    register_port(&mut *cx, &workspace_handle, label, port, landing_path);
                 } else if lines_seen > 50 {
                     port_registered = true;
                     log::warn!(
                         "{label} port not detected in first 50 lines, falling back to port {fallback}"
                     );
-                    register_port(cx, &workspace_handle, label, fallback);
+                    register_port(cx, &workspace_handle, label, fallback, landing_path);
                 }
             }
 
@@ -221,6 +222,11 @@ pub(crate) struct RunConfig {
     /// `None` for one-shot/non-server frameworks (e.g. `crewai run`), which skips
     /// port forwarding entirely and just streams output to the tab.
     pub fallback_port: Option<u16>,
+    /// Optional landing path the forwarded-port chip should deep-link to (must start
+    /// with `/`). Most frameworks serve a real homepage at `/` and leave this `None`;
+    /// A2A serves a POST-only JSON-RPC endpoint at `/` (a GET returns 405), so it points
+    /// at the browser-viewable Agent Card instead.
+    pub landing_path: Option<&'static str>,
     pub get_state: fn(&mut FrameworkStates) -> &mut FrameworkState,
 }
 
@@ -281,6 +287,7 @@ fn register_port(
     workspace_handle: &WeakEntity<Workspace>,
     label: &str,
     port: u16,
+    landing_path: Option<&'static str>,
 ) {
     cx.update(|cx| {
         browser::ForwardedPorts::register(
@@ -289,6 +296,7 @@ fn register_port(
                 label: label.into(),
                 host_port: port,
                 container_id: None,
+                path: landing_path.map(Into::into),
             },
         );
     });

@@ -8,11 +8,18 @@ pub struct ForwardedPort {
     pub host_port: u16,
     // PaddleBoard: optional so non-container ports (e.g. `adk web` in a terminal) can register
     pub container_id: Option<Arc<str>>,
+    // PaddleBoard: optional landing path so a framework can deep-link the chip past the bare
+    // host:port (e.g. A2A serves a POST-only JSON-RPC endpoint at `/` and exposes its
+    // browser-viewable Agent Card at `/.well-known/agent-card.json`). Must start with `/`.
+    pub path: Option<SharedString>,
 }
 
 impl ForwardedPort {
     pub fn url(&self) -> String {
-        format!("http://localhost:{}", self.host_port)
+        match &self.path {
+            Some(path) => format!("http://localhost:{}{}", self.host_port, path),
+            None => format!("http://localhost:{}", self.host_port),
+        }
     }
 }
 
