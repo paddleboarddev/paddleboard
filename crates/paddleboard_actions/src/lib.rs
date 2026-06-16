@@ -1032,3 +1032,17 @@ pub mod autogen {
         ]
     );
 }
+
+pub mod a2a {
+    use gpui::actions;
+
+    actions!(
+        a2a,
+        [
+            /// Runs `uv run .` to launch the A2A agent server in this project.
+            RunAgent,
+            /// Stops the running A2A agent server.
+            StopAgent,
+        ]
+    );
+}
