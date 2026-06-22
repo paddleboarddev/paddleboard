@@ -119,6 +119,7 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                     },
                     workspace::Open::default(),
                 ),
+<<<<<<< HEAD:crates/paddleboard/src/zed/app_menus.rs
                 MenuItem::action(
                     "Open Recent...",
                     paddleboard_actions::OpenRecent {
@@ -132,6 +133,10 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                         from_existing_connection: false,
                     },
                 ),
+=======
+                MenuItem::action("Open Recent…", zed_actions::OpenRecent::default()),
+                MenuItem::action("Open Remote…", zed_actions::OpenRemote::default()),
+>>>>>>> zed/main:crates/zed/src/zed/app_menus.rs
                 MenuItem::separator(),
                 MenuItem::action("Add Folder to Project…", workspace::AddFolderToProject),
                 MenuItem::separator(),

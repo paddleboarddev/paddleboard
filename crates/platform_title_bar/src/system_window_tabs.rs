@@ -483,8 +483,13 @@ impl Render for SystemWindowTabs {
                             .icon_color(Color::Muted)
                             .on_click(|_event, window, cx| {
                                 window.dispatch_action(
+<<<<<<< HEAD
                                     Box::new(paddleboard_actions::OpenRecent {
                                         create_new_window: true,
+=======
+                                    Box::new(zed_actions::OpenRecent {
+                                        create_new_window: Some(true),
+>>>>>>> zed/main
                                     }),
                                     cx,
                                 );

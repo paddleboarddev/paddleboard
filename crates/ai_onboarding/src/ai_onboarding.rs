@@ -124,6 +124,13 @@ impl ZedAiOnboarding {
         )
     }
 
+    fn vip_stamp(cx: &App) -> impl IntoElement {
+        div().absolute().bottom_1().right_1().child(
+            Vector::new(VectorName::VipStamp, rems_from_px(156.), rems_from_px(60.))
+                .color(Color::Custom(cx.theme().colors().text.alpha(0.8))),
+        )
+    }
+
     fn student_stamp(cx: &App) -> impl IntoElement {
         div().absolute().bottom_1().right_1().child(
             Vector::new(
@@ -231,6 +238,23 @@ impl ZedAiOnboarding {
             .into_any_element()
     }
 
+    fn render_vip_plan_state(&self, cx: &mut App) -> AnyElement {
+        v_flex()
+            .w_full()
+            .relative()
+            .gap_1()
+            .child(Self::vip_stamp(cx))
+            .child(Headline::new("Welcome to Zed VIP"))
+            .child(
+                Label::new("Here's what you get:")
+                    .color(Color::Muted)
+                    .mb_2(),
+            )
+            .child(PlanDefinitions.vip_plan())
+            .children(self.render_dismiss_button())
+            .into_any_element()
+    }
+
     fn render_student_plan_state(&self, cx: &mut App) -> AnyElement {
         v_flex()
             .w_full()
@@ -253,8 +277,25 @@ impl ZedAiOnboarding {
 // etc.) are still defined above so upstream merges resolve cleanly into
 // their bodies; nothing calls them after this render returns empty.
 impl RenderOnce for ZedAiOnboarding {
+<<<<<<< HEAD
     fn render(self, _window: &mut ui::Window, _cx: &mut App) -> impl IntoElement {
         div().into_any_element()
+=======
+    fn render(self, _window: &mut ui::Window, cx: &mut App) -> impl IntoElement {
+        if matches!(self.sign_in_status, SignInStatus::SignedIn) {
+            match self.plan {
+                None => self.render_free_plan_state(cx),
+                Some(Plan::ZedFree) => self.render_free_plan_state(cx),
+                Some(Plan::ZedProTrial) => self.render_trial_state(cx),
+                Some(Plan::ZedPro) => self.render_pro_plan_state(cx),
+                Some(Plan::ZedBusiness) => self.render_business_plan_state(cx),
+                Some(Plan::ZedVip) => self.render_vip_plan_state(cx),
+                Some(Plan::ZedStudent) => self.render_student_plan_state(cx),
+            }
+        } else {
+            self.render_sign_in_disclaimer(cx)
+        }
+>>>>>>> zed/main
     }
 }
 
@@ -326,6 +367,10 @@ impl Component for ZedAiOnboarding {
                 single_example(
                     "Business Plan",
                     onboarding(SignInStatus::SignedIn, Some(Plan::ZedBusiness), false),
+                ),
+                single_example(
+                    "VIP Plan",
+                    onboarding(SignInStatus::SignedIn, Some(Plan::ZedVip), false),
                 ),
                 single_example(
                     "Student Plan",

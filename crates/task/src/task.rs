@@ -69,7 +69,7 @@ pub struct SpawnInTerminal {
     pub hide: HideStrategy,
     /// Which shell to use when spawning the task.
     pub shell: Shell,
-    /// Whether to show the task summary line in the task output (sucess/failure).
+    /// Whether to show the task summary line in the task output (success/failure).
     pub show_summary: bool,
     /// Whether to show the command line in the task output.
     pub show_command: bool,
@@ -193,6 +193,8 @@ pub enum VariableName {
     GitRepositoryName,
     /// Absolute path of the Git repository associated with the task context.
     GitRepositoryPath,
+    /// Name of the Git ref (branch, remote ref, or tag) associated with the task context.
+    GitRef,
     /// Custom variable, provided by the plugin or other external source.
     /// Will be printed with `CUSTOM_` prefix to avoid potential conflicts with other variables.
     Custom(Cow<'static, str>),
@@ -233,6 +235,7 @@ impl FromStr for VariableName {
             "GIT_SHA_SHORT" => Self::GitShaShort,
             "GIT_REPOSITORY_NAME" => Self::GitRepositoryName,
             "GIT_REPOSITORY_PATH" => Self::GitRepositoryPath,
+            "GIT_REF" => Self::GitRef,
             _ => {
                 if let Some(custom_name) =
                     without_prefix.strip_prefix(PADDLEBOARD_CUSTOM_VARIABLE_NAME_PREFIX)
@@ -254,6 +257,7 @@ const PADDLEBOARD_CUSTOM_VARIABLE_NAME_PREFIX: &str = "CUSTOM_";
 impl std::fmt::Display for VariableName {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+<<<<<<< HEAD
             Self::File => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}FILE"),
             Self::Filename => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}FILENAME"),
             Self::RelativeFile => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}RELATIVE_FILE"),
@@ -273,6 +277,28 @@ impl std::fmt::Display for VariableName {
             Self::GitShaShort => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_SHA_SHORT"),
             Self::GitRepositoryName => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_REPOSITORY_NAME"),
             Self::GitRepositoryPath => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_REPOSITORY_PATH"),
+=======
+            Self::File => write!(f, "{ZED_VARIABLE_NAME_PREFIX}FILE"),
+            Self::Filename => write!(f, "{ZED_VARIABLE_NAME_PREFIX}FILENAME"),
+            Self::RelativeFile => write!(f, "{ZED_VARIABLE_NAME_PREFIX}RELATIVE_FILE"),
+            Self::RelativeDir => write!(f, "{ZED_VARIABLE_NAME_PREFIX}RELATIVE_DIR"),
+            Self::Dirname => write!(f, "{ZED_VARIABLE_NAME_PREFIX}DIRNAME"),
+            Self::Stem => write!(f, "{ZED_VARIABLE_NAME_PREFIX}STEM"),
+            Self::WorktreeRoot => write!(f, "{ZED_VARIABLE_NAME_PREFIX}WORKTREE_ROOT"),
+            Self::Symbol => write!(f, "{ZED_VARIABLE_NAME_PREFIX}SYMBOL"),
+            Self::Row => write!(f, "{ZED_VARIABLE_NAME_PREFIX}ROW"),
+            Self::Column => write!(f, "{ZED_VARIABLE_NAME_PREFIX}COLUMN"),
+            Self::SelectedText => write!(f, "{ZED_VARIABLE_NAME_PREFIX}SELECTED_TEXT"),
+            Self::Language => write!(f, "{ZED_VARIABLE_NAME_PREFIX}LANGUAGE"),
+            Self::RunnableSymbol => write!(f, "{ZED_VARIABLE_NAME_PREFIX}RUNNABLE_SYMBOL"),
+            Self::PickProcessId => write!(f, "{ZED_VARIABLE_NAME_PREFIX}PICK_PID"),
+            Self::MainGitWorktree => write!(f, "{ZED_VARIABLE_NAME_PREFIX}MAIN_GIT_WORKTREE"),
+            Self::GitSha => write!(f, "{ZED_VARIABLE_NAME_PREFIX}GIT_SHA"),
+            Self::GitShaShort => write!(f, "{ZED_VARIABLE_NAME_PREFIX}GIT_SHA_SHORT"),
+            Self::GitRepositoryName => write!(f, "{ZED_VARIABLE_NAME_PREFIX}GIT_REPOSITORY_NAME"),
+            Self::GitRepositoryPath => write!(f, "{ZED_VARIABLE_NAME_PREFIX}GIT_REPOSITORY_PATH"),
+            Self::GitRef => write!(f, "{ZED_VARIABLE_NAME_PREFIX}GIT_REF"),
+>>>>>>> zed/main
             Self::Custom(s) => write!(
                 f,
                 "{PADDLEBOARD_VARIABLE_NAME_PREFIX}{PADDLEBOARD_CUSTOM_VARIABLE_NAME_PREFIX}{s}"

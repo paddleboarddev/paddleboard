@@ -66,10 +66,10 @@ use release_channel::{AppCommitSha, AppVersion, ReleaseChannel};
 use rope::Rope;
 use search::project_search::ProjectSearchBar;
 use settings::{
-    BaseKeymap, DEFAULT_KEYMAP_PATH, InvalidSettingsError, KeybindSource, KeymapFile,
-    KeymapFileLoadResult, MigrationStatus, Settings, SettingsFile, SettingsStore, VIM_KEYMAP_PATH,
-    initial_local_debug_tasks_content, initial_project_settings_content, initial_tasks_content,
-    update_settings_file,
+    BaseKeymap, DEFAULT_KEYMAP_PATH, DefaultOpenBehavior, InvalidSettingsError, KeybindSource,
+    KeymapFile, KeymapFileLoadResult, MigrationStatus, SPECIFIC_OVERRIDES_KEYMAP_PATH, Settings,
+    SettingsFile, SettingsStore, VIM_KEYMAP_PATH, initial_local_debug_tasks_content,
+    initial_project_settings_content, initial_tasks_content, update_settings_file,
 };
 use sidebar::Sidebar;
 
@@ -188,15 +188,30 @@ pub fn init(cx: &mut App) {
         }
     })
     .detach();
-    cx.on_action(|_: &OpenLog, cx| {
-        with_active_or_new_workspace(cx, |workspace, window, cx| {
-            open_log_file(workspace, window, cx);
+
+    // When Zed logs to stdout rather than the log file, avoid registering
+    // handlers for both `OpenLog` and `RevealLogInFileManager`, as the log file
+    // does not exist in that scenario and these actions would error.
+    if !crate::stdout_is_a_pty() {
+        cx.on_action(|_: &OpenLog, cx| {
+            with_active_or_new_workspace(cx, |workspace, window, cx| {
+                open_log_file(workspace, window, cx);
+            });
+        })
+        .on_action(|_: &workspace::RevealLogInFileManager, cx| {
+            cx.reveal_path(paths::log_file().as_path());
         });
+<<<<<<< HEAD:crates/paddleboard/src/zed.rs
     })
     .on_action(|_: &workspace::RevealLogInFileManager, cx| {
         cx.reveal_path(paths::log_file().as_path());
     })
     .on_action(|_: &paddleboard_actions::OpenLicenses, cx| {
+=======
+    }
+
+    cx.on_action(|_: &zed_actions::OpenLicenses, cx| {
+>>>>>>> zed/main:crates/zed/src/zed.rs
         with_active_or_new_workspace(cx, |workspace, window, cx| {
             open_bundled_file(
                 workspace,
@@ -996,7 +1011,12 @@ fn register_actions(
                     multiple: true,
                     prompt: None,
                 },
-                action.create_new_window,
+                action.create_new_window.unwrap_or_else(|| {
+                    matches!(
+                        WorkspaceSettings::get_global(cx).default_open_behavior,
+                        DefaultOpenBehavior::NewWindow
+                    )
+                }),
                 window,
                 cx,
             );
@@ -1352,6 +1372,48 @@ fn register_actions(
     }
 
     workspace.register_action(sidebar::dump_workspace_info);
+<<<<<<< HEAD:crates/paddleboard/src/zed.rs
+=======
+
+    #[cfg(debug_assertions)]
+    workspace.register_action(|workspace, _: &ShowWorkspaceError, _, cx| {
+        struct DebugError;
+        struct SecondDebugError;
+
+        impl WorkspaceError for DebugError {
+            fn primary_message(&self) -> SharedString {
+                SharedString::new_static(
+                    "Error: Prepare rename via rust-analyzer failed: No references found at position",
+                )
+            }
+
+            fn severity(&self) -> ErrorSeverity {
+                ErrorSeverity::Warning
+            }
+
+            fn primary_action(&self) -> ErrorAction {
+                ErrorAction::dismiss()
+            }
+        }
+
+        impl WorkspaceError for SecondDebugError {
+            fn primary_message(&self) -> SharedString {
+                SharedString::new_static("This is some error to ignore.")
+            }
+
+            fn severity(&self) -> ErrorSeverity {
+                ErrorSeverity::Error
+            }
+
+            fn primary_action(&self) -> ErrorAction {
+                ErrorAction::dismiss()
+            }
+        }
+
+        workspace.show_error(DebugError, cx);
+        workspace.show_error(SecondDebugError, cx);
+    });
+>>>>>>> zed/main:crates/zed/src/zed.rs
 }
 
 fn initialize_pane(
@@ -2219,6 +2281,15 @@ pub fn load_default_keymap(cx: &mut App) {
             cx.bind_keys(bindings);
         }
     }
+
+    cx.bind_keys(
+        KeymapFile::load_asset(
+            SPECIFIC_OVERRIDES_KEYMAP_PATH,
+            Some(KeybindSource::Default),
+            cx,
+        )
+        .unwrap(),
+    );
 }
 
 pub fn open_new_ssh_project_from_project(
@@ -5331,6 +5402,7 @@ mod tests {
                 "task",
                 "terminal",
                 "terminal_panel",
+                "text_finder",
                 "theme",
                 "theme_selector",
                 "toast",
