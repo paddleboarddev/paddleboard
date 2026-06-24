@@ -78,7 +78,11 @@ fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> AnyElement {
             Button::new("build-mcp-btn", "Build an MCP")
                 .style(ButtonStyle::Filled)
                 .label_size(LabelSize::Small)
-                .on_click(cx.listener(move |_this, _: &ClickEvent, window, cx| {
+                // PaddleBoard: plain on_click (NOT cx.listener) so the AiDock entity
+                // isn't leased during the click. The AI Dock is itself a modal, and
+                // toggle_modal dismisses it (AiDock::on_before_dismiss re-enters
+                // AiDock.update) — leasing AiDock here would double-lease and panic.
+                .on_click(move |_: &ClickEvent, window, cx| {
                     if let Some(workspace) = workspace.upgrade() {
                         let weak = workspace.read(cx).weak_handle();
                         workspace.update(cx, |workspace, cx| {
@@ -87,7 +91,7 @@ fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> AnyElement {
                             });
                         });
                     }
-                })),
+                }),
         )
         .into_any_element()
 }
