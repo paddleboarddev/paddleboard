@@ -7450,31 +7450,6 @@ impl Sidebar {
             )
     }
 
-    fn render_empty_state(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        ProjectEmptyState::new(
-            "Threads Sidebar",
-            self.focus_handle(cx),
-            KeyBinding::for_action(&workspace::Open::default(), cx),
-        )
-        .on_open_project(|_, window, cx| {
-            let side = match AgentSettings::get_global(cx).sidebar_side() {
-                SidebarSide::Left => "left",
-                SidebarSide::Right => "right",
-            };
-            telemetry::event!("Sidebar Add Project Clicked", side = side);
-            window.dispatch_action(
-                Open {
-                    create_new_window: Some(false),
-                }
-                .boxed_clone(),
-                cx,
-            );
-        })
-        .on_clone_repo(|_, window, cx| {
-            window.dispatch_action(git::Clone.boxed_clone(), cx);
-        })
-    }
-
     fn render_sidebar_header(
         &self,
         no_open_projects: bool,
