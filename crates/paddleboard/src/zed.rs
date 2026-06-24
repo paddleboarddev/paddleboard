@@ -1364,45 +1364,6 @@ fn register_actions(
     }
 
     workspace.register_action(sidebar::dump_workspace_info);
-
-    #[cfg(debug_assertions)]
-    workspace.register_action(|workspace, _: &ShowWorkspaceError, _, cx| {
-        struct DebugError;
-        struct SecondDebugError;
-
-        impl WorkspaceError for DebugError {
-            fn primary_message(&self) -> SharedString {
-                SharedString::new_static(
-                    "Error: Prepare rename via rust-analyzer failed: No references found at position",
-                )
-            }
-
-            fn severity(&self) -> ErrorSeverity {
-                ErrorSeverity::Warning
-            }
-
-            fn primary_action(&self) -> ErrorAction {
-                ErrorAction::dismiss()
-            }
-        }
-
-        impl WorkspaceError for SecondDebugError {
-            fn primary_message(&self) -> SharedString {
-                SharedString::new_static("This is some error to ignore.")
-            }
-
-            fn severity(&self) -> ErrorSeverity {
-                ErrorSeverity::Error
-            }
-
-            fn primary_action(&self) -> ErrorAction {
-                ErrorAction::dismiss()
-            }
-        }
-
-        workspace.show_error(DebugError, cx);
-        workspace.show_error(SecondDebugError, cx);
-    });
 }
 
 fn initialize_pane(
