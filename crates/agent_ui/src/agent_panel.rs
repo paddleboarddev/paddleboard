@@ -66,8 +66,7 @@ use anyhow::{Context as _, Result, anyhow};
 #[cfg(feature = "audio")]
 use audio::{Audio, Sound};
 use chrono::{DateTime, Utc};
-use client::{UserStore, zed_urls};
-use cloud_api_types::Plan;
+use client::UserStore;
 use collections::HashMap;
 use editor::{Editor, MultiBuffer};
 use extension_host::ExtensionStore;

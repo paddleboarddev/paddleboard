@@ -9,7 +9,7 @@ use editor::Editor;
 use file_icons::FileIcons;
 use fuzzy_nucleo::{PathMatch, PathMatchCandidate};
 use gpui::{
-    Action, AnyElement, App, Context, DismissEvent, Empty, Entity, EventEmitter, FocusHandle,
+    Action, AnyElement, App, Context, DismissEvent, Entity, EventEmitter, FocusHandle,
     Focusable, KeyContext, Modifiers, ModifiersChangedEvent, ParentElement, Render, Styled, Task,
     TaskExt, WeakEntity, Window, actions, rems,
 };
