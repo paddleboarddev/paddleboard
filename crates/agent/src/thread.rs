@@ -10,11 +10,8 @@ use crate::{
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;
 use agent_settings::UserAgentsMd;
-<<<<<<< HEAD
 use feature_flags::{FeatureFlagAppExt as _, HandoffFeatureFlag};
 use paddleboard_env_vars::{EnvVar, env_var};
-=======
->>>>>>> zed/main
 
 use crate::sandboxing::{SandboxRequest, ThreadSandboxGrants, sandboxing_enabled_for_project};
 use agent_client_protocol::schema::v1 as acp;

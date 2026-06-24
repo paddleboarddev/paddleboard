@@ -12,22 +12,16 @@ use serde::Deserialize;
 use std::{
     cell::Cell, cell::RefCell, collections::HashMap, ops::Range, rc::Rc, sync::Arc, time::Duration,
 };
-<<<<<<< HEAD
 use theme_settings::ThemeSettings;
 use ui::{
-    Color, Divider, DocumentationAside, DocumentationSide, Label, ListItem, ListItemSpacing,
-    ScrollAxes, Scrollbars, WithScrollbar, prelude::*, utils::WithRemSize, v_flex,
+    Color, ContextMenu, Divider, DocumentationAside, DocumentationSide, Label, ListItem,
+    ListItemSpacing, PopoverMenuHandle, ScrollAxes, Scrollbars, WithScrollbar, prelude::*,
+    utils::WithRemSize, v_flex,
 };
 use ui_input::{ErasedEditor, ErasedEditorEvent};
+use util::ResultExt;
 use workspace::{ModalView, item::Settings};
 use paddleboard_actions::editor::{MoveDown, MoveUp};
-=======
-use ui::{ContextMenu, Divider, DocumentationAside, PopoverMenuHandle, prelude::*, v_flex};
-use ui_input::ErasedEditorEvent;
-use util::ResultExt;
-use workspace::ModalView;
-use zed_actions::editor::{MoveDown, MoveUp};
->>>>>>> zed/main
 
 mod footer;
 mod head;

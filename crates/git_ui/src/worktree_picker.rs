@@ -24,12 +24,8 @@ use workspace::{
 };
 
 use crate::git_panel::show_error_toast;
-<<<<<<< HEAD
-use paddleboard_actions::{
-=======
 use crate::worktree_service::{RemoteBranchName, WorktreeCreateTarget, worktree_create_targets};
-use zed_actions::{
->>>>>>> zed/main
+use paddleboard_actions::{
     CreateWorktree, NewWorktreeBranchTarget, OpenWorktreeInNewWindow, SwitchWorktree,
 };
 

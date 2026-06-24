@@ -556,14 +556,10 @@ impl Default for TelemetrySettingsContent {
         // PaddleBoard ships with telemetry permanently disabled. Settings exist
         // only because removing them would diverge from upstream Zed shape.
         Self {
-<<<<<<< HEAD
+            // PaddleBoard: telemetry off by default.
             diagnostics: Some(false),
             metrics: Some(false),
-=======
-            diagnostics: Some(true),
-            metrics: Some(true),
             anthropic_retention: Some(false),
->>>>>>> zed/main
         }
     }
 }

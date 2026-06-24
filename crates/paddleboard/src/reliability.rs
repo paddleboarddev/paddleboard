@@ -13,18 +13,8 @@ use reqwest::{
 };
 use serde::Deserialize;
 use smol::stream::StreamExt;
-<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
 use std::{ffi::OsStr, fs, sync::Arc, thread::ThreadId, time::Duration};
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
-=======
-use std::{
-    ffi::OsStr,
-    fs,
-    sync::Arc,
-    time::{Duration, Instant},
-};
-use sysinfo::{MemoryRefreshKind, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
->>>>>>> zed/main:crates/zed/src/reliability.rs
 use util::ResultExt;
 
 use crate::STARTUP_TIME;
@@ -32,16 +22,11 @@ use crate::STARTUP_TIME;
 const MAX_HANG_TRACES: usize = 3;
 
 pub fn init(client: Arc<Client>, cx: &mut App) {
-<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
     if cfg!(debug_assertions) {
         log::info!("Debug assertions enabled, skipping hang monitoring");
     } else {
         monitor_hangs(cx);
     }
-=======
-    hang_detection::start(client.clone(), cx);
-    start_memory_usage_logging(cx);
->>>>>>> zed/main:crates/zed/src/reliability.rs
 
     cx.on_flags_ready({
         let client = client.clone();
@@ -104,7 +89,6 @@ pub fn init(client: Arc<Client>, cx: &mut App) {
     .detach();
 }
 
-<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
 fn monitor_hangs(cx: &App) {
     let main_thread_id = std::thread::current().id();
 
@@ -236,62 +220,6 @@ fn save_hang_trace(
         "hang detected, trace file saved at: {}",
         trace_path.display()
     );
-=======
-const MEMORY_USAGE_POLL_INTERVAL: Duration = Duration::from_secs(30);
-const MEMORY_USAGE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10 * 60);
-const MEMORY_USAGE_MINIMUM_LOGGED_DELTA: u64 = 64 * 1024 * 1024;
-
-/// Periodically logs this process' memory usage, so that gradual memory growth can be
-///
-/// Logs on a fixed heartbeat, and additionally whenever resident memory changed
-/// significantly since the last logged value, so that bursts of growth are timestamped
-/// against the surrounding log entries.
-fn start_memory_usage_logging(cx: &App) {
-    let executor = cx.background_executor().clone();
-    cx.background_spawn(async move {
-        let Some(pid) = sysinfo::get_current_pid().log_err() else {
-            return;
-        };
-        let refresh_kind = ProcessRefreshKind::nothing().with_memory();
-        let mut system = System::new();
-        let mut last_logged_resident: Option<u64> = None;
-        let mut last_logged_at = Instant::now();
-        loop {
-            let refreshed = system.refresh_processes_specifics(
-                ProcessesToUpdate::Some(&[pid]),
-                false,
-                refresh_kind,
-            );
-            if refreshed == 1
-                && let Some(process) = system.process(pid)
-            {
-                let resident = process.memory();
-                let significant_change = last_logged_resident.is_none_or(|last| {
-                    resident.abs_diff(last) >= (last / 10).max(MEMORY_USAGE_MINIMUM_LOGGED_DELTA)
-                });
-                if significant_change || last_logged_at.elapsed() >= MEMORY_USAGE_HEARTBEAT_INTERVAL
-                {
-                    const MIB: u64 = 1024 * 1024;
-                    let delta = match last_logged_resident {
-                        Some(last) => {
-                            format!(" ({:+} MiB)", (resident as i64 - last as i64) / MIB as i64)
-                        }
-                        None => String::new(),
-                    };
-                    log::info!(
-                        "memory usage: resident {} MiB{delta}, virtual {} MiB",
-                        resident / MIB,
-                        process.virtual_memory() / MIB,
-                    );
-                    last_logged_resident = Some(resident);
-                    last_logged_at = Instant::now();
-                }
-            }
-            executor.timer(MEMORY_USAGE_POLL_INTERVAL).await;
-        }
-    })
-    .detach();
->>>>>>> zed/main:crates/zed/src/reliability.rs
 }
 
 pub async fn upload_previous_minidumps(client: Arc<Client>) -> anyhow::Result<()> {

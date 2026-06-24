@@ -3,13 +3,8 @@ use std::{
     sync::Arc,
 };
 
-<<<<<<< HEAD
 use agent::{PADDLEBOARD_AGENT_ID, ThreadStore};
-use agent_client_protocol::schema as acp;
-=======
-use agent::{ThreadStore, ZED_AGENT_ID};
 use agent_client_protocol::schema::v1 as acp;
->>>>>>> zed/main
 use anyhow::Context as _;
 use chrono::{DateTime, Utc};
 use collections::{HashMap, HashSet};

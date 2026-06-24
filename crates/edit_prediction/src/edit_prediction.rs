@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // PaddleBoard: the Zeta path (Zed's hosted edit-prediction LLM) is
 // gutted in `zeta.rs` and the default model is switched away from
 // Zeta below. That leaves a fair amount of dead code and unused
@@ -9,10 +8,7 @@
 // removing this allow will re-surface the warnings.
 #![allow(dead_code, unused_imports, unused_variables)]
 
-use anyhow::{Context as _, Result};
-=======
 use anyhow::{Context as _, Result, anyhow};
->>>>>>> zed/main
 use buffer_diff::BufferDiff;
 use client::{Client, EditPredictionUsage, UserStore, global_llm_token};
 use cloud_api_client::LlmApiToken;

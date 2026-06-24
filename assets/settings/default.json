@@ -1526,14 +1526,11 @@
     // Send debug info like crash reports.
     "diagnostics": false,
     // Send anonymized usage data like what languages you're using Zed with.
-<<<<<<< HEAD
+    // PaddleBoard: telemetry hard-disabled — keep metrics off on every merge.
     "metrics": false,
-=======
-    "metrics": true,
     // Allow sending requests to Anthropic models that cannot be offered with
     // Zero Data Retention
     "anthropic_retention": false,
->>>>>>> zed/main
   },
   // Whether to disable all AI features in Zed.
   //

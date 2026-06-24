@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 use gpui::{Action, IntoElement, ParentElement, RenderOnce, point};
 use language_model::{IconOrSvg, LanguageModelRegistry, PADDLEBOARD_CLOUD_PROVIDER_ID};
-=======
-use gpui::{Action, IntoElement, ParentElement, RenderOnce};
-use language_model::{IconOrSvg, LanguageModelRegistry, ZED_CLOUD_PROVIDER_ID};
->>>>>>> zed/main
 use ui::{Divider, List, ListBulletItem, prelude::*};
 
 pub struct ApiKeysWithProviders {

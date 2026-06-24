@@ -138,14 +138,10 @@ struct Args {
     /// When directories are provided, recurses into them and shows all changed files in a single multi-diff view.
     #[arg(long, action = clap::ArgAction::Append, num_args = 2, value_names = ["OLD_PATH", "NEW_PATH"], value_hint = clap::ValueHint::AnyPath)]
     diff: Vec<String>,
-<<<<<<< HEAD
-    /// Uninstall PaddleBoard from user system
-=======
-    /// Generate shell completions for Zed
+    /// Generate shell completions for PaddleBoard
     #[arg(long, value_names = ["SHELL"])]
     completions: Option<Shell>,
-    /// Uninstall Zed from user system
->>>>>>> zed/main
+    /// Uninstall PaddleBoard from user system
     #[cfg(all(
         any(target_os = "linux", target_os = "macos"),
         not(feature = "no-bundled-uninstall")

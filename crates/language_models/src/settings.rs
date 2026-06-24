@@ -4,21 +4,13 @@ use collections::HashMap;
 use settings::RegisterSetting;
 
 use crate::provider::{
-<<<<<<< HEAD
-    anthropic, anthropic::AnthropicSettings, bedrock, bedrock::AmazonBedrockSettings,
-    cloud::ZedDotDevSettings, deepseek::DeepSeekSettings, google::GoogleSettings,
-    lmstudio::LmStudioSettings, mistral, mistral::MistralSettings, ollama::OllamaSettings,
-    open_ai::OpenAiSettings, open_ai_compatible::OpenAiCompatibleSettings, open_router,
-    open_router::OpenRouterSettings, opencode, opencode::OpenCodeSettings, resolve_custom_headers,
-    vercel_ai_gateway::VercelAiGatewaySettings, vertex::VertexSettings, x_ai::XAiSettings,
-=======
     anthropic, anthropic::AnthropicSettings, anthropic_compatible::AnthropicCompatibleSettings,
     bedrock, bedrock::AmazonBedrockSettings, cloud::ZedDotDevSettings, deepseek::DeepSeekSettings,
     google::GoogleSettings, lmstudio::LmStudioSettings, mistral, mistral::MistralSettings,
     ollama::OllamaSettings, open_ai::OpenAiSettings, open_ai_compatible::OpenAiCompatibleSettings,
     open_router, open_router::OpenRouterSettings, opencode, opencode::OpenCodeSettings,
-    resolve_custom_headers, vercel_ai_gateway::VercelAiGatewaySettings, x_ai::XAiSettings,
->>>>>>> zed/main
+    resolve_custom_headers, vercel_ai_gateway::VercelAiGatewaySettings, vertex::VertexSettings,
+    x_ai::XAiSettings,
 };
 
 #[derive(Debug, RegisterSetting)]

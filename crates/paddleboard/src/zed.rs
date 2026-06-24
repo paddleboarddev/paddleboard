@@ -201,17 +201,9 @@ pub fn init(cx: &mut App) {
         .on_action(|_: &workspace::RevealLogInFileManager, cx| {
             cx.reveal_path(paths::log_file().as_path());
         });
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-    })
-    .on_action(|_: &workspace::RevealLogInFileManager, cx| {
-        cx.reveal_path(paths::log_file().as_path());
-    })
-    .on_action(|_: &paddleboard_actions::OpenLicenses, cx| {
-=======
     }
 
-    cx.on_action(|_: &zed_actions::OpenLicenses, cx| {
->>>>>>> zed/main:crates/zed/src/zed.rs
+    cx.on_action(|_: &paddleboard_actions::OpenLicenses, cx| {
         with_active_or_new_workspace(cx, |workspace, window, cx| {
             open_bundled_file(
                 workspace,
@@ -1372,8 +1364,6 @@ fn register_actions(
     }
 
     workspace.register_action(sidebar::dump_workspace_info);
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-=======
 
     #[cfg(debug_assertions)]
     workspace.register_action(|workspace, _: &ShowWorkspaceError, _, cx| {
@@ -1413,7 +1403,6 @@ fn register_actions(
         workspace.show_error(DebugError, cx);
         workspace.show_error(SecondDebugError, cx);
     });
->>>>>>> zed/main:crates/zed/src/zed.rs
 }
 
 fn initialize_pane(

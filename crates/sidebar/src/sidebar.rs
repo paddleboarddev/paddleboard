@@ -2,13 +2,8 @@ mod thread_switcher;
 
 use acp_thread::ThreadStatus;
 use action_log::DiffStats;
-<<<<<<< HEAD
 use agent::{PADDLEBOARD_AGENT_ID, ThreadStore};
-use agent_client_protocol::schema as acp;
-=======
-use agent::{ThreadStore, ZED_AGENT_ID};
 use agent_client_protocol::schema::v1 as acp;
->>>>>>> zed/main
 use agent_settings::AgentSettings;
 use agent_ui::terminal_thread_metadata_store::{
     TerminalThreadMetadata, TerminalThreadMetadataStore, terminal_title_prefix,
@@ -74,14 +69,9 @@ use workspace::{
     notifications::NotificationId, sidebar_side_context_menu,
 };
 
-<<<<<<< HEAD
-use paddleboard_actions::OpenRecent;
-use paddleboard_actions::editor::{MoveDown, MoveUp};
-=======
 use git_ui::worktree_service::{RemoteBranchName, worktree_create_targets};
-use zed_actions::editor::{MoveDown, MoveUp};
-use zed_actions::{CreateWorktree, NewWorktreeBranchTarget, OpenRecent};
->>>>>>> zed/main
+use paddleboard_actions::editor::{MoveDown, MoveUp};
+use paddleboard_actions::{CreateWorktree, NewWorktreeBranchTarget, OpenRecent};
 
 use paddleboard_actions::agents_sidebar::{FocusSidebarFilter, ToggleThreadSwitcher};
 
@@ -7460,8 +7450,6 @@ impl Sidebar {
             )
     }
 
-<<<<<<< HEAD
-=======
     fn render_empty_state(&self, cx: &mut Context<Self>) -> impl IntoElement {
         ProjectEmptyState::new(
             "Threads Sidebar",
@@ -7487,7 +7475,6 @@ impl Sidebar {
         })
     }
 
->>>>>>> zed/main
     fn render_sidebar_header(
         &self,
         no_open_projects: bool,

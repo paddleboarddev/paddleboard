@@ -4196,8 +4196,6 @@ impl GitGraph {
             .map(|commit| commit.data.clone())
             .collect()
     }
-<<<<<<< HEAD:crates/git_graph/src/git_graph.rs
-=======
 
     pub fn commit_count_and_loading_state_for_test(
         &mut self,
@@ -4209,7 +4207,6 @@ impl GitGraph {
     pub fn log_source_for_test(&self) -> &LogSource {
         &self.log_source
     }
->>>>>>> zed/main:crates/git_ui/src/git_graph.rs
 }
 
 /// Generates a random commit DAG suitable for testing git graph rendering.

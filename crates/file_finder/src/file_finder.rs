@@ -1763,18 +1763,15 @@ impl PickerDelegate for FileFinderDelegate {
                 .flex_none()
                 .size(IconSize::Small.rems())
                 .into_any_element(),
-<<<<<<< HEAD
-            Match::CreateNew(_) => Icon::new(IconName::Plus)
-                .color(Color::Muted)
-                .size(IconSize::Small)
-                .into_any_element(),
-=======
             Match::Channel { .. } => v_flex()
                 .flex_none()
                 .size(IconSize::Small.rems())
                 .into_any_element(),
-            Match::CreateNew(_) => Empty.into_any_element(),
->>>>>>> zed/main
+            // PaddleBoard: keep the explicit "create new" affordance icon.
+            Match::CreateNew(_) => Icon::new(IconName::Plus)
+                .color(Color::Muted)
+                .size(IconSize::Small)
+                .into_any_element(),
         };
 
         let is_create_new = matches!(path_match, Match::CreateNew(_));

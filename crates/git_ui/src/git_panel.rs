@@ -245,7 +245,6 @@ fn git_panel_view_options_menu(
                         }
                     }),
             )
-<<<<<<< HEAD
             .action_disabled_when(
                 !state.has_staged_changes,
                 "Unstage All",
@@ -281,16 +280,6 @@ fn git_panel_view_options_menu(
                 },
                 Some(Box::new(ToggleTreeView)),
                 move |window, cx| window.dispatch_action(Box::new(ToggleTreeView), cx),
-=======
-            .item(
-                ContextMenuEntry::new("Tree")
-                    .toggle(IconPosition::End, state.tree_view)
-                    .handler(move |window, cx| {
-                        if !state.tree_view {
-                            window.dispatch_action(Box::new(ToggleTreeView), cx);
-                        }
-                    }),
->>>>>>> zed/main
             )
             .when(!state.tree_view, |this| {
                 this.separator()

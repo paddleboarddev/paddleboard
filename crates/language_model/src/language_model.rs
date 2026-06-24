@@ -1,10 +1,7 @@
 mod api_key;
-<<<<<<< HEAD
 mod model;
 // PaddleBoard: aliases for the cloud provider id/name (PADDLEBOARD_CLOUD_PROVIDER_*).
 mod provider;
-=======
->>>>>>> zed/main
 mod registry;
 mod request;
 

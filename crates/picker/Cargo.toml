@@ -33,13 +33,9 @@ theme_settings.workspace = true
 ui.workspace = true
 ui_input.workspace = true
 workspace.workspace = true
-<<<<<<< HEAD
 paddleboard_actions.workspace = true
-=======
-zed_actions.workspace = true
 multi_buffer.workspace = true
 util.workspace = true
->>>>>>> zed/main
 
 [dev-dependencies]
 editor = { workspace = true, features = ["test-support"] }

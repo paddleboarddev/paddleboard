@@ -1,14 +1,8 @@
 use ai_onboarding::YoungAccountBanner;
-<<<<<<< HEAD
 use anthropic::AnthropicModelMode;
 use anyhow::{Result, anyhow};
 use client::{
     Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls,
-=======
-use anyhow::{Result, anyhow};
-use client::{
-    Client, RefreshLlmTokenListener, TelemetrySettings, UserStore, global_llm_token, zed_urls,
->>>>>>> zed/main
 };
 use cloud_api_client::LlmApiToken;
 use cloud_api_types::{OrganizationId, Plan};
@@ -30,7 +24,6 @@ use gpui::{
 use http_client::http::{HeaderMap, HeaderValue};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Response, StatusCode};
 use language_model::{
-<<<<<<< HEAD
     ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, FastModeConfirmation,
     GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
@@ -39,11 +32,6 @@ use language_model::{
     LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
     PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
-=======
-    AuthenticateError, FastModeConfirmation, IconOrSvg, LanguageModel, LanguageModelProvider,
-    LanguageModelProviderId, LanguageModelProviderName, LanguageModelProviderState,
-    ProviderConfigurationView, ZED_CLOUD_PROVIDER_ID, ZED_CLOUD_PROVIDER_NAME,
->>>>>>> zed/main
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use rand::{Rng as _, SeedableRng as _, rngs::StdRng};

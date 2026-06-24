@@ -42,15 +42,11 @@ use std::{
     mem,
     ops::{Not, Range},
     pin::pin,
-<<<<<<< HEAD
-    sync::Arc,
-    time::Duration,
-=======
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
->>>>>>> zed/main
+    time::Duration,
 };
 use ui::{
     CommonAnimationExt, IconButtonShape, KeyBinding, Toggleable, Tooltip, prelude::*,
