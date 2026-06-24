@@ -760,7 +760,8 @@ impl McpServerForm {
         // for correction, rather than being dropped during resolution.
         if let Some(settings) = settings.as_ref() {
             match settings {
-                ContextServerSettings::Stdio { command, .. } => {
+                ContextServerSettings::Stdio { command, .. }
+                | ContextServerSettings::SandboxedStdio { command, .. } => {
                     command_initial = Some(command.path.to_string_lossy().to_string());
                     if !command.args.is_empty() {
                         args_initial = Some(command.args.join(" "));
