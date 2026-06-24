@@ -54,6 +54,35 @@ The server is installed as a plain host process (`uv run`), so it reads its API 
 from the environment PaddleBoard was launched with — **never** put secret values in
 the files or args.
 
+### Fallback if `install_mcp_server` isn't available
+
+The "Build an MCP" button forces the native agent, which always has this tool. But
+if you're running under an external agent that lacks it, install by hand — **get the
+paths and the entry shape exactly right**:
+
+1. Write `server.py` + `requirements.txt` to the OS-correct data dir (NOT a worktree):
+   - macOS: `~/Library/Application Support/PaddleBoard/mcp_servers/<slug>/`
+   - Linux: `~/.local/share/PaddleBoard/mcp_servers/<slug>/`
+   - Windows: `%LOCALAPPDATA%\PaddleBoard\mcp_servers\<slug>\`
+2. Register a **plain Stdio** context server in `settings.json` under
+   `"context_servers"`. Use `uv` so dependencies resolve from `requirements.txt`:
+   ```json
+   "context_servers": {
+     "<slug>": {
+       "source": "custom",
+       "enabled": true,
+       "command": "uv",
+       "args": ["run", "--with-requirements",
+                "<data-dir>/mcp_servers/<slug>/requirements.txt",
+                "<data-dir>/mcp_servers/<slug>/server.py"]
+     }
+   }
+   ```
+   Expand `<data-dir>` to the absolute path for the current OS (no `~`). Do **NOT**
+   add `forward_env` — that field is sandboxed-stdio only and is ignored here; the
+   server inherits env from the shell that launched PaddleBoard, so the user just
+   exports `<AUTH_ENV_VAR>` there.
+
 ## 6. Report
 Tell the user: the server **id**, the **tools** it exposes, that they must export
 `<AUTH_ENV_VAR>` in the shell that launches PaddleBoard, and that it now appears in
