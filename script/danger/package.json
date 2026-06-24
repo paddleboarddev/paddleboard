@@ -9,5 +9,10 @@
   "devDependencies": {
     "danger": "13.0.7",
     "danger-plugin-pr-hygiene": "0.7.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "qs@>=6.11.1 <=6.15.1": "6.15.2"
+    }
   }
 }
