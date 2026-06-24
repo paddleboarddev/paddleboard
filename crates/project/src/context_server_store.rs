@@ -580,7 +580,11 @@ impl ContextServerStore {
     /// or has not been started yet (in which case it has no runtime state).
     pub fn is_extension_provided(&self, id: &ContextServerId, cx: &App) -> bool {
         match self.context_server_settings.get(&id.0) {
-            Some(ContextServerSettings::Stdio { .. } | ContextServerSettings::Http { .. }) => false,
+            Some(
+                ContextServerSettings::Stdio { .. }
+                | ContextServerSettings::Http { .. }
+                | ContextServerSettings::SandboxedStdio { .. },
+            ) => false,
             Some(ContextServerSettings::Extension { .. }) => true,
             // No custom settings entry: the server can only originate from an
             // extension descriptor in the registry.
