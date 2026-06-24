@@ -235,6 +235,10 @@ impl EventEmitter<RulePickerEvent> for Picker<RulePickerDelegate> {}
 impl PickerDelegate for RulePickerDelegate {
     type ListItem = AnyElement;
 
+    fn name() -> &'static str {
+        "rules library"
+    }
+
     fn match_count(&self) -> usize {
         self.filtered_entries.len()
     }
@@ -489,8 +493,7 @@ impl RulesLibrary {
 
         let picker = cx.new(|cx| {
             let picker = Picker::list(picker_delegate, window, cx)
-                .modal(false)
-                .max_height(None);
+                .modal(false);
             picker.focus(window, cx);
             picker
         });

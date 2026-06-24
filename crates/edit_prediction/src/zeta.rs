@@ -9,7 +9,7 @@ use crate::{
 };
 use anyhow::{Context as _, Result};
 use std::env;
-use crate::data_collection::UncommittedDiffResult;
+use crate::capture_prediction_context::CapturedPredictionContext;
 use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };
@@ -51,7 +51,7 @@ use crate::open_ai_compatible::{
 pub fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
-    capture_data: Option<Task<UncommittedDiffResult>>,
+    capture_data: Option<Task<Result<CapturedPredictionContext, anyhow::Error>>>,
     prompt_history_boundary: Option<PromptHistoryBoundary>,
     repo_url: Option<String>,
     cx: &mut Context<EditPredictionStore>,
