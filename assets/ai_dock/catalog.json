@@ -122,6 +122,13 @@
       "featured": false
     },
     {
+      "id": "build-mcp",
+      "name": "/build-mcp",
+      "description": "Research a service's API, write a Python MCP server, test it in the sandbox, and install it into the AI Dock.",
+      "homepage": null,
+      "featured": false
+    },
+    {
       "id": "verify",
       "name": "/verify",
       "description": "Run the app and confirm a change actually does what it's supposed to do.",

@@ -32,6 +32,7 @@ Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Servi
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
 - Manage them in the AI Dock: `Cmd-Shift-P` → **`paddleboard: Mcp Servers`** opens the dock on the MCP tab (filter All / Running / Stopped / Error, add servers, browse the catalog of common ones).
+- 🛠️ **Build an MCP** — no server for a service? Click **Build an MCP**, name it (e.g. Substack) + describe what you want, and an agent researches the API, writes the server, tests it in the sandbox, and installs it.
 - Or use `"source": "sandboxed_stdio"` in `settings.json` directly.
 - Forward only the host env vars you need by name — values stay out of the agent's context.
 - The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.
