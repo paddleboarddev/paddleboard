@@ -40,7 +40,7 @@ theme = { workspace = true, features = ["test-support"] }
 theme_settings.workspace = true
 ui.workspace = true
 util = { workspace = true, features = ["test-support"] }
-zed_actions.workspace = true
+paddleboard_actions.workspace = true
 
 [[bench]]
 name = "editor_render"
