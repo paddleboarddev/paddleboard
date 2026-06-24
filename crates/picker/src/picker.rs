@@ -18,7 +18,7 @@ use ui::{
     ListItemSpacing, PopoverMenuHandle, ScrollAxes, Scrollbars, WithScrollbar, prelude::*,
     utils::WithRemSize, v_flex,
 };
-use ui_input::{ErasedEditor, ErasedEditorEvent};
+use ui_input::ErasedEditorEvent;
 use util::ResultExt;
 use workspace::{ModalView, item::Settings};
 use paddleboard_actions::editor::{MoveDown, MoveUp};

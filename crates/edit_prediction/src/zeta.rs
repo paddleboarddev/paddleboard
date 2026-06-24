@@ -9,9 +9,7 @@ use crate::{
 };
 use anyhow::{Context as _, Result};
 use std::env;
-use futures::future::Shared;
 use crate::data_collection::UncommittedDiffResult;
-use crate::PromptHistoryBoundary;
 use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };
@@ -53,7 +51,7 @@ use crate::open_ai_compatible::{
 pub fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
-    capture_data: Option<Shared<Task<UncommittedDiffResult>>>,
+    capture_data: Option<Task<UncommittedDiffResult>>,
     prompt_history_boundary: Option<PromptHistoryBoundary>,
     repo_url: Option<String>,
     cx: &mut Context<EditPredictionStore>,
