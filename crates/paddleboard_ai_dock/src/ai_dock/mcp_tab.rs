@@ -10,6 +10,7 @@ use settings::{
 use ui::prelude::*;
 
 use crate::ai_dock::AiDock;
+use crate::ai_dock::build_mcp_modal::BuildMcpModal;
 use crate::catalog::McpEntry;
 
 pub(super) fn render(
@@ -28,6 +29,8 @@ pub(super) fn render(
         .map(|k| k.to_string())
         .collect();
 
+    // PaddleBoard: "Build an MCP" — generate a server for a service that has none.
+    let header = render_tab_header(modal, cx);
     let catalog_section = render_catalog_section(&catalog.mcp_servers, &installed_ids, cx);
     let installed_view: AnyElement = match modal.mcp_view.as_ref() {
         Some(view) => div()
@@ -50,8 +53,46 @@ pub(super) fn render(
 
     v_flex()
         .size_full()
+        .child(header)
         .child(catalog_section)
         .child(installed_view)
+        .into_any_element()
+}
+
+// PaddleBoard: header row with the "Build an MCP" action, mirroring the Skills
+// tab's "Create Skill" button.
+fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> AnyElement {
+    let workspace = modal.workspace.clone();
+    h_flex()
+        .w_full()
+        .justify_between()
+        .p_3()
+        .border_b_1()
+        .border_color(cx.theme().colors().border_variant)
+        .child(
+            Label::new("Generate a server for any service")
+                .size(LabelSize::Small)
+                .color(Color::Muted),
+        )
+        .child(
+            Button::new("build-mcp-btn", "Build an MCP")
+                .style(ButtonStyle::Filled)
+                .label_size(LabelSize::Small)
+                // PaddleBoard: plain on_click (NOT cx.listener) so the AiDock entity
+                // isn't leased during the click. The AI Dock is itself a modal, and
+                // toggle_modal dismisses it (AiDock::on_before_dismiss re-enters
+                // AiDock.update) — leasing AiDock here would double-lease and panic.
+                .on_click(move |_: &ClickEvent, window, cx| {
+                    if let Some(workspace) = workspace.upgrade() {
+                        let weak = workspace.read(cx).weak_handle();
+                        workspace.update(cx, |workspace, cx| {
+                            workspace.toggle_modal(window, cx, |window, cx| {
+                                BuildMcpModal::new(weak, window, cx)
+                            });
+                        });
+                    }
+                }),
+        )
         .into_any_element()
 }
 
