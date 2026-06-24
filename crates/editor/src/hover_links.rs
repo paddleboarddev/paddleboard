@@ -2343,6 +2343,11 @@ Sentence ending file2.rs.
             )
             .await;
 
+        // PaddleBoard: wait for the worktree to finish scanning the inserted file
+        // before hovering — otherwise the relative-path link resolution
+        // (resolve_path_in_worktrees) races the async scan and finds nothing.
+        cx.run_until_parked();
+
         // file2.rs:5:3 should be highlighted and clickable
         cx.set_state(indoc! {"
             Go to file2.rs:5:3 for the fix.ˇ
@@ -2419,6 +2424,10 @@ Sentence ending file2.rs.
             )
             .await;
 
+        // PaddleBoard: wait for the worktree scan before hovering (relative-path
+        // link resolution races the async scan otherwise).
+        cx.run_until_parked();
+
         // file2.rs:3 should be highlighted and clickable
         cx.set_state(indoc! {"
             Go to file2.rs:3 please.ˇ
@@ -2475,6 +2484,10 @@ Sentence ending file2.rs.
                 "line 1\nline 2\nline 3\n".as_bytes().to_vec(),
             )
             .await;
+
+        // PaddleBoard: wait for the worktree scan before hovering (relative-path
+        // link resolution races the async scan otherwise).
+        cx.run_until_parked();
 
         // file2.rs:2:in should resolve to file2.rs line 2 (like Ruby backtraces)
         cx.set_state(indoc! {"
