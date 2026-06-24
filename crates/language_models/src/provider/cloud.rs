@@ -2,7 +2,8 @@ use ai_onboarding::YoungAccountBanner;
 use anthropic::AnthropicModelMode;
 use anyhow::{Result, anyhow};
 use client::{
-    Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls,
+    Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, TelemetrySettings, UserStore,
+    global_llm_token, zed_urls,
 };
 use cloud_api_client::LlmApiToken;
 use cloud_api_types::{OrganizationId, Plan};
@@ -31,7 +32,7 @@ use language_model::{
     LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
     LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
-    PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
+    ProviderConfigurationView, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use rand::{Rng as _, SeedableRng as _, rngs::StdRng};
@@ -461,6 +462,8 @@ impl CloudLanguageModel {
         body: CompletionBody,
     ) -> Result<PerformLlmCompletionResponse> {
         let http_client = &client.http_client();
+        let organization_id =
+            organization_id.ok_or_else(|| anyhow!("No organization selected."))?;
 
         let mut token = client
             .cached_llm_token(&llm_api_token, organization_id.clone())
@@ -503,7 +506,7 @@ impl CloudLanguageModel {
             }
 
             if status == StatusCode::PAYMENT_REQUIRED {
-                return Err(anyhow!(PaymentRequiredError));
+                return Err(anyhow!("Payment required"));
             }
 
             let mut body = String::new();
@@ -790,7 +793,7 @@ impl LanguageModel for CloudLanguageModel {
                         Err(err) => anyhow!(err),
                     })?;
 
-                    let mut mapper = AnthropicEventMapper::new();
+                    let mut mapper = AnthropicEventMapper::new(provider_name.clone());
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,
