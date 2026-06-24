@@ -119,16 +119,9 @@ fn build_mcp_prompt(service: &str, docs: &str, auth: &str, description: &str) ->
         prompt.push_str(&format!("Read the API key from `os.environ[\"{auth}\"]` — never hardcode it.\n"));
     }
     prompt.push_str(
-        "4. Test it in the sandbox: create a venv, install requirements, and smoke-test that the server starts and registers its tools. If sandbox prerequisites are missing, fall back to a host venv and tell me once.\n\
-         5. Install it by adding a `context_servers` entry to my settings (read the existing settings.json, merge the new key, write it back, then re-read to confirm it still parses) so the AI Dock launches it. ",
-    );
-    if !auth.is_empty() {
-        prompt.push_str(&format!("Set `forward_env: [\"{auth}\"]` so the key is passed into the server without being stored in settings.\n"));
-    } else {
-        prompt.push_str("Use `forward_env` for any secrets so they are never stored in settings.\n");
-    }
-    prompt.push_str(
-        "6. Report the server id, the tools it exposes, and remind me to export any required env var in the shell that launches PaddleBoard. Then I can use it from a new agent thread.",
+        "4. Optionally test it in the sandbox (run it and confirm it starts and registers its tools).\n\
+         5. Install it by calling the `install_mcp_server` tool with the server id and the final file contents (server.py, requirements.txt). Do NOT edit settings.json yourself — you build inside the sandbox and can't reach host paths; the tool persists the server and registers it for you so the AI Dock launches it.\n\
+         6. Report the server id, the tools it exposes, and remind me to export any required env var in the shell that launches PaddleBoard. Then I can use it from a new agent thread.",
     );
     prompt
 }

@@ -1132,6 +1132,7 @@
           "spawn_agent": true,
           "terminal": true,
           "search_web": true,
+          "install_mcp_server": true,
         },
       },
       "ask": {

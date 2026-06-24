@@ -35,29 +35,24 @@ what they want before proceeding.
 - Fix and re-test until it runs clean.
 
 ## 5. Install it
-Register the server so the AI Dock launches it. **Read** the existing settings,
-**merge** the new key (don't clobber the file), **write** it back, then **re-read**
-to confirm it still parses. Settings live at `~/.config/paddleboard/settings.json`,
-under `context_servers`.
+Call the **`install_mcp_server` tool** — do NOT try to edit `settings.json` yourself.
+You build inside the sandbox, which can't reach host paths; the tool runs in the
+PaddleBoard process, so it persists the server to the data dir and registers it for
+you. Pass the final file contents (the tool writes them; you don't need to have
+saved them to disk):
 
-- **If Podman + gVisor are available**, install it sandboxed (the presence of `image` selects the sandboxed transport):
-  ```jsonc
-  "context_servers": { "<slug>": {
-    "command": "sh",
-    "args": ["-c", "pip install -q -r /workspace/requirements.txt && python /workspace/server.py"],
-    "image": "python:3.12-slim",
-    "forward_env": ["<AUTH_ENV_VAR>"],
-    "mount_worktree": false,
-    "enabled": true } }
-  ```
-- **Otherwise** (no sandbox runtime), keep the host venv from step 4 and install plain stdio:
-  ```jsonc
-  "context_servers": { "<slug>": {
-    "command": "<data dir>/mcp_servers/<slug>/.venv/bin/python",
-    "args": ["<data dir>/mcp_servers/<slug>/server.py"],
-    "enabled": true } }
-  ```
-- In both cases the secret **value** is never written to settings — `forward_env` (or the inherited host env) resolves the name at launch.
+```
+install_mcp_server({
+  "id": "<slug>",
+  "files": { "server.py": "<full server.py contents>", "requirements.txt": "<contents>" },
+  "entry": "server.py",
+  "requirements": "requirements.txt"
+})
+```
+
+The server is installed as a plain host process (`uv run`), so it reads its API key
+from the environment PaddleBoard was launched with — **never** put secret values in
+the files or args.
 
 ## 6. Report
 Tell the user: the server **id**, the **tools** it exposes, that they must export

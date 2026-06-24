@@ -80,6 +80,25 @@ const TOOLS: &[ToolInfo] = &[
         description: "Loading agent skill instructions",
         regex_explanation: "Patterns are matched against the absolute path to the skill's SKILL.md file.",
     },
+    // PaddleBoard: fork-specific tools that gate on settings.
+    ToolInfo {
+        id: "sandbox_tool",
+        name: "Sandbox",
+        description: "Running a command in the Podman + gVisor sandbox",
+        regex_explanation: "Patterns are matched against the command being run.",
+    },
+    ToolInfo {
+        id: "sandbox_service_tool",
+        name: "Sandbox Service",
+        description: "Running a long-lived service in the Podman + gVisor sandbox",
+        regex_explanation: "Patterns are matched against the command being run.",
+    },
+    ToolInfo {
+        id: "install_mcp_server",
+        name: "Install MCP Server",
+        description: "Installing generated MCP servers",
+        regex_explanation: "Patterns are matched against the server id being installed.",
+    },
 ];
 
 pub(crate) struct ToolInfo {
@@ -1422,6 +1441,8 @@ mod tests {
             // tool calls inside the spawned thread, not the spawning itself.
             "create_thread",
             "spawn_agent",
+            // PaddleBoard: delegates permission to the tool calls inside the spawned Scion agent.
+            "spawn_scion_agent",
         ];
 
         let tool_info_ids: Vec<&str> = TOOLS.iter().map(|t| t.id).collect();
