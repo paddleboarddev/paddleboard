@@ -47,7 +47,7 @@ use crate::open_ai_compatible::{
 // suggestion. Function signature, name, and call sites match
 // upstream so merges stay mechanical.
 #[allow(unused_variables)]
-pub fn request_prediction_with_zeta(
+pub(crate) fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
     capture_data: Option<Task<Result<CapturedPredictionContext, anyhow::Error>>>,

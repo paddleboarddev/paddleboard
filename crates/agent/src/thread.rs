@@ -11,8 +11,6 @@ use crate::{
 use acp_thread::{MentionUri, UserMessageId};
 use action_log::ActionLog;
 use agent_settings::UserAgentsMd;
-use feature_flags::FeatureFlagAppExt as _;
-use paddleboard_env_vars::{EnvVar, env_var};
 
 use crate::sandboxing::{SandboxRequest, ThreadSandboxGrants, sandboxing_enabled_for_project};
 use agent_client_protocol::schema::v1 as acp;

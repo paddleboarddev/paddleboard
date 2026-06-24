@@ -12,15 +12,12 @@ use serde::Deserialize;
 use std::{
     cell::Cell, cell::RefCell, collections::HashMap, ops::Range, rc::Rc, sync::Arc, time::Duration,
 };
-use theme_settings::ThemeSettings;
 use ui::{
-    Color, ContextMenu, Divider, DocumentationAside, DocumentationSide, Label, ListItem,
-    ListItemSpacing, PopoverMenuHandle, ScrollAxes, Scrollbars, WithScrollbar, prelude::*,
-    utils::WithRemSize, v_flex,
+    ContextMenu, Divider, DocumentationAside, PopoverMenuHandle, WithScrollbar, prelude::*, v_flex,
 };
 use ui_input::ErasedEditorEvent;
 use util::ResultExt;
-use workspace::{ModalView, item::Settings};
+use workspace::ModalView;
 use paddleboard_actions::editor::{MoveDown, MoveUp};
 
 mod footer;
