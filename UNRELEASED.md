@@ -13,4 +13,4 @@ the `- Added` / `- Fixed` / `- Improved` convention from CLAUDE.md.
 
 ## Next
 
-_Empty — v0.1.6 shipped Build an MCP, the A2A runner, the refreshed logo, and the install.sh fix. New bullets accumulate here as user-facing work lands._
+_Empty — v0.1.7 shipped the working Build an MCP install: the host-side `install_mcp_server` tool plus forcing the flow onto the native agent so the install always lands (correct data-dir path, plain Stdio entry, no leftover sandbox-only fields) regardless of the selected agent. New bullets accumulate here as user-facing work lands._

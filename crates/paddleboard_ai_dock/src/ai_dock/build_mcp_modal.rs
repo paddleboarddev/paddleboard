@@ -80,7 +80,9 @@ impl BuildMcpModal {
                 };
                 workspace.focus_panel::<AgentPanel>(window, cx);
                 panel.update(cx, |panel, cx| {
-                    panel.seed_prompt_thread(title.clone(), prompt.clone(), window, cx);
+                    // PaddleBoard: force the native agent so the `install_mcp_server`
+                    // tool is available regardless of the panel's selected agent.
+                    panel.seed_prompt_thread(title.clone(), prompt.clone(), true, window, cx);
                 });
             });
         }
@@ -94,8 +96,10 @@ impl BuildMcpModal {
 }
 
 /// Self-contained codegen prompt. Inlines the full procedure so the agent can
-/// run it even if the `/build-mcp` skill isn't installed; secrets are passed via
-/// `forward_env`, never written into settings.
+/// run it even if the `/build-mcp` skill isn't installed. The thread runs on the
+/// native agent (forced by the caller) so `install_mcp_server` is always present;
+/// that tool persists the server to the data dir and registers a plain Stdio
+/// entry — secrets are never written into settings, only read from the env.
 fn build_mcp_prompt(service: &str, docs: &str, auth: &str, description: &str) -> String {
     let mut prompt = String::new();
     prompt.push_str("Build and install an MCP server for me (the `/build-mcp` skill, if available, has the full playbook).\n\n");
@@ -110,7 +114,7 @@ fn build_mcp_prompt(service: &str, docs: &str, auth: &str, description: &str) ->
     prompt.push_str(
         "Steps:\n\
          1. Research the service's API (fetch the docs URL above, or search for it). Identify the base URL, auth scheme, and the few endpoints needed.\n\
-         2. Scaffold a Python MCP server (the `mcp`/FastMCP SDK) under the PaddleBoard data dir: `~/.local/share/PaddleBoard/mcp_servers/<service-slug>/` (server.py + requirements.txt).\n\
+         2. Scaffold a Python MCP server (the `mcp`/FastMCP SDK): a `server.py` and `requirements.txt`. Build/test it in your working directory; the install step (5) persists it to the PaddleBoard data dir for you, so don't worry about host paths here.\n\
          3. Implement one tool per endpoint. ",
     );
     if auth.is_empty() {
@@ -119,16 +123,9 @@ fn build_mcp_prompt(service: &str, docs: &str, auth: &str, description: &str) ->
         prompt.push_str(&format!("Read the API key from `os.environ[\"{auth}\"]` — never hardcode it.\n"));
     }
     prompt.push_str(
-        "4. Test it in the sandbox: create a venv, install requirements, and smoke-test that the server starts and registers its tools. If sandbox prerequisites are missing, fall back to a host venv and tell me once.\n\
-         5. Install it by adding a `context_servers` entry to my settings (read the existing settings.json, merge the new key, write it back, then re-read to confirm it still parses) so the AI Dock launches it. ",
-    );
-    if !auth.is_empty() {
-        prompt.push_str(&format!("Set `forward_env: [\"{auth}\"]` so the key is passed into the server without being stored in settings.\n"));
-    } else {
-        prompt.push_str("Use `forward_env` for any secrets so they are never stored in settings.\n");
-    }
-    prompt.push_str(
-        "6. Report the server id, the tools it exposes, and remind me to export any required env var in the shell that launches PaddleBoard. Then I can use it from a new agent thread.",
+        "4. Optionally test it in the sandbox (run it and confirm it starts and registers its tools).\n\
+         5. Install it by calling the `install_mcp_server` tool with the server id and the final file contents (server.py, requirements.txt). Do NOT edit settings.json yourself — you build inside the sandbox and can't reach host paths; the tool persists the server and registers it for you so the AI Dock launches it.\n\
+         6. Report the server id, the tools it exposes, and remind me to export any required env var in the shell that launches PaddleBoard. Then I can use it from a new agent thread.",
     );
     prompt
 }

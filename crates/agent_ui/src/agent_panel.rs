@@ -3416,16 +3416,29 @@ impl AgentPanel {
     // switch focus to it. Lets PB surfaces (e.g. the AI Dock "Build an MCP" flow)
     // hand a task to the agent without reaching into the private `external_thread`
     // or constructing acp content blocks themselves.
+    //
+    // When `force_native` is set, the thread runs on the native PB agent
+    // regardless of the panel's selected agent. Build-an-MCP needs this because
+    // installation goes through the `install_mcp_server` tool, which only the
+    // native agent exposes — an external ACP agent (e.g. Gemini) would otherwise
+    // hand-edit settings.json and improvise the wrong paths/fields. The native
+    // agent still runs the user's configured model.
     pub fn seed_prompt_thread(
         &mut self,
         title: SharedString,
         prompt: String,
+        force_native: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let blocks = vec![acp::ContentBlock::Text(acp::TextContent::new(prompt))];
+        let agent_choice = if force_native {
+            Some(Agent::NativeAgent)
+        } else {
+            None
+        };
         self.external_thread(
-            None,
+            agent_choice,
             None,
             None,
             Some(title),

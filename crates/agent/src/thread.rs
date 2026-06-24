@@ -2,7 +2,8 @@ use crate::{
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     CreateThreadTool, DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool,
     FetchTool, FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
-    ListAgentsAndModelsTool, ListDirectoryTool, MovePathTool, ProjectSnapshot, ReadFileTool,
+    InstallMcpServerTool, ListAgentsAndModelsTool, ListDirectoryTool, MovePathTool, ProjectSnapshot,
+    ReadFileTool,
     RenameTool, SandboxServiceTool, SandboxTool, SandboxedTerminalTool, SpawnAgentTool,
     SpawnScionAgentTool, SystemPromptTemplate, Template, Templates, TerminalTool,
     ToolPermissionDecision, WebSearchTool, WriteFileTool, decide_permission_from_settings,
@@ -1915,6 +1916,8 @@ impl Thread {
         // PaddleBoard: Podman/gVisor sandbox tools.
         self.add_tool(SandboxTool::new(self.project.clone(), environment.clone()));
         self.add_tool(SandboxServiceTool::new(self.project.clone()));
+        // PaddleBoard: host-side install for agent-generated MCP servers (Build an MCP).
+        self.add_tool(InstallMcpServerTool);
         self.add_tool(WebSearchTool);
 
         self.add_tool(DiagnosticsTool::new(self.project.clone()));
