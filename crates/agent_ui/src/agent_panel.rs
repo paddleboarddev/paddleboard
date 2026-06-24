@@ -3773,7 +3773,7 @@ impl AgentPanel {
         // "Configure" button expects to land).
         if cx.has_flag::<AgentSettingsUiFeatureFlag>() {
             window.dispatch_action(
-                Box::new(zed_actions::OpenSettingsAt {
+                Box::new(paddleboard_actions::OpenSettingsAt {
                     path: "llm_providers".to_string(),
                     target: None,
                 }),

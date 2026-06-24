@@ -37,7 +37,7 @@ impl TextFinder {
         _window: Option<&mut Window>,
         _: &mut Context<Workspace>,
     ) {
-        pub use zed_actions::text_finder::Toggle;
+        pub use paddleboard_actions::text_finder::Toggle;
         workspace.register_action(|workspace, _: &Toggle, window, cx| {
             let Some(text_picker) = workspace.active_modal::<Self>(cx) else {
                 Self::open(window, cx).detach();

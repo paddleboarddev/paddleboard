@@ -7904,7 +7904,7 @@ fn ai_page(cx: &App) -> SettingsPage {
             SettingsPageItem::SubPageLink(SubPageLink {
                 title: "Sandbox".into(),
                 r#type: Default::default(),
-                json_path: Some(zed_actions::AGENT_SANDBOX_SETTINGS_PATH),
+                json_path: Some(paddleboard_actions::AGENT_SANDBOX_SETTINGS_PATH),
                 description: Some(
                     "Review and change the elevated terminal sandbox permissions that are always allowed without prompting."
                         .into(),

@@ -9874,7 +9874,7 @@ pub(crate) mod tests {
         cx.focus(&editor);
 
         editor.update_in(cx, |_editor, window, cx| {
-            window.dispatch_action(Box::new(zed_actions::editor::MoveUp), cx);
+            window.dispatch_action(Box::new(paddleboard_actions::editor::MoveUp), cx);
         });
         cx.run_until_parked();
 
@@ -9892,7 +9892,7 @@ pub(crate) mod tests {
 
         // With a non-empty editor, another MoveUp must not consume the queue.
         editor.update_in(cx, |_editor, window, cx| {
-            window.dispatch_action(Box::new(zed_actions::editor::MoveUp), cx);
+            window.dispatch_action(Box::new(paddleboard_actions::editor::MoveUp), cx);
         });
         cx.run_until_parked();
 

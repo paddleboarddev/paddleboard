@@ -2174,7 +2174,7 @@ impl ThreadView {
 
     fn handle_message_editor_move_up(
         &mut self,
-        _: &zed_actions::editor::MoveUp,
+        _: &paddleboard_actions::editor::MoveUp,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -7379,8 +7379,8 @@ impl ThreadView {
                     .tooltip(Tooltip::text("Open the sandbox permission settings"))
                     .on_click(|_event, window, cx| {
                         window.dispatch_action(
-                            Box::new(zed_actions::OpenSettingsAt {
-                                path: zed_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
+                            Box::new(paddleboard_actions::OpenSettingsAt {
+                                path: paddleboard_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
                                 target: None,
                             }),
                             cx,

@@ -211,7 +211,7 @@ fn git_panel_context_menu(
                 StashAll.boxed_clone(),
             )
             .action_disabled_when(!has_stash_items, "Stash Pop", StashPop.boxed_clone())
-            .action("View Stash", zed_actions::git::ViewStash.boxed_clone())
+            .action("View Stash", paddleboard_actions::git::ViewStash.boxed_clone())
             .separator()
             .action_disabled_when(
                 !has_tracked_changes,
@@ -4429,7 +4429,7 @@ impl GitPanel {
                     (Toast | ToastWithLog { .. }, true) => {
                         this.action("Create Pull Request", move |window, cx| {
                             window
-                                .dispatch_action(Box::new(zed_actions::git::CreatePullRequest), cx);
+                                .dispatch_action(Box::new(paddleboard_actions::git::CreatePullRequest), cx);
                         })
                     }
                     (Toast, false) => this,

@@ -16,7 +16,7 @@ use ui::{
 };
 use util::ResultExt as _;
 
-use zed_actions::ExtensionCategoryFilter;
+use paddleboard_actions::ExtensionCategoryFilter;
 
 use crate::SettingsWindow;
 
@@ -600,7 +600,7 @@ fn render_add_server_popover(
                                     .update(cx, |_, window, cx| {
                                         window.activate_window();
                                         window.dispatch_action(
-                                            zed_actions::Extensions {
+                                            paddleboard_actions::Extensions {
                                                 category_filter: Some(
                                                     ExtensionCategoryFilter::ContextServers,
                                                 ),
