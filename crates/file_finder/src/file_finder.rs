@@ -1763,10 +1763,6 @@ impl PickerDelegate for FileFinderDelegate {
                 .flex_none()
                 .size(IconSize::Small.rems())
                 .into_any_element(),
-            Match::Channel { .. } => v_flex()
-                .flex_none()
-                .size(IconSize::Small.rems())
-                .into_any_element(),
             // PaddleBoard: keep the explicit "create new" affordance icon.
             Match::CreateNew(_) => Icon::new(IconName::Plus)
                 .color(Color::Muted)
