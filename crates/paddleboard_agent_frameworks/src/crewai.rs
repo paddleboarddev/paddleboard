@@ -31,6 +31,7 @@ pub(crate) fn init(cx: &mut App) {
                             label: "CrewAI Run",
                             // `crewai run` executes the crew and exits — no server/port.
                             fallback_port: None,
+                            landing_path: None,
                             get_state: |s| &mut s.crewai,
                         },
                     );

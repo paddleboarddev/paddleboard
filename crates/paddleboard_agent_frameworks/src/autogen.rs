@@ -25,6 +25,7 @@ pub(crate) fn init(cx: &mut App) {
                             args: &["ui", "--port", "8081"],
                             label: "AutoGen Studio",
                             fallback_port: Some(8081),
+                            landing_path: None,
                             get_state: |s| &mut s.autogen,
                         },
                     );

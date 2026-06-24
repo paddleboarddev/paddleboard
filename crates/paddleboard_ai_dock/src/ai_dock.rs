@@ -15,6 +15,7 @@ use crate::catalog::{Catalog, CatalogGlobal};
 pub(crate) mod add_agent_modal;
 pub(crate) mod add_skill_modal;
 mod agents_tab;
+pub(crate) mod build_mcp_modal;
 mod mcp_tab;
 mod skills_tab;
 

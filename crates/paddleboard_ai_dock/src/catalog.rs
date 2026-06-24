@@ -131,6 +131,7 @@ pub fn bundled_skill_content(id: &str) -> Option<&'static str> {
         "clippy" => Some(include_str!("../../../assets/ai_dock/skills/clippy.md")),
         "test" => Some(include_str!("../../../assets/ai_dock/skills/test.md")),
         "check-drift" => Some(include_str!("../../../assets/ai_dock/skills/check-drift.md")),
+        "build-mcp" => Some(include_str!("../../../assets/ai_dock/skills/build-mcp.md")),
         _ => None,
     }
 }

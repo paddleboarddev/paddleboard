@@ -75,6 +75,14 @@
       "homepage": "https://microsoft.github.io/autogen/",
       "featured": false,
       "install_command": "pip install autogenstudio"
+    },
+    {
+      "id": "a2a",
+      "name": "A2A",
+      "description": "Agent2Agent protocol. Run a local A2A agent server (`uv run .`) from your project.",
+      "homepage": "https://a2a-protocol.org/",
+      "featured": false,
+      "install_command": "pip install a2a-sdk"
     }
   ],
   "skills": [
@@ -110,6 +118,13 @@
       "id": "check-drift",
       "name": "/check-drift",
       "description": "Run script/check-upstream-drift to see how far PaddleBoard has diverged from upstream Zed.",
+      "homepage": null,
+      "featured": false
+    },
+    {
+      "id": "build-mcp",
+      "name": "/build-mcp",
+      "description": "Research a service's API, write a Python MCP server, test it in the sandbox, and install it into the AI Dock.",
       "homepage": null,
       "featured": false
     },

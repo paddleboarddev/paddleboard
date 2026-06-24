@@ -37,7 +37,7 @@ pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
         )
 }
 
-fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoElement {
+fn render_tab_header(modal: &AiDock, _cx: &mut Context<AiDock>) -> impl IntoElement {
     let workspace = modal.workspace.clone();
     h_flex()
         .w_full()
@@ -52,7 +52,10 @@ fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
             Button::new("add-agent-btn", "Add Agent")
                 .style(ButtonStyle::Filled)
                 .label_size(LabelSize::Small)
-                .on_click(cx.listener(move |_this, _: &ClickEvent, window, cx| {
+                // PaddleBoard: plain on_click (NOT cx.listener) — the AI Dock is a
+                // modal, so toggle_modal dismisses it (re-entering AiDock.update);
+                // leasing AiDock via cx.listener here would double-lease and panic.
+                .on_click(move |_: &ClickEvent, window, cx| {
                     if let Some(workspace) = workspace.upgrade() {
                         workspace.update(cx, |workspace, cx| {
                             workspace.toggle_modal(window, cx, |window, cx| {
@@ -60,7 +63,7 @@ fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
                             });
                         });
                     }
-                })),
+                }),
         )
 }
 

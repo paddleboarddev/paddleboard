@@ -27,11 +27,12 @@ Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Servi
 - Bindings stay on `127.0.0.1` only — never your LAN.
 - Non-container ports appear here too — `adk: Run Agent` registers port 8000 from the terminal so you get the same one-click navigation.
 - **ADK quick start**: `Cmd-Shift-P` → **`adk: Scaffold Agent`** to create a new Google ADK agent project, then **`adk: Run Agent`** to launch `adk web` — port 8000 appears in Forwarded Ports automatically. Open a folder with `agent.py` or `agent.yaml` and PaddleBoard shows a toast with a **Run Agent** button.
-- **More frameworks**, same Scaffold/Run/Stop pattern, each auto-detected with a toast: **LangGraph** (`langgraph dev`), **CrewAI** (`crewai run`), and **AutoGen** (AutoGen Studio web UI). All appear in the AI Dock with a **Set Up** install button.
+- **More frameworks**, same Run/Stop pattern, each auto-detected with a toast: **LangGraph** (`langgraph dev`), **CrewAI** (`crewai run`), **AutoGen** (AutoGen Studio web UI), and **A2A** (`uv run .`, runs your local [A2A](https://a2a-protocol.org/) agent server). All appear in the AI Dock with a **Set Up** install button.
 
 ### 4. Sandboxed MCP Servers
 PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
 - Manage them in the AI Dock: `Cmd-Shift-P` → **`paddleboard: Mcp Servers`** opens the dock on the MCP tab (filter All / Running / Stopped / Error, add servers, browse the catalog of common ones).
+- 🛠️ **Build an MCP** — no server for a service? Click **Build an MCP**, name it (e.g. Substack) + describe what you want, and an agent researches the API, writes the server, tests it in the sandbox, and installs it.
 - Or use `"source": "sandboxed_stdio"` in `settings.json` directly.
 - Forward only the host env vars you need by name — values stay out of the agent's context.
 - The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.

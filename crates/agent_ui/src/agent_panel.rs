@@ -3412,6 +3412,34 @@ impl AgentPanel {
         self.set_base_view(thread.into(), focus, window, cx);
     }
 
+    // PaddleBoard: seed a fresh agent thread with a prompt, auto-submit it, and
+    // switch focus to it. Lets PB surfaces (e.g. the AI Dock "Build an MCP" flow)
+    // hand a task to the agent without reaching into the private `external_thread`
+    // or constructing acp content blocks themselves.
+    pub fn seed_prompt_thread(
+        &mut self,
+        title: SharedString,
+        prompt: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let blocks = vec![acp::ContentBlock::Text(acp::TextContent::new(prompt))];
+        self.external_thread(
+            None,
+            None,
+            None,
+            Some(title),
+            Some(AgentInitialContent::ContentBlock {
+                blocks,
+                auto_submit: true,
+            }),
+            true,
+            AgentThreadSource::AgentPanel,
+            window,
+            cx,
+        );
+    }
+
     fn deploy_rules_library(
         &mut self,
         _action: &OpenRulesLibrary,

@@ -30,6 +30,7 @@ pub(crate) fn init(cx: &mut App) {
                             args: &["web"],
                             label: "ADK Web",
                             fallback_port: Some(8000),
+                            landing_path: None,
                             get_state: |s| &mut s.adk,
                         },
                     );

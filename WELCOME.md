@@ -70,6 +70,7 @@ Google's [Agent Development Kit](https://google.github.io/adk-docs/) ships a `ad
 - **LangGraph** — `langgraph: Run Agent` launches `langgraph dev` (LangGraph Studio); detected from `langgraph.json`.
 - **CrewAI** — `crewai: Scaffold Agent` runs `crewai create crew <name>`; `crewai: Run Agent` runs `crewai run` (one-shot, streamed to a tab — no server); detected when `crewai` is in your `pyproject.toml`/`requirements.txt`.
 - **AutoGen** — `autogen: Run Agent` launches AutoGen Studio (`autogenstudio ui`), a local web UI on port 8081 surfaced in Forwarded Ports; detected when `autogen` is a project dependency.
+- **A2A** — `a2a: Run Agent` launches a local [A2A](https://a2a-protocol.org/) agent server with `uv run .` (the a2a-samples convention), surfacing its port (9999 for the helloworld sample) in Forwarded Ports; detected when `a2a-sdk` is a project dependency. Requires `uv` on your PATH. This runs *your* A2A server locally — PaddleBoard doesn't yet speak the A2A protocol itself.
 
 Each also appears in the AI Dock's Agents tab with a **Set Up** button that installs the CLI (`pip install …`).
 
@@ -86,6 +87,8 @@ Most editors run **MCP (Model Context Protocol) servers** directly on your host.
 PaddleBoard adds a fourth context-server transport, `sandboxed_stdio`, that runs the MCP server inside a `podman run -i --rm --runtime=runsc` container. Stdin and stdout are proxied transparently, so the JSON-RPC framing keeps working without any change on the agent side.
 
 **Manage servers in the AI Dock** — `paddleboard: Mcp Servers` (or `ai_dock: Open` then the **MCP Servers** tab) opens the PaddleBoard AI Dock with the absorbed server view. You get the full add/filter (All / Running / Stopped / Error) / inspect surface plus a side-by-side **Available** catalog of well-known servers without hand-editing JSON.
+
+**Build an MCP for any service** — when a service has no MCP server, the **Build an MCP** button at the top of the MCP tab generates one. Give it a service (e.g. `Substack`), an optional API-docs URL, an optional auth env-var name (e.g. `SUBSTACK_API_KEY`), and a sentence on what you want — PaddleBoard seeds an agent thread that researches the API, writes a Python (FastMCP) server, tests it in the sandbox, and installs it into the AI Dock so the agent can use it. The thread is visible, so you can watch and course-correct. Secrets are passed via `forward_env` and never written to settings; the server runs sandboxed when Podman + gVisor are present, otherwise via a host venv.
 
 You can still configure servers by hand in `settings.json` if you prefer:
 
