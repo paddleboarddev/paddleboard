@@ -9,7 +9,6 @@ use crate::{
 };
 use anyhow::{Context as _, Result};
 use std::env;
-use crate::capture_prediction_context::CapturedPredictionContext;
 use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };
