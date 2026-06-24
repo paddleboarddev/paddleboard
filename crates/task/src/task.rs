@@ -276,6 +276,7 @@ impl std::fmt::Display for VariableName {
             Self::GitShaShort => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_SHA_SHORT"),
             Self::GitRepositoryName => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_REPOSITORY_NAME"),
             Self::GitRepositoryPath => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_REPOSITORY_PATH"),
+            Self::GitRef => write!(f, "{PADDLEBOARD_VARIABLE_NAME_PREFIX}GIT_REF"),
             Self::Custom(s) => write!(
                 f,
                 "{PADDLEBOARD_VARIABLE_NAME_PREFIX}{PADDLEBOARD_CUSTOM_VARIABLE_NAME_PREFIX}{s}"
