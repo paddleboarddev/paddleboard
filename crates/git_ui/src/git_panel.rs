@@ -246,28 +246,28 @@ fn git_panel_view_options_menu(
                     }),
             )
             .action_disabled_when(
-                !state.has_staged_changes,
+                !has_staged_changes,
                 "Unstage All",
                 UnstageAll.boxed_clone(),
             )
             .separator()
             .action_disabled_when(
-                !(state.has_new_changes || state.has_tracked_changes),
+                !(has_new_changes || has_tracked_changes),
                 "Stash All",
                 StashAll.boxed_clone(),
             )
-            .action_disabled_when(!state.has_stash_items, "Stash Pop", StashPop.boxed_clone())
+            .action_disabled_when(!has_stash_items, "Stash Pop", StashPop.boxed_clone())
             .action("View Stash", paddleboard_actions::git::ViewStash.boxed_clone())
             .separator()
-            .action("Open Diff", project_diff::Diff.boxed_clone())
+            .action("Open Diff", Diff.boxed_clone())
             .separator()
             .action_disabled_when(
-                !state.has_tracked_changes,
+                !has_tracked_changes,
                 "Discard Tracked Changes",
                 RestoreTrackedFiles.boxed_clone(),
             )
             .action_disabled_when(
-                !state.has_new_changes,
+                !has_new_changes,
                 "Trash Untracked Files",
                 TrashUntrackedFiles.boxed_clone(),
             )
