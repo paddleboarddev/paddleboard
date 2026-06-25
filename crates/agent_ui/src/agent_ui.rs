@@ -409,8 +409,10 @@ pub struct NewNativeAgentThreadFromSummary {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Agent {
-    #[default]
     Gemini,
+    // PaddleBoard: native agent is the default so new drafts run the user's configured
+    // model through PB's loop (with install_mcp_server, sandbox, etc.); external Gemini is opt-in.
+    #[default]
     #[serde(alias = "NativeAgent", alias = "TextThread")]
     NativeAgent,
     #[serde(alias = "Custom")]
