@@ -1217,12 +1217,12 @@ mod tests {
         // Test 1: Path with .zed component should require confirmation
         let (stream_tx, mut stream_rx) = ToolCallEventStream::test();
         let _auth = cx
-            .update(|cx| edit_tool.authorize(&PathBuf::from(".zed/settings.json"), &stream_tx, cx));
+            .update(|cx| edit_tool.authorize(&PathBuf::from(".paddleboard/settings.json"), &stream_tx, cx));
 
         let event = stream_rx.expect_authorization().await;
         assert_eq!(
             event.tool_call.fields.title,
-            Some("Edit `.zed/settings.json` (local settings)".into())
+            Some("Edit `.paddleboard/settings.json` (local settings)".into())
         );
 
         // Test 2: Path outside project should require confirmation
@@ -1246,12 +1246,12 @@ mod tests {
         // Test 4: Path with .zed in the middle should require confirmation
         let (stream_tx, mut stream_rx) = ToolCallEventStream::test();
         let _auth = cx.update(|cx| {
-            edit_tool.authorize(&PathBuf::from("root/.zed/tasks.json"), &stream_tx, cx)
+            edit_tool.authorize(&PathBuf::from("root/.paddleboard/tasks.json"), &stream_tx, cx)
         });
         let event = stream_rx.expect_authorization().await;
         assert_eq!(
             event.tool_call.fields.title,
-            Some("Edit `root/.zed/tasks.json` (local settings)".into())
+            Some("Edit `root/.paddleboard/tasks.json` (local settings)".into())
         );
 
         // Test 5: When global default is allow, sensitive and outside-project
@@ -1262,14 +1262,14 @@ mod tests {
             agent_settings::AgentSettings::override_global(settings, cx);
         });
 
-        // 5.1: .zed/settings.json is a sensitive path — still prompts
+        // 5.1: .paddleboard/settings.json is a sensitive path — still prompts
         let (stream_tx, mut stream_rx) = ToolCallEventStream::test();
         let _auth = cx
-            .update(|cx| edit_tool.authorize(&PathBuf::from(".zed/settings.json"), &stream_tx, cx));
+            .update(|cx| edit_tool.authorize(&PathBuf::from(".paddleboard/settings.json"), &stream_tx, cx));
         let event = stream_rx.expect_authorization().await;
         assert_eq!(
             event.tool_call.fields.title,
-            Some("Edit `.zed/settings.json` (local settings)".into())
+            Some("Edit `.paddleboard/settings.json` (local settings)".into())
         );
 
         // 5.2: /etc/hosts is outside the project, but Allow auto-approves
@@ -1395,9 +1395,9 @@ mod tests {
         );
     }
 
-    /// `.zed/foo/../../safe.json` similarly sidesteps the consecutive-
-    /// component scan for `.zed/`, so the canonical-path recheck has to
-    /// catch it. (We escape *out* of `.zed/` here and back in via `..`,
+    /// `.paddleboard/foo/../../safe.json` similarly sidesteps the consecutive-
+    /// component scan for `.paddleboard/`, so the canonical-path recheck has to
+    /// catch it. (We escape *out* of `.paddleboard/` here and back in via `..`,
     /// just to confirm the recheck doesn't naively trust the raw scan.)
     #[gpui::test]
     async fn test_streaming_authorize_blocks_dotdot_settings_bypass(cx: &mut TestAppContext) {
@@ -1406,7 +1406,7 @@ mod tests {
         fs.insert_tree(
             path!("/root"),
             json!({
-                ".zed": { "foo": {}, "settings.json": "{}" },
+                ".paddleboard": { "foo": {}, "settings.json": "{}" },
             }),
         )
         .await;
@@ -1416,7 +1416,7 @@ mod tests {
         let (stream_tx, mut stream_rx) = ToolCallEventStream::test();
         let _auth = cx.update(|cx| {
             edit_tool.authorize(
-                &PathBuf::from(path!("/root/.zed/foo/../settings.json")),
+                &PathBuf::from(path!("/root/.paddleboard/foo/../settings.json")),
                 &stream_tx,
                 cx,
             )
@@ -1447,11 +1447,11 @@ mod tests {
         fs.insert_tree(
             path!("/root"),
             json!({
-                ".zed": { "settings.json": "{}" },
+                ".paddleboard": { "settings.json": "{}" },
             }),
         )
         .await;
-        fs.insert_symlink(path!("/root/safe"), PathBuf::from(".zed"))
+        fs.insert_symlink(path!("/root/safe"), PathBuf::from(".paddleboard"))
             .await;
         let (edit_tool, _project, _action_log, _fs, _thread) =
             setup_test_with_fs(cx, fs, &[path!("/root").as_ref()]).await;
@@ -1783,7 +1783,7 @@ mod tests {
         fs.insert_tree(
             "/workspace/shared",
             json!({
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{}"
                 }
             }),
@@ -1804,7 +1804,7 @@ mod tests {
             ("frontend/src/main.js", false, "File in first worktree"),
             ("backend/src/main.rs", false, "File in second worktree"),
             (
-                "shared/.zed/settings.json",
+                "shared/.paddleboard/settings.json",
                 true,
                 ".zed file in third worktree",
             ),
@@ -1841,11 +1841,11 @@ mod tests {
         fs.insert_tree(
             "/project",
             json!({
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{}"
                 },
                 "src": {
-                    ".zed": {
+                    ".paddleboard": {
                         "local.json": "{}"
                     }
                 }
@@ -1902,7 +1902,7 @@ mod tests {
             "/project",
             json!({
                 "existing.txt": "content",
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{}"
                 }
             }),
@@ -1917,7 +1917,7 @@ mod tests {
             // Test .zed path with different modes
             let (stream_tx, mut stream_rx) = ToolCallEventStream::test();
             let _auth = cx.update(|cx| {
-                edit_tool.authorize(&PathBuf::from("project/.zed/settings.json"), &stream_tx, cx)
+                edit_tool.authorize(&PathBuf::from("project/.paddleboard/settings.json"), &stream_tx, cx)
             });
 
             stream_rx.expect_authorization().await;

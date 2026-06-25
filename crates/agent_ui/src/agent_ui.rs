@@ -391,8 +391,10 @@ where
     match AgentIdOrLegacyAgent::deserialize(deserializer)? {
         AgentIdOrLegacyAgent::AgentId(agent_id) => Ok(agent_id),
         AgentIdOrLegacyAgent::LegacyAgent(Agent::Custom { id }) => Ok(id),
-        AgentIdOrLegacyAgent::LegacyAgent(Agent::NativeAgent)
-        | AgentIdOrLegacyAgent::LegacyAgent(Agent::Gemini) => Ok(Agent::NativeAgent.id()),
+        AgentIdOrLegacyAgent::LegacyAgent(Agent::NativeAgent) => Ok(Agent::NativeAgent.id()),
+        // PaddleBoard: the external Gemini agent has its own id; don't fold it into the
+        // native agent (that turned a "new Gemini thread" action into a native thread).
+        AgentIdOrLegacyAgent::LegacyAgent(Agent::Gemini) => Ok(Agent::Gemini.id()),
         #[cfg(any(test, feature = "test-support"))]
         AgentIdOrLegacyAgent::LegacyAgent(Agent::Stub) => Ok(Agent::Stub.id()),
     }
@@ -409,8 +411,10 @@ pub struct NewNativeAgentThreadFromSummary {
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Agent {
-    #[default]
     Gemini,
+    // PaddleBoard: native agent is the default so new drafts run the user's configured
+    // model through PB's loop (with install_mcp_server, sandbox, etc.); external Gemini is opt-in.
+    #[default]
     #[serde(alias = "NativeAgent", alias = "TextThread")]
     NativeAgent,
     #[serde(alias = "Custom")]
