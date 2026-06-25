@@ -1406,7 +1406,7 @@ mod tests {
         fs.insert_tree(
             path!("/root"),
             json!({
-                ".zed": { "foo": {}, "settings.json": "{}" },
+                ".paddleboard": { "foo": {}, "settings.json": "{}" },
             }),
         )
         .await;
@@ -1447,11 +1447,11 @@ mod tests {
         fs.insert_tree(
             path!("/root"),
             json!({
-                ".zed": { "settings.json": "{}" },
+                ".paddleboard": { "settings.json": "{}" },
             }),
         )
         .await;
-        fs.insert_symlink(path!("/root/safe"), PathBuf::from(".zed"))
+        fs.insert_symlink(path!("/root/safe"), PathBuf::from(".paddleboard"))
             .await;
         let (edit_tool, _project, _action_log, _fs, _thread) =
             setup_test_with_fs(cx, fs, &[path!("/root").as_ref()]).await;
@@ -1783,7 +1783,7 @@ mod tests {
         fs.insert_tree(
             "/workspace/shared",
             json!({
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{}"
                 }
             }),
@@ -1841,11 +1841,11 @@ mod tests {
         fs.insert_tree(
             "/project",
             json!({
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{}"
                 },
                 "src": {
-                    ".zed": {
+                    ".paddleboard": {
                         "local.json": "{}"
                     }
                 }
@@ -1902,7 +1902,7 @@ mod tests {
             "/project",
             json!({
                 "existing.txt": "content",
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{}"
                 }
             }),
