@@ -27,6 +27,10 @@ impl PlanDefinitions {
         List::new()
     }
 
+    pub fn vip_plan(&self) -> impl IntoElement {
+        List::new()
+    }
+
     pub fn student_plan(&self) -> impl IntoElement {
         List::new()
     }

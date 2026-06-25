@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use agent_client_protocol::schema as acp;
+use agent_client_protocol::schema::v1 as acp;
 use acp_thread::ThreadStatus;
 use gpui::{
     Action, App, AppContext as _, AsyncWindowContext, Context, DismissEvent, Entity, EventEmitter,

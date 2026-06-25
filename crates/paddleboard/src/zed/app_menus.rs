@@ -119,19 +119,8 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                     },
                     workspace::Open::default(),
                 ),
-                MenuItem::action(
-                    "Open Recent...",
-                    paddleboard_actions::OpenRecent {
-                        create_new_window: false,
-                    },
-                ),
-                MenuItem::action(
-                    "Open Remote...",
-                    paddleboard_actions::OpenRemote {
-                        create_new_window: false,
-                        from_existing_connection: false,
-                    },
-                ),
+                MenuItem::action("Open Recent…", paddleboard_actions::OpenRecent::default()),
+                MenuItem::action("Open Remote…", paddleboard_actions::OpenRemote::default()),
                 MenuItem::separator(),
                 MenuItem::action("Add Folder to Project…", workspace::AddFolderToProject),
                 MenuItem::separator(),

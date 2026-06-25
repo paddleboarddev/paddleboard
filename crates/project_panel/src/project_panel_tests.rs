@@ -2,17 +2,12 @@ use super::*;
 // use crate::undo::tests::{build_create_operation, build_rename_operation};
 use collections::HashSet;
 use editor::{Editor, MultiBufferOffset};
-use git::{
-    Oid,
-    repository::{InitialGraphCommitData, LogSource, RepoPath},
-};
 use gpui::{Empty, Entity, TestAppContext, VisualTestContext};
 use menu::Cancel;
 use pretty_assertions::assert_eq;
 use project::{FakeFs, ProjectPath};
 use serde_json::json;
 use settings::{ProjectPanelAutoOpenSettings, SettingsStore};
-use smallvec::smallvec;
 use std::path::{Path, PathBuf};
 use util::{path, paths::PathStyle, rel_path::rel_path};
 use workspace::{
@@ -172,6 +167,7 @@ async fn test_opening_file(cx: &mut gpui::TestAppContext) {
     ensure_single_file_is_opened(&workspace, "test/second.rs", cx);
 }
 
+#[gpui::test]
 async fn test_exclusions_in_visible_list(cx: &mut gpui::TestAppContext) {
     init_test(cx);
     cx.update(|cx| {
@@ -914,6 +910,71 @@ async fn test_editing_files(cx: &mut gpui::TestAppContext) {
             "    > C",
         ]
     );
+}
+
+#[gpui::test]
+async fn test_rename_folder_with_dot_selects_whole_name(cx: &mut gpui::TestAppContext) {
+    init_test(cx);
+
+    let fs = FakeFs::new(cx.executor());
+    fs.insert_tree(
+        "/root1",
+        json!({
+            "my.folder": {},
+            "archive.tar.gz": "",
+        }),
+    )
+    .await;
+
+    let project = Project::test(fs.clone(), ["/root1".as_ref()], cx).await;
+    let window = cx.add_window(|window, cx| MultiWorkspace::test_new(project.clone(), window, cx));
+    let workspace = window
+        .read_with(cx, |mw, _| mw.workspace().clone())
+        .unwrap();
+    let cx = &mut VisualTestContext::from_window(window.into(), cx);
+    let panel = workspace.update_in(cx, |workspace, window, cx| {
+        let panel = ProjectPanel::new(workspace, window, cx);
+        workspace.add_panel(panel.clone(), window, cx);
+        panel
+    });
+    cx.run_until_parked();
+
+    // Renaming a folder whose name contains a dot should pre-select the whole
+    // name. The dot belongs to the directory name; it is not a file extension.
+    select_path(&panel, "root1/my.folder", cx);
+    panel.update_in(cx, |panel, window, cx| panel.rename(&Rename, window, cx));
+    panel.update_in(cx, |panel, window, cx| {
+        panel.filename_editor.update(cx, |editor, cx| {
+            let selections = editor
+                .selections
+                .all::<MultiBufferOffset>(&editor.display_snapshot(cx));
+            assert_eq!(selections.len(), 1);
+            assert_eq!(selections[0].start, MultiBufferOffset(0));
+            assert_eq!(
+                selections[0].end,
+                MultiBufferOffset("my.folder".len()),
+                "Renaming a folder should select the whole name, including dots"
+            );
+        });
+        panel.cancel(&Cancel, window, cx);
+    });
+    cx.run_until_parked();
+
+    // Files keep the existing behavior: the last extension stays unselected.
+    select_path(&panel, "root1/archive.tar.gz", cx);
+    panel.update_in(cx, |panel, window, cx| panel.rename(&Rename, window, cx));
+    panel.update_in(cx, |panel, _, cx| {
+        panel.filename_editor.update(cx, |editor, cx| {
+            let selections = editor
+                .selections
+                .all::<MultiBufferOffset>(&editor.display_snapshot(cx));
+            assert_eq!(
+                selections[0].end,
+                MultiBufferOffset("archive.tar".len()),
+                "Renaming a file should keep the last extension unselected"
+            );
+        });
+    });
 }
 
 #[gpui::test(iterations = 10)]
@@ -10401,27 +10462,6 @@ fn init_test_with_editor(cx: &mut TestAppContext) {
         let app_state = AppState::test(cx);
         theme_settings::init(theme::LoadThemes::JustBase, cx);
         editor::init(cx);
-        crate::init(cx);
-        workspace::init(app_state, cx);
-
-        cx.update_global::<SettingsStore, _>(|store, cx| {
-            store.update_user_settings(cx, |settings| {
-                settings
-                    .project_panel
-                    .get_or_insert_default()
-                    .auto_fold_dirs = Some(false);
-                settings.project.worktree.file_scan_exclusions = Some(Vec::new())
-            });
-        });
-    });
-}
-
-fn init_test_with_git_ui(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-        let app_state = AppState::test(cx);
-        theme_settings::init(theme::LoadThemes::JustBase, cx);
-        editor::init(cx);
-        git_ui::init(cx);
         crate::init(cx);
         workspace::init(app_state, cx);
 

@@ -9,7 +9,7 @@
 // actually execute the data-dir server; SandboxedStdio only mounts the worktree.
 use std::{collections::HashMap, sync::Arc};
 
-use agent_client_protocol::schema as acp;
+use agent_client_protocol::schema::v1 as acp;
 use agent_settings::AgentSettings;
 use fs::Fs;
 use gpui::{App, SharedString, Task};
