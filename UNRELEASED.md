@@ -13,4 +13,4 @@ the `- Added` / `- Fixed` / `- Improved` convention from CLAUDE.md.
 
 ## Next
 
-_Empty — v0.1.8 shipped the weekly upstream Zed sync (~236 commits) with all PaddleBoard features preserved, plus the wasmtime 36.0.10 WASI sandbox-escape security fix. New bullets accumulate here as user-facing work lands._
+_Empty — v0.1.8.1 patched two agent-default bugs (new drafts now use the native agent instead of external Gemini; the new-Gemini-thread action no longer opens a native thread). v0.1.8 before it shipped the weekly upstream Zed sync (~236 commits) + the wasmtime 36.0.10 WASI sandbox-escape fix. New bullets accumulate here as user-facing work lands._

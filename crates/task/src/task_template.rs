@@ -1109,11 +1109,12 @@ mod tests {
     #[test]
     fn test_git_variables_resolution() {
         let task = TaskTemplate {
-            label: "Show $ZED_GIT_SHA_SHORT in $ZED_GIT_REPOSITORY_NAME".to_string(),
+            label: "Show $PADDLEBOARD_GIT_SHA_SHORT in $PADDLEBOARD_GIT_REPOSITORY_NAME"
+                .to_string(),
             command: "git".to_string(),
-            args: vec!["show".to_string(), "$ZED_GIT_SHA".to_string()],
-            cwd: Some("$ZED_GIT_REPOSITORY_PATH".to_string()),
-            env: HashMap::from_iter([("COMMIT".to_string(), "$ZED_GIT_SHA".to_string())]),
+            args: vec!["show".to_string(), "$PADDLEBOARD_GIT_SHA".to_string()],
+            cwd: Some("$PADDLEBOARD_GIT_REPOSITORY_PATH".to_string()),
+            env: HashMap::from_iter([("COMMIT".to_string(), "$PADDLEBOARD_GIT_SHA".to_string())]),
             ..TaskTemplate::default()
         };
         let sha = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
