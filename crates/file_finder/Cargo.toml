@@ -29,7 +29,6 @@ settings.workspace = true
 serde.workspace = true
 theme.workspace = true
 ui.workspace = true
-ui_input.workspace = true
 util.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true

@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use acp_thread::{AgentSessionInfo, AgentSessionList, AgentSessionListRequest, SessionListUpdate};
-use agent_client_protocol::schema as acp;
+use agent_client_protocol::schema::{MaybeUndefined, v1 as acp};
 use gpui::{App, Task};
 use std::rc::Rc;
 use ui::prelude::*;
@@ -98,24 +98,24 @@ impl ThreadHistory {
         };
 
         match info_update.title {
-            acp::MaybeUndefined::Value(title) => {
+            MaybeUndefined::Value(title) => {
                 session.title = Some(title.into());
             }
-            acp::MaybeUndefined::Null => {
+            MaybeUndefined::Null => {
                 session.title = None;
             }
-            acp::MaybeUndefined::Undefined => {}
+            MaybeUndefined::Undefined => {}
         }
         match info_update.updated_at {
-            acp::MaybeUndefined::Value(date_str) => {
+            MaybeUndefined::Value(date_str) => {
                 if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&date_str) {
                     session.updated_at = Some(dt.with_timezone(&chrono::Utc));
                 }
             }
-            acp::MaybeUndefined::Null => {
+            MaybeUndefined::Null => {
                 session.updated_at = None;
             }
-            acp::MaybeUndefined::Undefined => {}
+            MaybeUndefined::Undefined => {}
         }
         if let Some(meta) = info_update.meta {
             session.meta = Some(meta);

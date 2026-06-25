@@ -94,6 +94,7 @@ rope.workspace = true
 rules_library.workspace = true
 skill_creator.workspace = true
 schemars.workspace = true
+search.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_json_lenient.workspace = true

@@ -5,7 +5,7 @@ use editor::{Editor, Inlay, MultiBuffer};
 use feature_flags::{FeatureFlag, PresenceFlag, register_feature_flag};
 use gpui::{
     App, BorderStyle, DismissEvent, EdgesRefinement, Entity, EventEmitter, FocusHandle, Focusable,
-    Length, StyleRefinement, TextStyleRefinement, Window, actions, prelude::*,
+    Length, StyleRefinement, Task, TextStyleRefinement, Window, actions, prelude::*,
 };
 use language::{
     Bias, Buffer, BufferSnapshot, CodeLabel, LanguageRegistry, Point, ToOffset, ToPoint,
@@ -71,6 +71,8 @@ struct ActivePrediction {
     expected_editor: Entity<Editor>,
     _expected_buffer_subscription: gpui::Subscription,
     formatted_inputs: Entity<Markdown>,
+    _predicted_diff_task: Task<()>,
+    expected_diff_task: Task<()>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -136,7 +138,7 @@ impl RatePredictionsModal {
         self.selected_index += 1;
         self.selected_index = usize::min(
             self.selected_index,
-            self.ep_store.read(cx).shown_predictions().count(),
+            self.ep_store.read(cx).rateable_predictions().count(),
         );
         cx.notify();
     }
@@ -155,7 +157,7 @@ impl RatePredictionsModal {
         let next_index = self
             .ep_store
             .read(cx)
-            .shown_predictions()
+            .rateable_predictions()
             .skip(self.selected_index)
             .enumerate()
             .skip(1) // Skip straight to the next item
@@ -170,12 +172,12 @@ impl RatePredictionsModal {
 
     fn select_prev_edit(&mut self, _: &PreviousEdit, _: &mut Window, cx: &mut Context<Self>) {
         let ep_store = self.ep_store.read(cx);
-        let completions_len = ep_store.shown_completions_len();
+        let completions_len = ep_store.rateable_predictions_count();
 
         let prev_index = self
             .ep_store
             .read(cx)
-            .shown_predictions()
+            .rateable_predictions()
             .rev()
             .skip((completions_len - 1) - self.selected_index)
             .enumerate()
@@ -196,7 +198,7 @@ impl RatePredictionsModal {
     }
 
     fn select_last(&mut self, _: &menu::SelectLast, _window: &mut Window, cx: &mut Context<Self>) {
-        self.selected_index = self.ep_store.read(cx).shown_completions_len() - 1;
+        self.selected_index = self.ep_store.read(cx).rateable_predictions_count() - 1;
         cx.notify();
     }
 
@@ -281,7 +283,7 @@ impl RatePredictionsModal {
         let completion = self
             .ep_store
             .read(cx)
-            .shown_predictions()
+            .rateable_predictions()
             .skip(self.selected_index)
             .take(1)
             .next()
@@ -294,7 +296,7 @@ impl RatePredictionsModal {
         let completion = self
             .ep_store
             .read(cx)
-            .shown_predictions()
+            .rateable_predictions()
             .skip(self.selected_index)
             .take(1)
             .next()
@@ -308,29 +310,14 @@ impl RatePredictionsModal {
         new_buffer_snapshot: BufferSnapshot,
         old_buffer_snapshot: BufferSnapshot,
         cx: &mut App,
-    ) {
-        let language = new_buffer_snapshot.language().cloned();
+    ) -> Task<()> {
         diff.update(cx, |diff, cx| {
-            let update = diff.update_diff(
-                new_buffer_snapshot.text.clone(),
+            diff.set_base_text(
                 Some(old_buffer_snapshot.text().into()),
-                Some(true),
-                language,
+                new_buffer_snapshot.text,
                 cx,
-            );
-            cx.spawn(async move |diff, cx| {
-                let update = update.await;
-                if let Some(task) = diff
-                    .update(cx, |diff, cx| {
-                        diff.set_snapshot(update, &new_buffer_snapshot.text, cx)
-                    })
-                    .ok()
-                {
-                    task.await;
-                }
-            })
-            .detach();
-        });
+            )
+        })
     }
 
     fn insert_editable_region_markers(
@@ -434,7 +421,7 @@ impl RatePredictionsModal {
             self.selected_index = self
                 .ep_store
                 .read(cx)
-                .shown_predictions()
+                .rateable_predictions()
                 .enumerate()
                 .find(|(_, completion_b)| prediction.id == completion_b.id)
                 .map(|(ix, _)| ix)
@@ -469,10 +456,17 @@ impl RatePredictionsModal {
                 Point::new(visible_range.start.row.saturating_sub(5), 0)
                     ..Point::new(visible_range.end.row.saturating_add(5), 0)
                         .min(predicted_buffer_snapshot.max_point());
-            self.diff_editor.update(cx, |editor, cx| {
+            let predicted_diff_task = self.diff_editor.update(cx, |editor, cx| {
                 let predicted_buffer_id = predicted_buffer_snapshot.remote_id();
-                let diff = cx.new(|cx| BufferDiff::new(&predicted_buffer_snapshot.text, cx));
-                Self::update_buffer_diff(
+                let diff = cx.new(|cx| {
+                    BufferDiff::new(
+                        &predicted_buffer_snapshot.text,
+                        predicted_buffer_snapshot.language().cloned(),
+                        predicted_buffer.read(cx).language_registry(),
+                        cx,
+                    )
+                });
+                let predicted_diff_task = Self::update_buffer_diff(
                     &diff,
                     predicted_buffer_snapshot.clone(),
                     prediction.snapshot.clone(),
@@ -490,6 +484,7 @@ impl RatePredictionsModal {
                     );
                     multibuffer.add_diff(diff, cx);
                 });
+                predicted_diff_task
             });
 
             if let Some(editable_range) = editable_range.as_ref() {
@@ -625,8 +620,15 @@ impl RatePredictionsModal {
                         ..range.end.to_point(&expected_buffer_snapshot)
                 })
                 .unwrap_or(visible_range);
-            let expected_diff = cx.new(|cx| BufferDiff::new(&expected_buffer_snapshot.text, cx));
-            Self::update_buffer_diff(
+            let expected_diff = cx.new(|cx| {
+                BufferDiff::new(
+                    &expected_buffer_snapshot.text,
+                    expected_buffer_snapshot.language().cloned(),
+                    expected_buffer.read(cx).language_registry(),
+                    cx,
+                )
+            });
+            let expected_diff_task = Self::update_buffer_diff(
                 &expected_diff,
                 expected_buffer_snapshot.clone(),
                 prediction.snapshot.clone(),
@@ -676,16 +678,19 @@ impl RatePredictionsModal {
             let expected_buffer_subscription = cx.subscribe(&expected_buffer, {
                 let expected_diff = expected_diff.clone();
                 let original_snapshot = prediction.snapshot.clone();
-                move |_this, buffer, event, cx| match event {
+                move |this, buffer, event, cx| match event {
                     language::BufferEvent::Edited { .. }
                     | language::BufferEvent::LanguageChanged(_)
                     | language::BufferEvent::Reparsed => {
-                        Self::update_buffer_diff(
+                        let task = Self::update_buffer_diff(
                             &expected_diff,
                             buffer.read(cx).snapshot(),
                             original_snapshot.clone(),
                             cx,
                         );
+                        if let Some(active_prediction) = this.active_prediction.as_mut() {
+                            active_prediction.expected_diff_task = task;
+                        }
                     }
                     _ => {}
                 }
@@ -716,6 +721,8 @@ impl RatePredictionsModal {
                 expected_buffer,
                 expected_editor,
                 _expected_buffer_subscription: expected_buffer_subscription,
+                _predicted_diff_task: predicted_diff_task,
+                expected_diff_task,
                 formatted_inputs: cx.new(|cx| {
                     Markdown::new(
                         formatted_inputs.into(),
@@ -1120,7 +1127,7 @@ impl RatePredictionsModal {
     fn render_shown_completions(&self, cx: &Context<Self>) -> impl Iterator<Item = ListItem> {
         self.ep_store
             .read(cx)
-            .shown_predictions()
+            .rateable_predictions()
             .cloned()
             .enumerate()
             .map(|(index, completion)| {

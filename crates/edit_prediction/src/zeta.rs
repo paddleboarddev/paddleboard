@@ -1,9 +1,10 @@
 use crate::{
     CloudRequestTimeoutError, CurrentEditPrediction, DebugEvent, EditPredictionFinishedDebugEvent,
     EditPredictionId, EditPredictionModelInput, EditPredictionStartedDebugEvent,
-    EditPredictionStore, ZedUpdateRequiredError, buffer_path_with_id_fallback,
+    EditPredictionStore, PromptHistoryBoundary, ZedUpdateRequiredError,
+    buffer_path_with_id_fallback,
+    capture_prediction_context::CapturedPredictionContext,
     cursor_excerpt::{self, compute_cursor_excerpt, compute_syntax_ranges},
-    data_collection::UncommittedDiffResult,
     prediction::EditPredictionResult,
 };
 use anyhow::{Context as _, Result};
@@ -12,7 +13,6 @@ use cloud_llm_client::{
     AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
 };
 use edit_prediction_types::PredictedCursorPosition;
-use futures::future::Shared;
 use gpui::{App, AppContext as _, Entity, Task, TaskExt, WeakEntity, prelude::*};
 use language::{
     Buffer, BufferSnapshot, DiagnosticSeverity, EditPredictionPromptFormat, OffsetRangeExt as _,
@@ -24,12 +24,11 @@ use ui::SharedString;
 use workspace::notifications::simple_message_notification::MessageNotification;
 use workspace::notifications::{NotificationId, show_app_notification};
 use workspace::workspace_error::{ErrorAction, ErrorSeverity, WorkspaceError};
-use zeta_prompt::{ParsedOutput, ZetaPromptInput};
 
 use std::{ops::Range, path::Path, sync::Arc};
 use zeta_prompt::{
-    ZetaFormat, excerpt_range_for_format, format_zeta_prompt, get_prefill,
-    parse_zeta2_model_output, stop_tokens_for_format,
+    ParsedOutput, ZetaFormat, ZetaPromptInput, excerpt_ranges_for_format, format_zeta_prompt,
+    get_prefill, parse_zeta2_model_output, stop_tokens_for_format,
     zeta1::{self, EDITABLE_REGION_END_MARKER},
 };
 
@@ -48,10 +47,11 @@ use crate::open_ai_compatible::{
 // suggestion. Function signature, name, and call sites match
 // upstream so merges stay mechanical.
 #[allow(unused_variables)]
-pub fn request_prediction_with_zeta(
+pub(crate) fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
-    capture_data: Option<Shared<Task<UncommittedDiffResult>>>,
+    capture_data: Option<Task<Result<CapturedPredictionContext, anyhow::Error>>>,
+    prompt_history_boundary: Option<PromptHistoryBoundary>,
     repo_url: Option<String>,
     cx: &mut Context<EditPredictionStore>,
 ) -> Task<Result<Option<EditPredictionResult>>> {
@@ -131,7 +131,8 @@ fn handle_api_response<T>(
 
 const ACTIVE_BUFFER_DIAGNOSTIC_ADDITIONAL_CONTEXT_TOKEN_COUNT: usize = 100;
 const MAX_ACTIVE_BUFFER_DIAGNOSTICS_TO_COLLECT: usize = 20;
-const MAX_ACTIVE_BUFFER_DIAGNOSTIC_SNIPPET_TOKENS_TO_COLLECT: usize = 512;
+pub(crate) const MAX_ACTIVE_BUFFER_DIAGNOSTIC_MESSAGE_TOKENS_TO_COLLECT: usize = 512;
+pub(crate) const MAX_ACTIVE_BUFFER_DIAGNOSTIC_SNIPPET_TOKENS_TO_COLLECT: usize = 512;
 
 pub(crate) fn active_buffer_diagnostics(
     snapshot: &language::BufferSnapshot,
@@ -165,7 +166,11 @@ pub(crate) fn active_buffer_diagnostics(
             };
             (
                 severity,
-                entry.diagnostic.message.clone(),
+                zeta_prompt::clamp_text_to_token_count(
+                    &entry.diagnostic.message,
+                    MAX_ACTIVE_BUFFER_DIAGNOSTIC_MESSAGE_TOKENS_TO_COLLECT,
+                )
+                .to_string(),
                 diagnostic_point_range,
                 snippet_point_range,
             )

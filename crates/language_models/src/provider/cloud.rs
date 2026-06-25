@@ -2,7 +2,8 @@ use ai_onboarding::YoungAccountBanner;
 use anthropic::AnthropicModelMode;
 use anyhow::{Result, anyhow};
 use client::{
-    Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, UserStore, global_llm_token, zed_urls,
+    Client, NeedsLlmTokenRefresh, RefreshLlmTokenListener, TelemetrySettings, UserStore,
+    global_llm_token, zed_urls,
 };
 use cloud_api_client::LlmApiToken;
 use cloud_api_types::{OrganizationId, Plan};
@@ -31,7 +32,7 @@ use language_model::{
     LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
     LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
-    PaymentRequiredError, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
+    ProviderConfigurationView, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use rand::{Rng as _, SeedableRng as _, rngs::StdRng};
@@ -86,6 +87,8 @@ impl CloudLlmTokenProvider for ClientTokenProvider {
         let client = self.client.clone();
         let llm_api_token = self.llm_api_token.clone();
         Box::pin(async move {
+            let organization_id =
+                organization_id.ok_or_else(|| anyhow!("No organization selected."))?;
             client
                 .cached_llm_token(&llm_api_token, organization_id)
                 .await
@@ -99,9 +102,19 @@ impl CloudLlmTokenProvider for ClientTokenProvider {
         let client = self.client.clone();
         let llm_api_token = self.llm_api_token.clone();
         Box::pin(async move {
+            let organization_id =
+                organization_id.ok_or_else(|| anyhow!("No organization selected."))?;
             client
                 .refresh_llm_token(&llm_api_token, organization_id)
                 .await
+        })
+    }
+
+    fn has_data_retention_consent(&self, cx: &impl AppContext) -> bool {
+        cx.read_global(|settings_store: &SettingsStore, _| {
+            settings_store
+                .get::<TelemetrySettings>(None)
+                .anthropic_retention
         })
     }
 }
@@ -366,7 +379,7 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
                         | client::Status::Reauthenticated
                         | client::Status::Connected { .. }
                 ) {
-                    return Err(AuthenticateError::Other(anyhow::anyhow!(
+                    return Err(AuthenticateError::Other(anyhow!(
                         "sign-in did not complete: {current_status:?}"
                     )));
                 }
@@ -389,8 +402,30 @@ impl LanguageModelProvider for CloudLanguageModelProvider {
             .into()
     }
 
+    fn configuration_view_v2(
+        &self,
+        target_agent: language_model::ConfigurationViewTargetAgent,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> ProviderConfigurationView {
+        // The Zed sign-in/plan control is small enough that sending users to a
+        // dedicated sub-page just to reach it would be annoying, so render it
+        // inline even though it isn't an API-key field.
+        ProviderConfigurationView::Inline(self.configuration_view(target_agent, window, cx))
+    }
+
     fn reset_credentials(&self, _cx: &mut App) -> Task<Result<()>> {
         Task::ready(Ok(()))
+    }
+
+    fn authentication_error_message(&self) -> SharedString {
+        "Failed to sign in with your Zed account (401).".into()
+    }
+
+    fn missing_credentials_error_message(&self) -> SharedString {
+        "You are not signed in to your Zed account. \
+        Sign in to continue."
+            .into()
     }
 
     fn fast_mode_confirmation(&self, _cx: &App) -> Option<FastModeConfirmation> {
@@ -427,6 +462,8 @@ impl CloudLanguageModel {
         body: CompletionBody,
     ) -> Result<PerformLlmCompletionResponse> {
         let http_client = &client.http_client();
+        let organization_id =
+            organization_id.ok_or_else(|| anyhow!("No organization selected."))?;
 
         let mut token = client
             .cached_llm_token(&llm_api_token, organization_id.clone())
@@ -469,7 +506,7 @@ impl CloudLanguageModel {
             }
 
             if status == StatusCode::PAYMENT_REQUIRED {
-                return Err(anyhow!(PaymentRequiredError));
+                return Err(anyhow!("Payment required"));
             }
 
             let mut body = String::new();
@@ -756,7 +793,7 @@ impl LanguageModel for CloudLanguageModel {
                         Err(err) => anyhow!(err),
                     })?;
 
-                    let mut mapper = AnthropicEventMapper::new();
+                    let mut mapper = AnthropicEventMapper::new(provider_name.clone());
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,
@@ -1043,6 +1080,11 @@ impl RenderOnce for ZedAiConfiguration {
                 },
                 true,
             ),
+            Some(Plan::ZedVip) => (
+                "You have access to Zed's hosted models through your VIP subscription.",
+                true,
+            ),
+
             Some(Plan::ZedFree) | None => (
                 if self.eligible_for_trial {
                     "Subscribe for access to Zed's hosted models. Start with a 14 day free trial."
@@ -1390,7 +1432,9 @@ mod tests {
                         supports_tools: true,
                         supports_images: false,
                         supports_thinking: false,
+                        supports_disabling_thinking: false,
                         supports_fast_mode: false,
+                        supports_server_side_compaction: false,
                         supported_effort_levels: Vec::new(),
                         supports_streaming_tools: false,
                         supports_parallel_tool_calls: false,
