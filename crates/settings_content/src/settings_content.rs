@@ -12,6 +12,8 @@ mod paddleboard_sandbox;
 mod paddleboard_otel;
 // PaddleBoard: schema for the Scion integration (opt-in).
 mod paddleboard_scion;
+// PaddleBoard: schema for the local LLM usage tracker.
+mod paddleboard_usage;
 mod project;
 mod serde_helper;
 mod terminal;
@@ -31,6 +33,7 @@ pub use merge_from::MergeFrom as MergeFromTrait;
 pub use paddleboard_otel::*;
 pub use paddleboard_scion::*;
 pub use paddleboard_sandbox::*;
+pub use paddleboard_usage::*;
 pub use project::*;
 use serde::de::DeserializeOwned;
 pub use serde_helper::{
@@ -279,6 +282,9 @@ pub struct SettingsContent {
 
     // PaddleBoard: configuration for the Scion integration (opt-in, default off).
     pub paddleboard_scion: Option<PaddleboardScionContent>,
+
+    // PaddleBoard: configuration for the local LLM usage tracker (opt-out).
+    pub paddleboard_usage: Option<PaddleboardUsageContent>,
 
     /// Local overrides for feature flags, keyed by flag name.
     pub feature_flags: Option<FeatureFlagsMap>,

@@ -118,11 +118,26 @@ The original `stdio` transport (which runs the binary directly on your host) is 
 One place to browse and install everything the agent talks to. Think of it as the marina where every external collaborator your PaddleBoard talks to ties up.
 
 - Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Gemini) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
-- Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), and **MCP Servers** (the absorbed management page plus a catalog of common servers).
+- Four tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), **MCP Servers** (the absorbed management page plus a catalog of common servers), and **Usage** (local, per-provider token stats — see below).
 - Installed items show a green badge; missing ones show an **Install / Sign In / Set Up / Learn More** action that does the right thing for the category — registry agent installs are a one-click settings write, CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
 
 The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome screen and the standalone MCP Servers pane — both routes now land here.
+
+---
+
+### Usage tracking
+
+If you mix multiple LLM/SLM providers, PaddleBoard can keep **local stats on how your token usage is distributed** across them — Anthropic, OpenAI, Gemini, Vertex, Bedrock, local SLMs (Ollama, LM Studio), and anything else you have configured. It complements the live status-bar context gauge: the gauge shows the *current* thread, this shows usage *over time*.
+
+- **All local, all yours.** Nothing is reported anywhere. PaddleBoard writes one small **JSON file per day** (`<data_dir>/usage/YYYY-MM-DD.json`) — a text format on purpose, so the directory can live inside **your own private git repository** and produce clean diffs.
+- **See it in the AI Dock → Usage tab.** Today / last-7-days / all-time totals up top, then a per-provider, per-model breakdown. An **Open Folder** button reveals the flatfiles; a refresh button re-reads them.
+- **Accurate by construction.** Usage is recorded at the single point in the agent where every provider's billed token delta flows through (normal completions *and* context compaction), so providers are counted equally and nothing is double-counted.
+- **Configure it** under `"paddleboard_usage"` in settings:
+  - `enabled` (default `true`) — turn tracking on/off.
+  - `granularity` — `"daily"` (one total per provider/model per day) or `"session"` (also broken down by agent session).
+  - `directory` — where the files go; point it inside your backup repo (supports a leading `~`). Defaults to `<data_dir>/usage`.
+  - `auto_commit` (default `false`) — when on, PaddleBoard runs `git add` + `git commit` in that directory after each flush. Off by default; when off, you commit and push the files yourself.
 
 ---
 
