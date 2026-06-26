@@ -316,8 +316,9 @@ fn register_language_model_providers(
         cx,
     );
     // PaddleBoard: register the Vertex AI provider (addition over upstream Zed).
-    // Ordered directly above Google AI so "Gemini Enterprise" sits above
-    // "Google AI" in the provider list.
+    // Registration order does not affect the displayed list (the registry
+    // returns providers sorted by `PROVIDER_DISPLAY_ORDER`); the vendor grouping
+    // that places "Gemini Enterprise" next to "Google AI" lives there.
     registry.register_provider(
         Arc::new(crate::provider::vertex::VertexLanguageModelProvider::new(
             client.http_client(),
