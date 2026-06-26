@@ -85,6 +85,7 @@ paddleboard_sandbox_prereqs_state.workspace = true
 paddleboard_scion.workspace = true
 paddleboard_scion_settings.workspace = true
 paddleboard_sandbox_settings.workspace = true
+paddleboard_usage.workspace = true
 zstd.workspace = true
 
 [dev-dependencies]

@@ -283,6 +283,7 @@ dependencies = [
  "paddleboard_sandbox_settings",
  "paddleboard_scion",
  "paddleboard_scion_settings",
+ "paddleboard_usage",
  "parking_lot",
  "paths",
  "pretty_assertions",
@@ -12451,6 +12452,7 @@ dependencies = [
  "paddleboard_sandbox_settings",
  "paddleboard_scion_settings",
  "paddleboard_scion_ui",
+ "paddleboard_usage",
  "parking_lot",
  "paths",
  "picker",
@@ -12573,6 +12575,7 @@ dependencies = [
  "log",
  "menu",
  "paddleboard_actions",
+ "paddleboard_usage",
  "project",
  "serde",
  "serde_json",
@@ -12748,6 +12751,22 @@ dependencies = [
  "ui",
  "ui_input",
  "workspace",
+]
+
+[[package]]
+name = "paddleboard_usage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "gpui",
+ "log",
+ "paths",
+ "serde",
+ "serde_json",
+ "settings",
+ "smol",
+ "tempfile",
 ]
 
 [[package]]
