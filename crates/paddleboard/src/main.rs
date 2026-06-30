@@ -513,6 +513,9 @@ fn main() {
         paddleboard_sandbox_settings::init(cx);
         paddleboard_otel_settings::init(cx);
         paddleboard_scion_settings::init(cx);
+        // PaddleBoard: force-link the usage-tracker settings before
+        // `settings::init` collects registrations; real setup runs below.
+        paddleboard_usage::init_settings(cx);
         paddleboard_sandbox_prereqs_ui::init(cx);
         paddleboard_agent_frameworks::init(cx);
         paddleboard_ai_dock::init(cx);
@@ -524,6 +527,9 @@ fn main() {
         settings::init(cx);
         zlog_settings::init(cx);
         paddleboard_otel::init(cx);
+        // PaddleBoard: start the local LLM usage recorder (reads settings, so
+        // it must run after `settings::init`).
+        paddleboard_usage::init(cx);
         zed::watch_settings_files(fs.clone(), cx);
         handle_keymap_file_changes(user_keymap_file_rx, user_keymap_watcher, cx);
 

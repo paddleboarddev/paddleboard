@@ -241,6 +241,7 @@ paddleboard_ai_dock.workspace = true
 paddleboard_languages_ui.workspace = true
 paddleboard_scion_settings.workspace = true
 paddleboard_scion_ui.workspace = true
+paddleboard_usage.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 zlog.workspace = true
 zlog_settings.workspace = true

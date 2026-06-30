@@ -11,6 +11,34 @@ use thiserror::Error;
 /// Returns Some(extension_id) if the provider should be hidden when that extension is installed.
 pub type BuiltinProviderHidingFn = Box<dyn Fn(&str) -> Option<&'static str> + Send + Sync>;
 
+/// PaddleBoard: explicit provider display order, grouping the list by vendor so
+/// providers from the same company sit together (e.g. Google AI directly above
+/// Gemini Enterprise / Vertex AI; OpenAI directly above ChatGPT Subscription)
+/// instead of the raw id-alphabetical order the `BTreeMap` would otherwise
+/// produce. Vendors are ordered alphabetically. Providers not listed here are
+/// appended afterwards in their natural id-alphabetical order, so newly added
+/// or user-defined providers still appear deterministically.
+const PROVIDER_DISPLAY_ORDER: &[&str] = &[
+    "zed.dev",
+    "amazon-bedrock",
+    "anthropic",
+    "deepseek",
+    "fireworks",
+    "copilot_chat",
+    "google",
+    "vertex",
+    "lmstudio",
+    "mistral",
+    "ollama",
+    "openai",
+    "openai-subscribed",
+    "opencode",
+    "openrouter",
+    "vercel_ai_gateway",
+    "x_ai",
+    "zhipu",
+];
+
 pub fn init(cx: &mut App) {
     let registry = cx.new(|_cx| LanguageModelRegistry::default());
     cx.set_global(GlobalLanguageModelRegistry(registry));
@@ -179,18 +207,24 @@ impl LanguageModelRegistry {
     }
 
     pub fn providers(&self) -> Vec<Arc<dyn LanguageModelProvider>> {
-        let zed_provider_id = LanguageModelProviderId("zed.dev".into());
-        let mut providers = Vec::with_capacity(self.providers.len());
-        if let Some(provider) = self.providers.get(&zed_provider_id) {
-            providers.push(provider.clone());
-        }
-        providers.extend(self.providers.values().filter_map(|p| {
-            if p.id() != zed_provider_id {
-                Some(p.clone())
-            } else {
-                None
+        // PaddleBoard: order providers by vendor grouping (PROVIDER_DISPLAY_ORDER)
+        // rather than the BTreeMap's raw id-alphabetical order, so same-vendor
+        // providers sit together. `values()` is already id-alphabetical and
+        // `sort_by_key` is stable, so any provider not in the list keeps that
+        // order at the end. `zed.dev` is first in the list, preserving its
+        // previous "always first" placement.
+        let mut providers: Vec<Arc<dyn LanguageModelProvider>> =
+            self.providers.values().cloned().collect();
+        providers.sort_by_key(|provider| {
+            let id = provider.id();
+            match PROVIDER_DISPLAY_ORDER
+                .iter()
+                .position(|listed| *listed == id.0.as_ref())
+            {
+                Some(rank) => (0usize, rank),
+                None => (1usize, usize::MAX),
             }
-        }));
+        });
         providers
     }
 
@@ -477,6 +511,7 @@ impl LanguageModelRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::LanguageModelProviderName;
     use crate::fake_provider::FakeLanguageModelProvider;
 
     #[test]
@@ -520,6 +555,58 @@ mod tests {
 
         let providers = registry.read(cx).providers();
         assert!(providers.is_empty());
+    }
+
+    /// PaddleBoard: providers are grouped by vendor via `PROVIDER_DISPLAY_ORDER`,
+    /// not the BTreeMap's id-alphabetical order, and unknown providers are
+    /// appended afterwards in id-alphabetical order.
+    #[gpui::test]
+    fn test_providers_use_vendor_display_order(cx: &mut App) {
+        let registry = cx.new(|_| LanguageModelRegistry::default());
+
+        // Register in a deliberately scrambled order, including the two Google
+        // providers (which must end up adjacent) and an unlisted custom one.
+        let ids = [
+            "vertex",
+            "zzz-custom",
+            "openai",
+            "google",
+            "openai-subscribed",
+            "amazon-bedrock",
+        ];
+        registry.update(cx, |registry, cx| {
+            for id in ids {
+                registry.register_provider(
+                    Arc::new(FakeLanguageModelProvider::new(
+                        LanguageModelProviderId(id.into()),
+                        LanguageModelProviderName(id.into()),
+                    )),
+                    cx,
+                );
+            }
+        });
+
+        let order: Vec<String> = registry
+            .read(cx)
+            .providers()
+            .iter()
+            .map(|provider| provider.id().0.to_string())
+            .collect();
+
+        assert_eq!(
+            order,
+            vec![
+                // Listed providers, in vendor order (Google AI directly above
+                // Gemini Enterprise; OpenAI directly above ChatGPT Subscription).
+                "amazon-bedrock",
+                "google",
+                "vertex",
+                "openai",
+                "openai-subscribed",
+                // Unlisted providers come last, id-alphabetical.
+                "zzz-custom",
+            ]
+        );
     }
 
     #[gpui::test]

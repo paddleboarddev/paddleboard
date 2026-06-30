@@ -78,6 +78,28 @@ impl OpenAiCompatibleLanguageModelProvider {
         }
     }
 
+    /// PaddleBoard: construct a first-class, built-in OpenAI-compatible provider
+    /// (e.g. Z.ai, Fireworks) whose settings come from a dedicated settings block
+    /// resolved by `resolve_settings`, rather than the user-defined
+    /// `openai_compatible` map. Unlike [`new`], the display name is fixed
+    /// independently of the id, and default models ship via `default.json`.
+    pub fn new_builtin(
+        id: Arc<str>,
+        name: LanguageModelProviderName,
+        http_client: Arc<dyn HttpClient>,
+        credentials_provider: Arc<dyn CredentialsProvider>,
+        resolve_settings: for<'a> fn(&'a str, &'a App) -> Option<&'a OpenAiCompatibleSettings>,
+        cx: &mut App,
+    ) -> Self {
+        let state = State::new(id.clone(), credentials_provider, resolve_settings, cx);
+        Self {
+            id: id.into(),
+            name,
+            http_client,
+            state,
+        }
+    }
+
     fn create_language_model(&self, model: AvailableModel) -> Arc<dyn LanguageModel> {
         Arc::new(OpenAiCompatibleLanguageModel {
             id: LanguageModelId::from(model.name.clone()),

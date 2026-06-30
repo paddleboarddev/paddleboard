@@ -40,7 +40,7 @@ PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as
 ### 5. AI Dock
 One place to browse and install everything the agent talks to — the marina where every external collaborator ties up.
 - Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or hit **Open the AI Dock** on the Welcome screen. The Welcome screen also surfaces a **Featured** strip (Claude / Codex / Copilot / Cursor / Gemini pills) so first-run users have recognizable names to click.
-- Three tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, Google ADK), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI).
+- Four tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, Google ADK), **Skills** (slash commands), **MCP Servers** (catalog + absorbed management UI), and **Usage** (local per-provider token stats — see #15).
 - Installed items show a green badge; missing ones get a one-click **Install / Sign In / Set Up / Learn More** that does the category-appropriate thing. CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command. Bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - **Add Agent** (Agents tab header): opens a modal to register a custom agent server by its registry ID — for agents not in the catalog.
 - **Create Skill** (Skills tab header): opens a modal with a name field, prompt editor, and project/user scope toggle. Creates a new `.claude/commands/{name}.md` file.
@@ -106,6 +106,13 @@ Watch the status bar while an agent thread runs — a percentage shows how much 
 - Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
 - Goes yellow near the limit, red past it; hidden when no thread is active.
 - Purely local — reads counts the thread already tracks. Telemetry stays off.
+
+### 15. Local Usage Stats
+Mix multiple providers? PaddleBoard tracks **how your token usage splits across them** over time — all on your machine. 📊
+- Open the **AI Dock → Usage** tab: today / 7-day / all-time totals, then a per-provider, per-model breakdown.
+- Stored as a **text JSON file per day** (`<data_dir>/usage/`) — point `paddleboard_usage.directory` at your own private git repo to back it up; clean diffs guaranteed.
+- Counts every provider equally (Anthropic, OpenAI, Gemini, Vertex, Bedrock, Ollama, …) — recorded at the one spot every billed token flows through.
+- Opt-out via `"paddleboard_usage": { "enabled": false }`; optional `auto_commit` commits the files for you.
 
 ---
 

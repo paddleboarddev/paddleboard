@@ -29,6 +29,9 @@ pub struct AllLanguageModelSettings {
     pub open_router: OpenRouterSettings,
     pub openai: OpenAiSettings,
     pub openai_compatible: HashMap<Arc<str>, OpenAiCompatibleSettings>,
+    // PaddleBoard: first-class built-in OpenAI-compatible providers.
+    pub fireworks: OpenAiCompatibleSettings,
+    pub zhipu: OpenAiCompatibleSettings,
     pub vercel_ai_gateway: VercelAiGatewaySettings,
     pub x_ai: XAiSettings,
     pub zed_dot_dev: ZedDotDevSettings,
@@ -194,6 +197,40 @@ impl settings::Settings for AllLanguageModelSettings {
                     )
                 })
                 .collect(),
+            // PaddleBoard: built-in OpenAI-compatible providers. `unwrap_or_default`
+            // so a missing block can't panic startup (defaults live in default.json).
+            fireworks: {
+                let fireworks = language_models.fireworks.unwrap_or_else(|| {
+                    settings::OpenAiCompatibleSettingsContent {
+                        api_url: "https://api.fireworks.ai/inference/v1".into(),
+                        available_models: Vec::new(),
+                        custom_headers: None,
+                    }
+                });
+                OpenAiCompatibleSettings {
+                    api_url: fireworks.api_url,
+                    available_models: fireworks.available_models,
+                    custom_headers: custom_headers_from(
+                        "Fireworks AI",
+                        fireworks.custom_headers,
+                        &[],
+                    ),
+                }
+            },
+            zhipu: {
+                let zhipu = language_models.zhipu.unwrap_or_else(|| {
+                    settings::OpenAiCompatibleSettingsContent {
+                        api_url: "https://api.z.ai/api/paas/v4".into(),
+                        available_models: Vec::new(),
+                        custom_headers: None,
+                    }
+                });
+                OpenAiCompatibleSettings {
+                    api_url: zhipu.api_url,
+                    available_models: zhipu.available_models,
+                    custom_headers: custom_headers_from("Z.ai", zhipu.custom_headers, &[]),
+                }
+            },
             vercel_ai_gateway: VercelAiGatewaySettings {
                 api_url: vercel_ai_gateway.api_url.unwrap(),
                 available_models: vercel_ai_gateway.available_models.unwrap_or_default(),

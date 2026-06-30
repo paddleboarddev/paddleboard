@@ -126,11 +126,16 @@ impl RenderOnce for ConfiguredApiCard {
             .border_color(cx.theme().colors().border)
             .bg(cx.theme().colors().background)
             .child(
+                // PaddleBoard: flex_1 + min_w_0 + items_start let a long label
+                // (e.g. "API key set in GEMINI_API_KEY environment variable")
+                // wrap onto multiple lines instead of overflowing the card.
                 h_flex()
                     .min_w_0()
+                    .flex_1()
+                    .items_start()
                     .gap_1()
                     .child(Icon::new(IconName::Check).color(Color::Success))
-                    .child(Label::new(self.label)),
+                    .child(Label::new(self.label).flex_1()),
             )
             .child(
                 Button::new(button_id, button_label)

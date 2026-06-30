@@ -2142,21 +2142,42 @@ impl Thread {
                 .max(update.cache_read_input_tokens),
         };
         self.current_request_token_usage = current_accounted_usage;
-        self.cumulative_token_usage = self.cumulative_token_usage
-            + TokenUsage {
-                input_tokens: current_accounted_usage
-                    .input_tokens
-                    .saturating_sub(previous_accounted_usage.input_tokens),
-                output_tokens: current_accounted_usage
-                    .output_tokens
-                    .saturating_sub(previous_accounted_usage.output_tokens),
-                cache_creation_input_tokens: current_accounted_usage
-                    .cache_creation_input_tokens
-                    .saturating_sub(previous_accounted_usage.cache_creation_input_tokens),
-                cache_read_input_tokens: current_accounted_usage
-                    .cache_read_input_tokens
-                    .saturating_sub(previous_accounted_usage.cache_read_input_tokens),
-            };
+        let billed_delta = TokenUsage {
+            input_tokens: current_accounted_usage
+                .input_tokens
+                .saturating_sub(previous_accounted_usage.input_tokens),
+            output_tokens: current_accounted_usage
+                .output_tokens
+                .saturating_sub(previous_accounted_usage.output_tokens),
+            cache_creation_input_tokens: current_accounted_usage
+                .cache_creation_input_tokens
+                .saturating_sub(previous_accounted_usage.cache_creation_input_tokens),
+            cache_read_input_tokens: current_accounted_usage
+                .cache_read_input_tokens
+                .saturating_sub(previous_accounted_usage.cache_read_input_tokens),
+        };
+        self.cumulative_token_usage = self.cumulative_token_usage + billed_delta;
+
+        // PaddleBoard: `billed_delta` is the billing-accurate incremental usage
+        // for the in-flight request. This is the single choke point every
+        // provider's usage (normal completions and context compaction alike)
+        // flows through, so mirror it into the local, private usage store.
+        if let Some(model) = self.model() {
+            let provider = model.provider_id().0.to_string();
+            let model_name = model.name().0.to_string();
+            let session_id = self.id.to_string();
+            paddleboard_usage::record(
+                &provider,
+                &model_name,
+                &session_id,
+                paddleboard_usage::TokenCounts {
+                    input_tokens: billed_delta.input_tokens,
+                    output_tokens: billed_delta.output_tokens,
+                    cache_creation_input_tokens: billed_delta.cache_creation_input_tokens,
+                    cache_read_input_tokens: billed_delta.cache_read_input_tokens,
+                },
+            );
+        }
     }
 
     fn update_token_usage(&mut self, update: language_model::TokenUsage, cx: &mut Context<Self>) {

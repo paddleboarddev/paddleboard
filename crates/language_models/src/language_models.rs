@@ -6,7 +6,8 @@ use collections::{HashMap, HashSet};
 use credentials_provider::CredentialsProvider;
 use gpui::{App, Context, Entity};
 use language_model::{
-    ConfiguredModel, LanguageModelProviderId, LanguageModelRegistry, ZED_CLOUD_PROVIDER_ID,
+    ConfiguredModel, LanguageModelProviderId, LanguageModelProviderName, LanguageModelRegistry,
+    ZED_CLOUD_PROVIDER_ID,
 };
 use provider::deepseek::DeepSeekLanguageModelProvider;
 
@@ -315,17 +316,48 @@ fn register_language_model_providers(
         )),
         cx,
     );
+    // PaddleBoard: first-class built-in OpenAI-compatible providers (additions
+    // over upstream Zed). Both Z.ai (Zhipu, the GLM maker) and Fireworks AI
+    // expose OpenAI-compatible APIs, so they reuse the OpenAI-compatible provider
+    // pointed at a dedicated settings block. Default models ship in default.json
+    // and are user-extensible via `available_models`. Display position is set in
+    // `PROVIDER_DISPLAY_ORDER`.
     registry.register_provider(
-        Arc::new(GoogleLanguageModelProvider::new(
+        Arc::new(OpenAiCompatibleLanguageModelProvider::new_builtin(
+            "fireworks".into(),
+            LanguageModelProviderName::new("Fireworks AI"),
+            client.http_client(),
+            credentials_provider.clone(),
+            |_id, cx| Some(&crate::AllLanguageModelSettings::get_global(cx).fireworks),
+            cx,
+        )),
+        cx,
+    );
+    registry.register_provider(
+        Arc::new(OpenAiCompatibleLanguageModelProvider::new_builtin(
+            "zhipu".into(),
+            LanguageModelProviderName::new("Z.ai"),
+            client.http_client(),
+            credentials_provider.clone(),
+            |_id, cx| Some(&crate::AllLanguageModelSettings::get_global(cx).zhipu),
+            cx,
+        )),
+        cx,
+    );
+    // PaddleBoard: register the Vertex AI provider (addition over upstream Zed).
+    // Registration order does not affect the displayed list (the registry
+    // returns providers sorted by `PROVIDER_DISPLAY_ORDER`); the vendor grouping
+    // that places "Gemini Enterprise" next to "Google AI" lives there.
+    registry.register_provider(
+        Arc::new(crate::provider::vertex::VertexLanguageModelProvider::new(
             client.http_client(),
             credentials_provider.clone(),
             cx,
         )),
         cx,
     );
-    // PaddleBoard: register the Vertex AI provider (addition over upstream Zed).
     registry.register_provider(
-        Arc::new(crate::provider::vertex::VertexLanguageModelProvider::new(
+        Arc::new(GoogleLanguageModelProvider::new(
             client.http_client(),
             credentials_provider.clone(),
             cx,

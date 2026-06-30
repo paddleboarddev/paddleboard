@@ -18,12 +18,14 @@ mod agents_tab;
 pub(crate) mod build_mcp_modal;
 mod mcp_tab;
 mod skills_tab;
+mod usage_tab;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AiDockTab {
     Agents,
     Skills,
     Mcp,
+    Usage,
 }
 
 pub struct AiDock {
@@ -32,6 +34,9 @@ pub struct AiDock {
     tab: AiDockTab,
     catalog: Arc<Catalog>,
     mcp_view: Option<Entity<agent_ui::McpServersView>>,
+    // Cached so rendering the Usage tab never touches disk; refreshed on
+    // tab-switch and via the tab's refresh button.
+    usage_summary: Option<paddleboard_usage::UsageSummary>,
     expanded: bool,
 }
 
@@ -49,8 +54,14 @@ impl AiDock {
             tab,
             catalog: CatalogGlobal::get(cx),
             mcp_view: None,
+            usage_summary: None,
             expanded: false,
         });
+    }
+
+    fn refresh_usage(&mut self, cx: &mut Context<Self>) {
+        self.usage_summary = Some(paddleboard_usage::summary());
+        cx.notify();
     }
 
     fn toggle_expanded(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
@@ -69,6 +80,9 @@ impl AiDock {
         self.tab = tab;
         if matches!(tab, AiDockTab::Mcp) {
             self.ensure_mcp_view(window, cx);
+        }
+        if matches!(tab, AiDockTab::Usage) {
+            self.refresh_usage(cx);
         }
         cx.notify();
     }
@@ -92,6 +106,7 @@ impl AiDock {
             AiDockTab::Agents => 0,
             AiDockTab::Skills => 1,
             AiDockTab::Mcp => 2,
+            AiDockTab::Usage => 3,
         };
 
         ToggleButtonGroup::single_row(
@@ -113,6 +128,12 @@ impl AiDock {
                     "MCP Servers",
                     cx.listener(|this, _event, window, cx| {
                         this.switch_tab(AiDockTab::Mcp, window, cx);
+                    }),
+                ),
+                ToggleButtonSimple::new(
+                    "Usage",
+                    cx.listener(|this, _event, window, cx| {
+                        this.switch_tab(AiDockTab::Usage, window, cx);
                     }),
                 ),
             ],
@@ -177,6 +198,7 @@ impl AiDock {
             AiDockTab::Agents => agents_tab::render(self, cx).into_any_element(),
             AiDockTab::Skills => skills_tab::render(self, cx).into_any_element(),
             AiDockTab::Mcp => mcp_tab::render(self, window, cx),
+            AiDockTab::Usage => usage_tab::render(self, cx).into_any_element(),
         }
     }
 }
@@ -196,6 +218,10 @@ impl Render for AiDock {
         // Make sure the MCP view exists if we opened directly to MCP.
         if matches!(self.tab, AiDockTab::Mcp) && self.mcp_view.is_none() {
             self.ensure_mcp_view(window, cx);
+        }
+        // Likewise, load usage if we opened directly to the Usage tab.
+        if matches!(self.tab, AiDockTab::Usage) && self.usage_summary.is_none() {
+            self.refresh_usage(cx);
         }
 
         let header = self.render_header(cx);
