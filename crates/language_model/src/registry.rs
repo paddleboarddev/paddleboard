@@ -23,6 +23,7 @@ const PROVIDER_DISPLAY_ORDER: &[&str] = &[
     "amazon-bedrock",
     "anthropic",
     "deepseek",
+    "fireworks",
     "copilot_chat",
     "google",
     "vertex",
@@ -35,6 +36,7 @@ const PROVIDER_DISPLAY_ORDER: &[&str] = &[
     "openrouter",
     "vercel_ai_gateway",
     "x_ai",
+    "zhipu",
 ];
 
 pub fn init(cx: &mut App) {

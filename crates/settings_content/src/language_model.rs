@@ -24,6 +24,11 @@ pub struct AllLanguageModelSettingsContent {
     pub open_router: Option<OpenRouterSettingsContent>,
     pub openai: Option<OpenAiSettingsContent>,
     pub openai_compatible: Option<HashMap<Arc<str>, OpenAiCompatibleSettingsContent>>,
+    // PaddleBoard: first-class built-in OpenAI-compatible providers (additions
+    // over upstream Zed). Same shape as a single `openai_compatible` entry, but
+    // shipped with a fixed name/default model list instead of being user-defined.
+    pub fireworks: Option<OpenAiCompatibleSettingsContent>,
+    pub zhipu: Option<OpenAiCompatibleSettingsContent>,
     pub vercel_ai_gateway: Option<VercelAiGatewaySettingsContent>,
     pub x_ai: Option<XAiSettingsContent>,
     #[serde(rename = "zed.dev")]
