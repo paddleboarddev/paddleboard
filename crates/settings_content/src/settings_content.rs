@@ -10,6 +10,8 @@ pub mod merge_from;
 mod paddleboard_sandbox;
 // PaddleBoard: schema for OpenTelemetry trace export.
 mod paddleboard_otel;
+// PaddleBoard: schema for the persona system (PERSONA.md).
+mod paddleboard_personas;
 // PaddleBoard: schema for the Scion integration (opt-in).
 mod paddleboard_scion;
 // PaddleBoard: schema for the local LLM usage tracker.
@@ -31,6 +33,7 @@ pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
 // PaddleBoard: re-export sandbox and OTEL content types alongside the rest.
 pub use paddleboard_otel::*;
+pub use paddleboard_personas::*;
 pub use paddleboard_scion::*;
 pub use paddleboard_sandbox::*;
 pub use paddleboard_usage::*;
@@ -279,6 +282,9 @@ pub struct SettingsContent {
 
     // PaddleBoard: configuration for OpenTelemetry trace export (opt-in).
     pub paddleboard_otel: Option<PaddleboardOtelContent>,
+
+    // PaddleBoard: configuration for the persona system (opt-out).
+    pub paddleboard_personas: Option<PaddleboardPersonasContent>,
 
     // PaddleBoard: configuration for the Scion integration (opt-in, default off).
     pub paddleboard_scion: Option<PaddleboardScionContent>,

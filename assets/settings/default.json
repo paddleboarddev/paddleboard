@@ -2840,6 +2840,17 @@
     "service_name": "paddleboard"
   },
 
+  // PaddleBoard: the persona system. A `PERSONA.md` at the project root (or
+  // `*.persona.md` files in `.claude/personas/` / `~/.claude/personas/`)
+  // describes who the agent should be — a Senior Developer, an SRE, a QA
+  // Engineer — and PaddleBoard injects it into the agent's system prompt for
+  // the whole thread.
+  "paddleboard_personas": {
+    // Whether the persona system is enabled. Inert until a persona file
+    // exists, so on-by-default costs nothing.
+    "enabled": true
+  },
+
   // Local, private LLM usage tracking. Records per-provider, per-model token
   // counts to a text flatfile so you can see how your usage is distributed
   // across providers over time. All data stays on your machine — nothing is

@@ -14,6 +14,8 @@ pub struct Catalog {
     pub skills: Vec<SkillEntry>,
     #[serde(default)]
     pub mcp_servers: Vec<McpEntry>,
+    #[serde(default)]
+    pub personas: Vec<PersonaEntry>,
 }
 
 /// One agent entry. `id` should match the corresponding `RegistryAgent` id
@@ -57,6 +59,19 @@ pub struct SkillEntry {
     pub featured: bool,
     #[serde(default)]
     pub builtin: bool,
+}
+
+/// One persona entry. Personas are `*.persona.md` files describing who the
+/// agent should be (a Senior Developer, an SRE, a QA Engineer…), installed
+/// into `.claude/personas/` (per-project) or `~/.claude/personas/` (per-user).
+/// A project can also carry a zero-config `PERSONA.md` at its root.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PersonaEntry {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    #[serde(default)]
+    pub featured: bool,
 }
 
 /// One MCP server entry. The AI Dock's MCP tab uses these to populate the
@@ -132,6 +147,23 @@ pub fn bundled_skill_content(id: &str) -> Option<&'static str> {
         "test" => Some(include_str!("../../../assets/ai_dock/skills/test.md")),
         "check-drift" => Some(include_str!("../../../assets/ai_dock/skills/check-drift.md")),
         "build-mcp" => Some(include_str!("../../../assets/ai_dock/skills/build-mcp.md")),
+        _ => None,
+    }
+}
+
+/// Bundled starter personas we ship in-tree, mirroring `bundled_skill_content`.
+/// The canonical files live under `assets/ai_dock/personas/`.
+pub fn bundled_persona_content(id: &str) -> Option<&'static str> {
+    match id {
+        "senior-developer" => Some(include_str!(
+            "../../../assets/ai_dock/personas/senior-developer.persona.md"
+        )),
+        "site-reliability-engineer" => Some(include_str!(
+            "../../../assets/ai_dock/personas/site-reliability-engineer.persona.md"
+        )),
+        "qa-engineer" => Some(include_str!(
+            "../../../assets/ai_dock/personas/qa-engineer.persona.md"
+        )),
         _ => None,
     }
 }

@@ -568,6 +568,8 @@ pub struct ThreadView {
     pub mode_selector: Option<Entity<ModeSelector>>,
     pub model_selector: Option<Entity<ModelSelectorPopover>>,
     pub profile_selector: Option<Entity<ProfileSelector>>,
+    // PaddleBoard: persona picker, present only for native-agent threads.
+    pub persona_picker: Option<Entity<crate::paddleboard_persona_picker::PersonaPicker>>,
     pub permission_dropdown_handle: PopoverMenuHandle<ContextMenu>,
     pub thread_retry_status: Option<RetryStatus>,
     pub(super) thread_error: Option<ThreadError>,
@@ -752,6 +754,8 @@ impl ThreadView {
         mode_selector: Option<Entity<ModeSelector>>,
         model_selector: Option<Entity<ModelSelectorPopover>>,
         profile_selector: Option<Entity<ProfileSelector>>,
+        // PaddleBoard: persona picker, present only for native-agent threads.
+        persona_picker: Option<Entity<crate::paddleboard_persona_picker::PersonaPicker>>,
         list_state: ListState,
         session_capabilities: SharedSessionCapabilities,
         resumed_without_history: bool,
@@ -947,6 +951,7 @@ impl ThreadView {
             mode_selector,
             model_selector,
             profile_selector,
+            persona_picker,
             list_state,
             session_capabilities,
             resumed_without_history,
@@ -4158,6 +4163,7 @@ impl ThreadView {
                                     .flex_wrap()
                                     .gap_1()
                                     .children(self.render_token_usage(cx))
+                                    .children(self.persona_picker.clone())
                                     .children(self.profile_selector.clone())
                                     .map(|this| match self.config_options_view.clone() {
                                         Some(config_view) => this.child(config_view),
