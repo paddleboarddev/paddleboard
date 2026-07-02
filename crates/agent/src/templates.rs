@@ -57,6 +57,10 @@ pub struct SystemPromptTemplate<'a> {
     pub is_linux: bool,
     /// Whether sandboxed terminal commands run through WSL on Windows.
     pub is_windows: bool,
+    // PaddleBoard: persona system — a pre-assembled identity overlay
+    // (awareness preamble + persona body) selected for this thread, or None
+    // when no persona is active. Assembled by `paddleboard_personas`.
+    pub persona_overlay: Option<String>,
 }
 
 impl Template for SystemPromptTemplate<'_> {
@@ -104,6 +108,7 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -111,6 +116,33 @@ mod tests {
         assert!(rendered.contains("Today's Date: 2026-01-01"));
         assert!(rendered.contains("## Fixing Diagnostics"));
         assert!(rendered.contains("test-model"));
+    }
+
+    // PaddleBoard: persona system — the overlay renders in its own section and
+    // is absent by default.
+    #[test]
+    fn test_system_prompt_renders_persona_overlay() {
+        let project = prompt_store::ProjectContext::default();
+        let mut template = SystemPromptTemplate {
+            project: &project,
+            available_tools: vec!["echo".into()],
+            model_name: Some("test-model".to_string()),
+            date: "2026-01-01".to_string(),
+            user_agents_md: None,
+            sandboxing: false,
+            is_linux: false,
+            is_windows: false,
+            persona_overlay: None,
+        };
+        let templates = Templates::new();
+        let rendered = template.render(&templates).unwrap();
+        assert!(!rendered.contains("## Persona"));
+
+        template.persona_overlay =
+            Some("You are operating under a PERSONA.\n\nActive persona: qa-tester (role).".into());
+        let rendered = template.render(&templates).unwrap();
+        assert!(rendered.contains("## Persona"));
+        assert!(rendered.contains("Active persona: qa-tester (role)."));
     }
 
     #[test]
@@ -137,6 +169,7 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -166,6 +199,7 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -199,6 +233,7 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -233,6 +268,7 @@ mod tests {
             sandboxing: true,
             is_linux: true,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -256,6 +292,7 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -276,6 +313,7 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -294,6 +332,7 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();

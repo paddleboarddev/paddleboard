@@ -118,6 +118,9 @@ uuid.workspace = true
 watch.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true
+# PaddleBoard: persona system (picker + root PERSONA.md auto-adopt)
+paddleboard_personas.workspace = true
+paddleboard_personas_settings.workspace = true
 # PaddleBoard: sandbox prereqs gating for MCP server cards
 paddleboard_sandbox_prereqs_state.workspace = true
 # PaddleBoard: Scion orchestration support

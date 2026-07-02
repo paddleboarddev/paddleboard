@@ -257,6 +257,13 @@ To use a Skill:
 4. If the Skill references additional files, use `read_file` to access them. Paths inside a Skill resolve relative to that Skill's directory (the parent of its `SKILL.md`).
 
 {{/if}}
+{{#if persona_overlay}}
+{{! PaddleBoard: persona system — identity overlay for this thread. }}
+## Persona
+
+{{{persona_overlay}}}
+
+{{/if}}
 {{#if (or user_agents_md has_rules)}}
 ## User's Custom Instructions
 
