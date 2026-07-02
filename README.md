@@ -1,6 +1,6 @@
 # PaddleBoard
 
-An editor for AI-driven development. PaddleBoard is a fork of [Zed](https://github.com/zed-industries/zed) that keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
+An editor for AI-driven development. PaddleBoard is a fork of [Zed](https://github.com/zed-industries/zed) that keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: a persona system that lets you define *who* your agent should be, sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
 
 > Status: alpha. Build from source — there are no released binaries yet.
 
@@ -12,6 +12,7 @@ An editor for AI-driven development. PaddleBoard is a fork of [Zed](https://gith
 
 Every Zed feature still works. The additions, all reachable from the command palette or panel bar:
 
+- **Personas — tell the agent who to be.** Drop a `PERSONA.md` at your project root describing who the agent should mimic — a Senior Developer, an SRE, a QA Engineer — and every new agent thread adopts that identity automatically: its voice, values, and what it pushes back on. Plain prose works; frontmatter is optional. Keep a library of `<name>.persona.md` files in `.claude/personas/` (project or `~/.claude/personas/` user-wide) and switch per thread with the picker in the agent panel — or just ask mid-conversation ("be my QA tester") and the agent switches itself via its `adopt_persona` tool. Three starter roles ship in the AI Dock's **Personas** tab with one-click install. Personas ride the system prompt, so they work identically with every LLM provider. Skills define what your agent can *do*; a persona defines who it should *be*.
 - **Secure agent sandbox.** Tool calls that run code execute inside an ephemeral `ubuntu:latest` container via [Podman](https://podman.io/) + the [`runsc`](https://gvisor.dev/) (gVisor) kernel runtime. Your project is bind-mounted; the host filesystem is not exposed. Permissions still flow through Zed's existing approve / deny / always-allow UI. A status-bar shield surfaces the live prereq status, and missing prereqs are enforced — `paddleboard_sandbox.on_missing_runtime` chooses between `block` (default, opens the install modal), `fall_back_to_host`, or `warn_once`.
 - **Forwarded ports.** Long-lived services (dev servers, `adk web`, demo apps) run in detached gVisor containers. PaddleBoard publishes the port on `127.0.0.1` only and shows a one-click link above the browser viewport. Stop the service with the × on the row — the container is discarded.
 - **Embedded browser panel.** Native Chromium/WebKit panel that docks like any other. Used for forwarded service URLs and for the **Unsloth Studio** one-step launch (`workspace: Open Unsloth` spins up a Jupyter fine-tuning environment and navigates straight to it).

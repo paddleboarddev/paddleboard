@@ -279,6 +279,8 @@ dependencies = [
  "log",
  "lsp",
  "paddleboard_env_vars",
+ "paddleboard_personas",
+ "paddleboard_personas_settings",
  "paddleboard_sandbox_prereqs_state",
  "paddleboard_sandbox_settings",
  "paddleboard_scion",
@@ -514,6 +516,8 @@ dependencies = [
  "notifications",
  "ordered-float 2.10.1",
  "paddleboard_actions",
+ "paddleboard_personas",
+ "paddleboard_personas_settings",
  "paddleboard_sandbox_prereqs_state",
  "paddleboard_scion",
  "paddleboard_scion_settings",
@@ -12447,6 +12451,7 @@ dependencies = [
  "paddleboard_languages_ui",
  "paddleboard_otel",
  "paddleboard_otel_settings",
+ "paddleboard_personas_settings",
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_ui",
  "paddleboard_sandbox_settings",
@@ -12575,6 +12580,7 @@ dependencies = [
  "log",
  "menu",
  "paddleboard_actions",
+ "paddleboard_personas",
  "paddleboard_usage",
  "project",
  "serde",
@@ -12660,6 +12666,24 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "serde",
+ "settings",
+]
+
+[[package]]
+name = "paddleboard_personas"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "paths",
+ "tempfile",
+]
+
+[[package]]
+name = "paddleboard_personas_settings"
+version = "0.1.0"
+dependencies = [
+ "gpui",
  "settings",
 ]
 

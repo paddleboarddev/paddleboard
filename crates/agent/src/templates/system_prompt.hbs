@@ -257,6 +257,26 @@ To use a Skill:
 4. If the Skill references additional files, use `read_file` to access them. Paths inside a Skill resolve relative to that Skill's directory (the parent of its `SKILL.md`).
 
 {{/if}}
+{{#if has_personas}}
+{{! PaddleBoard: persona catalog — powers the adopt_persona tool. }}
+## Available Personas
+
+The user has defined personas — identities you adopt for a whole thread (voice, values, behavioral rules):
+
+{{#each personas}}
+- `{{name}}`: {{description}}
+{{/each}}
+
+When the user asks you to be or act as one of these (e.g. "be my QA tester"), call the `adopt_persona` tool with that persona's name; it takes effect from your next response and persists for the thread. Call it without a name to drop the active persona when asked. Only change personas at the user's request.
+
+{{/if}}
+{{#if persona_overlay}}
+{{! PaddleBoard: persona system — identity overlay for this thread. }}
+## Persona
+
+{{{persona_overlay}}}
+
+{{/if}}
 {{#if (or user_agents_md has_rules)}}
 ## User's Custom Instructions
 

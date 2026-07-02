@@ -117,12 +117,29 @@ The original `stdio` transport (which runs the binary directly on your host) is 
 
 One place to browse and install everything the agent talks to. Think of it as the marina where every external collaborator your PaddleBoard talks to ties up.
 
-- Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Gemini) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
-- Four tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), **MCP Servers** (the absorbed management page plus a catalog of common servers), and **Usage** (local, per-provider token stats — see below).
+- Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Antigravity) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
+- Five tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), **Personas** (who the agent should *be* — see below), **MCP Servers** (the absorbed management page plus a catalog of common servers), and **Usage** (local, per-provider token stats — see below).
 - Installed items show a green badge; missing ones show an **Install / Sign In / Set Up / Learn More** action that does the right thing for the category — registry agent installs are a one-click settings write, CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
 - The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
 
 The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome screen and the standalone MCP Servers pane — both routes now land here.
+
+---
+
+### Personas — tell the agent who to be
+
+A **persona** is a markdown file describing who the agent should mimic — a Senior Developer, an SRE, a QA Engineer — and PaddleBoard injects it into the native agent's system prompt for the whole thread. Skills say what the agent can *do*; a persona says who it should *be*: its voice, values, and what it pushes back on.
+
+- **Zero-config:** drop a `PERSONA.md` at your project root and new agent threads adopt it automatically. Plain prose works — frontmatter is optional.
+- **Persona library:** keep several as `<name>.persona.md` files in `.claude/personas/` (per-project) or `~/.claude/personas/` (per-user), with `name:` and `description:` frontmatter.
+- **Pick per thread:** a persona picker sits next to the profile selector in the agent panel. Switch or clear mid-thread; the change applies from the next message. The persona is saved with the thread, so it survives restarts.
+- **Or just ask:** the agent knows your persona catalog and has an `adopt_persona` tool — say "be my QA tester" mid-conversation and it switches itself (and can drop the persona when you ask). It only changes personas at your request.
+- **Starter personas:** the AI Dock's **Personas** tab ships three ready-made roles (Senior Developer, Site Reliability Engineer, QA Engineer) with one-click **Add to project / Add to user** install, and lists every persona discovered in your project.
+- **Provider-agnostic:** the persona rides the system prompt, so it works identically with every configured LLM provider and stays byte-stable per thread for prompt-cache friendliness.
+- Personas apply to the native PaddleBoard Agent (external agents like Claude Code own their system prompts). On external-agent threads, a muted persona icon links to the AI Dock's Personas tab so the feature stays discoverable.
+- Turn the whole system off with `"paddleboard_personas": { "enabled": false }` in settings.
+
+Writing tip: short, imperative behavioral rules ("ask for repro steps before proposing a fix") hold up far better over a long conversation than paragraphs of backstory.
 
 ---
 

@@ -1270,20 +1270,30 @@ impl ConversationView {
             .detach();
         }
 
-        let profile_selector: Option<Rc<agent::NativeAgentConnection>> =
+        let native_connection: Option<Rc<agent::NativeAgentConnection>> =
             connection.clone().downcast();
-        let profile_selector = profile_selector
-            .and_then(|native_connection| native_connection.thread(&session_id, cx))
-            .map(|native_thread| {
-                cx.new(|cx| {
-                    ProfileSelector::new(
-                        <dyn Fs>::global(cx),
-                        Arc::new(native_thread),
-                        self.focus_handle(cx),
-                        cx,
-                    )
-                })
-            });
+        let native_thread =
+            native_connection.and_then(|connection| connection.thread(&session_id, cx));
+        let profile_selector = native_thread.clone().map(|native_thread| {
+            cx.new(|cx| {
+                ProfileSelector::new(
+                    <dyn Fs>::global(cx),
+                    Arc::new(native_thread),
+                    self.focus_handle(cx),
+                    cx,
+                )
+            })
+        });
+        // PaddleBoard: persona picker rides the native-thread handle; for
+        // external agents it renders as a hint that personas exist but only
+        // apply to the PaddleBoard Agent.
+        let persona_picker = Some(cx.new(|cx| {
+            crate::paddleboard_persona_picker::PersonaPicker::new(
+                native_thread,
+                self.project.downgrade(),
+                cx,
+            )
+        }));
 
         let agent_display_name = self
             .agent_server_store
@@ -1322,6 +1332,7 @@ impl ConversationView {
                 mode_selector,
                 model_selector,
                 profile_selector,
+                persona_picker,
                 list_state,
                 session_capabilities,
                 resumed_without_history,

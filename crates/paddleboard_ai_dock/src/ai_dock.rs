@@ -17,6 +17,7 @@ pub(crate) mod add_skill_modal;
 mod agents_tab;
 pub(crate) mod build_mcp_modal;
 mod mcp_tab;
+mod personas_tab;
 mod skills_tab;
 mod usage_tab;
 
@@ -24,6 +25,7 @@ mod usage_tab;
 pub enum AiDockTab {
     Agents,
     Skills,
+    Personas,
     Mcp,
     Usage,
 }
@@ -105,8 +107,9 @@ impl AiDock {
         let selected_index = match self.tab {
             AiDockTab::Agents => 0,
             AiDockTab::Skills => 1,
-            AiDockTab::Mcp => 2,
-            AiDockTab::Usage => 3,
+            AiDockTab::Personas => 2,
+            AiDockTab::Mcp => 3,
+            AiDockTab::Usage => 4,
         };
 
         ToggleButtonGroup::single_row(
@@ -122,6 +125,12 @@ impl AiDock {
                     "Skills",
                     cx.listener(|this, _event, window, cx| {
                         this.switch_tab(AiDockTab::Skills, window, cx);
+                    }),
+                ),
+                ToggleButtonSimple::new(
+                    "Personas",
+                    cx.listener(|this, _event, window, cx| {
+                        this.switch_tab(AiDockTab::Personas, window, cx);
                     }),
                 ),
                 ToggleButtonSimple::new(
@@ -150,6 +159,7 @@ impl AiDock {
             self.catalog.skills.len(),
             self.catalog.mcp_servers.len(),
         );
+        let persona_count = self.catalog.personas.len();
         let (expand_icon, expand_tooltip) = if self.expanded {
             (IconName::Minimize, "Collapse")
         } else {
@@ -165,8 +175,8 @@ impl AiDock {
                     .child(Headline::new("AI Dock").size(HeadlineSize::Large))
                     .child(
                         Label::new(format!(
-                            "{} agents · {} skills · {} MCP servers",
-                            counts.0, counts.1, counts.2
+                            "{} agents · {} skills · {} personas · {} MCP servers",
+                            counts.0, counts.1, persona_count, counts.2
                         ))
                         .size(LabelSize::Small)
                         .color(Color::Muted),
@@ -197,6 +207,7 @@ impl AiDock {
         match self.tab {
             AiDockTab::Agents => agents_tab::render(self, cx).into_any_element(),
             AiDockTab::Skills => skills_tab::render(self, cx).into_any_element(),
+            AiDockTab::Personas => personas_tab::render(self, cx).into_any_element(),
             AiDockTab::Mcp => mcp_tab::render(self, window, cx),
             AiDockTab::Usage => usage_tab::render(self, cx).into_any_element(),
         }

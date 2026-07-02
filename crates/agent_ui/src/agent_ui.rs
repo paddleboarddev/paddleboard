@@ -30,6 +30,8 @@ mod message_editor;
 mod mode_selector;
 mod model_selector;
 mod model_selector_popover;
+// PaddleBoard: persona picker for native-agent threads.
+mod paddleboard_persona_picker;
 mod profile_selector;
 mod terminal_codegen;
 mod terminal_inline_assistant;

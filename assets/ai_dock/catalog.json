@@ -38,11 +38,12 @@
       "featured": false
     },
     {
-      "id": "gemini",
-      "name": "Gemini",
-      "description": "Google's Gemini CLI over ACP. Sign in with your Google account or bring your own API key.",
-      "homepage": "https://github.com/google-gemini/gemini-cli",
-      "featured": true
+      "id": "antigravity",
+      "name": "Antigravity",
+      "description": "Google's Antigravity CLI (agy), successor to the retired Gemini CLI. Terminal install today; in-panel ACP threads arrive when agy ships --acp support.",
+      "homepage": "https://github.com/google-antigravity/antigravity-cli",
+      "featured": true,
+      "install_command": "curl -fsSL https://antigravity.google/cli/install.sh | bash"
     },
     {
       "id": "google-adk",
@@ -159,7 +160,11 @@
       "name": "Filesystem",
       "description": "Read, write, and list files under a directory you allow.",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ],
       "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
       "featured": true
     },
@@ -168,7 +173,9 @@
       "name": "Fetch",
       "description": "HTTP fetch for URLs, returning markdown-converted text.",
       "command": "uvx",
-      "args": ["mcp-server-fetch"],
+      "args": [
+        "mcp-server-fetch"
+      ],
       "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
       "featured": true
     },
@@ -177,7 +184,11 @@
       "name": "Git",
       "description": "Inspect git history, branches, diffs, and blame for a repository.",
       "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "."],
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "."
+      ],
       "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/git",
       "featured": true
     },
@@ -186,7 +197,10 @@
       "name": "GitHub",
       "description": "Read and write to GitHub repos, issues, and PRs via the GitHub API.",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
       "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
       "featured": false
     },
@@ -195,8 +209,31 @@
       "name": "Puppeteer",
       "description": "Headless browser automation: navigate pages, take screenshots, scrape content.",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
       "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer",
+      "featured": false
+    }
+  ],
+  "personas": [
+    {
+      "id": "senior-developer",
+      "name": "Senior Developer",
+      "description": "A pragmatic senior engineer who favors small reviewable changes, existing patterns, and honest trade-off calls.",
+      "featured": true
+    },
+    {
+      "id": "site-reliability-engineer",
+      "name": "Site Reliability Engineer",
+      "description": "An SRE who thinks in blast radius, rollback plans, and what breaks at 3 AM.",
+      "featured": false
+    },
+    {
+      "id": "qa-engineer",
+      "name": "QA Engineer",
+      "description": "A meticulous QA engineer who hunts edge cases and refuses to sign off on untested paths.",
       "featured": false
     }
   ]

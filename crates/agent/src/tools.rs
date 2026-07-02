@@ -21,6 +21,7 @@ mod move_path_tool;
 mod read_file_tool;
 mod rename_tool;
 // PaddleBoard: fork-specific tools.
+mod adopt_persona_tool;
 mod install_mcp_server_tool;
 mod sandbox_service_tool;
 mod sandbox_tool;
@@ -86,6 +87,7 @@ pub use list_directory_tool::*;
 pub use move_path_tool::*;
 pub use read_file_tool::*;
 pub use rename_tool::*;
+pub use adopt_persona_tool::*;
 pub use install_mcp_server_tool::*;
 pub use sandbox_service_tool::*;
 pub use sandbox_tool::*;

@@ -83,6 +83,10 @@ pub struct DbThread {
     pub ui_scroll_position: Option<SerializedScrollPosition>,
     #[serde(default)]
     pub sandboxed_terminal_temp_dir: Option<PathBuf>,
+    // PaddleBoard: persona system — the identity overlay active for the
+    // thread, snapshotted at selection time.
+    #[serde(default)]
+    pub persona: Option<crate::ThreadPersona>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -133,6 +137,7 @@ impl SharedThread {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
+            persona: None,
         }
     }
 
@@ -317,6 +322,7 @@ impl DbThread {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
+            persona: None,
         })
     }
 }
@@ -768,6 +774,7 @@ mod tests {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
+            persona: None,
         }
     }
 

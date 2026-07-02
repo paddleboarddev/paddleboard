@@ -1,4 +1,5 @@
 use crate::{
+    AdoptPersonaTool,
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     CreateThreadTool, DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool,
     FetchTool, FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
@@ -1228,6 +1229,18 @@ pub struct Thread {
     /// already-granted permissions skip the approval prompt.
     /// Never persisted — lives and dies with this thread.
     sandbox_grants: Rc<RefCell<ThreadSandboxGrants>>,
+    // PaddleBoard: persona system — the identity overlay active for this
+    // thread. Persisted so the persona survives reload; injected into the
+    // system prompt on every request while enabled.
+    persona: Option<ThreadPersona>,
+}
+
+// PaddleBoard: persona system. The overlay is snapshotted at selection time so
+// a thread's identity stays stable even if the persona file changes on disk.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ThreadPersona {
+    pub name: SharedString,
+    pub overlay: String,
 }
 
 impl Thread {
@@ -1360,6 +1373,7 @@ impl Thread {
             inherits_parent_model_settings: true,
             sandboxed_terminal_temp_dir: None,
             sandbox_grants: Rc::new(RefCell::new(ThreadSandboxGrants::default())),
+            persona: None,
         }
     }
 
@@ -1745,6 +1759,7 @@ impl Thread {
             inherits_parent_model_settings: true,
             sandboxed_terminal_temp_dir: db_thread.sandboxed_terminal_temp_dir,
             sandbox_grants: Rc::new(RefCell::new(ThreadSandboxGrants::default())),
+            persona: db_thread.persona,
         }
     }
 
@@ -1773,6 +1788,7 @@ impl Thread {
                 }
             }),
             sandboxed_terminal_temp_dir: self.sandboxed_terminal_temp_dir.clone(),
+            persona: self.persona.clone(),
         };
 
         cx.background_spawn(async move {
@@ -2055,6 +2071,13 @@ impl Thread {
         {
             self.add_tool(SpawnScionAgentTool::new(self.project.clone()));
         }
+
+        // PaddleBoard: persona adoption — lets the model honor "be my QA
+        // tester" by switching this thread's persona. Registered only while
+        // the persona system is enabled.
+        if paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled {
+            self.add_tool(AdoptPersonaTool::new(cx.weak_entity(), self.project.clone()));
+        }
     }
 
     pub fn add_tool<T: AgentTool>(&mut self, tool: T) {
@@ -2092,6 +2115,20 @@ impl Thread {
                 .update(cx, |thread, cx| thread.set_profile(profile_id.clone(), cx))
                 .ok();
         }
+    }
+
+    // PaddleBoard: persona system accessors. A persona change takes effect on
+    // the next request because the system prompt is rebuilt per turn.
+    pub fn persona(&self) -> Option<&ThreadPersona> {
+        self.persona.as_ref()
+    }
+
+    pub fn set_persona(&mut self, persona: Option<ThreadPersona>, cx: &mut Context<Self>) {
+        if self.persona == persona {
+            return;
+        }
+        self.persona = persona;
+        cx.notify();
     }
 
     pub fn cancel(&mut self, cx: &mut Context<Self>) -> Task<()> {
@@ -4092,6 +4129,16 @@ impl Thread {
         log::trace!("Building request messages from {} thread messages", end_ix);
 
         let user_agents_md = UserAgentsMd::global(cx).and_then(|s| s.content().cloned());
+        // PaddleBoard: persona overlay is injected only while the persona
+        // system is enabled; the stored persona is kept so re-enabling the
+        // setting restores it.
+        let persona_overlay = if paddleboard_personas_settings::PersonasSettings::get_global(cx)
+            .enabled
+        {
+            self.persona.as_ref().map(|persona| persona.overlay.clone())
+        } else {
+            None
+        };
         let system_prompt = SystemPromptTemplate {
             project: self.project_context.read(cx),
             available_tools,
@@ -4104,6 +4151,7 @@ impl Thread {
             ),
             is_linux: cfg!(target_os = "linux"),
             is_windows: cfg!(target_os = "windows"),
+            persona_overlay,
         }
         .render(&self.templates)
         .context("failed to build system prompt")

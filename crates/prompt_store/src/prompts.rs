@@ -46,6 +46,20 @@ pub struct ProjectContext {
     // fields in sync.
     pub(crate) skills: Vec<SkillSummary>,
     pub(crate) has_skills: bool,
+    // PaddleBoard: cheap persona index (name + description only) for the
+    // system prompt, so the model can honor "be my QA tester" via the
+    // `adopt_persona` tool. Kept in sync via `with_personas`.
+    pub(crate) personas: Vec<PersonaSummary>,
+    pub(crate) has_personas: bool,
+}
+
+// PaddleBoard: one entry in the persona catalog rendered into the system
+// prompt. Deliberately excludes the body — progressive disclosure; the full
+// overlay is only loaded when a persona is adopted.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub struct PersonaSummary {
+    pub name: String,
+    pub description: String,
 }
 
 impl ProjectContext {
@@ -62,6 +76,8 @@ impl ProjectContext {
                 .to_string(),
             skills: Vec::new(),
             has_skills: false,
+            personas: Vec::new(),
+            has_personas: false,
         }
     }
 
@@ -81,6 +97,13 @@ impl ProjectContext {
 
     pub fn has_skills(&self) -> bool {
         self.has_skills
+    }
+
+    // PaddleBoard: mirrors `with_skills` for the persona catalog.
+    pub fn with_personas(mut self, personas: Vec<PersonaSummary>) -> Self {
+        self.has_personas = !personas.is_empty();
+        self.personas = personas;
+        self
     }
 }
 
