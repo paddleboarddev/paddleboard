@@ -51,6 +51,7 @@ A **persona** describes who the agent should mimic — a Senior Developer, an SR
 - Drop a `PERSONA.md` at your project root → new agent threads adopt it automatically. Plain prose works; frontmatter optional.
 - Keep a library as `.claude/personas/*.persona.md` files (project or `~/.claude/personas/` for user-wide), then switch per thread with the **persona picker** next to the profile selector in the agent panel.
 - Grab starter roles in **AI Dock → Personas** — Senior Developer, Site Reliability Engineer, QA Engineer — with one-click **Add to project / Add to user**.
+- Or just ask mid-conversation — "be my QA tester" — and the agent switches itself via its `adopt_persona` tool.
 - Works identically with every LLM provider; the persona is saved with the thread. Opt out with `"paddleboard_personas": { "enabled": false }`.
 
 ### 7. Step-Through Mode

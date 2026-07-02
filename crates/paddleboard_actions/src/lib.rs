@@ -953,6 +953,8 @@ pub mod ai_dock {
             /// `zed::McpServers` action opens it directly on the MCP tab,
             /// so old keybindings keep working.
             Open,
+            /// Opens the PaddleBoard AI Dock on the Personas tab.
+            OpenPersonas,
         ]
     );
 }

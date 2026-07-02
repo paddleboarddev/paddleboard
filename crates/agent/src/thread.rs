@@ -1,4 +1,5 @@
 use crate::{
+    AdoptPersonaTool,
     ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
     CreateThreadTool, DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool,
     FetchTool, FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
@@ -2069,6 +2070,13 @@ impl Thread {
             && paddleboard_scion::ScionCli::new().is_available()
         {
             self.add_tool(SpawnScionAgentTool::new(self.project.clone()));
+        }
+
+        // PaddleBoard: persona adoption — lets the model honor "be my QA
+        // tester" by switching this thread's persona. Registered only while
+        // the persona system is enabled.
+        if paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled {
+            self.add_tool(AdoptPersonaTool::new(cx.weak_entity(), self.project.clone()));
         }
     }
 

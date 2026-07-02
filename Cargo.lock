@@ -279,6 +279,7 @@ dependencies = [
  "log",
  "lsp",
  "paddleboard_env_vars",
+ "paddleboard_personas",
  "paddleboard_personas_settings",
  "paddleboard_sandbox_prereqs_state",
  "paddleboard_sandbox_settings",

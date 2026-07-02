@@ -133,8 +133,10 @@ A **persona** is a markdown file describing who the agent should mimic — a Sen
 - **Zero-config:** drop a `PERSONA.md` at your project root and new agent threads adopt it automatically. Plain prose works — frontmatter is optional.
 - **Persona library:** keep several as `<name>.persona.md` files in `.claude/personas/` (per-project) or `~/.claude/personas/` (per-user), with `name:` and `description:` frontmatter.
 - **Pick per thread:** a persona picker sits next to the profile selector in the agent panel. Switch or clear mid-thread; the change applies from the next message. The persona is saved with the thread, so it survives restarts.
+- **Or just ask:** the agent knows your persona catalog and has an `adopt_persona` tool — say "be my QA tester" mid-conversation and it switches itself (and can drop the persona when you ask). It only changes personas at your request.
 - **Starter personas:** the AI Dock's **Personas** tab ships three ready-made roles (Senior Developer, Site Reliability Engineer, QA Engineer) with one-click **Add to project / Add to user** install, and lists every persona discovered in your project.
 - **Provider-agnostic:** the persona rides the system prompt, so it works identically with every configured LLM provider and stays byte-stable per thread for prompt-cache friendliness.
+- Personas apply to the native PaddleBoard Agent (external agents like Claude Code own their system prompts). On external-agent threads, a muted persona icon links to the AI Dock's Personas tab so the feature stays discoverable.
 - Turn the whole system off with `"paddleboard_personas": { "enabled": false }` in settings.
 
 Writing tip: short, imperative behavioral rules ("ask for repro steps before proposing a fix") hold up far better over a long conversation than paragraphs of backstory.
