@@ -35,3 +35,12 @@ ui_input.workspace = true
 util.workspace = true
 which.workspace = true
 workspace.workspace = true
+
+[dev-dependencies]
+# Keeps feature unification consistent: this crate pulls in remote_connection
+# (via agent_ui) without test-support, so testing it alongside a crate whose
+# dev-deps enable remote/test-support (e.g. `cargo test -p agent -p
+# paddleboard_ai_dock`) would otherwise add the Mock variant to
+# RemoteConnectionOptions while remote_connection's cfg-gated Mock match arms
+# stay compiled out (E0004).
+remote_connection = { workspace = true, features = ["test-support"] }
