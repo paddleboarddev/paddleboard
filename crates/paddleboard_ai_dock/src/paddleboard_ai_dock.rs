@@ -30,6 +30,11 @@ pub fn init(cx: &mut App) {
             },
         );
         workspace.register_action(
+            |workspace, _: &paddleboard_actions::ai_dock::OpenPersonas, window, cx| {
+                AiDock::toggle(workspace, AiDockTab::Personas, window, cx);
+            },
+        );
+        workspace.register_action(
             |workspace, _: &paddleboard_actions::McpServers, window, cx| {
                 AiDock::toggle(workspace, AiDockTab::Mcp, window, cx);
             },

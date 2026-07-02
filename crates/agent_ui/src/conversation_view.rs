@@ -1284,16 +1284,16 @@ impl ConversationView {
                 )
             })
         });
-        // PaddleBoard: persona picker rides the same native-thread handle.
-        let persona_picker = native_thread.map(|native_thread| {
-            cx.new(|cx| {
-                crate::paddleboard_persona_picker::PersonaPicker::new(
-                    native_thread,
-                    self.project.downgrade(),
-                    cx,
-                )
-            })
-        });
+        // PaddleBoard: persona picker rides the native-thread handle; for
+        // external agents it renders as a hint that personas exist but only
+        // apply to the PaddleBoard Agent.
+        let persona_picker = Some(cx.new(|cx| {
+            crate::paddleboard_persona_picker::PersonaPicker::new(
+                native_thread,
+                self.project.downgrade(),
+                cx,
+            )
+        }));
 
         let agent_display_name = self
             .agent_server_store

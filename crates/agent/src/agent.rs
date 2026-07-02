@@ -1017,6 +1017,31 @@ impl NativeAgent {
             })
             .collect::<Vec<_>>();
 
+        // PaddleBoard: discover the persona catalog (name + description only)
+        // for the system prompt, so the model can honor "be my QA tester" via
+        // the `adopt_persona` tool. Only while the persona system is enabled.
+        let personas_task = {
+            let enabled =
+                paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled;
+            let project_root = project
+                .read(cx)
+                .visible_worktrees(cx)
+                .next()
+                .map(|worktree| worktree.read(cx).abs_path().to_path_buf());
+            cx.background_spawn(async move {
+                if !enabled {
+                    return Vec::new();
+                }
+                paddleboard_personas::discover(project_root.as_deref())
+                    .into_iter()
+                    .map(|persona| prompt_store::PersonaSummary {
+                        name: persona.name,
+                        description: persona.description,
+                    })
+                    .collect::<Vec<_>>()
+            })
+        };
+
         // Load global skills
         let global_skills_task = {
             let global_skills_dir = global_skills_dir();
@@ -1194,7 +1219,10 @@ impl NativeAgent {
             let (catalog_skills, budget_issues) = select_catalog_skills(&overridden);
             skill_issues.extend(budget_issues);
 
-            let project_context = ProjectContext::new(worktrees).with_skills(catalog_skills);
+            let project_context = ProjectContext::new(worktrees)
+                .with_skills(catalog_skills)
+                // PaddleBoard: persona catalog for the adopt_persona tool.
+                .with_personas(personas_task.await);
             (project_context, skills, skill_issues)
         })
     }
