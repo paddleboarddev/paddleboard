@@ -300,6 +300,8 @@ pub enum IconName {
     ZedPredictUp,
     ZedSrcCustom,
     ZedSrcExtension,
+    // PaddleBoard: Set Sail status-bar icon.
+    Sailboat,
 }
 
 impl IconName {

@@ -55,11 +55,11 @@ A **persona** describes who the agent should mimic — a Senior Developer, an SR
 - Works identically with every LLM provider; the persona is saved with the thread. Opt out with `"paddleboard_personas": { "enabled": false }`.
 
 ### 7. Set Sail — Deploy to Serverless
-Quick-deploy the current project to **Google Cloud Run**, no YAML safari. ⛵
-- Run it: `Cmd-Shift-P` → **`set sail: Deploy`** — pick a service name, region, and public/private, then the agent takes the helm.
-- Powered by the open-source [s8sskills](https://s8sskills.com) catalog: PaddleBoard installs the Cloud Run skill pack into `.agents/skills/` and the agent follows that playbook.
-- Interactive steps (like `gcloud auth login`) are handed to you in the terminal — the agent never runs auth flows itself.
-- More platforms (Lambda, Vercel, Cloudflare…) arrive as skill packs; a future **Rig the pipeline** mode will set up git-push CD.
+Quick-deploy the current project to **Cloud Run, AWS Lambda, or Vercel**, no YAML safari. ⛵
+- Run it: `Cmd-Shift-P` → **`set sail: Deploy`** — pick a platform, service name, and public/private, then the agent takes the helm.
+- Powered by the open-source [s8sskills](https://s8sskills.com) catalog: PaddleBoard installs the platform's skill pack into `.agents/skills/` and the agent follows that playbook.
+- Interactive steps (`gcloud auth login`, `aws configure`, `vercel login`) are handed to you in the terminal — the agent never runs auth flows itself.
+- More platforms (Azure, Cloudflare, Netlify…) arrive as skill packs; a future **Rig the pipeline** mode will set up git-push CD.
 
 ### 8. Step-Through Mode
 Approve every tool call before the agent executes it.
