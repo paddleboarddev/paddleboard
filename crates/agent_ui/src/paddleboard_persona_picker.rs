@@ -91,7 +91,7 @@ impl PersonaPicker {
                             thread.set_persona(
                                 Some(ThreadPersona {
                                     name: root_persona.name.clone().into(),
-                                    overlay: build_overlay(&root_persona),
+                                    overlay: build_overlay(&root_persona, &discovered),
                                 }),
                                 cx,
                             );
@@ -162,17 +162,18 @@ impl Render for PersonaPicker {
                                 thread.update(cx, |thread, cx| thread.set_persona(None, cx));
                             }
                         });
-                        for persona in personas {
+                        for persona in personas.clone() {
                             let is_active = active.as_deref() == Some(persona.name.as_str());
                             let label = format!("{} — {}", persona.name, persona.source.label());
                             menu = menu.toggleable_entry(label, is_active, ui::IconPosition::End, None, {
                                 let thread = thread.clone();
+                                let personas = personas.clone();
                                 move |_window, cx| {
                                     thread.update(cx, |thread, cx| {
                                         thread.set_persona(
                                             Some(ThreadPersona {
                                                 name: persona.name.clone().into(),
-                                                overlay: build_overlay(&persona),
+                                                overlay: build_overlay(&persona, &personas),
                                             }),
                                             cx,
                                         );

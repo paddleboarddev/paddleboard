@@ -51,6 +51,10 @@ pub struct Persona {
     /// A compact tone cue, folded into the overlay preamble.
     pub voice: String,
     pub body: String,
+    /// Name of a persona this one inherits from (`extends:` frontmatter).
+    /// The parent's body is prepended to the overlay; chains are followed
+    /// (with cycle protection) so a role can build on a shared house base.
+    pub extends: Option<String>,
     pub source: PersonaSource,
     pub path: PathBuf,
 }
@@ -74,6 +78,7 @@ pub fn parse_persona(raw: &str, path: &Path, source: PersonaSource) -> Result<Pe
         kind: meta_value(&meta, "type").unwrap_or_else(|| "role".to_string()),
         voice: meta_value(&meta, "voice").unwrap_or_default(),
         body: body.trim().to_string(),
+        extends: meta_value(&meta, "extends"),
         source,
         path: path.to_path_buf(),
     })
@@ -101,6 +106,7 @@ pub fn parse_root_persona(raw: &str, path: &Path) -> Option<Persona> {
             kind: meta_value(&meta, "type").unwrap_or_else(|| "role".to_string()),
             voice: meta_value(&meta, "voice").unwrap_or_default(),
             body: body.to_string(),
+            extends: meta_value(&meta, "extends"),
             source: PersonaSource::ProjectRoot,
             path: path.to_path_buf(),
         });
@@ -112,6 +118,7 @@ pub fn parse_root_persona(raw: &str, path: &Path) -> Option<Persona> {
         kind: "role".to_string(),
         voice: String::new(),
         body: trimmed.to_string(),
+        extends: None,
         source: PersonaSource::ProjectRoot,
         path: path.to_path_buf(),
     })
@@ -183,20 +190,65 @@ fn discover_library(dir: &Path, source: PersonaSource) -> Vec<Persona> {
 /// model the text that follows is an identity to inhabit, scopes it to the
 /// whole conversation, and draws the line that a persona changes style and
 /// priorities, not honesty or capability.
-pub fn build_overlay(persona: &Persona) -> String {
+///
+/// `all_personas` supplies `extends:` parents: each ancestor's body is
+/// included root-first under an "Inherited from" heading, so a role can build
+/// on a shared house base. Cycles are cut and missing parents are logged and
+/// skipped — the child persona always works on its own.
+pub fn build_overlay(persona: &Persona, all_personas: &[Persona]) -> String {
     let voice = if persona.voice.is_empty() {
         "as described below".to_string()
     } else {
         persona.voice.clone()
     };
+
+    let mut chain: Vec<&Persona> = Vec::new();
+    let mut visited: Vec<&str> = vec![persona.name.as_str()];
+    let mut next_parent = persona.extends.as_deref();
+    while let Some(parent_name) = next_parent {
+        if visited
+            .iter()
+            .any(|name| name.eq_ignore_ascii_case(parent_name))
+        {
+            log::warn!(
+                "paddleboard_personas: `extends` cycle at '{parent_name}' (from '{}'); stopping",
+                persona.name
+            );
+            break;
+        }
+        let Some(parent) = all_personas
+            .iter()
+            .find(|candidate| candidate.name.eq_ignore_ascii_case(parent_name))
+        else {
+            log::warn!(
+                "paddleboard_personas: '{}' extends unknown persona '{parent_name}'; skipping",
+                persona.name
+            );
+            break;
+        };
+        visited.push(parent.name.as_str());
+        chain.push(parent);
+        next_parent = parent.extends.as_deref();
+    }
+
+    let mut inherited = String::new();
+    // Root-most ancestor first, so the child's own body always reads last
+    // and wins where they conflict.
+    for parent in chain.iter().rev() {
+        inherited.push_str(&format!(
+            "## Inherited from `{}`\n\n{}\n\n",
+            parent.name, parent.body
+        ));
+    }
+
     format!(
         "You are operating under a PERSONA. Adopt the identity, values, voice, and \
          behavioral rules defined below and hold them for the entire conversation \
          until the user switches or clears the persona. The persona shapes *how* \
          you respond — your tone, priorities, and what you push back on — not your \
          underlying capabilities or honesty.\n\n\
-         Active persona: {} ({}). Voice: {}.\n\n---\n\n{}",
-        persona.name, persona.kind, voice, persona.body
+         Active persona: {} ({}). Voice: {}.\n\n---\n\n{}{}",
+        persona.name, persona.kind, voice, inherited, persona.body
     )
 }
 
@@ -296,10 +348,54 @@ mod tests {
     fn overlay_contains_preamble_and_body() {
         let persona =
             parse_persona(QA, Path::new("qa.persona.md"), PersonaSource::UserLibrary).unwrap();
-        let overlay = build_overlay(&persona);
+        let overlay = build_overlay(&persona, &[]);
         assert!(overlay.contains("operating under a PERSONA"));
         assert!(overlay.contains("Active persona: qa-tester (role). Voice: terse, skeptical."));
         assert!(overlay.contains("You think in failure modes."));
+    }
+
+    const HOUSE_BASE: &str = "---\nname: house-base\ndescription: Shared house rules.\n---\n\n- Always cite file paths.\n";
+    const EXTENDED_QA: &str = "---\nname: strict-qa\ndescription: QA on the house base.\nextends: house-base\n---\n\n- Demand repro steps.\n";
+
+    #[test]
+    fn overlay_includes_extends_chain_root_first() {
+        let base =
+            parse_persona(HOUSE_BASE, Path::new("base.persona.md"), PersonaSource::UserLibrary)
+                .unwrap();
+        let child =
+            parse_persona(EXTENDED_QA, Path::new("qa.persona.md"), PersonaSource::UserLibrary)
+                .unwrap();
+        assert_eq!(child.extends.as_deref(), Some("house-base"));
+
+        let all = vec![base, child.clone()];
+        let overlay = build_overlay(&child, &all);
+        let inherited_ix = overlay.find("Inherited from `house-base`").unwrap();
+        let base_rule_ix = overlay.find("Always cite file paths.").unwrap();
+        let child_rule_ix = overlay.find("Demand repro steps.").unwrap();
+        assert!(inherited_ix < base_rule_ix && base_rule_ix < child_rule_ix);
+    }
+
+    #[test]
+    fn overlay_survives_extends_cycle_and_missing_parent() {
+        let cyclic_a = "---\nname: a\ndescription: a.\nextends: b\n---\nbody a";
+        let cyclic_b = "---\nname: b\ndescription: b.\nextends: a\n---\nbody b";
+        let a = parse_persona(cyclic_a, Path::new("a.persona.md"), PersonaSource::UserLibrary)
+            .unwrap();
+        let b = parse_persona(cyclic_b, Path::new("b.persona.md"), PersonaSource::UserLibrary)
+            .unwrap();
+        let all = vec![a.clone(), b];
+        let overlay = build_overlay(&a, &all);
+        assert!(overlay.contains("body a"));
+        assert!(overlay.contains("Inherited from `b`"));
+        // The cycle back to `a` is cut — `a` appears as the active persona only.
+        assert_eq!(overlay.matches("Inherited from").count(), 1);
+
+        let orphan = "---\nname: orphan\ndescription: o.\nextends: nowhere\n---\nbody o";
+        let orphan =
+            parse_persona(orphan, Path::new("o.persona.md"), PersonaSource::UserLibrary).unwrap();
+        let overlay = build_overlay(&orphan, std::slice::from_ref(&orphan));
+        assert!(overlay.contains("body o"));
+        assert!(!overlay.contains("Inherited from"));
     }
 
     #[test]

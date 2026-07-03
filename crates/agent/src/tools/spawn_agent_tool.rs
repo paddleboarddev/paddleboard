@@ -1,7 +1,7 @@
 use acp_thread::{SUBAGENT_SESSION_INFO_META_KEY, SubagentSessionInfo};
 use agent_client_protocol::schema::v1 as acp;
 use anyhow::Result;
-use gpui::{App, SharedString, Task};
+use gpui::{App, AppContext as _, SharedString, Task};
 use language_model::LanguageModelToolResultContent;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -44,6 +44,11 @@ pub struct SpawnAgentToolInput {
     /// Session ID of an existing agent session to continue instead of creating a new one.
     #[serde(default)]
     pub session_id: Option<acp::SessionId>,
+    /// Optional persona for the sub-agent, by name from the "Available
+    /// Personas" list (e.g. give a review subtask the `qa-engineer` persona).
+    /// The sub-agent holds that identity for its whole session.
+    #[serde(default)]
+    pub persona: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,11 +97,24 @@ impl From<SpawnAgentToolOutput> for LanguageModelToolResultContent {
 /// Tool that spawns an agent thread to work on a task.
 pub struct SpawnAgentTool {
     environment: Rc<dyn ThreadEnvironment>,
+    // PaddleBoard: persona system — project handle for resolving a requested
+    // subagent persona from the project's persona files.
+    project: Option<gpui::Entity<project::Project>>,
 }
 
 impl SpawnAgentTool {
     pub fn new(environment: Rc<dyn ThreadEnvironment>) -> Self {
-        Self { environment }
+        Self {
+            environment,
+            project: None,
+        }
+    }
+
+    // PaddleBoard: builder used by the native agent so `persona` requests can
+    // be resolved; without a project the parameter is rejected gracefully.
+    pub fn with_project(mut self, project: gpui::Entity<project::Project>) -> Self {
+        self.project = Some(project);
+        self
     }
 }
 
@@ -131,6 +149,16 @@ impl AgentTool for SpawnAgentTool {
         event_stream: ToolCallEventStream,
         cx: &mut App,
     ) -> Task<Result<Self::Output, Self::Output>> {
+        // PaddleBoard: resolve the project root before going async, for
+        // persona discovery.
+        let project_root = self.project.as_ref().and_then(|project| {
+            project
+                .read(cx)
+                .visible_worktrees(cx)
+                .next()
+                .map(|worktree| worktree.read(cx).abs_path().to_path_buf())
+        });
+
         cx.spawn(async move |cx| {
             let input = input
                 .recv()
@@ -140,6 +168,56 @@ impl AgentTool for SpawnAgentTool {
                     error: e.to_string(),
                     session_info: None,
                 })?;
+
+            // PaddleBoard: persona system — resolve the requested persona
+            // BEFORE creating the session, so an unknown name fails cheap
+            // with the available options.
+            let persona_error = |error: String| SpawnAgentToolOutput::Error {
+                session_id: None,
+                error,
+                session_info: None,
+            };
+            let thread_persona = if let Some(requested) = input
+                .persona
+                .clone()
+                .filter(|requested| !requested.trim().is_empty())
+            {
+                let Some(project_root) = project_root else {
+                    return Err(persona_error(
+                        "The `persona` parameter is not available in this context.".to_string(),
+                    ));
+                };
+                let personas = cx
+                    .background_spawn(async move {
+                        paddleboard_personas::discover(Some(project_root.as_path()))
+                    })
+                    .await;
+                let Some(persona) = personas
+                    .iter()
+                    .find(|persona| persona.name == requested)
+                    .or_else(|| {
+                        personas
+                            .iter()
+                            .find(|persona| persona.name.eq_ignore_ascii_case(&requested))
+                    })
+                else {
+                    let available = personas
+                        .iter()
+                        .map(|persona| persona.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return Err(persona_error(format!(
+                        "No persona named '{requested}'. Available: {}",
+                        if available.is_empty() { "(none)" } else { &available }
+                    )));
+                };
+                Some(crate::ThreadPersona {
+                    name: persona.name.clone().into(),
+                    overlay: paddleboard_personas::build_overlay(persona, &personas),
+                })
+            } else {
+                None
+            };
 
             let (subagent, mut session_info) = cx.update(|cx| {
                 let subagent = if let Some(session_id) = input.session_id {
@@ -152,6 +230,12 @@ impl AgentTool for SpawnAgentTool {
                     error: err.to_string(),
                     session_info: None,
                 })?;
+                // PaddleBoard: persona system — the subagent adopts the
+                // requested identity before its first request is built.
+                if let Some(thread_persona) = thread_persona {
+                    subagent.set_persona(Some(thread_persona), cx);
+                }
+
                 let session_info = SubagentSessionInfo {
                     session_id: subagent.id(),
                     message_start_index: subagent.num_entries(cx),

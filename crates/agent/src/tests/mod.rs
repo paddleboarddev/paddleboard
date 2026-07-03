@@ -5117,6 +5117,7 @@ async fn test_subagent_tool_call_end_to_end(cx: &mut TestAppContext) {
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -5251,6 +5252,7 @@ async fn test_subagent_tool_output_does_not_include_thinking(cx: &mut TestAppCon
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -5398,6 +5400,7 @@ async fn test_subagent_tool_call_cancellation_during_task_prompt(cx: &mut TestAp
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -5527,6 +5530,7 @@ async fn test_subagent_tool_resume_session(cx: &mut TestAppContext) {
         label: "initial task".to_string(),
         message: "do the first task".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -5588,6 +5592,7 @@ async fn test_subagent_tool_resume_session(cx: &mut TestAppContext) {
         label: "follow-up task".to_string(),
         message: "do the follow-up task".to_string(),
         session_id: Some(subagent_session_id.clone()),
+        persona: None,
     };
     let resume_tool_use = LanguageModelToolUse {
         id: "subagent_2".into(),
@@ -6174,6 +6179,7 @@ async fn test_subagent_context_window_warning(cx: &mut TestAppContext) {
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -6299,6 +6305,7 @@ async fn test_subagent_no_context_window_warning_when_already_at_warning(cx: &mu
         label: "initial task".to_string(),
         message: "do the first task".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -6365,6 +6372,7 @@ async fn test_subagent_no_context_window_warning_when_already_at_warning(cx: &mu
         label: "follow-up task".to_string(),
         message: "do the follow-up task".to_string(),
         session_id: Some(subagent_session_id.clone()),
+        persona: None,
     };
     let resume_tool_use = LanguageModelToolUse {
         id: "subagent_2".into(),
@@ -6472,6 +6480,7 @@ async fn test_subagent_error_propagation(cx: &mut TestAppContext) {
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
+        persona: None,
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
