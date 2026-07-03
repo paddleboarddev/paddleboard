@@ -126,6 +126,17 @@ The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome s
 
 ---
 
+### Set Sail — deploy to serverless ⛵
+
+Vibe-coded something worth showing off? **`set sail: Deploy`** (command palette, or click the **⛵ sailboat in the status bar**) gives you serverless-first deploys of the current project to **[Cloud Run](https://cloud.run), [AWS Lambda](https://aws.amazon.com/pm/lambda), or [Vercel](https://vercel.com)** — no YAML safari required.
+
+- Pick a platform, a service name (pre-filled from your project), a region where it applies, and whether the URL should be public. Then the agent takes the helm.
+- **Powered by [s8sskills](https://s8sskills.com):** PaddleBoard installs the platform's community skill pack (e.g. `gcloud-project-setup` + `cloud-run-deploy`, `aws-project-setup` + `lambda-deploy`, `vercel-project-setup` + `vercel-deploy`) into `.agents/skills/` and the agent follows that playbook — platform knowledge lives in the open-source catalog, not hardcoded in the editor.
+- The agent checks your CLI setup first and hands interactive steps (`gcloud auth login`, `aws configure`, `vercel login`) to you in the terminal rather than running auth flows itself, then deploys and reports your live URL.
+- More platforms (Azure, Cloudflare, Netlify, …) arrive as s8sskills packs — and a future "Rig the pipeline" mode will set up git-push-driven CD so quick deploys graduate into real infrastructure.
+
+---
+
 ### Personas — tell the agent who to be
 
 A **persona** is a markdown file describing who the agent should mimic — a Senior Developer, an SRE, a QA Engineer — and PaddleBoard injects it into the native agent's system prompt for the whole thread. Skills say what the agent can *do*; a persona says who it should *be*: its voice, values, and what it pushes back on.

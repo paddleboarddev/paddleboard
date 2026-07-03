@@ -959,6 +959,19 @@ pub mod ai_dock {
     );
 }
 
+pub mod set_sail {
+    use gpui::actions;
+
+    actions!(
+        set_sail,
+        [
+            /// Opens the Set Sail modal to deploy the current project to a
+            /// serverless platform (Cloud Run first).
+            Deploy,
+        ]
+    );
+}
+
 pub mod scion {
     use gpui::actions;
 

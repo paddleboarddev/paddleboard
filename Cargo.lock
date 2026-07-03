@@ -12457,6 +12457,7 @@ dependencies = [
  "paddleboard_sandbox_settings",
  "paddleboard_scion_settings",
  "paddleboard_scion_ui",
+ "paddleboard_set_sail",
  "paddleboard_usage",
  "parking_lot",
  "paths",
@@ -12583,6 +12584,7 @@ dependencies = [
  "paddleboard_personas",
  "paddleboard_usage",
  "project",
+ "remote_connection",
  "serde",
  "serde_json",
  "settings",
@@ -12772,6 +12774,24 @@ dependencies = [
  "settings",
  "tokio",
  "tracing",
+ "ui",
+ "ui_input",
+ "workspace",
+]
+
+[[package]]
+name = "paddleboard_set_sail"
+version = "0.1.0"
+dependencies = [
+ "agent_ui",
+ "anyhow",
+ "fs",
+ "futures 0.3.32",
+ "gpui",
+ "http_client",
+ "log",
+ "menu",
+ "paddleboard_actions",
  "ui",
  "ui_input",
  "workspace",

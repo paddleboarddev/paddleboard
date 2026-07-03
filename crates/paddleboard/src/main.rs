@@ -522,6 +522,8 @@ fn main() {
         paddleboard_ai_dock::init(cx);
         paddleboard_languages_ui::init(cx);
         paddleboard_scion_ui::init(cx);
+        // PaddleBoard: Set Sail — serverless quick-deploy via s8sskills.
+        paddleboard_set_sail::init(cx);
         if let Some(app_commit_sha) = app_commit_sha {
             AppCommitSha::set_global(app_commit_sha, cx);
         }

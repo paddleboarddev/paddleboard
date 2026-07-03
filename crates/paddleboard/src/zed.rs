@@ -596,6 +596,9 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         // PaddleBoard: context-window gauge for the active agent thread.
         let usage_status_item =
             cx.new(|cx| agent_ui::UsageStatusItem::new(workspace, cx));
+        // PaddleBoard: Set Sail one-click deploy entry point.
+        let set_sail_status_item =
+            cx.new(paddleboard_set_sail::SetSailStatusItem::new);
         let line_ending_indicator =
             cx.new(|_| line_ending_selector::LineEndingIndicator::default());
         let merge_conflict_indicator =
@@ -621,6 +624,8 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             status_bar.add_right_item(mcp_status_item, window, cx);
             // PaddleBoard: agent context-window gauge.
             status_bar.add_right_item(usage_status_item, window, cx);
+            // PaddleBoard: Set Sail deploy button.
+            status_bar.add_right_item(set_sail_status_item, window, cx);
         });
 
         let panels_task = initialize_panels(window, cx);
