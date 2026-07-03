@@ -52,6 +52,7 @@ A **persona** describes who the agent should mimic — a Senior Developer, an SR
 - Keep a library as `.claude/personas/*.persona.md` files (project or `~/.claude/personas/` for user-wide), then switch per thread with the **persona picker** next to the profile selector in the agent panel.
 - Grab starter roles in **AI Dock → Personas** — Senior Developer, Site Reliability Engineer, QA Engineer — with one-click **Add to project / Add to user**.
 - Or just ask mid-conversation — "be my QA tester" — and the agent switches itself via its `adopt_persona` tool.
+- Compose with `extends:` (inherit a shared house base), and give **sub-agents** their own personas — a QA-persona reviewer genuinely thinks like a reviewer.
 - Works identically with every LLM provider; the persona is saved with the thread. Opt out with `"paddleboard_personas": { "enabled": false }`.
 
 ### 7. Set Sail — Deploy to Serverless
