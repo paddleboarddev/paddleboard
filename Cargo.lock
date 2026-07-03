@@ -12583,6 +12583,7 @@ dependencies = [
  "paddleboard_personas",
  "paddleboard_usage",
  "project",
+ "remote_connection",
  "serde",
  "serde_json",
  "settings",
