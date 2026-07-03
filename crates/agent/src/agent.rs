@@ -3298,6 +3298,13 @@ impl SubagentHandle for NativeSubagentHandle {
         self.session_id.clone()
     }
 
+    // PaddleBoard: persona system — the spawn_agent tool can hand this
+    // subagent an identity (e.g. a qa-engineer reviewer).
+    fn set_persona(&self, persona: Option<crate::ThreadPersona>, cx: &mut App) {
+        self.subagent_thread
+            .update(cx, |thread, cx| thread.set_persona(persona, cx));
+    }
+
     fn num_entries(&self, cx: &App) -> usize {
         self.acp_thread.read(cx).entries().len()
     }

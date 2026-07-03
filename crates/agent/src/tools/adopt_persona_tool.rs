@@ -149,7 +149,7 @@ impl AgentTool for AdoptPersonaTool {
             };
 
             let adopted_name = persona.name.clone();
-            let overlay = paddleboard_personas::build_overlay(persona);
+            let overlay = paddleboard_personas::build_overlay(persona, &personas);
             thread
                 .update(cx, |thread, cx| {
                     thread.set_persona(

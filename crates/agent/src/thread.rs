@@ -704,6 +704,10 @@ pub trait SubagentHandle {
     fn num_entries(&self, cx: &App) -> usize;
     /// Runs a turn for a given message and returns both the response and the index of that output message.
     fn send(&self, message: String, cx: &AsyncApp) -> Task<Result<String>>;
+    // PaddleBoard: persona system — adopt a persona on this subagent's
+    // thread. Default no-op so implementations without native threads are
+    // unaffected.
+    fn set_persona(&self, _persona: Option<ThreadPersona>, _cx: &mut App) {}
 }
 
 pub trait ThreadEnvironment {
@@ -2053,7 +2057,11 @@ impl Thread {
         self.add_tool(RenameTool::new(self.project.clone()));
 
         if self.depth() < MAX_SUBAGENT_DEPTH {
-            self.add_tool(SpawnAgentTool::new(environment.clone()));
+            // PaddleBoard: with_project enables the tool's `persona` parameter
+            // (persona files are discovered from the project).
+            self.add_tool(
+                SpawnAgentTool::new(environment.clone()).with_project(self.project.clone()),
+            );
         }
 
         // Sibling-thread tools are exposed at every depth: a subagent should
