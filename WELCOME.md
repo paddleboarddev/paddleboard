@@ -128,12 +128,12 @@ The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome s
 
 ### Set Sail — deploy to serverless ⛵
 
-Vibe-coded something worth showing off? **`set sail: Deploy`** (command palette) quick-deploys the current project to **Google Cloud Run** — no YAML safari required.
+Vibe-coded something worth showing off? **`set sail: Deploy`** (command palette, or click the **⛵ sailboat in the status bar**) gives you serverless-first deploys of the current project to **[Cloud Run](https://cloud.run), [AWS Lambda](https://aws.amazon.com/pm/lambda), or [Vercel](https://vercel.com)** — no YAML safari required.
 
-- The modal asks three things: a service name (pre-filled from your project), a region, and whether the URL should be public. Then the agent takes the helm.
-- **Powered by [s8sskills](https://s8sskills.com):** PaddleBoard installs the community skill pack (`gcloud-project-setup`, `cloud-run-deploy`) into `.agents/skills/` and the agent follows that playbook — platform knowledge lives in the open-source catalog, not hardcoded in the editor.
-- The agent checks your `gcloud` setup first and hands interactive steps (like `gcloud auth login`) to you in the terminal rather than running auth flows itself, then deploys from source and reports your live URL.
-- More platforms (AWS Lambda, Vercel, Cloudflare, …) arrive as s8sskills packs — and a future "Rig the pipeline" mode will set up git-push-driven CD so quick deploys graduate into real infrastructure.
+- Pick a platform, a service name (pre-filled from your project), a region where it applies, and whether the URL should be public. Then the agent takes the helm.
+- **Powered by [s8sskills](https://s8sskills.com):** PaddleBoard installs the platform's community skill pack (e.g. `gcloud-project-setup` + `cloud-run-deploy`, `aws-project-setup` + `lambda-deploy`, `vercel-project-setup` + `vercel-deploy`) into `.agents/skills/` and the agent follows that playbook — platform knowledge lives in the open-source catalog, not hardcoded in the editor.
+- The agent checks your CLI setup first and hands interactive steps (`gcloud auth login`, `aws configure`, `vercel login`) to you in the terminal rather than running auth flows itself, then deploys and reports your live URL.
+- More platforms (Azure, Cloudflare, Netlify, …) arrive as s8sskills packs — and a future "Rig the pipeline" mode will set up git-push-driven CD so quick deploys graduate into real infrastructure.
 
 ---
 

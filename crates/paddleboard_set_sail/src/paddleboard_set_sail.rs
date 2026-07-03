@@ -1,10 +1,10 @@
 // PaddleBoard: "Set Sail" — deploy the current project to a serverless
-// platform. Phase 1: quick deploy to Google Cloud Run, powered by the
-// s8sskills catalog (s8sskills.com): the modal installs the provider skill
-// pack into the project's `.agents/skills/`, then seeds a native-agent thread
-// that follows the skills to perform the deploy. The vendor-neutral layer is
-// the skill catalog, not a Rust abstraction — adding a platform is publishing
-// a skill pack, not writing code here.
+// platform, powered by the s8sskills catalog (s8sskills.com): the modal
+// installs the provider skill pack into the project's `.agents/skills/`, then
+// seeds a native-agent thread that follows the skills to perform the deploy.
+// The vendor-neutral layer is the skill catalog, not a Rust abstraction —
+// adding a platform below is a matter of listing its s8sskills pack and CLI
+// checks, and most future platforms should arrive as packs alone.
 
 use agent_ui::AgentPanel;
 use anyhow::{Context as _, Result, anyhow};
@@ -13,15 +13,141 @@ use gpui::{App, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Weak
 use http_client::{AsyncBody, HttpClientWithUrl};
 use std::path::PathBuf;
 use std::sync::Arc;
-use ui::{Button, Checkbox, KeyBinding, Modal, ModalFooter, ModalHeader, ToggleState, prelude::*};
+use ui::{
+    Button, Checkbox, KeyBinding, Modal, ModalFooter, ModalHeader, ToggleButtonGroup,
+    ToggleButtonGroupStyle, ToggleButtonSimple, ToggleState, prelude::*,
+};
+use gpui::Action as _;
 use ui_input::InputField;
-use workspace::{ModalView, Workspace};
+use workspace::{ModalView, StatusItemView, Workspace};
 
-const DEFAULT_REGION: &str = "us-central1";
-/// The skills the quick-deploy prompt depends on, in the order the agent
-/// should read them. Fetched from Jay's s8sskills catalog when missing.
-const REQUIRED_SKILLS: &[&str] = &["gcloud-project-setup", "cloud-run-deploy"];
-const S8SSKILLS_RAW_BASE: &str = "https://raw.githubusercontent.com/s8sskills/gcp/main/skills";
+/// The deploy targets Set Sail knows how to skipper. Each maps to an
+/// s8sskills provider repo plus the platform-specific prompt scaffolding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Platform {
+    CloudRun,
+    AwsLambda,
+    Vercel,
+}
+
+pub const PLATFORMS: &[Platform] = &[Platform::CloudRun, Platform::AwsLambda, Platform::Vercel];
+
+impl Platform {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Platform::CloudRun => "Cloud Run",
+            Platform::AwsLambda => "AWS Lambda",
+            Platform::Vercel => "Vercel",
+        }
+    }
+
+    /// The s8sskills provider repo (github.com/s8sskills/<repo>).
+    fn s8s_repo(&self) -> &'static str {
+        match self {
+            Platform::CloudRun => "gcp",
+            Platform::AwsLambda => "aws",
+            Platform::Vercel => "vercel",
+        }
+    }
+
+    /// Skills the deploy prompt depends on, in the order the agent should
+    /// read them (setup first, then deploy).
+    fn required_skills(&self) -> &'static [&'static str] {
+        match self {
+            Platform::CloudRun => &["gcloud-project-setup", "cloud-run-deploy"],
+            Platform::AwsLambda => &["aws-project-setup", "lambda-deploy"],
+            Platform::Vercel => &["vercel-project-setup", "vercel-deploy"],
+        }
+    }
+
+    /// Default region, or None when the platform doesn't take one (Vercel
+    /// manages placement itself).
+    fn default_region(&self) -> Option<&'static str> {
+        match self {
+            Platform::CloudRun => Some("us-central1"),
+            Platform::AwsLambda => Some("us-east-1"),
+            Platform::Vercel => None,
+        }
+    }
+
+    /// Whether the public/private toggle applies. Vercel production deploys
+    /// are public by nature, so the toggle is hidden there.
+    fn supports_public_toggle(&self) -> bool {
+        !matches!(self, Platform::Vercel)
+    }
+
+    /// Vendor name for user-facing copy ("Not set up on X?").
+    fn vendor_name(&self) -> &'static str {
+        match self {
+            Platform::CloudRun => "Google Cloud",
+            Platform::AwsLambda => "AWS",
+            Platform::Vercel => "Vercel",
+        }
+    }
+
+    /// Where to send someone who doesn't have a vendor account yet.
+    fn getting_started_url(&self) -> &'static str {
+        match self {
+            Platform::CloudRun => "https://cloud.google.com/run",
+            Platform::AwsLambda => "https://aws.amazon.com/lambda/getting-started/",
+            Platform::Vercel => "https://vercel.com/signup",
+        }
+    }
+
+    /// Terminal checks the agent should run before deploying, and the exact
+    /// command to hand the user when auth is missing.
+    fn prereq_checks(&self) -> &'static str {
+        match self {
+            Platform::CloudRun => {
+                "`gcloud --version`, an authenticated account (`gcloud auth list`), and an \
+                 active project (`gcloud config get-value project`). If auth is missing, hand \
+                 me `gcloud auth login`"
+            }
+            Platform::AwsLambda => {
+                "`aws --version` and a working identity (`aws sts get-caller-identity`). If \
+                 auth is missing, hand me `aws configure` (or `aws sso login` if this machine \
+                 uses SSO)"
+            }
+            Platform::Vercel => {
+                "`vercel --version` and an authenticated session (`vercel whoami`). If auth \
+                 is missing, hand me `vercel login`"
+            }
+        }
+    }
+
+    /// The default deploy move, subordinate to whatever the skills prescribe.
+    fn deploy_hint(&self, service: &str, region: &str, public: bool) -> String {
+        match self {
+            Platform::CloudRun => {
+                let visibility = if public {
+                    " --allow-unauthenticated"
+                } else {
+                    ""
+                };
+                format!(
+                    "Deploy from source: `gcloud run deploy {service} --source . --region \
+                     {region}{visibility}`"
+                )
+            }
+            Platform::AwsLambda => {
+                let url_auth = if public {
+                    "create a public Function URL (auth type NONE)"
+                } else {
+                    "create a Function URL with auth type AWS_IAM (private)"
+                };
+                format!(
+                    "Follow the lambda-deploy skill to pick the packaging that fits this \
+                     project (zip, container image, or SAM). Name the function `{service}`, \
+                     use region `{region}`, and {url_auth} so there is a URL to report"
+                )
+            }
+            Platform::Vercel => format!(
+                "Link the project as `{service}` per the vercel-project-setup skill, then \
+                 deploy to production: `vercel deploy --prod --yes`"
+            ),
+        }
+    }
+}
 
 pub fn init(cx: &mut App) {
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
@@ -50,10 +176,49 @@ pub fn init(cx: &mut App) {
     .detach();
 }
 
-/// "Set Sail" — collects a service name/region and hands the deploy to the
-/// native agent, guided by the s8sskills Cloud Run skills.
+/// Status-bar sailboat: one click opens the Set Sail modal, so the deploy
+/// path doesn't hide behind the command palette.
+pub struct SetSailStatusItem;
+
+impl SetSailStatusItem {
+    pub fn new(_cx: &mut Context<Self>) -> Self {
+        Self
+    }
+}
+
+impl Render for SetSailStatusItem {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        IconButton::new("set-sail-status", IconName::Sailboat)
+            .icon_size(IconSize::Small)
+            .tooltip(ui::Tooltip::text("Set Sail: deploy this project"))
+            .on_click(|_, window, cx| {
+                window.dispatch_action(
+                    paddleboard_actions::set_sail::Deploy.boxed_clone(),
+                    cx,
+                );
+            })
+    }
+}
+
+impl StatusItemView for SetSailStatusItem {
+    fn set_active_pane_item(
+        &mut self,
+        _active_pane_item: Option<&dyn workspace::ItemHandle>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) {
+    }
+
+    fn hide_setting(&self, _cx: &App) -> Option<workspace::HideStatusItem> {
+        None
+    }
+}
+
+/// "Set Sail" — picks a platform and service details, then hands the deploy
+/// to the native agent, guided by the platform's s8sskills pack.
 pub struct SetSailModal {
     workspace: WeakEntity<Workspace>,
+    platform: Platform,
     service_input: Entity<InputField>,
     region_input: Entity<InputField>,
     allow_unauthenticated: bool,
@@ -75,7 +240,7 @@ impl SetSailModal {
                 .tab_stop(true)
         });
         let region_input = cx.new(|cx| {
-            InputField::new(window, cx, DEFAULT_REGION)
+            InputField::new(window, cx, Platform::CloudRun.default_region().unwrap_or(""))
                 .label("Region")
                 .tab_index(2)
                 .tab_stop(true)
@@ -83,6 +248,7 @@ impl SetSailModal {
 
         Self {
             workspace,
+            platform: Platform::CloudRun,
             service_input,
             region_input,
             allow_unauthenticated: true,
@@ -91,27 +257,40 @@ impl SetSailModal {
         }
     }
 
+    fn select_platform(&mut self, platform: Platform, cx: &mut Context<Self>) {
+        if self.platform == platform {
+            return;
+        }
+        self.platform = platform;
+        cx.notify();
+    }
+
     fn confirm(&mut self, _: &menu::Confirm, window: &mut Window, cx: &mut Context<Self>) {
+        let platform = self.platform;
         let mut service = self.service_input.read(cx).text(cx).trim().to_string();
         if service.is_empty() {
             service = self.default_service.clone();
         }
         let mut region = self.region_input.read(cx).text(cx).trim().to_string();
         if region.is_empty() {
-            region = DEFAULT_REGION.to_string();
+            region = platform.default_region().unwrap_or_default().to_string();
         }
 
         if !is_valid_service_name(&service) {
             self.show_error(
                 anyhow!(
                     "Invalid service name {service:?}: use lowercase letters, digits, and \
-                     hyphens, starting with a letter (Cloud Run naming rules)."
+                     hyphens, starting with a letter."
                 ),
                 cx,
             );
             return;
         }
-        if !region.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        if platform.default_region().is_some()
+            && !region
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        {
             self.show_error(anyhow!("Invalid region {region:?}."), cx);
             return;
         }
@@ -135,44 +314,40 @@ impl SetSailModal {
             )
         };
 
-        let allow_unauthenticated = self.allow_unauthenticated;
+        let allow_unauthenticated = self.allow_unauthenticated && platform.supports_public_toggle();
         let weak_workspace = self.workspace.clone();
         cx.spawn_in(window, async move |_this, cx| {
             // Install the s8sskills pack pieces the prompt depends on. Files
             // already present are left untouched (version-pinned by commit).
-            let mut installed = Vec::new();
-            for skill in REQUIRED_SKILLS {
-                match ensure_skill_installed(fs.clone(), http_client.clone(), &project_root, skill)
-                    .await
+            for skill in platform.required_skills() {
+                if let Err(error) = ensure_skill_installed(
+                    fs.clone(),
+                    http_client.clone(),
+                    &project_root,
+                    platform.s8s_repo(),
+                    skill,
+                )
+                .await
                 {
-                    Ok(freshly_fetched) => installed.push((*skill, freshly_fetched)),
-                    Err(error) => {
-                        log::error!("set_sail: failed to install skill {skill}: {error:#}");
-                        weak_workspace
-                            .update(cx, |workspace, cx| {
-                                workspace.show_error(
-                                    anyhow!(
-                                        "Set Sail needs the s8sskills `{skill}` skill but \
-                                         couldn't fetch it (offline?): {error}"
-                                    ),
-                                    cx,
-                                );
-                            })
-                            .ok();
-                        return;
-                    }
+                    log::error!("set_sail: failed to install skill {skill}: {error:#}");
+                    weak_workspace
+                        .update(cx, |workspace, cx| {
+                            workspace.show_error(
+                                anyhow!(
+                                    "Set Sail needs the s8sskills `{skill}` skill but couldn't \
+                                     fetch it (offline?): {error}"
+                                ),
+                                cx,
+                            );
+                        })
+                        .ok();
+                    return;
                 }
             }
-            let fetched_count = installed.iter().filter(|(_, fresh)| *fresh).count();
-            if fetched_count > 0 {
-                log::info!(
-                    "set_sail: installed {fetched_count} s8sskills skill(s) into {}",
-                    project_root.join(".agents/skills").display()
-                );
-            }
 
-            let prompt = quick_deploy_prompt(&service, &region, allow_unauthenticated);
-            let title: SharedString = format!("Set Sail: {service} → Cloud Run").into();
+            let prompt = quick_deploy_prompt(platform, &service, &region, allow_unauthenticated);
+            let title: SharedString =
+                format!("Set Sail: {service} → {}", platform.label()).into();
 
             weak_workspace
                 .update_in(cx, |workspace, window, cx| {
@@ -219,11 +394,13 @@ fn slugify(name: &str) -> String {
         slug = slug.replace("--", "-");
     }
     let slug = slug.trim_matches('-');
-    // Cloud Run names must start with a letter.
+    // Cloud Run (the strictest target) requires a leading letter.
     let slug = slug.trim_start_matches(|c: char| c.is_ascii_digit() || c == '-');
     slug.chars().take(63).collect()
 }
 
+/// One validation for all platforms: Cloud Run's rules are the strictest and
+/// the resulting names are valid on Lambda and Vercel too.
 fn is_valid_service_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 63
@@ -240,6 +417,7 @@ async fn ensure_skill_installed(
     fs: Arc<dyn fs::Fs>,
     http_client: Arc<HttpClientWithUrl>,
     project_root: &PathBuf,
+    repo: &str,
     skill: &str,
 ) -> Result<bool> {
     let skill_dir = project_root.join(".agents").join("skills").join(skill);
@@ -248,7 +426,8 @@ async fn ensure_skill_installed(
         return Ok(false);
     }
 
-    let url = format!("{S8SSKILLS_RAW_BASE}/{skill}/SKILL.md");
+    let url =
+        format!("https://raw.githubusercontent.com/s8sskills/{repo}/main/skills/{skill}/SKILL.md");
     let mut response = http_client
         .get(&url, AsyncBody::default(), true)
         .await
@@ -281,36 +460,49 @@ async fn ensure_skill_installed(
 /// Self-contained quick-deploy prompt. Points the agent at the installed
 /// skill files by path rather than relying on the skill catalog having
 /// refreshed mid-session.
-fn quick_deploy_prompt(service: &str, region: &str, allow_unauthenticated: bool) -> String {
-    let visibility = if allow_unauthenticated {
-        "The service should be PUBLIC: pass `--allow-unauthenticated`."
+fn quick_deploy_prompt(platform: Platform, service: &str, region: &str, public: bool) -> String {
+    let label = platform.label();
+    let skills = platform.required_skills();
+    let skill_lines: String = skills
+        .iter()
+        .map(|skill| format!("- .agents/skills/{skill}/SKILL.md\n"))
+        .collect();
+    let region_line = if platform.default_region().is_some() {
+        format!("Region: {region}\n")
     } else {
-        "The service should require authentication: do NOT pass `--allow-unauthenticated`."
+        String::new()
     };
+    let visibility_line = if platform.supports_public_toggle() {
+        if public {
+            "The service URL should be PUBLIC.\n"
+        } else {
+            "The service should require authentication (private).\n"
+        }
+    } else {
+        ""
+    };
+    let deploy_hint = platform.deploy_hint(service, region, public);
+    let prereqs = platform.prereq_checks();
+
     format!(
-        "Set Sail: deploy this project to Google Cloud Run (quick deploy).\n\n\
+        "Set Sail: deploy this project to {label} (quick deploy).\n\n\
          Service name: {service}\n\
-         Region: {region}\n\
-         {visibility}\n\n\
-         Two s8sskills skill files are installed in this project. Read BOTH first — they are \
-         the authoritative playbook:\n\
-         - .agents/skills/gcloud-project-setup/SKILL.md\n\
-         - .agents/skills/cloud-run-deploy/SKILL.md\n\n\
+         {region_line}\
+         {visibility_line}\n\
+         These s8sskills skill files are installed in this project. Read them ALL first, in \
+         order — they are the authoritative playbook:\n\
+         {skill_lines}\n\
          Steps:\n\
-         1. Read the two skill files above and follow them wherever they are more specific \
-         than these steps.\n\
-         2. Check prerequisites in the terminal: `gcloud --version`, an authenticated account \
-         (`gcloud auth list`), and an active project (`gcloud config get-value project`). If \
-         any are missing, STOP and tell me the exact command to run myself in a terminal \
-         (e.g. `gcloud auth login`) — never run interactive auth flows yourself — then wait \
-         for me to confirm before continuing.\n\
+         1. Read the skill files above and follow them wherever they are more specific than \
+         these steps.\n\
+         2. Check prerequisites in the terminal: {prereqs} — never run interactive auth flows \
+         yourself; STOP, give me the exact command to run in a terminal, and wait for me to \
+         confirm before continuing.\n\
          3. Identify the project type (look at the files present) and make sure it is \
-         deployable from source; fix only what blocks the deploy.\n\
-         4. Deploy from source: `gcloud run deploy {service} --source . --region {region}`, \
-         plus the visibility flag above, unless the skills prescribe something better for \
-         this project type.\n\
-         5. On success, report the service URL, the gcloud project used, and what got created \
-         (Artifact Registry repo, Cloud Run service).\n\
+         deployable; fix only what blocks the deploy.\n\
+         4. {deploy_hint}, unless the skills prescribe something better for this project type.\n\
+         5. On success, report the live URL and what got created, so I can find (and later \
+         clean up) every resource.\n\
          6. On failure, diagnose from the error output and retry sensibly (a few attempts at \
          most), keeping me informed.\n\n\
          This is a one-off quick deploy — do NOT set up CI/CD pipelines or create git \
@@ -331,6 +523,11 @@ impl ModalView for SetSailModal {}
 impl Render for SetSailModal {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focus_handle = self.focus_handle(cx);
+        let platform = self.platform;
+        let selected_index = PLATFORMS
+            .iter()
+            .position(|p| *p == platform)
+            .unwrap_or(0);
 
         v_flex()
             .id("set-sail-modal")
@@ -346,10 +543,9 @@ impl Render for SetSailModal {
                 Modal::new("set-sail", None)
                     .header(
                         ModalHeader::new().headline("Set Sail ⛵").description(
-                            "Quick-deploy this project to Google Cloud Run. PaddleBoard's agent \
-                             follows the s8sskills playbook: it checks your gcloud setup, then \
-                             deploys straight from source. More platforms (Lambda, Vercel, \
-                             Cloudflare…) are on the horizon.",
+                            "Quick-deploy this project to a serverless platform. PaddleBoard's \
+                             agent follows the s8sskills playbook: it checks your CLI setup, \
+                             then deploys straight from source.",
                         ),
                     )
                     .child(
@@ -357,22 +553,74 @@ impl Render for SetSailModal {
                             .px_3()
                             .pb_2()
                             .gap_2()
-                            .child(self.service_input.clone())
-                            .child(self.region_input.clone())
                             .child(
-                                Checkbox::new(
-                                    "set-sail-public",
-                                    if self.allow_unauthenticated {
-                                        ToggleState::Selected
-                                    } else {
-                                        ToggleState::Unselected
-                                    },
+                                ToggleButtonGroup::single_row(
+                                    "set-sail-platform",
+                                    [
+                                        ToggleButtonSimple::new(
+                                            Platform::CloudRun.label(),
+                                            cx.listener(|this, _, _window, cx| {
+                                                this.select_platform(Platform::CloudRun, cx);
+                                            }),
+                                        ),
+                                        ToggleButtonSimple::new(
+                                            Platform::AwsLambda.label(),
+                                            cx.listener(|this, _, _window, cx| {
+                                                this.select_platform(Platform::AwsLambda, cx);
+                                            }),
+                                        ),
+                                        ToggleButtonSimple::new(
+                                            Platform::Vercel.label(),
+                                            cx.listener(|this, _, _window, cx| {
+                                                this.select_platform(Platform::Vercel, cx);
+                                            }),
+                                        ),
+                                    ],
                                 )
-                                .label("Public URL (--allow-unauthenticated)")
-                                .on_click(cx.listener(|this, _, _window, cx| {
-                                    this.allow_unauthenticated = !this.allow_unauthenticated;
-                                    cx.notify();
-                                })),
+                                .style(ToggleButtonGroupStyle::Outlined)
+                                .selected_index(selected_index),
+                            )
+                            .child(self.service_input.clone())
+                            .when(platform.default_region().is_some(), |this| {
+                                this.child(self.region_input.clone())
+                            })
+                            .when(platform.supports_public_toggle(), |this| {
+                                this.child(
+                                    Checkbox::new(
+                                        "set-sail-public",
+                                        if self.allow_unauthenticated {
+                                            ToggleState::Selected
+                                        } else {
+                                            ToggleState::Unselected
+                                        },
+                                    )
+                                    .label("Public URL")
+                                    .on_click(cx.listener(|this, _, _window, cx| {
+                                        this.allow_unauthenticated = !this.allow_unauthenticated;
+                                        cx.notify();
+                                    })),
+                                )
+                            })
+                            .child(
+                                h_flex()
+                                    .gap_0p5()
+                                    .child(
+                                        Label::new(format!(
+                                            "Not set up on {}?",
+                                            platform.vendor_name()
+                                        ))
+                                        .size(LabelSize::Small)
+                                        .color(Color::Muted),
+                                    )
+                                    .child(
+                                        Button::new("set-sail-get-started", "Get started!")
+                                            .style(ButtonStyle::Transparent)
+                                            .label_size(LabelSize::Small)
+                                            .color(Color::Accent)
+                                            .on_click(move |_, _window, cx| {
+                                                cx.open_url(platform.getting_started_url());
+                                            }),
+                                    ),
                             ),
                     )
                     .footer(
@@ -436,12 +684,48 @@ mod tests {
     }
 
     #[test]
-    fn prompt_carries_service_region_and_visibility() {
-        let prompt = quick_deploy_prompt("boaty", "europe-west1", true);
-        assert!(prompt.contains("gcloud run deploy boaty --source . --region europe-west1"));
-        assert!(prompt.contains("--allow-unauthenticated"));
+    fn cloud_run_prompt_carries_service_region_and_visibility() {
+        let prompt = quick_deploy_prompt(Platform::CloudRun, "boaty", "europe-west1", true);
+        assert!(prompt.contains(
+            "gcloud run deploy boaty --source . --region europe-west1 --allow-unauthenticated"
+        ));
         assert!(prompt.contains("cloud-run-deploy/SKILL.md"));
-        let private_prompt = quick_deploy_prompt("boaty", "us-central1", false);
-        assert!(private_prompt.contains("do NOT pass"));
+        assert!(prompt.contains("gcloud-project-setup/SKILL.md"));
+        let private_prompt = quick_deploy_prompt(Platform::CloudRun, "boaty", "us-central1", false);
+        assert!(private_prompt.contains("require authentication"));
+        assert!(!private_prompt.contains("--allow-unauthenticated"));
+    }
+
+    #[test]
+    fn lambda_prompt_carries_function_url_choice_and_aws_checks() {
+        let prompt = quick_deploy_prompt(Platform::AwsLambda, "boaty", "us-east-1", true);
+        assert!(prompt.contains("lambda-deploy/SKILL.md"));
+        assert!(prompt.contains("aws-project-setup/SKILL.md"));
+        assert!(prompt.contains("aws sts get-caller-identity"));
+        assert!(prompt.contains("public Function URL (auth type NONE)"));
+        let private_prompt = quick_deploy_prompt(Platform::AwsLambda, "boaty", "us-east-1", false);
+        assert!(private_prompt.contains("AWS_IAM"));
+    }
+
+    #[test]
+    fn vercel_prompt_omits_region_and_visibility() {
+        let prompt = quick_deploy_prompt(Platform::Vercel, "boaty", "", true);
+        assert!(prompt.contains("vercel-deploy/SKILL.md"));
+        assert!(prompt.contains("vercel-project-setup/SKILL.md"));
+        assert!(prompt.contains("vercel deploy --prod --yes"));
+        assert!(!prompt.contains("Region:"));
+        assert!(!prompt.contains("PUBLIC"));
+    }
+
+    #[test]
+    fn every_platform_declares_setup_then_deploy_skills() {
+        for platform in PLATFORMS {
+            let skills = platform.required_skills();
+            assert_eq!(skills.len(), 2, "{platform:?} should have setup + deploy");
+            assert!(
+                skills[0].contains("setup") && skills[1].contains("deploy"),
+                "{platform:?} skills out of order: {skills:?}"
+            );
+        }
     }
 }
