@@ -38,11 +38,12 @@
       "featured": false
     },
     {
-      "id": "gemini",
-      "name": "Gemini",
-      "description": "Google's Gemini CLI over ACP. Sign in with your Google account or bring your own API key.",
-      "homepage": "https://github.com/google-gemini/gemini-cli",
-      "featured": true
+      "id": "antigravity",
+      "name": "Antigravity",
+      "description": "Google's Antigravity CLI (agy), successor to the retired Gemini CLI. Terminal install today; in-panel ACP threads arrive when agy ships --acp support.",
+      "homepage": "https://github.com/google-antigravity/antigravity-cli",
+      "featured": true,
+      "install_command": "curl -fsSL https://antigravity.google/cli/install.sh | bash"
     },
     {
       "id": "google-adk",

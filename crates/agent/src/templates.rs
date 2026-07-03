@@ -145,6 +145,49 @@ mod tests {
         assert!(rendered.contains("Active persona: qa-tester (role)."));
     }
 
+    // PaddleBoard: the persona catalog renders with the adopt_persona
+    // instruction, and is absent by default.
+    #[test]
+    fn test_system_prompt_renders_persona_catalog() {
+        let project = prompt_store::ProjectContext::default();
+        let template = SystemPromptTemplate {
+            project: &project,
+            available_tools: vec!["echo".into()],
+            model_name: Some("test-model".to_string()),
+            date: "2026-01-01".to_string(),
+            user_agents_md: None,
+            sandboxing: false,
+            is_linux: false,
+            is_windows: false,
+            persona_overlay: None,
+        };
+        let templates = Templates::new();
+        let rendered = template.render(&templates).unwrap();
+        assert!(!rendered.contains("## Available Personas"));
+
+        let project = prompt_store::ProjectContext::default().with_personas(vec![
+            prompt_store::PersonaSummary {
+                name: "qa-engineer".to_string(),
+                description: "Hunts edge cases.".to_string(),
+            },
+        ]);
+        let template = SystemPromptTemplate {
+            project: &project,
+            available_tools: vec!["echo".into()],
+            model_name: Some("test-model".to_string()),
+            date: "2026-01-01".to_string(),
+            user_agents_md: None,
+            sandboxing: false,
+            is_linux: false,
+            is_windows: false,
+            persona_overlay: None,
+        };
+        let rendered = template.render(&templates).unwrap();
+        assert!(rendered.contains("## Available Personas"));
+        assert!(rendered.contains("`qa-engineer`: Hunts edge cases."));
+        assert!(rendered.contains("adopt_persona"));
+    }
+
     #[test]
     fn test_system_prompt_renders_user_agents_md_before_project_rules() {
         use prompt_store::{ProjectContext, RulesFileContext, WorktreeContext};
