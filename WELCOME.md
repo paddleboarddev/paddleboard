@@ -126,6 +126,17 @@ The AI Dock replaces the old hardcoded 5-card "Agent Setup" row on the Welcome s
 
 ---
 
+### Set Sail — deploy to serverless ⛵
+
+Vibe-coded something worth showing off? **`set sail: Deploy`** (command palette) quick-deploys the current project to **Google Cloud Run** — no YAML safari required.
+
+- The modal asks three things: a service name (pre-filled from your project), a region, and whether the URL should be public. Then the agent takes the helm.
+- **Powered by [s8sskills](https://s8sskills.com):** PaddleBoard installs the community skill pack (`gcloud-project-setup`, `cloud-run-deploy`) into `.agents/skills/` and the agent follows that playbook — platform knowledge lives in the open-source catalog, not hardcoded in the editor.
+- The agent checks your `gcloud` setup first and hands interactive steps (like `gcloud auth login`) to you in the terminal rather than running auth flows itself, then deploys from source and reports your live URL.
+- More platforms (AWS Lambda, Vercel, Cloudflare, …) arrive as s8sskills packs — and a future "Rig the pipeline" mode will set up git-push-driven CD so quick deploys graduate into real infrastructure.
+
+---
+
 ### Personas — tell the agent who to be
 
 A **persona** is a markdown file describing who the agent should mimic — a Senior Developer, an SRE, a QA Engineer — and PaddleBoard injects it into the native agent's system prompt for the whole thread. Skills say what the agent can *do*; a persona says who it should *be*: its voice, values, and what it pushes back on.
