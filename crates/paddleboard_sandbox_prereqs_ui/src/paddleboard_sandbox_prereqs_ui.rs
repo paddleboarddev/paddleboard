@@ -13,7 +13,9 @@ use gpui::{
     Action, App, ClickEvent, ClipboardItem, DismissEvent, EventEmitter, FocusHandle, Focusable,
     MouseDownEvent, Render, SharedString,
 };
-use paddleboard_sandbox_prereqs::{CommandKind, GvisorStatus, Os, PodmanStatus, SandboxStatus};
+use paddleboard_sandbox_prereqs::{
+    BuiltInStatus, CommandKind, GvisorStatus, Os, PodmanStatus, SandboxStatus,
+};
 use paddleboard_sandbox_prereqs_state::{OpenSandboxPrereqs, SandboxPrereqs};
 use ui::{Tooltip, prelude::*};
 use workspace::{HideStatusItem, ModalView, StatusItemView, Workspace};
@@ -47,7 +49,15 @@ impl Severity {
         };
         match (&status.podman, &status.gvisor) {
             (PodmanStatus::Missing, _) | (PodmanStatus::InstalledNotRunning { .. }, _) => {
-                Severity::Error
+                // The built-in microVM tier keeps sandboxed tools fully
+                // working with no installs, so a missing Podman is not an
+                // actionable problem — the tooltip and modal name the active
+                // tier instead.
+                if status.builtin.is_available() {
+                    Severity::Ok
+                } else {
+                    Severity::Error
+                }
             }
             (PodmanStatus::Ready { .. }, GvisorStatus::Available)
             | (PodmanStatus::Ready { .. }, GvisorStatus::NotApplicable { .. }) => Severity::Ok,
@@ -110,7 +120,11 @@ impl Render for SandboxStatusItem {
 fn severity_tooltip(severity: Severity, status: Option<&SandboxStatus>) -> SharedString {
     match severity {
         Severity::Unknown => "Sandbox: checking…".into(),
-        Severity::Ok => "Sandbox: ready".into(),
+        Severity::Ok => match status.map(|s| &s.podman) {
+            Some(PodmanStatus::Ready { .. }) => "Sandbox: ready".into(),
+            // Green without Podman means the built-in tier is carrying the load.
+            _ => "Sandbox: built-in microVM (no install needed)".into(),
+        },
         Severity::Warning => match status.map(|s| &s.gvisor) {
             Some(GvisorStatus::NotConfigured) => "Sandbox: gVisor not configured".into(),
             _ => "Sandbox: degraded".into(),
@@ -235,7 +249,47 @@ impl Render for SandboxPrereqsModal {
                 .child(Icon::new(icon).color(color).size(IconSize::Small))
                 .child(Label::new(label))
         };
-        let status_block = v_flex().gap_1().child(podman_row).child(gvisor_row);
+        let builtin_row = {
+            let (icon, color, label): (IconName, Color, SharedString) = match status
+                .as_ref()
+                .map(|s| &s.builtin)
+            {
+                None => (
+                    IconName::Ellipsis,
+                    Color::Muted,
+                    "Built-in sandbox: checking…".into(),
+                ),
+                Some(BuiltInStatus::Available { .. }) => (
+                    IconName::Check,
+                    Color::Success,
+                    "Built-in sandbox: available (no install needed)".into(),
+                ),
+                Some(BuiltInStatus::LibraryMissing) => (
+                    IconName::Info,
+                    Color::Muted,
+                    "Built-in sandbox: libkrun not installed".into(),
+                ),
+                Some(BuiltInStatus::HelperMissing { .. }) => (
+                    IconName::Warning,
+                    Color::Warning,
+                    "Built-in sandbox: helper binary missing from this build".into(),
+                ),
+                Some(BuiltInStatus::Unsupported { reason }) => (
+                    IconName::Info,
+                    Color::Muted,
+                    format!("Built-in sandbox: {reason}").into(),
+                ),
+            };
+            h_flex()
+                .gap_2()
+                .child(Icon::new(icon).color(color).size(IconSize::Small))
+                .child(Label::new(label))
+        };
+        let status_block = v_flex()
+            .gap_1()
+            .child(podman_row)
+            .child(gvisor_row)
+            .child(builtin_row);
 
         // Install steps block. Each step is a numbered description; if the
         // step carries a copy-pasteable command we render it inline as a
