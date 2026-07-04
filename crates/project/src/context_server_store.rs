@@ -21,7 +21,9 @@ use http_client::HttpClient;
 // missing podman doesn't produce a confusing "command not found" from the
 // transport layer.
 use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
-use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_gate};
+use paddleboard_sandbox_settings::{
+    BuiltInCapability, SandboxGateDecision, SandboxSettings, decide_gate,
+};
 use itertools::Itertools;
 use rand::Rng as _;
 use registry::ContextServerDescriptorRegistry;
@@ -1082,9 +1084,18 @@ impl ContextServerStore {
 
                     let gate = decide_gate(
                         SandboxPrereqs::status(cx),
+                        // Phase 1: the MCP stdio transport stays Podman-only.
+                        BuiltInCapability::Unsupported,
                         SandboxSettings::get_global(cx),
                     );
                     match gate {
+                        // Unreachable with BuiltInCapability::Unsupported above;
+                        // refuse rather than silently changing transport tiers.
+                        SandboxGateDecision::UseBuiltIn { reason } => anyhow::bail!(
+                            "Cannot start sandboxed MCP server: {reason}. The MCP \
+                             transport cannot run on the built-in microVM tier yet; \
+                             install Podman + gVisor."
+                        ),
                         SandboxGateDecision::Block { reason } => anyhow::bail!(
                             "Cannot start sandboxed MCP server: {reason}. \
                              Open Sandbox Prerequisites from the status bar to install \

@@ -81,6 +81,7 @@ uuid.workspace = true
 watch.workspace = true
 web_search.workspace = true
 paddleboard_env_vars.workspace = true
+paddleboard_container_engine.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
 paddleboard_personas.workspace = true
 paddleboard_personas_settings.workspace = true
