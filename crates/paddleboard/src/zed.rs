@@ -99,25 +99,15 @@ use workspace::{
     CloseIntent, CloseProject, CloseWindow, RestoreBanner, with_active_or_new_workspace,
 };
 use workspace::{Pane, notifications::DetachAndPromptErr};
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
 use paddleboard_actions::{
-    About, OpenAccountSettings, OpenBrowser, OpenDocs, OpenServerSettings, OpenSettingsFile,
-    OpenStatusPage, OpenZedUrl, Quit,
+    About, GetMerch, OpenAccountSettings, OpenBrowser, OpenDocs, OpenServerSettings,
+    OpenSettingsFile, OpenStatusPage, OpenZedUrl, Quit,
 };
 
 // PaddleBoard: point at the repo — PB doesn't have a hosted docs site
 const DOCS_URL: &str = "https://github.com/paddleboarddev/paddleboard#readme";
 const STATUS_URL: &str = "https://github.com/paddleboarddev/paddleboard";
-=======
-use zed_actions::{
-    About, GetMerch, OpenAccountSettings, OpenBrowser, OpenDocs, OpenServerSettings,
-    OpenSettingsFile, OpenStatusPage, OpenZedUrl, Quit,
-};
-
-const DOCS_URL: &str = "https://zed.dev/docs/";
-const STATUS_URL: &str = "https://status.zed.dev";
 const MERCH_URL: &str = "https://merch.zed.dev/";
->>>>>>> zed/main:crates/zed/src/zed.rs
 
 pub struct CrashHandler(pub Arc<crashes::Client>);
 

@@ -1,15 +1,10 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 version = "0.1.4"
-=======
-name = "zed"
-version = "1.11.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -80,6 +75,7 @@ activity_indicator.workspace = true
 agent.workspace = true
 agent-client-protocol.workspace = true
 agent_settings.workspace = true
+agent_skills.workspace = true
 agent_ui = { workspace = true, features = ["audio"] }
 anyhow.workspace = true
 askpass.workspace = true

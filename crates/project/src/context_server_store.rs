@@ -1921,9 +1921,6 @@ async fn resolve_start_failure(
     // so the next start attempt can get a clean 401 and trigger the auth flow.
     // If there is no such session this is an ordinary startup error.
     if www_authenticate.is_none() {
-<<<<<<< HEAD
-        let credentials_provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
-=======
         let server_url = match configuration.as_ref() {
             ContextServerConfiguration::Http { url, .. }
                 if !configuration.has_static_auth_header() =>
@@ -1940,8 +1937,7 @@ async fn resolve_start_failure(
             }
         };
 
-        let credentials_provider = cx.update(|cx| zed_credentials_provider::global(cx));
->>>>>>> zed/main
+        let credentials_provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
         match ContextServerStore::load_session(&credentials_provider, &server_url, cx).await {
             Ok(Some(_)) => {
                 log::info!("{id} start failed with a cached OAuth session present; clearing it");

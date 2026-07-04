@@ -45,12 +45,8 @@ client.workspace = true
 worktree.workspace = true
 workspace.workspace = true
 language.workspace = true
-<<<<<<< HEAD
-paddleboard_actions.workspace = true
-=======
 markdown_preview.workspace = true
-zed_actions.workspace = true
->>>>>>> zed/main
+paddleboard_actions.workspace = true
 telemetry.workspace = true
 notifications.workspace = true
 feature_flags.workspace = true

@@ -21,12 +21,8 @@ use std::{
 use util::{ResultExt, TryFutureExt};
 
 use crate::{
-<<<<<<< HEAD
-    transport::{SandboxConfig, SandboxedStdioTransport, StdioTransport, Transport},
-=======
     oauth::WwwAuthenticate,
-    transport::{StdioTransport, Transport},
->>>>>>> zed/main
+    transport::{SandboxConfig, SandboxedStdioTransport, StdioTransport, Transport},
     types::{CancelledParams, ClientNotification, Notification as _, notifications::Cancelled},
 };
 

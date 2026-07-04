@@ -31,12 +31,7 @@ theme_settings.workspace = true
 ui.workspace = true
 ui_input.workspace = true
 workspace.workspace = true
-<<<<<<< HEAD
 paddleboard_actions.workspace = true
-multi_buffer.workspace = true
-=======
-zed_actions.workspace = true
->>>>>>> zed/main
 util.workspace = true
 
 [dev-dependencies]

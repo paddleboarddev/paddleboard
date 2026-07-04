@@ -140,9 +140,5 @@ pub fn install_cli_binary(window: &mut Window, cx: &mut Context<Workspace>) {
         register_zed_scheme(cx).await.log_err();
         Ok(())
     })
-<<<<<<< HEAD
     .detach_and_prompt_err("Error installing paddleboard cli", window, cx, |_, _, _| None);
-=======
-    .detach_and_prompt_err("Cannot install the Zed CLI", window, cx, |_, _, _| None);
->>>>>>> zed/main
 }

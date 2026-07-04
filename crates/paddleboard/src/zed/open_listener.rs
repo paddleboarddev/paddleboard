@@ -55,14 +55,9 @@ pub enum OpenRequestKind {
     AgentPanel {
         external_source_prompt: Option<ExternalSourcePrompt>,
     },
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-    SharedAgentThread {
-        session_id: String,
-=======
     InstallSkill {
         /// Full `SKILL.md` contents embedded in a `zed://skill` share link.
         content: String,
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
     },
     DockMenuAction {
         index: usize,
@@ -97,15 +92,9 @@ impl std::fmt::Debug for OpenRequestKind {
                 .debug_struct("AgentPanel")
                 .field("external_source_prompt", external_source_prompt)
                 .finish(),
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-            Self::SharedAgentThread { session_id } => f
-                .debug_struct("SharedAgentThread")
-                .field("session_id", session_id)
-=======
             Self::InstallSkill { content } => f
                 .debug_struct("InstallSkill")
                 .field("content_len", &content.len())
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
                 .finish(),
             Self::DockMenuAction { index } => f
                 .debug_struct("DockMenuAction")
@@ -176,21 +165,9 @@ impl OpenRequest {
                 this.kind = Some(OpenRequestKind::Extension {
                     extension_id: extension_id.to_string(),
                 });
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-            } else if let Some(session_id_str) = url.strip_prefix("paddleboard://agent/shared/") {
-                if uuid::Uuid::parse_str(session_id_str).is_ok() {
-                    this.kind = Some(OpenRequestKind::SharedAgentThread {
-                        session_id: session_id_str.to_string(),
-                    });
-                } else {
-                    log::error!("Invalid session ID in URL: {}", session_id_str);
-                }
-            } else if let Some(agent_path) = url.strip_prefix("paddleboard://agent") {
-=======
             } else if url.starts_with(agent_skills::SKILL_SHARE_LINK_PREFIX) {
                 this.parse_skill_install_url(&url)?
-            } else if let Some(agent_path) = url.strip_prefix("zed://agent") {
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
+            } else if let Some(agent_path) = url.strip_prefix("paddleboard://agent") {
                 this.parse_agent_url(agent_path)
             } else if url == "paddleboard://"
                 || url == "paddleboard://open"
@@ -238,6 +215,13 @@ impl OpenRequest {
         self.kind = Some(OpenRequestKind::AgentPanel {
             external_source_prompt,
         });
+    }
+
+    fn parse_skill_install_url(&mut self, url: &str) -> Result<()> {
+        // Format: zed://skill?data=<base64url of SKILL.md contents>
+        let content = agent_skills::decode_skill_share_link(url)?;
+        self.kind = Some(OpenRequestKind::InstallSkill { content });
+        Ok(())
     }
 
     fn parse_git_clone_url(&mut self, clone_path: &str) -> Result<()> {
@@ -1119,11 +1103,7 @@ mod tests {
     use cli::CliResponse;
     use editor::Editor;
     use futures::poll;
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-    use gpui::TestAppContext;
-=======
     use gpui::{AppContext as _, TestAppContext, UpdateGlobal as _};
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
     use language::LineEnding;
     use remote::SshConnectionOptions;
     use rope::Rope;
@@ -1454,6 +1434,52 @@ mod tests {
         }
     }
 
+    #[gpui::test]
+    fn test_parse_skill_install_url(cx: &mut TestAppContext) {
+        let _app_state = init_test(cx);
+
+        let content =
+            "---\nname: my-skill\ndescription: Does a thing.\n---\n\nDo the thing.\n".to_string();
+        let link = agent_skills::encode_skill_share_link(&content);
+
+        let request = cx.update(|cx| {
+            OpenRequest::parse(
+                RawOpenRequest {
+                    urls: vec![link],
+                    ..Default::default()
+                },
+                cx,
+            )
+            .unwrap()
+        });
+
+        match request.kind {
+            Some(OpenRequestKind::InstallSkill {
+                content: parsed_content,
+            }) => {
+                assert_eq!(parsed_content, content);
+            }
+            _ => panic!("Expected InstallSkill kind"),
+        }
+    }
+
+    #[gpui::test]
+    fn test_parse_malformed_skill_install_url_errors(cx: &mut TestAppContext) {
+        let _app_state = init_test(cx);
+
+        let result = cx.update(|cx| {
+            OpenRequest::parse(
+                RawOpenRequest {
+                    urls: vec!["zed://skill?data=!!!notbase64".into()],
+                    ..Default::default()
+                },
+                cx,
+            )
+        });
+
+        assert!(result.is_err());
+    }
+
     fn agent_url_with_prompt(prompt: &str) -> String {
         let mut serializer = url::form_urlencoded::Serializer::new("paddleboard://agent?".to_string());
         serializer.append_pair("prompt", prompt);
@@ -1574,53 +1600,6 @@ mod tests {
     }
 
     #[gpui::test]
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-    fn test_parse_shared_agent_thread_url(cx: &mut TestAppContext) {
-        let _app_state = init_test(cx);
-        let session_id = "123e4567-e89b-12d3-a456-426614174000";
-
-        let request = cx.update(|cx| {
-            OpenRequest::parse(
-                RawOpenRequest {
-                    urls: vec![format!("paddleboard://agent/shared/{session_id}")],
-                    ..Default::default()
-                },
-                cx,
-            )
-            .unwrap()
-        });
-
-        match request.kind {
-            Some(OpenRequestKind::SharedAgentThread {
-                session_id: parsed_session_id,
-            }) => {
-                assert_eq!(parsed_session_id, session_id);
-            }
-            _ => panic!("Expected SharedAgentThread kind"),
-        }
-    }
-
-    #[gpui::test]
-    fn test_parse_shared_agent_thread_url_with_invalid_uuid(cx: &mut TestAppContext) {
-        let _app_state = init_test(cx);
-
-        let request = cx.update(|cx| {
-            OpenRequest::parse(
-                RawOpenRequest {
-                    urls: vec!["paddleboard://agent/shared/not-a-uuid".into()],
-                    ..Default::default()
-                },
-                cx,
-            )
-            .unwrap()
-        });
-
-        assert!(request.kind.is_none());
-    }
-
-    #[gpui::test]
-=======
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
     fn test_parse_git_commit_url(cx: &mut TestAppContext) {
         let _app_state = init_test(cx);
 

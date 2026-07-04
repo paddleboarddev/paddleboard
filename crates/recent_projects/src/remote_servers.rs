@@ -2362,17 +2362,12 @@ impl RemoteServerProjects {
                                         )
                                         .inset(true)
                                         .spacing(ui::ListItemSpacing::Sparse)
-<<<<<<< HEAD
-                                        .start_slot(Icon::new(IconName::File).color(Color::Muted))
-                                        .child(Label::new("Open PaddleBoard Log")) // PaddleBoard: app rename
-=======
                                         .start_slot(
                                             Icon::new(IconName::File)
                                                 .color(Color::Muted)
                                                 .size(IconSize::Small),
                                         )
-                                        .child(Label::new("Open Zed Log"))
->>>>>>> zed/main
+                                        .child(Label::new("Open PaddleBoard Log")) // PaddleBoard: app rename
                                         .on_click(cx.listener(|_, _, window, cx| {
                                             window.dispatch_action(Box::new(OpenLog), cx);
                                             cx.emit(DismissEvent);

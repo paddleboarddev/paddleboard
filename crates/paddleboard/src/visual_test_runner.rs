@@ -2885,11 +2885,7 @@ fn run_multi_workspace_sidebar_visual_tests(
                             request_token_usage: Default::default(),
                             model: None,
                             profile: None,
-<<<<<<< HEAD:crates/paddleboard/src/visual_test_runner.rs
                             persona: None,
-                            imported: false,
-=======
->>>>>>> zed/main:crates/zed/src/visual_test_runner.rs
                             subagent_context: None,
                             speed: None,
                             thinking_enabled: false,

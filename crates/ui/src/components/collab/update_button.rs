@@ -96,13 +96,9 @@ impl UpdateButton {
             .disabled(true)
     }
 
-<<<<<<< HEAD
-    pub fn downloading(version: impl Into<SharedString>) -> Self {
-        Self::new(IconName::Download, "Downloading PaddleBoard Update…")
-=======
     pub fn downloading(version: impl Into<SharedString>, progress: Option<f32>) -> Self {
-        Self::new(IconName::Download, "Downloading Zed Update…")
->>>>>>> zed/main
+        // PaddleBoard: user-visible copy rebranded from Zed.
+        Self::new(IconName::Download, "Downloading PaddleBoard Update…")
             .tooltip(version)
             .progress(progress)
             .disabled(true)

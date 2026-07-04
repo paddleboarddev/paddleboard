@@ -36,16 +36,12 @@ where
         anchor: Anchor,
         cx: &mut App,
     ) -> Self {
-<<<<<<< HEAD
-        // PaddleBoard: upstream #59693 forces `is_modal = false` on popover pickers,
-        // but the picker only draws its `elevation_3` background when modal (see
-        // picker/src/render.rs) and `PopoverMenu` adds none — so the model/profile/
-        // config dropdowns render transparent. Keep popover pickers modal so the
-        // dropdown has a background. Drop this if upstream gives non-modal pickers a
-        // background of their own.
-=======
-        picker.update(cx, |picker, _| picker.set_popover());
->>>>>>> zed/main
+        // PaddleBoard: upstream #59693 forces `is_modal = false` on popover pickers
+        // (now via `picker.set_popover()`), but the picker only draws its
+        // `elevation_3` background when modal (see picker/src/render.rs) and
+        // `PopoverMenu` adds none — so the model/profile/config dropdowns render
+        // transparent. Keep popover pickers modal so the dropdown has a background.
+        // Drop this if upstream gives non-modal pickers a background of their own.
         Self {
             _subscriptions: vec![cx.subscribe(&picker, |picker, &DismissEvent, cx| {
                 picker.update(cx, |_, cx| cx.emit(DismissEvent));

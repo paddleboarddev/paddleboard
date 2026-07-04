@@ -264,20 +264,6 @@ fn git_panel_view_options_menu(
                             });
                             window.dispatch_action(Box::new(ToggleTreeView), cx);
                         }
-<<<<<<< HEAD
-                    }),
-            )
-            .separator()
-            .entry(
-                if state.tree_view {
-                    "Flat View"
-                } else {
-                    "Tree View"
-                },
-                Some(Box::new(ToggleTreeView)),
-                move |window, cx| window.dispatch_action(Box::new(ToggleTreeView), cx),
-            )
-=======
                     })
             })
             .item({
@@ -294,7 +280,6 @@ fn git_panel_view_options_menu(
                         }
                     })
             })
->>>>>>> zed/main
             .when(!state.tree_view, |this| {
                 this.separator()
                     .header("Sort By")
@@ -5372,10 +5357,10 @@ impl GitPanel {
                                     .h_full()
                                     .flex_grow_1()
                                     .cursor_text()
-                                    .on_action(|&zed_actions::editor::MoveUp, _, cx| {
+                                    .on_action(|&paddleboard_actions::editor::MoveUp, _, cx| {
                                         cx.stop_propagation();
                                     })
-                                    .on_action(|&zed_actions::editor::MoveDown, _, cx| {
+                                    .on_action(|&paddleboard_actions::editor::MoveDown, _, cx| {
                                         cx.stop_propagation();
                                     })
                                     .child(EditorElement::new(
@@ -5405,83 +5390,6 @@ impl GitPanel {
                                     .children(enable_coauthors)
                                     .child(self.render_commit_button(cx)),
                             ),
-<<<<<<< HEAD
-                    )
-                    .child(
-                        div()
-                            .when(self.commit_editor_expanded, |this| {
-                                this.flex_1().min_h_0().pb(footer_size)
-                            })
-                            .pr_2p5()
-                            .on_action(|&paddleboard_actions::editor::MoveUp, _, cx| {
-                                cx.stop_propagation();
-                            })
-                            .on_action(|&paddleboard_actions::editor::MoveDown, _, cx| {
-                                cx.stop_propagation();
-                            })
-                            .child(EditorElement::new(&self.commit_editor, panel_editor_style)),
-                    )
-                    .child(
-                        v_flex()
-                            .absolute()
-                            .top_2()
-                            .right_2()
-                            .gap_px()
-                            .opacity(0.6)
-                            .hover(|s| s.opacity(1.0))
-                            .child(
-                                IconButton::new("expand-commit-editor", IconName::MaximizeAlt)
-                                    .icon_size(IconSize::Small)
-                                    .tooltip({
-                                        move |_window, cx| {
-                                            Tooltip::for_action_in(
-                                                "Open Commit Modal",
-                                                &git::ExpandCommitEditor,
-                                                &editor_focus_handle,
-                                                cx,
-                                            )
-                                        }
-                                    })
-                                    .on_click(cx.listener({
-                                        move |_, _, window, cx| {
-                                            window.dispatch_action(
-                                                git::ExpandCommitEditor.boxed_clone(),
-                                                cx,
-                                            )
-                                        }
-                                    })),
-                            )
-                            .child({
-                                let (icon, label) = if self.commit_editor_expanded {
-                                    (IconName::Minimize, "Collapse Commit Editor")
-                                } else {
-                                    (IconName::Maximize, "Expand Commit Editor")
-                                };
-                                let focus_handle = self.focus_handle.clone();
-
-                                IconButton::new("fill-commit-editor", icon)
-                                    .icon_size(IconSize::Small)
-                                    .tooltip({
-                                        move |_window, cx| {
-                                            Tooltip::for_action_in(
-                                                label,
-                                                &git::ToggleFillCommitEditor,
-                                                &focus_handle,
-                                                cx,
-                                            )
-                                        }
-                                    })
-                                    .on_click(cx.listener({
-                                        move |_, _, window, cx| {
-                                            window.dispatch_action(
-                                                git::ToggleFillCommitEditor.boxed_clone(),
-                                                cx,
-                                            )
-                                        }
-                                    }))
-                            }),
-=======
->>>>>>> zed/main
                     ),
             );
 
@@ -7316,7 +7224,7 @@ impl Render for GenerateCommitMessageConfigurationTooltip {
                                 .label_size(LabelSize::Small)
                                 .on_click(|_, window, cx| {
                                     window.dispatch_action(
-                                        zed_actions::OpenSettingsAt {
+                                        paddleboard_actions::OpenSettingsAt {
                                             path: "llm_providers".to_string(),
                                             target: None,
                                         }

@@ -59,7 +59,6 @@ PaddleBoard builds with [Cargo](https://doc.rust-lang.org/cargo/), the same tool
    ./script/bundle-mac -o       # release .app + .dmg (what the release pipeline ships)
    ```
 
-<<<<<<< HEAD
 Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly.
 
 ---
@@ -75,9 +74,3 @@ PaddleBoard inherits Zed's tri-license (AGPL / Apache 2.0 / GPL). See the `LICEN
 ## Credits
 
 PaddleBoard builds on a lot of open-source work. See [CREDITS.md](./CREDITS.md) for the third-party language and prose servers it integrates (and their licenses), and `assets/licenses.md` for the full Rust dependency manifest.
-=======
-If you’d like to financially support the project, you can do so via GitHub Sponsors.
-Sponsorships go directly to Zed Industries and are used as general company revenue.
-There are no perks or entitlements associated with sponsorship.
-
->>>>>>> zed/main
