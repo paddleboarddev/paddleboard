@@ -879,7 +879,8 @@ impl Render for ConfigurationView {
             v_flex()
                 .size_full()
                 .on_action(cx.listener(Self::save_api_key))
-                .child(Label::new("To use Zed's agent with OpenRouter, you need to add an API key. Follow these steps:"))
+                // PaddleBoard: user-visible copy rebranded from Zed.
+                .child(Label::new("To use PaddleBoard's agent with OpenRouter, you need to add an API key. Follow these steps:"))
                 .child(
                     List::new()
                         .child(
@@ -895,7 +896,7 @@ impl Render for ConfigurationView {
                 .child(self.api_key_editor.clone())
                 .child(
                     Label::new(
-                        format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart Zed."),
+                        format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart PaddleBoard."),
                     )
                     .size(LabelSize::Small).color(Color::Muted),
                 )

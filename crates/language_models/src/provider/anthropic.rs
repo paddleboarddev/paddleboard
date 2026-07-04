@@ -694,7 +694,8 @@ impl Render for ConfigurationView {
                 .child(self.api_key_editor.clone())
                 .child(
                     Label::new(
-                        format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart Zed."),
+                        // PaddleBoard: user-visible copy rebranded from Zed.
+                        format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart PaddleBoard."),
                     )
                     .size(LabelSize::Small)
                     .color(Color::Muted)

@@ -2399,7 +2399,8 @@ impl ConversationView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let (heading_label, description_label) = (
-            format!("Upgrade {} to work with Zed", self.agent.agent_id()),
+            // PaddleBoard: user-visible copy rebranded from Zed.
+            format!("Upgrade {} to work with PaddleBoard", self.agent.agent_id()),
             if version.is_empty() {
                 format!(
                     "Currently using {}, which does not report a valid --version",
