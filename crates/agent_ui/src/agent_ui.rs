@@ -211,13 +211,13 @@ actions!(
         CycleFavoriteModels,
         /// Expands the message editor to full size.
         ExpandMessageEditor,
-<<<<<<< HEAD
+        // PaddleBoard: these actions remain in use by PB surfaces (thread history
+        // view, MCP servers view, in-panel agent configuration) after upstream
+        // moved its config UI into settings_ui and dropped them.
         /// Removes all thread history.
         RemoveHistory,
         /// Adds a context server to the configuration.
         AddContextServer,
-=======
->>>>>>> zed/main
         /// Archives the currently selected thread.
         ArchiveSelectedThread,
         /// Removes the currently selected thread.

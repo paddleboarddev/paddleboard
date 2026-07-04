@@ -90,13 +90,10 @@ release_channel.workspace = true
 remote.workspace = true
 remote_connection.workspace = true
 rope.workspace = true
-<<<<<<< HEAD
 # PaddleBoard: rules library + skill creator features
 rules_library.workspace = true
 skill_creator.workspace = true
-=======
 sandbox.workspace = true
->>>>>>> zed/main
 schemars.workspace = true
 search.workspace = true
 serde.workspace = true

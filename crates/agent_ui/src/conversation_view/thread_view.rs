@@ -8032,32 +8032,6 @@ impl ThreadView {
                             }),
                     ),
             )
-<<<<<<< HEAD
-            .when(show_settings_button, |this| {
-                this.child(
-                    IconButton::new(
-                        SharedString::from(format!(
-                            "open-sandbox-setting-{}",
-                            terminal.entity_id()
-                        )),
-                        IconName::Settings,
-                    )
-                    .icon_size(IconSize::XSmall)
-                    .icon_color(Color::Muted)
-                    .tooltip(Tooltip::text("Open the sandbox permission settings"))
-                    .on_click(|_event, window, cx| {
-                        window.dispatch_action(
-                            Box::new(paddleboard_actions::OpenSettingsAt {
-                                path: paddleboard_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
-                                target: None,
-                            }),
-                            cx,
-                        );
-                    }),
-                )
-            })
-=======
->>>>>>> zed/main
             .into_any_element()
     }
 
