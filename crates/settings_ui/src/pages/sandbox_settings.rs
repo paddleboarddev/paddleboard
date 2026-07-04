@@ -74,7 +74,8 @@ pub(crate) fn render_sandbox_settings_page(
                 "sandbox-enabled",
                 Some("Enable Sandbox"),
                 Some(
-                    "Wrap agent-run terminal commands in an OS-level sandbox. When off, commands run with Zed's own permissions."
+                    // PaddleBoard: user-visible copy rebranded from Zed.
+                    "Wrap agent-run terminal commands in an OS-level sandbox. When off, commands run with PaddleBoard's own permissions."
                         .into(),
                 ),
                 sandbox_enabled,

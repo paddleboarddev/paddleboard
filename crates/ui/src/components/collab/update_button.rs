@@ -79,19 +79,20 @@ impl UpdateButton {
     }
 
     pub fn checking() -> Self {
-        Self::new(IconName::LoadCircle, "Checking for Zed Updates…")
+        // PaddleBoard: user-visible copy rebranded from Zed.
+        Self::new(IconName::LoadCircle, "Checking for PaddleBoard Updates…")
             .icon_animate(true)
             .disabled(true)
     }
 
     pub fn downloading(version: impl Into<SharedString>) -> Self {
-        Self::new(IconName::Download, "Downloading Zed Update…")
+        Self::new(IconName::Download, "Downloading PaddleBoard Update…")
             .tooltip(version)
             .disabled(true)
     }
 
     pub fn installing(version: impl Into<SharedString>) -> Self {
-        Self::new(IconName::LoadCircle, "Installing Zed Update…")
+        Self::new(IconName::LoadCircle, "Installing PaddleBoard Update…")
             .icon_animate(true)
             .tooltip(version)
             .disabled(true)

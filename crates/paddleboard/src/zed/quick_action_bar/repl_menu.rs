@@ -375,7 +375,8 @@ impl QuickActionBar {
     }
 
     pub fn render_repl_setup(&self, language: &str, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let tooltip: SharedString = SharedString::from(format!("Setup Zed REPL for {}", language));
+        // PaddleBoard: user-visible copy rebranded from Zed.
+        let tooltip: SharedString = SharedString::from(format!("Setup PaddleBoard REPL for {}", language));
         Some(
             h_flex()
                 .gap(DynamicSpacing::Base06.rems(cx))

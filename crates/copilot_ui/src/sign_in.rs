@@ -248,7 +248,8 @@ impl CopilotCodeVerification {
             .gap_2p5()
             .items_center()
             .text_center()
-            .child(Headline::new("Use GitHub Copilot in Zed").size(HeadlineSize::Large))
+            // PaddleBoard: user-visible copy rebranded from Zed.
+            .child(Headline::new("Use GitHub Copilot in PaddleBoard").size(HeadlineSize::Large))
             .child(
                 Label::new("Using Copilot requires an active subscription on GitHub.")
                     .color(Color::Muted),
@@ -653,7 +654,7 @@ impl ConfigurationView {
     }
 
     fn render_for_chat(&self) -> impl IntoElement {
-        let start_label = "To use Zed's agent with GitHub Copilot, you need to be logged in to GitHub. Note that your GitHub account must have an active Copilot Chat subscription.";
+        let start_label = "To use PaddleBoard's agent with GitHub Copilot, you need to be logged in to GitHub. Note that your GitHub account must have an active Copilot Chat subscription.";
         let no_status_label = "Copilot Chat requires an active GitHub Copilot subscription. Please ensure Copilot is configured and try again, or use a different LLM provider.";
 
         if let Some(msg) = self.loading_message() {
