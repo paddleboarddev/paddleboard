@@ -1808,14 +1808,10 @@ impl Thread {
             step_mode: false,
             inherits_parent_model_settings: true,
             sandboxed_terminal_temp_dir: db_thread.sandboxed_terminal_temp_dir,
-<<<<<<< HEAD
-            sandbox_grants: Rc::new(RefCell::new(ThreadSandboxGrants::default())),
-            persona: db_thread.persona,
-=======
             sandbox_grants: Rc::new(RefCell::new(ThreadSandboxGrants::from_db(
                 &db_thread.sandbox_grants,
             ))),
->>>>>>> zed/main
+            persona: db_thread.persona,
         }
     }
 
@@ -1912,11 +1908,8 @@ impl Thread {
                 }
             }),
             sandboxed_terminal_temp_dir: self.sandboxed_terminal_temp_dir.clone(),
-<<<<<<< HEAD
             persona: self.persona.clone(),
-=======
             sandbox_grants: self.sandbox_grants.borrow().to_db(),
->>>>>>> zed/main
         };
 
         cx.background_spawn(async move {
@@ -3565,14 +3558,6 @@ impl Thread {
         cancellation_rx: watch::Receiver<bool>,
         cx: &mut Context<Self>,
     ) -> Task<LanguageModelToolResult> {
-<<<<<<< HEAD
-        // PaddleBoard: shared by the step-mode and direct paths below.
-        fn finish_tool_result(
-            result: Result<AgentToolOutput, AgentToolOutput>,
-            supports_images: bool,
-        ) -> (bool, AgentToolOutput) {
-            match result {
-=======
         // A workspace can become restricted after a thread has already started.
         // Tools that aren't allowed in restricted workspaces must never run in
         // that state, even though they were exposed to the model earlier.
@@ -3593,23 +3578,12 @@ impl Thread {
             });
         }
 
-        let fs = self.project.read(cx).fs().clone();
-        let tool_event_stream = ToolCallEventStream::new(
-            tool_use_id.clone(),
-            event_stream.clone(),
-            Some(fs),
-            cancellation_rx,
-            self.sandbox_grants.clone(),
-            Some(cx.weak_entity()),
-        );
-        tool_event_stream.update_fields(
-            acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
-        );
-        let supports_images = self.model().is_some_and(|model| model.supports_images());
-        let tool_result = tool.run(tool_input, tool_event_stream, cx);
-        cx.foreground_executor().spawn(async move {
-            let (is_error, output) = match tool_result.await {
->>>>>>> zed/main
+        // PaddleBoard: shared by the step-mode and direct paths below.
+        fn finish_tool_result(
+            result: Result<AgentToolOutput, AgentToolOutput>,
+            supports_images: bool,
+        ) -> (bool, AgentToolOutput) {
+            match result {
                 Ok(mut output) => {
                     let contains_image = output
                         .llm_output
@@ -3660,6 +3634,7 @@ impl Thread {
             Some(fs),
             cancellation_rx,
             self.sandbox_grants.clone(),
+            Some(cx.weak_entity()),
         );
         let supports_images = self.model().is_some_and(|model| model.supports_images());
 

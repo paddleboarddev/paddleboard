@@ -81,12 +81,10 @@ pub struct DbThread {
     pub ui_scroll_position: Option<SerializedScrollPosition>,
     #[serde(default)]
     pub sandboxed_terminal_temp_dir: Option<PathBuf>,
-<<<<<<< HEAD
     // PaddleBoard: persona system — the identity overlay active for the
     // thread, snapshotted at selection time.
     #[serde(default)]
     pub persona: Option<crate::ThreadPersona>,
-=======
     /// Sandbox escalations the user approved "for the rest of this thread".
     /// Persisted so reopening a thread keeps its grants. See
     /// [`crate::sandboxing::ThreadSandboxGrants`].
@@ -121,7 +119,6 @@ pub struct DbSandboxGrants {
     /// could not be created (the fallback prompt's "for this thread" option).
     #[serde(default)]
     pub sandbox_fallback: bool,
->>>>>>> zed/main
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -171,11 +168,8 @@ impl SharedThread {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
-<<<<<<< HEAD
             persona: None,
-=======
             sandbox_grants: DbSandboxGrants::default(),
->>>>>>> zed/main
         }
     }
 
@@ -359,11 +353,8 @@ impl DbThread {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
-<<<<<<< HEAD
             persona: None,
-=======
             sandbox_grants: DbSandboxGrants::default(),
->>>>>>> zed/main
         })
     }
 }
@@ -814,11 +805,8 @@ mod tests {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
-<<<<<<< HEAD
             persona: None,
-=======
             sandbox_grants: DbSandboxGrants::default(),
->>>>>>> zed/main
         }
     }
 
