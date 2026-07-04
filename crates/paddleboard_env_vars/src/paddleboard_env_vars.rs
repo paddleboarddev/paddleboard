@@ -9,3 +9,10 @@ pub static PADDLEBOARD_OTEL_ENABLED: LazyLock<bool> = bool_env_var!("PADDLEBOARD
 
 #[allow(dead_code)]
 pub static PADDLEBOARD_OTEL_ENDPOINT: LazyLock<EnvVar> = env_var!("PADDLEBOARD_OTEL_ENDPOINT");
+
+pub const SANDBOX_FORCE_BUILTIN_ENV_VAR: &str = "PADDLEBOARD_SANDBOX_FORCE_BUILTIN";
+
+/// Dev/test override: route sandboxed tools through the built-in libkrun
+/// microVM tier even when Podman + gVisor are healthy.
+pub static PADDLEBOARD_SANDBOX_FORCE_BUILTIN: LazyLock<bool> =
+    bool_env_var!(SANDBOX_FORCE_BUILTIN_ENV_VAR);

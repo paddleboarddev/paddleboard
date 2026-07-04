@@ -102,8 +102,12 @@ impl From<settings::PaddleboardOnMissingRuntimeContent> for OnMissingRuntime {
 /// and user policy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SandboxGateDecision {
-    /// Proceed sandboxed.
+    /// Proceed sandboxed via the Podman + gVisor tier.
     Allow,
+    /// The Podman tier is missing but the built-in libkrun microVM tier is
+    /// available; proceed sandboxed via a microVM. The reason describes what
+    /// was missing, for logging / debug surfaces.
+    UseBuiltIn { reason: String },
     /// Prereqs are missing and the user has opted to run on the host instead.
     /// The reason is included for logging / debug surfaces.
     FallBackToHost { reason: String },
@@ -115,12 +119,52 @@ pub enum SandboxGateDecision {
     WarnOnce { reason: String },
 }
 
-/// Decide what to do given the cached probe result and user policy. Pure so
-/// the policy matrix is testable without a real podman host.
+/// Whether a call site can run its workload on the built-in libkrun microVM
+/// tier. Phase 1: only the one-shot `sandbox_tool` can; the service tool, MCP
+/// transport, and REPL kernels stay Podman-only, so they pass `Unsupported`
+/// and see exactly the pre-built-in policy behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuiltInCapability {
+    Supported,
+    Unsupported,
+}
+
+/// Decide what to do given the cached probe result and user policy.
 pub fn decide_gate(
     prereqs: Option<&SandboxStatus>,
+    builtin_capability: BuiltInCapability,
     settings: &SandboxSettings,
 ) -> SandboxGateDecision {
+    decide_gate_inner(
+        prereqs,
+        builtin_capability,
+        settings,
+        *paddleboard_env_vars::PADDLEBOARD_SANDBOX_FORCE_BUILTIN,
+    )
+}
+
+/// Pure core of [`decide_gate`], with the env override injected so the policy
+/// matrix is testable without a real podman host or process environment.
+fn decide_gate_inner(
+    prereqs: Option<&SandboxStatus>,
+    builtin_capability: BuiltInCapability,
+    settings: &SandboxSettings,
+    force_builtin: bool,
+) -> SandboxGateDecision {
+    let builtin_viable = |status: &SandboxStatus| {
+        builtin_capability == BuiltInCapability::Supported && status.builtin.is_available()
+    };
+
+    // Dev/test override: force the built-in tier even when Podman is healthy,
+    // so the microVM path can be exercised without uninstalling Podman.
+    if force_builtin && let Some(status) = prereqs
+        && builtin_viable(status)
+    {
+        return SandboxGateDecision::UseBuiltIn {
+            reason: format!("{} is set", paddleboard_env_vars::SANDBOX_FORCE_BUILTIN_ENV_VAR),
+        };
+    }
+
     if !settings.prereq_check_enabled {
         return SandboxGateDecision::Allow;
     }
@@ -138,6 +182,14 @@ pub fn decide_gate(
     }
 
     let reason = describe_missing(status);
+
+    // The middle rung: Podman tier missing, but the workload can run on the
+    // built-in microVM tier with no installs. Preferred over every
+    // missing-runtime policy because it keeps the sandbox guarantee.
+    if builtin_viable(status) {
+        return SandboxGateDecision::UseBuiltIn { reason };
+    }
+
     match settings.on_missing_runtime {
         OnMissingRuntime::Block => SandboxGateDecision::Block { reason },
         OnMissingRuntime::FallBackToHost => SandboxGateDecision::FallBackToHost { reason },
@@ -165,7 +217,21 @@ fn describe_missing(status: &SandboxStatus) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use paddleboard_sandbox_prereqs::{GvisorStatus, PodmanStatus, SandboxStatus};
+    use paddleboard_sandbox_prereqs::{BuiltInStatus, GvisorStatus, PodmanStatus, SandboxStatus};
+    use std::path::PathBuf;
+
+    fn builtin_available() -> BuiltInStatus {
+        BuiltInStatus::Available {
+            libkrun: PathBuf::from("/opt/homebrew/lib/libkrun.dylib"),
+            helper: PathBuf::from("/tmp/paddleboard-krun-helper"),
+        }
+    }
+
+    fn builtin_unavailable() -> BuiltInStatus {
+        BuiltInStatus::Unsupported {
+            reason: "test platform",
+        }
+    }
 
     fn happy() -> SandboxStatus {
         SandboxStatus {
@@ -173,6 +239,7 @@ mod tests {
                 version: "podman version 5.0.0".into(),
             },
             gvisor: GvisorStatus::Available,
+            builtin: builtin_unavailable(),
         }
     }
 
@@ -180,6 +247,14 @@ mod tests {
         SandboxStatus {
             podman: PodmanStatus::Missing,
             gvisor: GvisorStatus::Unknown,
+            builtin: builtin_unavailable(),
+        }
+    }
+
+    fn missing_podman_with_builtin() -> SandboxStatus {
+        SandboxStatus {
+            builtin: builtin_available(),
+            ..missing_podman()
         }
     }
 
@@ -189,19 +264,34 @@ mod tests {
                 version: "podman version 5.0.0".into(),
             },
             gvisor: GvisorStatus::NotConfigured,
+            builtin: builtin_unavailable(),
         }
+    }
+
+    fn gate(
+        prereqs: Option<&SandboxStatus>,
+        capability: BuiltInCapability,
+        settings: &SandboxSettings,
+    ) -> SandboxGateDecision {
+        decide_gate_inner(prereqs, capability, settings, false)
     }
 
     #[test]
     fn allow_when_prereqs_are_satisfied() {
         let s = SandboxSettings::default();
-        assert_eq!(decide_gate(Some(&happy()), &s), SandboxGateDecision::Allow);
+        assert_eq!(
+            gate(Some(&happy()), BuiltInCapability::Supported, &s),
+            SandboxGateDecision::Allow
+        );
     }
 
     #[test]
     fn allow_when_status_not_yet_probed() {
         let s = SandboxSettings::default();
-        assert_eq!(decide_gate(None, &s), SandboxGateDecision::Allow);
+        assert_eq!(
+            gate(None, BuiltInCapability::Supported, &s),
+            SandboxGateDecision::Allow
+        );
     }
 
     #[test]
@@ -211,7 +301,11 @@ mod tests {
             on_missing_runtime: OnMissingRuntime::Block,
         };
         assert_eq!(
-            decide_gate(Some(&missing_podman()), &s),
+            gate(
+                Some(&missing_podman()),
+                BuiltInCapability::Supported,
+                &s
+            ),
             SandboxGateDecision::Allow
         );
     }
@@ -219,14 +313,14 @@ mod tests {
     #[test]
     fn block_is_default_when_podman_missing() {
         let s = SandboxSettings::default();
-        let decision = decide_gate(Some(&missing_podman()), &s);
+        let decision = gate(Some(&missing_podman()), BuiltInCapability::Supported, &s);
         assert!(matches!(decision, SandboxGateDecision::Block { .. }));
     }
 
     #[test]
     fn block_when_gvisor_missing_with_default_policy() {
         let s = SandboxSettings::default();
-        let decision = decide_gate(Some(&missing_gvisor()), &s);
+        let decision = gate(Some(&missing_gvisor()), BuiltInCapability::Supported, &s);
         match decision {
             SandboxGateDecision::Block { reason } => {
                 assert!(reason.contains("gVisor"));
@@ -241,7 +335,7 @@ mod tests {
             prereq_check_enabled: true,
             on_missing_runtime: OnMissingRuntime::FallBackToHost,
         };
-        let decision = decide_gate(Some(&missing_podman()), &s);
+        let decision = gate(Some(&missing_podman()), BuiltInCapability::Supported, &s);
         assert!(matches!(decision, SandboxGateDecision::FallBackToHost { .. }));
     }
 
@@ -251,7 +345,76 @@ mod tests {
             prereq_check_enabled: true,
             on_missing_runtime: OnMissingRuntime::WarnOnce,
         };
-        let decision = decide_gate(Some(&missing_gvisor()), &s);
+        let decision = gate(Some(&missing_gvisor()), BuiltInCapability::Supported, &s);
         assert!(matches!(decision, SandboxGateDecision::WarnOnce { .. }));
+    }
+
+    #[test]
+    fn builtin_outranks_every_missing_runtime_policy() {
+        for policy in [
+            OnMissingRuntime::Block,
+            OnMissingRuntime::FallBackToHost,
+            OnMissingRuntime::WarnOnce,
+        ] {
+            let s = SandboxSettings {
+                prereq_check_enabled: true,
+                on_missing_runtime: policy,
+            };
+            let decision = gate(
+                Some(&missing_podman_with_builtin()),
+                BuiltInCapability::Supported,
+                &s,
+            );
+            assert!(
+                matches!(decision, SandboxGateDecision::UseBuiltIn { .. }),
+                "policy {policy:?} should be outranked by the built-in tier, got {decision:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn builtin_not_used_when_podman_tier_is_healthy() {
+        let s = SandboxSettings::default();
+        let status = SandboxStatus {
+            builtin: builtin_available(),
+            ..happy()
+        };
+        assert_eq!(
+            gate(Some(&status), BuiltInCapability::Supported, &s),
+            SandboxGateDecision::Allow
+        );
+    }
+
+    #[test]
+    fn unsupported_call_sites_keep_policy_behavior() {
+        // The service tool / MCP transport can't run on the built-in tier in
+        // phase 1; with `Unsupported` they must see exactly the old policy
+        // behavior even when the built-in tier is available.
+        let s = SandboxSettings::default();
+        let decision = gate(
+            Some(&missing_podman_with_builtin()),
+            BuiltInCapability::Unsupported,
+            &s,
+        );
+        assert!(matches!(decision, SandboxGateDecision::Block { .. }));
+    }
+
+    #[test]
+    fn force_builtin_env_overrides_healthy_podman() {
+        let s = SandboxSettings::default();
+        let status = SandboxStatus {
+            builtin: builtin_available(),
+            ..happy()
+        };
+        let decision = decide_gate_inner(Some(&status), BuiltInCapability::Supported, &s, true);
+        assert!(matches!(decision, SandboxGateDecision::UseBuiltIn { .. }));
+    }
+
+    #[test]
+    fn force_builtin_env_is_inert_when_builtin_unavailable() {
+        let s = SandboxSettings::default();
+        let decision =
+            decide_gate_inner(Some(&missing_podman()), BuiltInCapability::Supported, &s, true);
+        assert!(matches!(decision, SandboxGateDecision::Block { .. }));
     }
 }

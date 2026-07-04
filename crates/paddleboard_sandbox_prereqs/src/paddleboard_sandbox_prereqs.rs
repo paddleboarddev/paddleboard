@@ -1,14 +1,17 @@
 //! Detect whether PaddleBoard's sandbox prerequisites (Podman + gVisor's `runsc`)
 //! are installed and reachable, and produce human-readable install guidance when
-//! they aren't. This is the data layer; UI surfaces (CLI flag, status indicator,
-//! modal) live elsewhere.
+//! they aren't. Also detects the built-in libkrun microVM tier, which needs no
+//! external installs. This is the data layer; UI surfaces (CLI flag, status
+//! indicator, modal) live elsewhere.
 
+use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SandboxStatus {
     pub podman: PodmanStatus,
     pub gvisor: GvisorStatus,
+    pub builtin: BuiltInStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +35,45 @@ pub enum GvisorStatus {
     NotApplicable { reason: &'static str },
     /// We couldn't determine gVisor's status because Podman itself isn't ready.
     Unknown,
+}
+
+/// Availability of PaddleBoard's built-in container tier: libkrun microVMs
+/// driven by the `paddleboard-krun-helper` binary. Unlike the Podman tier this
+/// requires no user installs, but it does need hardware virtualization (HVF on
+/// Apple silicon, KVM on Linux) and the libkrun dylib to be loadable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BuiltInStatus {
+    /// libkrun and the helper binary were both found; microVMs can run here.
+    Available { libkrun: PathBuf, helper: PathBuf },
+    /// The platform could run libkrun, but the dylib was not found.
+    LibraryMissing,
+    /// libkrun is present but the `paddleboard-krun-helper` binary is not
+    /// alongside the app (or at `PADDLEBOARD_KRUN_HELPER`).
+    HelperMissing { libkrun: PathBuf },
+    /// This platform cannot run libkrun microVMs at all.
+    Unsupported { reason: &'static str },
+}
+
+impl BuiltInStatus {
+    pub fn is_available(&self) -> bool {
+        matches!(self, BuiltInStatus::Available { .. })
+    }
+
+    /// Short human-readable explanation of why the built-in tier is not
+    /// available, for gate errors and the prereqs modal.
+    pub fn unavailable_reason(&self) -> Option<String> {
+        match self {
+            BuiltInStatus::Available { .. } => None,
+            BuiltInStatus::LibraryMissing => Some(
+                "libkrun is not installed (run script/setup-builtin-sandbox or `brew install libkrun`)"
+                    .to_string(),
+            ),
+            BuiltInStatus::HelperMissing { .. } => {
+                Some("the paddleboard-krun-helper binary was not found next to the app".to_string())
+            }
+            BuiltInStatus::Unsupported { reason } => Some((*reason).to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,7 +115,144 @@ pub async fn check() -> SandboxStatus {
     let podman_bin = resolve_podman_bin();
     let podman = check_podman(&podman_bin).await;
     let gvisor = check_gvisor(&podman_bin, &podman).await;
-    SandboxStatus { podman, gvisor }
+    let builtin = check_builtin();
+    SandboxStatus {
+        podman,
+        gvisor,
+        builtin,
+    }
+}
+
+/// Environment override for the libkrun dylib path, mainly for development
+/// against a from-source libkrun build.
+pub const LIBKRUN_ENV_VAR: &str = "PADDLEBOARD_LIBKRUN";
+/// Environment override for the helper binary path.
+pub const KRUN_HELPER_ENV_VAR: &str = "PADDLEBOARD_KRUN_HELPER";
+pub const KRUN_HELPER_BIN_NAME: &str = "paddleboard-krun-helper";
+
+/// Well-known locations for the libkrun dylib. Ordered: Homebrew (Apple
+/// silicon), then generic /usr/local, then Linux distro lib dirs.
+fn libkrun_candidate_paths() -> &'static [&'static str] {
+    if cfg!(target_os = "macos") {
+        &[
+            "/opt/homebrew/lib/libkrun.dylib",
+            "/usr/local/lib/libkrun.dylib",
+        ]
+    } else {
+        &[
+            "/usr/local/lib64/libkrun.so.1",
+            "/usr/local/lib/libkrun.so.1",
+            "/usr/lib64/libkrun.so.1",
+            "/usr/lib/x86_64-linux-gnu/libkrun.so.1",
+            "/usr/lib/aarch64-linux-gnu/libkrun.so.1",
+            "/usr/lib/libkrun.so.1",
+        ]
+    }
+}
+
+/// Locate the libkrun dylib: `PADDLEBOARD_LIBKRUN` wins, then the first
+/// existing well-known path.
+pub fn find_libkrun() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os(LIBKRUN_ENV_VAR) {
+        let path = PathBuf::from(path);
+        return path.is_file().then_some(path);
+    }
+    libkrun_candidate_paths()
+        .iter()
+        .map(PathBuf::from)
+        .find(|path| path.is_file())
+}
+
+/// Locate libkrunfw (the packaged guest kernel). libkrun loads it by bare
+/// soname at VM start, which fails when libkrun itself was dlopen'd by
+/// absolute path — so the helper needs libkrunfw's absolute path too, to
+/// pre-load it. On Linux the linker resolves it via ldconfig, but probing it
+/// costs nothing and keeps detection honest.
+pub fn find_libkrunfw() -> Option<PathBuf> {
+    let candidates: &[&str] = if cfg!(target_os = "macos") {
+        &[
+            "/opt/homebrew/lib/libkrunfw.5.dylib",
+            "/opt/homebrew/lib/libkrunfw.dylib",
+            "/usr/local/lib/libkrunfw.5.dylib",
+            "/usr/local/lib/libkrunfw.dylib",
+        ]
+    } else {
+        &[
+            "/usr/local/lib64/libkrunfw.so.5",
+            "/usr/local/lib/libkrunfw.so.5",
+            "/usr/lib64/libkrunfw.so.5",
+            "/usr/lib/x86_64-linux-gnu/libkrunfw.so.5",
+            "/usr/lib/aarch64-linux-gnu/libkrunfw.so.5",
+            "/usr/lib/libkrunfw.so.5",
+        ]
+    };
+    candidates
+        .iter()
+        .map(PathBuf::from)
+        .find(|path| path.is_file())
+}
+
+/// Locate the `paddleboard-krun-helper` binary: `PADDLEBOARD_KRUN_HELPER`
+/// wins, then a sibling of the current executable — which covers both a cargo
+/// target dir during development and `Contents/MacOS` inside a bundle.
+pub fn find_krun_helper() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os(KRUN_HELPER_ENV_VAR) {
+        let path = PathBuf::from(path);
+        return path.is_file().then_some(path);
+    }
+    let sibling = std::env::current_exe()
+        .ok()?
+        .parent()?
+        .join(KRUN_HELPER_BIN_NAME);
+    sibling.is_file().then_some(sibling)
+}
+
+/// Whether this host can run libkrun microVMs at all, independent of what is
+/// installed. HVF needs Apple silicon on macOS; Linux needs an accessible
+/// /dev/kvm.
+fn builtin_platform_support() -> Result<(), &'static str> {
+    match Os::detect() {
+        Os::MacOs => {
+            if std::env::consts::ARCH == "aarch64" {
+                Ok(())
+            } else {
+                Err("the built-in sandbox requires Apple silicon on macOS")
+            }
+        }
+        Os::Linux => {
+            // Opening /dev/kvm is the real capability test — it exists but is
+            // often not accessible to the user (kvm group membership).
+            match std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open("/dev/kvm")
+            {
+                Ok(_) => Ok(()),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                    Err("the built-in sandbox requires KVM (/dev/kvm not present)")
+                }
+                Err(_) => Err("the built-in sandbox requires access to /dev/kvm \
+                     (add your user to the kvm group)"),
+            }
+        }
+        Os::Windows => Err("the built-in sandbox is not available on Windows"),
+        Os::Other => Err("the built-in sandbox has not been ported to this platform"),
+    }
+}
+
+/// Probe the built-in libkrun tier. Synchronous — it is only filesystem
+/// checks, no subprocesses.
+pub fn check_builtin() -> BuiltInStatus {
+    if let Err(reason) = builtin_platform_support() {
+        return BuiltInStatus::Unsupported { reason };
+    }
+    let Some(libkrun) = find_libkrun() else {
+        return BuiltInStatus::LibraryMissing;
+    };
+    match find_krun_helper() {
+        Some(helper) => BuiltInStatus::Available { libkrun, helper },
+        None => BuiltInStatus::HelperMissing { libkrun },
+    }
 }
 
 async fn check_podman(podman_bin: &str) -> PodmanStatus {
@@ -302,6 +481,12 @@ pub fn install_instructions(status: &SandboxStatus, os: Os) -> InstallInstructio
     let mut steps = Vec::new();
     let mut title = "Install sandbox prerequisites".to_string();
 
+    if status.builtin.is_available() {
+        steps.push(InstallStep::note(
+            "PaddleBoard's built-in microVM sandbox is active on this machine, so sandboxed tools already work with no installs. The steps below set up Podman + gVisor — the preferred, strongest tier.",
+        ));
+    }
+
     match (&status.podman, os) {
         (PodmanStatus::Missing, Os::MacOs) => {
             title = "Install Podman on macOS".to_string();
@@ -492,6 +677,12 @@ fn linux_podman_install_command() -> String {
 mod tests {
     use super::*;
 
+    fn no_builtin() -> BuiltInStatus {
+        BuiltInStatus::Unsupported {
+            reason: "test platform",
+        }
+    }
+
     #[test]
     fn is_satisfied_requires_both_podman_and_gvisor() {
         let happy = SandboxStatus {
@@ -499,12 +690,14 @@ mod tests {
                 version: "podman version 5.0.0".into(),
             },
             gvisor: GvisorStatus::Available,
+            builtin: no_builtin(),
         };
         assert!(happy.is_satisfied());
 
         let no_podman = SandboxStatus {
             podman: PodmanStatus::Missing,
             gvisor: GvisorStatus::Available,
+            builtin: no_builtin(),
         };
         assert!(!no_podman.is_satisfied());
 
@@ -513,6 +706,7 @@ mod tests {
                 version: "podman version 5.0.0".into(),
             },
             gvisor: GvisorStatus::NotConfigured,
+            builtin: no_builtin(),
         };
         assert!(!no_gvisor.is_satisfied());
 
@@ -525,6 +719,7 @@ mod tests {
             gvisor: GvisorStatus::NotApplicable {
                 reason: "gVisor only runs on Linux; it is not available on Windows.",
             },
+            builtin: no_builtin(),
         };
         assert!(windows_ready.is_satisfied());
     }
@@ -534,6 +729,7 @@ mod tests {
         let status = SandboxStatus {
             podman: PodmanStatus::Missing,
             gvisor: GvisorStatus::Unknown,
+            builtin: no_builtin(),
         };
         let instructions = install_instructions(&status, Os::MacOs);
         assert!(instructions.title.contains("Podman"));
@@ -541,6 +737,55 @@ mod tests {
             .command
             .as_deref()
             .is_some_and(|cmd| cmd.contains("brew install podman"))));
+    }
+
+    #[test]
+    fn builtin_available_adds_no_install_needed_note() {
+        let status = SandboxStatus {
+            podman: PodmanStatus::Missing,
+            gvisor: GvisorStatus::Unknown,
+            builtin: BuiltInStatus::Available {
+                libkrun: PathBuf::from("/opt/homebrew/lib/libkrun.dylib"),
+                helper: PathBuf::from("/tmp/paddleboard-krun-helper"),
+            },
+        };
+        let instructions = install_instructions(&status, Os::MacOs);
+        assert!(
+            instructions
+                .steps
+                .first()
+                .is_some_and(|step| step.description.contains("built-in microVM sandbox"))
+        );
+        // Podman steps still follow — it remains the preferred tier.
+        assert!(instructions.steps.iter().any(|step| step
+            .command
+            .as_deref()
+            .is_some_and(|cmd| cmd.contains("brew install podman"))));
+    }
+
+    #[test]
+    fn builtin_unavailable_reasons_are_present_for_all_gap_states() {
+        assert!(
+            BuiltInStatus::Available {
+                libkrun: PathBuf::from("/l"),
+                helper: PathBuf::from("/h"),
+            }
+            .unavailable_reason()
+            .is_none()
+        );
+        assert!(BuiltInStatus::LibraryMissing.unavailable_reason().is_some());
+        assert!(
+            BuiltInStatus::HelperMissing {
+                libkrun: PathBuf::from("/l")
+            }
+            .unavailable_reason()
+            .is_some()
+        );
+        assert!(
+            BuiltInStatus::Unsupported { reason: "nope" }
+                .unavailable_reason()
+                .is_some()
+        );
     }
 
     #[test]
@@ -582,6 +827,7 @@ mod tests {
                 version: "podman version 5.0.0".into(),
             },
             gvisor: GvisorStatus::Available,
+            builtin: no_builtin(),
         };
         let instructions = install_instructions(&status, Os::Linux);
         assert_eq!(instructions.steps.len(), 1);
