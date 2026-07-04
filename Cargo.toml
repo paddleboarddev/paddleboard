@@ -234,9 +234,11 @@ members = [
     "crates/x_ai",
     "crates/paddleboard",
     "crates/paddleboard_actions",
+    "crates/paddleboard_container_engine",
     "crates/paddleboard_credentials_provider",
     "crates/paddleboard_env_vars",
     "crates/paddleboard_git_login",
+    "crates/paddleboard_krun_helper",
     "crates/paddleboard_sandbox_prereqs",
     "crates/paddleboard_sandbox_prereqs_state",
     "crates/paddleboard_sandbox_prereqs_ui",
@@ -514,6 +516,7 @@ worktree = { path = "crates/worktree" }
 x_ai = { path = "crates/x_ai" }
 paddleboard = { path = "crates/paddleboard" }
 paddleboard_actions = { path = "crates/paddleboard_actions" }
+paddleboard_container_engine = { path = "crates/paddleboard_container_engine" }
 paddleboard_credentials_provider = { path = "crates/paddleboard_credentials_provider" }
 paddleboard_env_vars = { path = "crates/paddleboard_env_vars" }
 paddleboard_git_login = { path = "crates/paddleboard_git_login" }
@@ -638,6 +641,7 @@ encoding_rs = "0.8"
 exec = "0.3.1"
 fancy-regex = "0.17.0"
 fork = "0.4.0"
+flate2 = "1.0"
 futures = "0.3.32"
 futures-concurrency = "7.7.1"
 futures-lite = "1.13"
@@ -671,6 +675,7 @@ jsonwebtoken = "10.0"
 jupyter-protocol = "1.4.0"
 jupyter-websocket-client = "1.1.0"
 libc = "0.2"
+libloading = "0.8"
 libsqlite3-sys = { version = "0.30.1", features = ["bundled"] }
 linkify = "0.10.0"
 libwebrtc = "0.3.26"
@@ -724,6 +729,10 @@ objc2-foundation = { version = "=0.3.2", default-features = false, features = [
     "objc2-core-foundation",
     "std",
 ] }
+oci-client = { version = "0.17", default-features = false, features = [
+    "rustls-tls",
+] }
+oci-spec = "0.9"
 open = "5.0.0"
 opentelemetry = { version = "0.32", default-features = false, features = ["trace"] }
 opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace", "rt-tokio"] }
@@ -819,6 +828,7 @@ syn = { version = "2.0.101", features = ["full", "extra-traits", "visit-mut"] }
 sys-locale = "0.3.1"
 sysinfo = "0.37.0"
 take-until = "0.2.0"
+tar = "0.4"
 tempfile = "3.20.0"
 thiserror = "2.0.12"
 time = { version = "0.3", features = [
