@@ -33,7 +33,7 @@ use workspace::searchable::{
     Direction, SearchEvent, SearchOptions, SearchToken, SearchableItem, SearchableItemHandle,
 };
 use workspace::{ItemId, Pane, Workspace, WorkspaceId, delete_unloaded_items};
-use zed_actions::{DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize};
+use paddleboard_actions::{DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize};
 
 use crate::markdown_preview_settings::MarkdownPreviewSettings;
 use crate::{

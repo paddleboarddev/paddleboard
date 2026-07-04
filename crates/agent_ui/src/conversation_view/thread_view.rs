@@ -4898,8 +4898,8 @@ impl ThreadView {
                         }))
                         .on_click(|_, window, cx| {
                             window.dispatch_action(
-                                Box::new(zed_actions::OpenSettingsAt {
-                                    path: zed_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
+                                Box::new(paddleboard_actions::OpenSettingsAt {
+                                    path: paddleboard_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
                                     target: None,
                                 }),
                                 cx,
