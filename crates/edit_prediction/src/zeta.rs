@@ -1,23 +1,23 @@
 use crate::{
     CloudRequestTimeoutError, CurrentEditPrediction, DebugEvent, EditPredictionFinishedDebugEvent,
-    EditPredictionId, EditPredictionModelInput, EditPredictionStartedDebugEvent,
-    EditPredictionStore, PromptHistoryBoundary, ZedUpdateRequiredError,
-    buffer_path_with_id_fallback,
-    capture_prediction_context::CapturedPredictionContext,
+    EditPredictionId, EditPredictionInputs, EditPredictionModelInput,
+    EditPredictionStartedDebugEvent, EditPredictionStore, PromptHistoryBoundary,
+    ZedUpdateRequiredError, buffer_path_with_id_fallback,
     cursor_excerpt::{self, compute_cursor_excerpt, compute_syntax_ranges},
+    data_collection::CapturedPredictionContext,
     prediction::EditPredictionResult,
+    udiff::prediction_edits_for_single_file_diff,
 };
 use anyhow::{Context as _, Result};
+use cloud_llm_client::{AcceptEditPredictionBody, predict_edits_v3::RawCompletionRequest};
 use std::env;
-use cloud_llm_client::{
-    AcceptEditPredictionBody, EditPredictionRejectReason, predict_edits_v3::RawCompletionRequest,
-};
 use edit_prediction_types::PredictedCursorPosition;
 use gpui::{App, AppContext as _, Entity, Task, TaskExt, WeakEntity, prelude::*};
 use language::{
     Buffer, BufferSnapshot, DiagnosticSeverity, EditPredictionPromptFormat, OffsetRangeExt as _,
     ToOffset as _, ZetaVersion, language_settings::all_language_settings, text_diff,
 };
+use project::Project;
 use release_channel::AppVersion;
 use text::{Anchor, Bias, Point};
 use ui::SharedString;
@@ -27,8 +27,9 @@ use workspace::workspace_error::{ErrorAction, ErrorSeverity, WorkspaceError};
 
 use std::{ops::Range, path::Path, sync::Arc};
 use zeta_prompt::{
-    ParsedOutput, ZetaFormat, ZetaPromptInput, excerpt_ranges_for_format, format_zeta_prompt,
-    get_prefill, parse_zeta2_model_output, stop_tokens_for_format,
+    FilePosition, ParsedOutput, Zeta2PromptInput, Zeta3PromptInput, ZetaFormat,
+    excerpt_ranges_for_format, format_zeta_prompt, get_prefill, parse_zeta2_model_output,
+    stop_tokens_for_format,
     zeta1::{self, EDITABLE_REGION_END_MARKER},
 };
 
@@ -50,7 +51,7 @@ use crate::open_ai_compatible::{
 pub(crate) fn request_prediction_with_zeta(
     store: &mut EditPredictionStore,
     input: EditPredictionModelInput,
-    capture_data: Option<Task<Result<CapturedPredictionContext, anyhow::Error>>>,
+    context_task: Option<Task<Result<CapturedPredictionContext>>>,
     prompt_history_boundary: Option<PromptHistoryBoundary>,
     repo_url: Option<String>,
     cx: &mut Context<EditPredictionStore>,
@@ -219,7 +220,7 @@ pub(crate) fn active_buffer_diagnostics(
 
 pub fn zeta2_prompt_input(
     snapshot: &language::BufferSnapshot,
-    related_files: Vec<zeta_prompt::RelatedFile>,
+    mut related_files: Vec<zeta_prompt::RelatedFile>,
     events: Vec<Arc<zeta_prompt::Event>>,
     diagnostic_search_range: Range<Point>,
     excerpt_path: Arc<Path>,
@@ -227,7 +228,7 @@ pub fn zeta2_prompt_input(
     is_open_source: bool,
     can_collect_data: bool,
     repo_url: Option<String>,
-) -> (Range<usize>, zeta_prompt::ZetaPromptInput) {
+) -> (Range<usize>, zeta_prompt::Zeta2PromptInput) {
     let (excerpt_point_range, excerpt_offset_range, cursor_offset_in_excerpt) =
         compute_cursor_excerpt(snapshot, cursor_offset);
 
@@ -248,8 +249,13 @@ pub fn zeta2_prompt_input(
         snapshot.offset_to_point(cursor_offset).row,
         ACTIVE_BUFFER_DIAGNOSTIC_ADDITIONAL_CONTEXT_TOKEN_COUNT,
     );
+    for file in &mut related_files {
+        for excerpt in &mut file.excerpts {
+            excerpt.context_source = zeta_prompt::ContextSource::Lsp;
+        }
+    }
 
-    let prompt_input = zeta_prompt::ZetaPromptInput {
+    let prompt_input = zeta_prompt::Zeta2PromptInput {
         cursor_path: excerpt_path,
         cursor_excerpt,
         cursor_offset_in_excerpt,
