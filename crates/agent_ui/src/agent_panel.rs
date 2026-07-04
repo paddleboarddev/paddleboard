@@ -44,23 +44,16 @@ use crate::terminal_thread_metadata_store::{
 };
 use crate::thread_metadata_store::{ThreadId, ThreadMetadataStore, ThreadMetadataStoreEvent};
 use crate::{
-<<<<<<< HEAD
+    Agent, AgentInitialContent, AgentThreadSource, ExternalSourcePrompt, NewExternalAgentThread,
+    NewNativeAgentThreadFromSummary,
+};
+use crate::{
     AddContextServer, AgentDiffPane, ConversationView, CopyThreadToClipboard, Follow,
     LoadThreadFromClipboard, NewTerminalThread, NewThread, OpenActiveThreadAsMarkdown,
     OpenAgentDiff, ResetFastModeWarnings, ResetTrialEndUpsell, ResetTrialUpsell,
     ShowAllSidebarThreadMetadata, ShowThreadMetadata, ThreadHistory, ThreadHistoryView,
     ThreadHistoryViewEvent, ToggleNewThreadMenu, ToggleOptionsMenu,
     agent_configuration::{AgentConfiguration, AssistantConfigurationEvent},
-=======
-    Agent, AgentInitialContent, AgentThreadSource, ExternalSourcePrompt, NewExternalAgentThread,
-    NewNativeAgentThreadFromSummary,
-};
-use crate::{
-    AgentDiffPane, ConversationView, CopyThreadToClipboard, Follow, LoadThreadFromClipboard,
-    NewTerminalThread, NewThread, OpenActiveThreadAsMarkdown, OpenAgentDiff, ResetFastModeWarnings,
-    ResetTrialEndUpsell, ResetTrialUpsell, ShowAllSidebarThreadMetadata, ShowThreadMetadata,
-    ToggleNewThreadMenu, ToggleOptionsMenu,
->>>>>>> zed/main
     conversation_view::{
         AcpThreadViewEvent, RootThreadUpdated, ThreadView, reset_fast_mode_warnings,
     },
@@ -91,9 +84,12 @@ use language_model::LanguageModelRegistry;
 use notifications::status_toast::StatusToast;
 use project::{Project, ProjectPath, Worktree};
 use settings::TerminalDockPosition;
+use settings::{
+    LanguageModelProviderSetting, LanguageModelSelection, NotifyWhenAgentWaiting, Settings,
+    update_settings_file,
+};
 // PaddleBoard: skill creator modal entry points.
 use skill_creator::{SkillCreatorOpenMode, is_supported_skill_url, open_skill_creator};
-use settings::{NotifyWhenAgentWaiting, Settings, update_settings_file};
 
 use search::{BufferSearchBar, buffer_search::Deploy as DeployBufferSearch};
 use terminal::{Event as TerminalEvent, terminal_settings::TerminalSettings};
@@ -1150,24 +1146,20 @@ impl From<AgentThread> for BaseView {
     }
 }
 
-<<<<<<< HEAD
+// PaddleBoard: keep the in-panel Configuration and History overlays that
+// upstream removed when it moved agent configuration into settings_ui.
 enum OverlayView {
     Configuration,
     #[allow(dead_code)]
     History { view: Entity<ThreadHistoryView> },
 }
 
-=======
->>>>>>> zed/main
 enum VisibleSurface<'a> {
     Uninitialized,
     AgentThread(&'a Entity<ConversationView>),
     Terminal(&'a Entity<TerminalView>),
-<<<<<<< HEAD
     Configuration(Option<&'a Entity<AgentConfiguration>>),
     History(&'a Entity<ThreadHistoryView>),
-=======
->>>>>>> zed/main
 }
 
 enum WhichFontSize {
@@ -1184,7 +1176,6 @@ impl BaseView {
     }
 }
 
-<<<<<<< HEAD
 impl OverlayView {
     pub fn which_font_size_used(&self) -> WhichFontSize {
         match self {
@@ -1194,8 +1185,6 @@ impl OverlayView {
     }
 }
 
-=======
->>>>>>> zed/main
 pub struct AgentPanel {
     workspace: WeakEntity<Workspace>,
     /// Workspace id is used as a database key
@@ -1208,9 +1197,14 @@ pub struct AgentPanel {
     thread_store: Entity<ThreadStore>,
     connection_store: Entity<AgentConnectionStore>,
     context_server_registry: Entity<ContextServerRegistry>,
+    // PaddleBoard: state backing the in-panel Configuration/History overlays
+    // that upstream removed when it moved agent configuration into settings_ui.
+    configuration: Option<Entity<AgentConfiguration>>,
+    configuration_subscription: Option<Subscription>,
     focus_handle: FocusHandle,
     base_view: BaseView,
     last_created_entry_kind: AgentPanelEntryKind,
+    overlay_view: Option<OverlayView>,
     draft_thread: Option<Entity<ConversationView>>,
     retained_threads: HashMap<ThreadId, Entity<ConversationView>>,
     terminals: HashMap<TerminalId, AgentTerminal>,
@@ -1605,12 +1599,15 @@ impl AgentPanel {
             workspace_id,
             base_view,
             last_created_entry_kind: AgentPanelEntryKind::Thread,
+            overlay_view: None,
             workspace,
             user_store,
             project: project.clone(),
             fs: fs.clone(),
             language_registry,
             connection_store,
+            configuration: None,
+            configuration_subscription: None,
             focus_handle: cx.focus_handle(),
             context_server_registry,
             draft_thread: None,
@@ -1786,6 +1783,7 @@ impl AgentPanel {
     pub fn clear_base_view(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let old_view = std::mem::replace(&mut self.base_view, BaseView::Uninitialized);
         self.retain_running_thread(old_view, cx);
+        self.clear_overlay_state();
         self.activate_draft(false, AgentThreadSource::AgentPanel, window, cx);
         self.serialize(cx);
         cx.emit(AgentPanelEvent::ActiveViewChanged);
@@ -2962,7 +2960,15 @@ impl AgentPanel {
         let draft = self.ensure_draft(source, window, cx);
         if let BaseView::AgentThread { conversation_view } = &self.base_view {
             if conversation_view.entity_id() == draft.entity_id() {
-                if focus {
+                // PaddleBoard: if we're already viewing the draft as the base
+                // view but an overlay (e.g. Settings) is covering it, clear the
+                // overlay so the user actually sees the draft they asked for.
+                // Otherwise pressing "New Thread" from the Settings panel is a
+                // silent no-op because the early return below would leave the
+                // overlay on top of the draft.
+                if self.overlay_view.is_some() {
+                    self.clear_overlay(focus, window, cx);
+                } else if focus {
                     self.focus_handle(cx).focus(window, cx);
                 }
                 return;
@@ -3328,6 +3334,7 @@ impl AgentPanel {
         }
 
         if self.active_thread_id(cx) == Some(id) {
+            self.clear_overlay_state();
             if activate_draft_after_remove {
                 self.activate_draft(false, AgentThreadSource::AgentPanel, window, cx);
             } else {
@@ -3678,7 +3685,8 @@ impl AgentPanel {
         })
     }
 
-<<<<<<< HEAD
+    // PaddleBoard: thread-history overlay machinery kept after upstream removed
+    // the panel overlay system.
     #[allow(dead_code)]
     fn has_history_for_selected_agent(&self, cx: &App) -> bool {
         match &self.selected_agent {
@@ -3760,8 +3768,6 @@ impl AgentPanel {
         }
     }
 
-=======
->>>>>>> zed/main
     pub fn toggle_options_menu(
         &mut self,
         _: &ToggleOptionsMenu,
@@ -3879,22 +3885,9 @@ impl AgentPanel {
     }
 
     pub(crate) fn open_configuration(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-<<<<<<< HEAD
-        // When the agent settings have been moved into the settings UI, the
-        // panel no longer shows its own configuration overlay. Instead, route to
-        // the settings UI at the LLM providers page (where the model selector's
-        // "Configure" button expects to land).
-        if cx.has_flag::<AgentSettingsUiFeatureFlag>() {
-            window.dispatch_action(
-                Box::new(paddleboard_actions::OpenSettingsAt {
-                    path: "llm_providers".to_string(),
-                    target: None,
-                }),
-                cx,
-            );
-            return;
-        }
-
+        // PaddleBoard: upstream routes this to the settings UI's AI page;
+        // PaddleBoard keeps its in-panel AgentConfiguration overlay
+        // (vendor-grouped providers, AI Dock wiring).
         if matches!(self.overlay_view, Some(OverlayView::Configuration)) {
             self.clear_overlay(true, window, cx);
             return;
@@ -3931,15 +3924,6 @@ impl AgentPanel {
         if let Some(configuration) = self.configuration.as_ref() {
             configuration.focus_handle(cx).focus(window, cx);
         }
-=======
-        window.dispatch_action(
-            Box::new(zed_actions::OpenSettingsPage {
-                page: "AI".to_string(),
-                target: None,
-            }),
-            cx,
-        );
->>>>>>> zed/main
     }
 
     pub(crate) fn open_active_thread_as_markdown(
@@ -4222,6 +4206,55 @@ impl AgentPanel {
             .detach_and_log_err(cx);
     }
 
+    // PaddleBoard: reacts to the kept in-panel AgentConfiguration view;
+    // upstream removed this along with the panel overlay system.
+    fn handle_agent_configuration_event(
+        &mut self,
+        _entity: &Entity<AgentConfiguration>,
+        event: &AssistantConfigurationEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            AssistantConfigurationEvent::NewThread(provider) => {
+                if LanguageModelRegistry::read_global(cx)
+                    .default_model()
+                    .is_none_or(|model| model.provider.id() != provider.id())
+                    && let Some(model) = provider.default_model(cx)
+                {
+                    update_settings_file(self.fs.clone(), cx, move |settings, _| {
+                        let provider = model.provider_id().0.to_string();
+                        let enable_thinking = model.supports_thinking();
+                        let effort = model
+                            .default_effort_level()
+                            .map(|effort| effort.value.to_string());
+                        let model = model.id().0.to_string();
+                        settings
+                            .agent
+                            .get_or_insert_default()
+                            .set_model(LanguageModelSelection {
+                                provider: LanguageModelProviderSetting(provider),
+                                model,
+                                enable_thinking,
+                                effort,
+                                speed: None,
+                            })
+                    });
+                }
+
+                self.activate_new_thread(true, AgentThreadSource::AgentPanel, window, cx);
+                if let Some((thread, model)) = self
+                    .active_native_agent_thread(cx)
+                    .zip(provider.default_model(cx))
+                {
+                    thread.update(cx, |thread, cx| {
+                        thread.set_model(model, cx);
+                    });
+                }
+            }
+        }
+    }
+
     pub fn workspace_id(&self) -> Option<WorkspaceId> {
         self.workspace_id
     }
@@ -4493,6 +4526,8 @@ impl AgentPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.clear_overlay_state();
+
         let old_view = std::mem::replace(&mut self.base_view, new_view);
         self.retain_running_thread(old_view, cx);
 
@@ -4511,6 +4546,41 @@ impl AgentPanel {
             self.focus_handle(cx).focus(window, cx);
         }
         cx.emit(AgentPanelEvent::ActiveViewChanged);
+    }
+
+    // PaddleBoard: overlay bookkeeping for the in-panel Configuration/History
+    // views kept after upstream removed the panel overlay system.
+    fn set_overlay(
+        &mut self,
+        overlay: OverlayView,
+        focus: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.overlay_view = Some(overlay);
+        if focus {
+            self.focus_handle(cx).focus(window, cx);
+        }
+        cx.emit(AgentPanelEvent::ActiveViewChanged);
+    }
+
+    fn clear_overlay(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
+        self.clear_overlay_state();
+
+        if focus {
+            self.focus_handle(cx).focus(window, cx);
+        }
+        cx.emit(AgentPanelEvent::ActiveViewChanged);
+    }
+
+    fn clear_overlay_state(&mut self) {
+        self.overlay_view = None;
+        self.configuration_subscription = None;
+        self.configuration = None;
+    }
+
+    fn is_overlay_open(&self) -> bool {
+        self.overlay_view.is_some()
     }
 
     fn refresh_base_view_subscriptions(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -4565,7 +4635,6 @@ impl AgentPanel {
     }
 
     fn visible_surface(&self) -> VisibleSurface<'_> {
-<<<<<<< HEAD
         if let Some(overlay_view) = &self.overlay_view {
             return match overlay_view {
                 OverlayView::Configuration => {
@@ -4575,8 +4644,6 @@ impl AgentPanel {
             };
         }
 
-=======
->>>>>>> zed/main
         match &self.base_view {
             BaseView::Uninitialized => VisibleSurface::Uninitialized,
             BaseView::AgentThread { conversation_view } => {
@@ -4591,7 +4658,10 @@ impl AgentPanel {
     }
 
     fn visible_font_size(&self) -> WhichFontSize {
-        self.base_view.which_font_size_used()
+        self.overlay_view.as_ref().map_or_else(
+            || self.base_view.which_font_size_used(),
+            OverlayView::which_font_size_used,
+        )
     }
 
     fn subscribe_to_active_thread_view(
@@ -4675,6 +4745,7 @@ impl AgentPanel {
         // Check if the active view already holds this thread.
         if let BaseView::AgentThread { conversation_view } = &self.base_view {
             if conversation_view.read(cx).thread_id == thread_id {
+                self.clear_overlay_state();
                 cx.emit(AgentPanelEvent::ActiveViewChanged);
                 return;
             }
@@ -5227,7 +5298,6 @@ impl Focusable for AgentPanel {
             VisibleSurface::Uninitialized => self.focus_handle.clone(),
             VisibleSurface::AgentThread(conversation_view) => conversation_view.focus_handle(cx),
             VisibleSurface::Terminal(terminal_view) => terminal_view.focus_handle(cx),
-<<<<<<< HEAD
             VisibleSurface::Configuration(configuration) => {
                 if let Some(configuration) = configuration {
                     configuration.focus_handle(cx)
@@ -5236,8 +5306,6 @@ impl Focusable for AgentPanel {
                 }
             }
             VisibleSurface::History(view) => view.focus_handle(cx),
-=======
->>>>>>> zed/main
         }
     }
 }
@@ -5473,7 +5541,10 @@ impl AgentPanel {
     }
 
     fn destination_has_meaningful_state(&self, cx: &App) -> bool {
-        if !self.retained_threads.is_empty() || !self.terminals.is_empty() {
+        if self.overlay_view.is_some()
+            || !self.retained_threads.is_empty()
+            || !self.terminals.is_empty()
+        {
             return true;
         }
 
@@ -5754,14 +5825,10 @@ impl AgentPanel {
                     Label::new("Terminal").into_any_element()
                 }
             }
-<<<<<<< HEAD
             VisibleSurface::Configuration(_) => {
                 Label::new("Settings").truncate().into_any_element()
             }
             VisibleSurface::History(_) => Label::new("History").truncate().into_any_element(),
-=======
-
->>>>>>> zed/main
             VisibleSurface::Uninitialized => Label::new("Agent").truncate().into_any_element(),
         };
 
@@ -5958,7 +6025,7 @@ impl AgentPanel {
                                 .header("MCP Servers")
                                 .action(
                                     "Add Server…",
-                                    Box::new(zed_actions::OpenSettingsAt {
+                                    Box::new(paddleboard_actions::OpenSettingsAt {
                                         path: "context_servers".to_string(),
                                         target: None,
                                     }),
@@ -6045,29 +6112,11 @@ impl AgentPanel {
                                         },
                                     );
                                 }
+
+                                menu = menu.separator();
                             }
 
-                            menu = menu
-                                .separator()
-                                .header("MCP Servers")
-                                .action(
-                                    "Add Server…",
-                                    Box::new(zed_actions::OpenSettingsAt {
-                                        path: "context_servers".to_string(),
-                                        target: None,
-                                    }),
-                                )
-                                .action(
-                                    "Install New Servers…",
-                                    Box::new(zed_actions::Extensions {
-                                        category_filter: Some(
-                                            zed_actions::ExtensionCategoryFilter::ContextServers,
-                                        ),
-                                        id: None,
-                                    }),
-                                )
-                                .separator()
-                                .action("Profiles", Box::new(ManageProfiles::default()));
+                            menu = menu.action("Profiles", Box::new(ManageProfiles::default()));
                         }
 
                         menu = menu
@@ -6121,6 +6170,23 @@ impl AgentPanel {
             telemetry::event!("Agent Panel Clone Repo Clicked");
             window.dispatch_action(git::Clone.boxed_clone(), cx);
         })
+    }
+
+    // PaddleBoard: back button shown while an overlay (Settings/History)
+    // covers the base view; upstream removed it with the overlay system.
+    fn render_toolbar_back_button(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let focus_handle = self.focus_handle(cx);
+
+        IconButton::new("go-back", IconName::ArrowLeft)
+            .icon_size(IconSize::Small)
+            .on_click(cx.listener(|this, _, window, cx| {
+                this.go_back(&workspace::GoBack, window, cx);
+            }))
+            .tooltip({
+                move |_window, cx| {
+                    Tooltip::for_action_in("Go Back", &workspace::GoBack, &focus_handle, cx)
+                }
+            })
     }
 
     fn render_toolbar(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -6385,12 +6451,17 @@ impl AgentPanel {
         };
 
         enum ToolbarMode {
+            // PaddleBoard: an in-panel overlay (Settings/History) is covering
+            // the base view.
+            Overlay,
             Terminal,
             EmptyThread,
             ActiveThread,
         }
 
-        let mode = if matches!(self.base_view, BaseView::Terminal { .. }) {
+        let mode = if self.is_overlay_open() {
+            ToolbarMode::Overlay
+        } else if matches!(self.base_view, BaseView::Terminal { .. }) {
             ToolbarMode::Terminal
         } else if self.active_thread_has_messages(cx) {
             ToolbarMode::ActiveThread
@@ -6474,7 +6545,11 @@ impl AgentPanel {
                         .overflow_hidden()
                         .gap(DynamicSpacing::Base04.rems(cx))
                         .pl(DynamicSpacing::Base04.rems(cx))
-                        .child(selected_agent.into_any_element())
+                        .child(if matches!(mode, ToolbarMode::Overlay) {
+                            self.render_toolbar_back_button(cx).into_any_element()
+                        } else {
+                            selected_agent.into_any_element()
+                        })
                         .child(match empty_thread_title {
                             Some(title) => title,
                             None => self.render_title_view(window, cx),
@@ -6757,13 +6832,9 @@ impl Render for AgentPanel {
                 this.open_configuration(window, cx);
             }))
             .on_action(cx.listener(Self::open_active_thread_as_markdown))
-<<<<<<< HEAD
             .on_action(cx.listener(Self::deploy_rules_library))
             .on_action(cx.listener(Self::deploy_skill_creator))
             .on_action(cx.listener(Self::go_back))
-=======
-            .on_action(cx.listener(Self::manage_skills))
->>>>>>> zed/main
             .on_action(cx.listener(Self::toggle_options_menu))
             .on_action(cx.listener(Self::increase_font_size))
             .on_action(cx.listener(Self::decrease_font_size))
@@ -6822,6 +6893,9 @@ impl Render for AgentPanel {
                     parent
                         .child(terminal_content)
                         .child(self.render_drag_target(cx))
+                }
+                VisibleSurface::Configuration(configuration) => {
+                    parent.children(configuration.cloned())
                 }
                 VisibleSurface::History(view) => parent.child(view.clone()),
             })
@@ -9751,6 +9825,65 @@ mod tests {
         });
     }
 
+    // PaddleBoard regression test: NewThread while the Settings overlay is
+    // open must dismiss the overlay instead of silently no-oping.
+    #[gpui::test]
+    async fn test_new_thread_dismisses_settings_overlay(cx: &mut TestAppContext) {
+        let (panel, mut cx) = setup_panel(cx).await;
+
+        // Put the panel on its ephemeral new-draft view so the base view
+        // already contains the draft that `NewThread` would activate.
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.activate_new_thread(true, AgentThreadSource::AgentPanel, window, cx);
+        });
+        cx.run_until_parked();
+
+        panel.read_with(&cx, |panel, cx| {
+            assert!(
+                panel.active_view_is_new_draft(cx),
+                "precondition: base view should be the ephemeral draft"
+            );
+            assert!(!panel.is_overlay_open());
+        });
+
+        // Simulate the Settings overlay being open on top of the draft.
+        // We don't go through `open_configuration` here because it would
+        // build provider configuration views, which call into
+        // `LanguageModelProvider::configuration_view` — unimplemented for
+        // the fake provider used in tests. The bug being exercised lives
+        // entirely in the overlay/base-view bookkeeping, so toggling the
+        // overlay flag directly is sufficient.
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.set_overlay(OverlayView::Configuration, true, window, cx);
+        });
+        cx.run_until_parked();
+
+        panel.read_with(&cx, |panel, _cx| {
+            assert!(
+                panel.is_overlay_open(),
+                "precondition: Settings overlay should be open"
+            );
+        });
+
+        // Dispatching `NewThread` while Settings is open must dismiss the
+        // overlay so the user actually sees the new thread. Previously
+        // this was a silent no-op: `activate_draft` early-returned without
+        // clearing the overlay because the base view already held the
+        // draft.
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.new_thread(&NewThread, window, cx);
+        });
+        cx.run_until_parked();
+
+        panel.read_with(&cx, |panel, cx| {
+            assert!(
+                !panel.is_overlay_open(),
+                "Settings overlay should be dismissed when invoking NewThread"
+            );
+            assert!(panel.active_view_is_new_draft(cx));
+        });
+    }
+
     #[gpui::test]
     async fn test_terminal_title_omits_placeholder_title(cx: &mut TestAppContext) {
         let (panel, mut cx) = setup_panel(cx).await;
@@ -10428,6 +10561,65 @@ mod tests {
                 .iter()
                 .all(|window| window.downcast::<AgentNotification>().is_none())
         );
+    }
+
+    // PaddleBoard: notification behavior when the in-panel Configuration
+    // overlay covers the active surface (overlay system kept from upstream's
+    // removal).
+    #[gpui::test]
+    async fn test_terminal_bell_notifies_when_configuration_overlay_covers_terminal(
+        cx: &mut TestAppContext,
+    ) {
+        let (panel, mut cx) = setup_visible_panel(cx).await;
+        let terminal_id = panel
+            .update_in(&mut cx, |panel, window, cx| {
+                panel.insert_test_terminal("Claude", true, window, cx)
+            })
+            .expect("test terminal should be inserted");
+        cx.run_until_parked();
+
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.set_overlay(OverlayView::Configuration, true, window, cx);
+        });
+        panel.update(&mut cx, |panel, cx| {
+            panel.emit_test_terminal_bell(terminal_id, cx);
+        });
+        cx.run_until_parked();
+
+        panel.read_with(&cx, |panel, cx| {
+            let terminal = panel
+                .terminals(cx)
+                .into_iter()
+                .find(|terminal| terminal.id == terminal_id)
+                .expect("terminal should remain in the panel");
+            assert!(terminal.has_notification);
+        });
+        cx.windows()
+            .iter()
+            .find_map(|window| window.downcast::<AgentNotification>())
+            .expect("covered terminal bell should show a notification");
+    }
+
+    #[gpui::test]
+    async fn test_thread_notification_shows_when_configuration_overlay_covers_thread(
+        cx: &mut TestAppContext,
+    ) {
+        let (panel, mut cx) = setup_visible_panel(cx).await;
+        let connection = StubAgentConnection::new();
+        connection.set_next_prompt_updates(vec![acp::SessionUpdate::AgentMessageChunk(
+            acp::ContentChunk::new("Default response".into()),
+        )]);
+        open_thread_with_connection(&panel, connection, &mut cx);
+
+        panel.update_in(&mut cx, |panel, window, cx| {
+            panel.set_overlay(OverlayView::Configuration, true, window, cx);
+        });
+        send_message(&panel, &mut cx);
+
+        cx.windows()
+            .iter()
+            .find_map(|window| window.downcast::<AgentNotification>())
+            .expect("covered thread should show a notification");
     }
 
     #[gpui::test]
@@ -11123,11 +11315,8 @@ mod tests {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
-<<<<<<< HEAD
             persona: None,
-=======
             sandbox_grants: Default::default(),
->>>>>>> zed/main
         };
 
         let thread_store = cx.update(|cx| ThreadStore::global(cx));
