@@ -33,7 +33,9 @@ When the agent needs to run untrusted code, compile binaries, or execute tests, 
 
 This means an agent mistake cannot touch anything outside the container. Once the command finishes, the container is discarded.
 
-**Prerequisites are enforced.** PaddleBoard probes for Podman and gVisor on startup; the result lives in the status-bar shield icon (green = ready, yellow = degraded, red = missing). When prereqs are missing the agent can't silently fall through to a `podman: command not found` shell error — the policy in `paddleboard_sandbox.on_missing_runtime` decides:
+**No Podman? The built-in sandbox takes over.** On Apple silicon Macs and KVM-capable Linux, one-shot sandbox commands can run inside a lightweight **libkrun microVM** with zero external installs — PaddleBoard pulls the image itself, boots a real Linux kernel under hardware virtualization, and mounts your worktree the same way. Podman + gVisor stays the preferred tier whenever it's installed; the microVM tier is the graceful middle rung above running on the host. (Dev builds: run `script/setup-builtin-sandbox` once.)
+
+**Prerequisites are enforced.** PaddleBoard probes for Podman, gVisor, and the built-in tier on startup; the result lives in the status-bar shield icon (green = ready, yellow = degraded, red = missing). When the Podman tier is missing and the built-in tier can't run either, the policy in `paddleboard_sandbox.on_missing_runtime` decides:
 
 - `"block"` (default) — refuse to launch and surface the install modal. The agent gets a clear "sandbox prerequisites missing" error.
 - `"fall_back_to_host"` — run the command on the host without a container. Escape hatch for Windows or environments where the sandbox stack is genuinely unavailable.

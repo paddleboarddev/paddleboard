@@ -15,10 +15,11 @@ A native Chromium/WebKit browser lives inside the editor as a dockable panel.
 When the AI needs to run untrusted code, compile new binaries, or run tests, it uses the integrated **Sandbox Tool**.
 - All executions happen in an ephemeral `ubuntu:latest` container.
 - It uses the `runsc` (gVisor) runtime for deep isolation.
+- 🪂 **No Podman? No problem.** On Apple silicon and KVM Linux, one-shot commands run in a built-in **libkrun microVM** — a real Linux kernel, zero installs.
 - Your project directory is safely mounted so builds succeed without host contamination.
 - Permission prompts still gate every command — approve, deny, or set always-allow rules.
 - Watch the **shield icon** in the status bar: green = ready, yellow = degraded, red = missing. Click it for live status + copy-paste install commands.
-- Missing prereqs are enforced, not silently swallowed. `paddleboard_sandbox.on_missing_runtime` chooses what happens: `block` (default, surface install modal), `fall_back_to_host` (run unsandboxed), or `warn_once`.
+- Missing prereqs are enforced, not silently swallowed. When even the built-in tier can't run, `paddleboard_sandbox.on_missing_runtime` chooses what happens: `block` (default, surface install modal), `fall_back_to_host` (run unsandboxed), or `warn_once`.
 
 ### 3. Forwarded Ports — Sandbox Services
 Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Service Tool**. Each running service appears in a **Forwarded Ports** row above the browser viewport.
