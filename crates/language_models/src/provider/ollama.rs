@@ -854,17 +854,13 @@ impl ConfigurationView {
                             )
                             .child(Label::new("ollama run gpt-oss:20b").inline_code(cx)),
                     )
-<<<<<<< HEAD
-                    .child(ListBulletItem::new(
-                        // PaddleBoard: user-visible copy rebranded from Zed.
-                        "Click 'Connect' below to start using Ollama in PaddleBoard",
-                    )),
-=======
                     .child(
-                        ListBulletItem::new("Click 'Connect' below to start using Ollama in Zed")
-                            .label_color(Color::Muted),
+                        ListBulletItem::new(
+                            // PaddleBoard: user-visible copy rebranded from Zed.
+                            "Click 'Connect' below to start using Ollama in PaddleBoard",
+                        )
+                        .label_color(Color::Muted),
                     ),
->>>>>>> zed/main
             )
             .child(
                 Label::new(
@@ -884,23 +880,8 @@ impl ConfigurationView {
             "API key configured".to_string()
         };
 
-<<<<<<< HEAD
-        if !state.api_key_state.has_key() {
-            v_flex()
-              .on_action(cx.listener(Self::save_api_key))
-              .child(self.api_key_editor.clone())
-              .child(
-                  Label::new(
-                      format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart PaddleBoard.")
-                  )
-                  .size(LabelSize::Small)
-                  .color(Color::Muted),
-              )
-              .into_any_element()
-=======
         let api_key_control = if !state.api_key_state.has_key() {
             self.api_key_editor.clone().into_any_element()
->>>>>>> zed/main
         } else {
             ConfiguredApiCard::new("ollama-reset-key", configured_card_label)
                 .disabled(env_var_set)
@@ -918,7 +899,8 @@ impl ConfigurationView {
           .mb_2()
           .child(
               Label::new(
-                  format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart Zed.")
+                  // PaddleBoard: user-visible copy rebranded from Zed.
+                  format!("You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart PaddleBoard.")
               )
               .size(LabelSize::Small)
               .color(Color::Muted),

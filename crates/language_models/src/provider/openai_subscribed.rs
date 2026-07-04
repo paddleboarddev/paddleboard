@@ -31,8 +31,9 @@ const PROVIDER_ID: LanguageModelProviderId = LanguageModelProviderId::new("opena
 const PROVIDER_NAME: LanguageModelProviderName =
     LanguageModelProviderName::new("ChatGPT Subscription");
 
+// PaddleBoard: user-visible copy rebranded from Zed.
 const SUBSCRIPTION_DESCRIPTION: &str =
-    "Sign in with your ChatGPT Plus or Pro subscription to use OpenAI models in Zed's agent.";
+    "Sign in with your ChatGPT Plus or Pro subscription to use OpenAI models in PaddleBoard's agent.";
 
 const CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 const OPENAI_TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
@@ -1102,16 +1103,9 @@ impl Render for ConfigurationView {
 
         v_flex()
             .gap_2()
-<<<<<<< HEAD
-            .child(Label::new(
-                // PaddleBoard: user-visible copy rebranded from Zed.
-                "Sign in with your ChatGPT Plus or Pro subscription to use OpenAI models in PaddleBoard's agent.",
-            ))
-=======
             .when(!self.compact, |this| {
                 this.child(Label::new(SUBSCRIPTION_DESCRIPTION))
             })
->>>>>>> zed/main
             .child(
                 Button::new("sign-in", button_label)
                     .when(!self.compact, |this| this.full_width())

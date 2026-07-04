@@ -858,43 +858,10 @@ impl Render for ConfigurationView {
             }
         };
 
-<<<<<<< HEAD
-        let api_key_section = if self.should_render_editor(cx) {
-            v_flex()
-                .on_action(cx.listener(Self::save_api_key))
-                .child(Label::new(
-                    // PaddleBoard: user-visible copy rebranded from Zed.
-                    "To use OpenCode models in PaddleBoard, you need an API key:",
-                ))
-                .child(
-                    List::new()
-                        .child(
-                            ListBulletItem::new("")
-                                .child(Label::new("Sign in and get your key at"))
-                                .child(ButtonLink::new(
-                                    "OpenCode Console",
-                                    "https://opencode.ai/auth",
-                                )),
-                        )
-                        .child(ListBulletItem::new(
-                            "Paste your API key below and hit enter to start using OpenCode",
-                        )),
-                )
-                .child(self.api_key_editor.clone())
-                .child(
-                    Label::new(format!(
-                        "You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart PaddleBoard."
-                    ))
-                    .size(LabelSize::Small)
-                    .color(Color::Muted),
-                )
-                .into_any_element()
-=======
         let is_editing = self.should_render_editor(cx);
 
         let api_key_control = if is_editing {
             self.api_key_editor.clone().into_any_element()
->>>>>>> zed/main
         } else {
             ConfiguredApiCard::new("opencode-reset-key", configured_card_label)
                 .disabled(env_var_set)
@@ -910,7 +877,8 @@ impl Render for ConfigurationView {
         let api_key_section = v_flex()
             .on_action(cx.listener(Self::save_api_key))
             .child(Label::new(
-                "To use OpenCode models in Zed, you need an API key:",
+                // PaddleBoard: user-visible copy rebranded from Zed.
+                "To use OpenCode models in PaddleBoard, you need an API key:",
             ).color(Color::Muted))
             .child(
                 List::new()
@@ -931,7 +899,8 @@ impl Render for ConfigurationView {
             .child(api_key_control)
             .child(
                 Label::new(format!(
-                    "You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart Zed."
+                    // PaddleBoard: user-visible copy rebranded from Zed.
+                    "You can also set the {API_KEY_ENV_VAR_NAME} environment variable and restart PaddleBoard."
                 ))
                 .size(LabelSize::Small)
                 .color(Color::Muted).mt_1p5(),

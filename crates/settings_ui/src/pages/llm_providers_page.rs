@@ -296,7 +296,8 @@ fn render_api_key_providers_item(
                         )
                         .child(
                             Label::new(format!(
-                                "Or set the {env_var_name} env var and restart Zed for it to take effect."
+                                // PaddleBoard: user-visible copy rebranded from Zed.
+                                "Or set the {env_var_name} env var and restart PaddleBoard for it to take effect."
                             ))
                             .size(LabelSize::XSmall)
                             .color(Color::Muted),

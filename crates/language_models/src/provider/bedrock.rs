@@ -1601,16 +1601,12 @@ impl Render for ConfigurationView {
             .on_action(cx.listener(Self::on_tab))
             .on_action(cx.listener(Self::on_tab_prev))
             .on_action(cx.listener(ConfigurationView::save_credentials))
-<<<<<<< HEAD
-            // PaddleBoard: user-visible copy rebranded from Zed.
-            .child(Label::new("To use PaddleBoard's agent with Bedrock, you can set a custom authentication strategy through your settings file or use static credentials."))
-            .child(Label::new("But first, to access models on AWS, you need to:").mt_1())
-=======
             .gap_1()
             .child(Headline::new("Amazon Bedrock").size(HeadlineSize::Small))
             .child(
                 Label::new(
-                    "To use Zed's agent with Bedrock, you can set a custom authentication strategy through your settings file or use static credentials.",
+                    // PaddleBoard: user-visible copy rebranded from Zed.
+                    "To use PaddleBoard's agent with Bedrock, you can set a custom authentication strategy through your settings file or use static credentials.",
                 )
                 .color(Color::Muted),
             )
@@ -1619,7 +1615,6 @@ impl Render for ConfigurationView {
                     .mt_1()
                     .color(Color::Muted),
             )
->>>>>>> zed/main
             .child(
                 List::new()
                     .child(

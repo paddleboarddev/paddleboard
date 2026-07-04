@@ -15,13 +15,10 @@ pub struct AllLanguageModelSettingsContent {
     pub bedrock: Option<AmazonBedrockSettingsContent>,
     pub deepseek: Option<DeepseekSettingsContent>,
     pub google: Option<GoogleSettingsContent>,
-<<<<<<< HEAD
-    // PaddleBoard: Vertex AI (Gemini Enterprise) provider — addition over upstream Zed.
-    pub vertex: Option<VertexSettingsContent>,
-=======
     #[serde(rename = "llama.cpp")]
     pub llama_cpp: Option<LlamaCppSettingsContent>,
->>>>>>> zed/main
+    // PaddleBoard: Vertex AI (Gemini Enterprise) provider — addition over upstream Zed.
+    pub vertex: Option<VertexSettingsContent>,
     pub lmstudio: Option<LmStudioSettingsContent>,
     pub mistral: Option<MistralSettingsContent>,
     pub ollama: Option<OllamaSettingsContent>,

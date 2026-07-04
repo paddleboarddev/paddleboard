@@ -6,7 +6,6 @@ use client::{
     global_llm_token, zed_urls,
 };
 use cloud_api_client::LlmApiToken;
-<<<<<<< HEAD
 use cloud_api_types::{OrganizationId, Plan};
 use cloud_llm_client::{
     CLIENT_SUPPORTS_STATUS_MESSAGES_HEADER_NAME, CLIENT_SUPPORTS_STATUS_STREAM_ENDED_HEADER_NAME,
@@ -21,32 +20,19 @@ use futures::{
 };
 use google_ai::GoogleModelMode;
 use gpui::{
-    AnyElement, AnyView, App, AppContext, AsyncApp, Context, Entity, Subscription, Task, TaskExt,
+    AnyElement, App, AppContext, AsyncApp, Context, Entity, Subscription, Task, TaskExt,
 };
 use http_client::http::{HeaderMap, HeaderValue};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Response, StatusCode};
 use language_model::{
     ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, FastModeConfirmation,
-    GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel,
+    GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, InlineDescription, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
     LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
     LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
     LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
-    ProviderConfigurationView, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
-=======
-use cloud_api_types::OrganizationId;
-use cloud_api_types::Plan;
-use futures::FutureExt;
-use futures::StreamExt;
-use futures::future::BoxFuture;
-use gpui::{AnyElement, App, AppContext, Context, Entity, Subscription, Task, TaskExt};
-use language_model::{
-    AuthenticateError, FastModeConfirmation, IconOrSvg, InlineDescription, LanguageModel,
-    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
-    LanguageModelProviderState, ProviderSettingsView, ZED_CLOUD_PROVIDER_ID,
-    ZED_CLOUD_PROVIDER_NAME,
->>>>>>> zed/main
+    ProviderSettingsView, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
 };
 use language_models_cloud::{CloudLlmTokenProvider, CloudModelProvider};
 use rand::{Rng as _, SeedableRng as _, rngs::StdRng};
@@ -1176,19 +1162,14 @@ impl RenderOnce for ZedAiConfiguration {
                 .gap_2()
                 .when(!self.compact, |this| this.child(Label::new(description)))
                 .child(
-<<<<<<< HEAD
+                    // PaddleBoard: user-visible copy rebranded from Zed.
                     Button::new("sign_in", "Sign In to use PaddleBoard AI")
-                        .start_icon(Icon::new(IconName::Github).size(IconSize::Small).color(Color::Muted))
-                        .full_width()
-=======
-                    Button::new("sign_in", "Sign In to use Zed AI")
                         .start_icon(
                             Icon::new(IconName::Github)
                                 .size(IconSize::Small)
                                 .color(Color::Muted),
                         )
                         .when(!self.compact, |this| this.full_width())
->>>>>>> zed/main
                         .on_click({
                             let callback = self.sign_in_callback.clone();
                             move |_, window, cx| (callback)(window, cx)
