@@ -122,13 +122,10 @@ members = [
     "crates/language_tools",
     "crates/languages",
     "crates/line_ending_selector",
-<<<<<<< HEAD
-    "crates/llm_picker",
-=======
-    "crates/livekit_api",
-    "crates/livekit_client",
+    # PaddleBoard: call/collab/livekit crates are deleted from the workspace;
+    # upstream's llama_cpp provider is kept.
     "crates/llama_cpp",
->>>>>>> zed/main
+    "crates/llm_picker",
     "crates/lmstudio",
     "crates/lsp",
     "crates/markdown",
@@ -409,13 +406,8 @@ language_selector = { path = "crates/language_selector" }
 language_tools = { path = "crates/language_tools" }
 languages = { path = "crates/languages" }
 line_ending_selector = { path = "crates/line_ending_selector" }
-<<<<<<< HEAD
-llm_picker = { path = "crates/llm_picker" }
-=======
-livekit_api = { path = "crates/livekit_api" }
-livekit_client = { path = "crates/livekit_client" }
 llama_cpp = { path = "crates/llama_cpp" }
->>>>>>> zed/main
+llm_picker = { path = "crates/llm_picker" }
 lmstudio = { path = "crates/lmstudio" }
 lsp = { path = "crates/lsp" }
 markdown = { path = "crates/markdown" }

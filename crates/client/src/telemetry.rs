@@ -507,13 +507,6 @@ impl Telemetry {
         Some(project_types)
     }
 
-<<<<<<< HEAD
-    fn report_event(self: &Arc<Self>, _event: Event) {
-        // PaddleBoard ships with telemetry permanently disabled. Events are
-        // dropped here so they never queue, never log, and never reach the
-        // network. Keeping the function shape preserves the call-site contract
-        // so upstream Zed merges don't churn this file.
-=======
     /// Report a telemetry event that originated on a remote server.
     ///
     /// The remote server cannot upload telemetry itself, so it forwards events
@@ -521,6 +514,10 @@ impl Telemetry {
     /// [`EventRequestBody`] is batch-level (describing the uploading client),
     /// the remote server's OS is attached as event properties instead, so the
     /// origin can still be distinguished downstream.
+    ///
+    /// PaddleBoard: inert in practice — this feeds `report_event`, which is a
+    /// no-op, so remote events are dropped like local ones. The function shape
+    /// is kept so upstream call sites keep compiling.
     pub fn report_remote_event(
         self: &Arc<Self>,
         event_json: &str,
@@ -569,60 +566,11 @@ impl Telemetry {
             .collect()
     }
 
-    fn report_event(self: &Arc<Self>, mut event: Event) {
-        let mut state = self.state.lock();
-        // RUST_LOG=telemetry=trace to debug telemetry events
-        log::trace!(target: "telemetry", "{:?}", event);
-
-        if !state.settings.metrics {
-            return;
-        }
-
-        match &mut event {
-            Event::Flexible(event) => event
-                .event_properties
-                .insert("event_source".into(), "zed".into()),
-        };
-
-        if state.flush_events_task.is_none() {
-            let this = self.clone();
-            state.flush_events_task = Some(self.executor.spawn(async move {
-                this.executor.timer(FLUSH_INTERVAL).await;
-                this.flush_events().detach();
-            }));
-        }
-
-        let date_time = self.clock.utc_now();
-
-        let milliseconds_since_first_event = match state.first_event_date_time {
-            Some(first_event_date_time) => date_time
-                .saturating_duration_since(first_event_date_time)
-                .min(Duration::from_secs(60 * 60 * 24))
-                .as_millis() as i64,
-            None => {
-                state.first_event_date_time = Some(date_time);
-                0
-            }
-        };
-
-        let signed_in = state.metrics_id.is_some();
-        let event_wrapper = EventWrapper {
-            signed_in,
-            milliseconds_since_first_event,
-            event,
-        };
-
-        state
-            .subscribers
-            .retain(|tx| tx.unbounded_send(event_wrapper.clone()).is_ok());
-
-        state.events_queue.push(event_wrapper);
-
-        if state.installation_id.is_some() && state.events_queue.len() >= state.max_queue_size {
-            drop(state);
-            self.flush_events().detach();
-        }
->>>>>>> zed/main
+    fn report_event(self: &Arc<Self>, _event: Event) {
+        // PaddleBoard ships with telemetry permanently disabled. Events are
+        // dropped here so they never queue, never log, and never reach the
+        // network. Keeping the function shape preserves the call-site contract
+        // so upstream Zed merges don't churn this file.
     }
 
     pub fn metrics_id(self: &Arc<Self>) -> Option<Arc<str>> {
