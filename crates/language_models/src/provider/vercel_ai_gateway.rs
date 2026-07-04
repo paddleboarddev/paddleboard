@@ -2,16 +2,16 @@ use anyhow::Result;
 use collections::BTreeMap;
 use credentials_provider::CredentialsProvider;
 use futures::{AsyncReadExt, FutureExt, StreamExt, future::BoxFuture};
-use gpui::{AnyView, App, AsyncApp, Context, Entity, SharedString, Task, TaskExt, Window};
+use gpui::{App, AppContext, AsyncApp, Context, Entity, SharedString, Task};
 use http_client::{
     AsyncBody, CustomHeaders, HttpClient, Method, Request as HttpRequest, RequestBuilderExt, http,
 };
 use language_model::{
-    ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, LanguageModel, LanguageModelCompletionError,
-    LanguageModelCompletionEvent, LanguageModelId, LanguageModelName, LanguageModelProvider,
-    LanguageModelProviderId, LanguageModelProviderName, LanguageModelProviderState,
-    LanguageModelRequest, LanguageModelToolChoice, LanguageModelToolSchemaFormat,
-    ProviderConfigurationView, RateLimiter, env_var,
+    ApiKeyConfiguration, ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, LanguageModel,
+    LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelId, LanguageModelName,
+    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
+    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
+    LanguageModelToolSchemaFormat, ProviderSettingsView, RateLimiter, env_var,
 };
 use open_ai::ResponseStreamEvent;
 use serde::Deserialize;
@@ -19,9 +19,7 @@ pub use settings::OpenAiCompatibleModelCapabilities as ModelCapabilities;
 pub use settings::VercelAiGatewayAvailableModel as AvailableModel;
 use settings::{Settings, SettingsStore};
 use std::sync::{Arc, LazyLock};
-use ui::{ButtonLink, ConfiguredApiCard, List, ListBulletItem, prelude::*};
-use ui_input::InputField;
-use util::ResultExt;
+use ui::IconName;
 
 const PROVIDER_ID: LanguageModelProviderId = LanguageModelProviderId::new("vercel_ai_gateway");
 const PROVIDER_NAME: LanguageModelProviderName =
@@ -246,43 +244,20 @@ impl LanguageModelProvider for VercelAiGatewayLanguageModelProvider {
         self.state.update(cx, |state, cx| state.authenticate(cx))
     }
 
-    fn configuration_view(
-        &self,
-        _target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyView {
-        cx.new(|cx| ConfigurationView::new(self.state.clone(), window, cx))
-            .into()
+    fn settings_view(&self, cx: &mut App) -> Option<ProviderSettingsView> {
+        let state = self.state.read(cx);
+        Some(ProviderSettingsView::ApiKey(ApiKeyConfiguration::new(
+            state.api_key_state.has_key(),
+            state.api_key_state.is_from_env_var(),
+            state.api_key_state.env_var_name().clone(),
+            "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys&title=Go+to+AI+Gateway"
+                .into(),
+        )))
     }
 
-    fn reset_credentials(&self, cx: &mut App) -> Task<Result<()>> {
+    fn set_api_key(&self, api_key: Option<String>, cx: &mut App) -> Task<Result<()>> {
         self.state
-            .update(cx, |state, cx| state.set_api_key(None, cx))
-    }
-
-    fn configuration_view_v2(
-        &self,
-        _target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> ProviderConfigurationView {
-        let state = self.state.clone();
-        ProviderConfigurationView::Inline(
-            cx.new(|cx| {
-                crate::ApiKeyEditor::new(
-                    state,
-                    "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%2Fapi-keys&title=Go+to+AI+Gateway",
-                    "Paste your Vercel AI Gateway API key",
-                    |state, _cx| crate::api_key_status(&state.api_key_state),
-                    |state, key, cx| state.update(cx, |state, cx| state.set_api_key(Some(key), cx)),
-                    |state, cx| state.update(cx, |state, cx| state.set_api_key(None, cx)),
-                    window,
-                    cx,
-                )
-            })
-            .into(),
-        )
+            .update(cx, |state, cx| state.set_api_key(api_key, cx))
     }
 }
 
@@ -482,6 +457,7 @@ impl LanguageModel for VercelAiGatewayLanguageModel {
             self.model.capabilities.parallel_tool_calls,
             self.model.capabilities.prompt_cache_key,
             self.max_output_tokens(),
+            crate::provider::open_ai::ChatCompletionMaxTokensParameter::MaxCompletionTokens,
             None,
             false,
         );
@@ -617,12 +593,14 @@ async fn list_models(
                 prompt_cache_key,
                 chat_completions: true,
                 interleaved_reasoning: false,
+                max_tokens_parameter: false,
             },
         });
     }
 
     Ok(models)
 }
+<<<<<<< HEAD
 
 struct ConfigurationView {
     api_key_editor: Entity<InputField>,
@@ -752,3 +730,5 @@ impl Render for ConfigurationView {
         }
     }
 }
+=======
+>>>>>>> zed/main

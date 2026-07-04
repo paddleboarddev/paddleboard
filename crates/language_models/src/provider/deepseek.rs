@@ -5,24 +5,22 @@ use deepseek::DEEPSEEK_API_URL;
 
 use futures::Stream;
 use futures::{FutureExt, StreamExt, future::BoxFuture, stream::BoxStream};
-use gpui::{AnyView, App, AsyncApp, Context, Entity, SharedString, Task, TaskExt, Window};
+use gpui::{App, AppContext, AsyncApp, Context, Entity, SharedString, Task};
 use http_client::{CustomHeaders, HttpClient};
 use language_model::{
-    ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, LanguageModel, LanguageModelCompletionError,
-    LanguageModelCompletionEvent, LanguageModelEffortLevel, LanguageModelId, LanguageModelName,
-    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
-    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
-    LanguageModelToolResultContent, LanguageModelToolUse, MessageContent,
-    ProviderConfigurationView, RateLimiter, Role, StopReason, TokenUsage, env_var,
+    ApiKeyConfiguration, ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, LanguageModel,
+    LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
+    LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
+    LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
+    LanguageModelToolChoice, LanguageModelToolResultContent, LanguageModelToolUse, MessageContent,
+    ProviderSettingsView, RateLimiter, Role, StopReason, TokenUsage, env_var,
 };
 pub use settings::DeepseekAvailableModel as AvailableModel;
 use settings::{Settings, SettingsStore};
 use std::pin::Pin;
 use std::sync::{Arc, LazyLock};
 
-use ui::{ButtonLink, ConfiguredApiCard, List, ListBulletItem, prelude::*};
-use ui_input::InputField;
-use util::ResultExt;
+use ui::IconName;
 
 use language_model::util::{fix_streamed_json, parse_tool_arguments};
 
@@ -197,43 +195,19 @@ impl LanguageModelProvider for DeepSeekLanguageModelProvider {
         self.state.update(cx, |state, cx| state.authenticate(cx))
     }
 
-    fn configuration_view(
-        &self,
-        _target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyView {
-        cx.new(|cx| ConfigurationView::new(self.state.clone(), window, cx))
-            .into()
+    fn settings_view(&self, cx: &mut App) -> Option<ProviderSettingsView> {
+        let state = self.state.read(cx);
+        Some(ProviderSettingsView::ApiKey(ApiKeyConfiguration::new(
+            state.api_key_state.has_key(),
+            state.api_key_state.is_from_env_var(),
+            state.api_key_state.env_var_name().clone(),
+            "https://platform.deepseek.com/api_keys".into(),
+        )))
     }
 
-    fn reset_credentials(&self, cx: &mut App) -> Task<Result<()>> {
+    fn set_api_key(&self, api_key: Option<String>, cx: &mut App) -> Task<Result<()>> {
         self.state
-            .update(cx, |state, cx| state.set_api_key(None, cx))
-    }
-
-    fn configuration_view_v2(
-        &self,
-        _target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> ProviderConfigurationView {
-        let state = self.state.clone();
-        ProviderConfigurationView::Inline(
-            cx.new(|cx| {
-                crate::ApiKeyEditor::new(
-                    state,
-                    "https://platform.deepseek.com/api_keys",
-                    "Paste your DeepSeek API key",
-                    |state, _cx| crate::api_key_status(&state.api_key_state),
-                    |state, key, cx| state.update(cx, |state, cx| state.set_api_key(Some(key), cx)),
-                    |state, cx| state.update(cx, |state, cx| state.set_api_key(None, cx)),
-                    window,
-                    cx,
-                )
-            })
-            .into(),
-        )
+            .update(cx, |state, cx| state.set_api_key(api_key, cx))
     }
 }
 
@@ -661,6 +635,7 @@ impl DeepSeekEventMapper {
         events
     }
 }
+<<<<<<< HEAD
 
 struct ConfigurationView {
     api_key_editor: Entity<InputField>,
@@ -788,3 +763,5 @@ impl Render for ConfigurationView {
         }
     }
 }
+=======
+>>>>>>> zed/main

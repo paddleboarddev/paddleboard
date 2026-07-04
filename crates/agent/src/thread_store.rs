@@ -160,7 +160,6 @@ mod tests {
             request_token_usage: HashMap::default(),
             model: None,
             profile: None,
-            imported: false,
             subagent_context: None,
             speed: None,
             thinking_enabled: false,
@@ -168,7 +167,11 @@ mod tests {
             draft_prompt: None,
             ui_scroll_position: None,
             sandboxed_terminal_temp_dir: None,
+<<<<<<< HEAD
             persona: None,
+=======
+            sandbox_grants: Default::default(),
+>>>>>>> zed/main
         }
     }
 

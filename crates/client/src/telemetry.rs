@@ -162,18 +162,7 @@ pub fn os_version() -> String {
                );
                "".to_string()
            };
-           let mut name = "unknown";
-           let mut version = "unknown";
-
-           for line in content.lines() {
-               match line.split_once('=') {
-                   Some(("ID", val)) => name = val.trim_matches('"'),
-                   Some(("VERSION_ID", val)) => version = val.trim_matches('"'),
-                   _ => {}
-               }
-           }
-
-           format!("{} {}", name, version)
+           util::parse_os_release(&content).unwrap_or_else(|| "unknown".to_string())
        }
        target_os = "windows" => {
            let mut info = unsafe { std::mem::zeroed() };
@@ -518,11 +507,122 @@ impl Telemetry {
         Some(project_types)
     }
 
+<<<<<<< HEAD
     fn report_event(self: &Arc<Self>, _event: Event) {
         // PaddleBoard ships with telemetry permanently disabled. Events are
         // dropped here so they never queue, never log, and never reach the
         // network. Keeping the function shape preserves the call-site contract
         // so upstream Zed merges don't churn this file.
+=======
+    /// Report a telemetry event that originated on a remote server.
+    ///
+    /// The remote server cannot upload telemetry itself, so it forwards events
+    /// (as a JSON-serialized [`Event`]) to the client. Since the OS metadata in
+    /// [`EventRequestBody`] is batch-level (describing the uploading client),
+    /// the remote server's OS is attached as event properties instead, so the
+    /// origin can still be distinguished downstream.
+    pub fn report_remote_event(
+        self: &Arc<Self>,
+        event_json: &str,
+        connection_type: &str,
+        os_name: String,
+        os_version: Option<String>,
+        architecture: String,
+    ) -> Result<()> {
+        // The remote server forwards a bare `telemetry_events::FlexibleEvent`
+        // (the type behind `telemetry::event!`), not the tagged `Event` enum.
+        let mut flexible: telemetry_events::FlexibleEvent =
+            serde_json::from_str(event_json).context("invalid remote telemetry event")?;
+        flexible
+            .event_properties
+            .insert("remote".into(), true.into());
+        flexible
+            .event_properties
+            .insert("remote_connection_type".into(), connection_type.into());
+        flexible
+            .event_properties
+            .insert("remote_os_name".into(), os_name.into());
+        flexible
+            .event_properties
+            .insert("remote_architecture".into(), architecture.into());
+        if let Some(os_version) = os_version {
+            flexible
+                .event_properties
+                .insert("remote_os_version".into(), os_version.into());
+        }
+        self.report_event(Event::Flexible(flexible));
+        Ok(())
+    }
+
+    /// Returns a snapshot of the currently queued (not-yet-flushed) telemetry
+    /// events, for use in tests.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn queued_events(self: &Arc<Self>) -> Vec<telemetry_events::FlexibleEvent> {
+        self.state
+            .lock()
+            .events_queue
+            .iter()
+            .map(|wrapper| {
+                let Event::Flexible(event) = &wrapper.event;
+                event.clone()
+            })
+            .collect()
+    }
+
+    fn report_event(self: &Arc<Self>, mut event: Event) {
+        let mut state = self.state.lock();
+        // RUST_LOG=telemetry=trace to debug telemetry events
+        log::trace!(target: "telemetry", "{:?}", event);
+
+        if !state.settings.metrics {
+            return;
+        }
+
+        match &mut event {
+            Event::Flexible(event) => event
+                .event_properties
+                .insert("event_source".into(), "zed".into()),
+        };
+
+        if state.flush_events_task.is_none() {
+            let this = self.clone();
+            state.flush_events_task = Some(self.executor.spawn(async move {
+                this.executor.timer(FLUSH_INTERVAL).await;
+                this.flush_events().detach();
+            }));
+        }
+
+        let date_time = self.clock.utc_now();
+
+        let milliseconds_since_first_event = match state.first_event_date_time {
+            Some(first_event_date_time) => date_time
+                .saturating_duration_since(first_event_date_time)
+                .min(Duration::from_secs(60 * 60 * 24))
+                .as_millis() as i64,
+            None => {
+                state.first_event_date_time = Some(date_time);
+                0
+            }
+        };
+
+        let signed_in = state.metrics_id.is_some();
+        let event_wrapper = EventWrapper {
+            signed_in,
+            milliseconds_since_first_event,
+            event,
+        };
+
+        state
+            .subscribers
+            .retain(|tx| tx.unbounded_send(event_wrapper.clone()).is_ok());
+
+        state.events_queue.push(event_wrapper);
+
+        if state.installation_id.is_some() && state.events_queue.len() >= state.max_queue_size {
+            drop(state);
+            self.flush_events().detach();
+        }
+>>>>>>> zed/main
     }
 
     pub fn metrics_id(self: &Arc<Self>) -> Option<Arc<str>> {
@@ -651,6 +751,79 @@ mod tests {
 
     // Tests for telemetry queueing and flushing were removed when telemetry
     // was hard-disabled — `report_event` is now a no-op so events never queue.
+
+    #[gpui::test]
+    async fn test_report_remote_event_tags_origin(cx: &mut TestAppContext) {
+        init_test(cx);
+        let clock = Arc::new(FakeSystemClock::new());
+        let http = FakeHttpClient::with_200_response();
+
+        let telemetry = cx.update(|cx| {
+            let telemetry = Telemetry::new(clock.clone(), http, cx);
+            telemetry.start(
+                Some("system_id".to_string()),
+                Some("installation_id".to_string()),
+                "session_id".to_string(),
+                cx,
+            );
+            telemetry
+        });
+
+        // Mirror what the remote server forwards: a bare `FlexibleEvent`, which
+        // is the type produced by `telemetry::event!` / sent over the queue.
+        let event_json = serde_json::to_string(&FlexibleEvent {
+            event_type: "fs_watcher_poll".to_string(),
+            event_properties: HashMap::from_iter([(
+                "path".to_string(),
+                serde_json::Value::String("/code/project".to_string()),
+            )]),
+        })
+        .unwrap();
+
+        cx.update(|_| {
+            telemetry
+                .report_remote_event(
+                    &event_json,
+                    "ssh",
+                    "Linux".to_string(),
+                    Some("ubuntu 24.04".to_string()),
+                    "aarch64".to_string(),
+                )
+                .unwrap();
+        });
+
+        let queue = telemetry.state.lock().events_queue.clone();
+        assert_eq!(queue.len(), 1);
+        let Event::Flexible(event) = &queue[0].event;
+        assert_eq!(event.event_type, "fs_watcher_poll");
+        // Original properties are preserved.
+        assert_eq!(
+            event.event_properties.get("path"),
+            Some(&serde_json::Value::String("/code/project".to_string()))
+        );
+        // The remote server's OS is attached as properties, since the batch-level
+        // OS describes the uploading client rather than the remote host.
+        assert_eq!(
+            event.event_properties.get("remote"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            event.event_properties.get("remote_connection_type"),
+            Some(&serde_json::Value::String("ssh".to_string()))
+        );
+        assert_eq!(
+            event.event_properties.get("remote_os_name"),
+            Some(&serde_json::Value::String("Linux".to_string()))
+        );
+        assert_eq!(
+            event.event_properties.get("remote_os_version"),
+            Some(&serde_json::Value::String("ubuntu 24.04".to_string()))
+        );
+        assert_eq!(
+            event.event_properties.get("remote_architecture"),
+            Some(&serde_json::Value::String("aarch64".to_string()))
+        );
+    }
 
     #[gpui::test]
     fn test_project_discovery_does_not_double_report(cx: &mut gpui::TestAppContext) {

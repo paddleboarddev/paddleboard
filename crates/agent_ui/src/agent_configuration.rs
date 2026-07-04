@@ -1,9 +1,8 @@
-mod add_llm_provider_modal;
 pub mod configure_context_server_modal;
-mod configure_context_server_tools_modal;
 mod manage_profiles_modal;
 mod tool_picker;
 
+<<<<<<< HEAD
 use std::{ops::Range, rc::Rc, sync::Arc};
 
 use agent::ContextServerRegistry;
@@ -41,9 +40,11 @@ use util::ResultExt as _;
 use workspace::{Workspace, create_and_open_local_file};
 use paddleboard_actions::{ExtensionCategoryFilter, OpenBrowser};
 
+=======
+>>>>>>> zed/main
 pub(crate) use configure_context_server_modal::ConfigureContextServerModal;
-pub(crate) use configure_context_server_tools_modal::ConfigureContextServerToolsModal;
 pub(crate) use manage_profiles_modal::ManageProfilesModal;
+<<<<<<< HEAD
 
 use crate::{
     Agent,
@@ -1689,3 +1690,5 @@ mod tests {
         assert_eq!(anthropic, vec!["initech"]);
     }
 }
+=======
+>>>>>>> zed/main

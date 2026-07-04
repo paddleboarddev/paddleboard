@@ -21,7 +21,12 @@ use parking_lot::RwLock;
 pub use settings::ContextServerCommand;
 use url::Url;
 
+<<<<<<< HEAD
 use crate::transport::{HttpTransport, SandboxConfig};
+=======
+use crate::oauth::WwwAuthenticate;
+use crate::transport::HttpTransport;
+>>>>>>> zed/main
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ContextServerId(pub Arc<str>);
@@ -160,6 +165,7 @@ impl ContextServer {
         self.client.read().clone()
     }
 
+<<<<<<< HEAD
     // PaddleBoard: start with an optional stderr log handle for the MCP inline-logs UI.
     pub async fn start_with_log(
         &self,
@@ -171,6 +177,20 @@ impl ContextServer {
             None => (None, None),
         };
         self.initialize(self.new_client(buf, sender, cx)?).await
+=======
+    /// The authentication challenge from the last `401 Unauthorized` response
+    /// this server's transport gave up on, if any. See
+    /// [`crate::transport::Transport::auth_challenge`].
+    pub fn auth_challenge(&self) -> Option<WwwAuthenticate> {
+        match &self.configuration {
+            ContextServerTransport::Stdio(..) => None,
+            ContextServerTransport::Custom(transport) => transport.auth_challenge(),
+        }
+    }
+
+    pub async fn start(&self, cx: &AsyncApp) -> Result<()> {
+        self.initialize(self.new_client(cx)?).await
+>>>>>>> zed/main
     }
 
     pub async fn start(&self, cx: &AsyncApp) -> Result<()> {

@@ -4,17 +4,17 @@ use credentials_provider::CredentialsProvider;
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use google_ai::GenerateContentResponse;
 pub use google_ai::completion::{GoogleEventMapper, into_google};
-use gpui::{AnyView, App, AsyncApp, Context, Entity, SharedString, Task, TaskExt, Window};
+use gpui::{App, AppContext, AsyncApp, Context, Entity, SharedString, Task};
 use http_client::{CustomHeaders, HttpClient};
 use language_model::{
-    AuthenticateError, ConfigurationViewTargetAgent, EnvVar, LanguageModelCompletionError,
+    ApiKeyConfiguration, AuthenticateError, EnvVar, LanguageModelCompletionError,
     LanguageModelCompletionEvent, LanguageModelToolChoice, LanguageModelToolSchemaFormat,
-    ProviderConfigurationView,
 };
 use language_model::{
     GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, LanguageModel, LanguageModelEffortLevel,
     LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
-    LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest, RateLimiter,
+    LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
+    ProviderSettingsView, RateLimiter,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -22,9 +22,7 @@ pub use settings::GoogleAvailableModel as AvailableModel;
 use settings::{Settings, SettingsStore};
 use std::sync::{Arc, LazyLock};
 use strum::IntoEnumIterator;
-use ui::{ButtonLink, ConfiguredApiCard, List, ListBulletItem, prelude::*};
-use ui_input::InputField;
-use util::ResultExt;
+use ui::IconName;
 
 use language_model::ApiKeyState;
 
@@ -222,43 +220,19 @@ impl LanguageModelProvider for GoogleLanguageModelProvider {
         self.state.update(cx, |state, cx| state.authenticate(cx))
     }
 
-    fn configuration_view(
-        &self,
-        target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyView {
-        cx.new(|cx| ConfigurationView::new(self.state.clone(), target_agent, window, cx))
-            .into()
+    fn settings_view(&self, cx: &mut App) -> Option<ProviderSettingsView> {
+        let state = self.state.read(cx);
+        Some(ProviderSettingsView::ApiKey(ApiKeyConfiguration::new(
+            state.api_key_state.has_key(),
+            state.api_key_state.is_from_env_var(),
+            state.api_key_state.env_var_name().clone(),
+            "https://aistudio.google.com/app/apikey".into(),
+        )))
     }
 
-    fn reset_credentials(&self, cx: &mut App) -> Task<Result<()>> {
+    fn set_api_key(&self, api_key: Option<String>, cx: &mut App) -> Task<Result<()>> {
         self.state
-            .update(cx, |state, cx| state.set_api_key(None, cx))
-    }
-
-    fn configuration_view_v2(
-        &self,
-        _target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> ProviderConfigurationView {
-        let state = self.state.clone();
-        ProviderConfigurationView::Inline(
-            cx.new(|cx| {
-                crate::ApiKeyEditor::new(
-                    state,
-                    "https://aistudio.google.com/app/apikey",
-                    "AIza...",
-                    |state, _cx| crate::api_key_status(&state.api_key_state),
-                    |state, key, cx| state.update(cx, |state, cx| state.set_api_key(Some(key), cx)),
-                    |state, cx| state.update(cx, |state, cx| state.set_api_key(None, cx)),
-                    window,
-                    cx,
-                )
-            })
-            .into(),
-        )
+            .update(cx, |state, cx| state.set_api_key(api_key, cx))
     }
 }
 
@@ -397,6 +371,7 @@ impl LanguageModel for GoogleLanguageModel {
         async move { Ok(future.await?.boxed()) }.boxed()
     }
 }
+<<<<<<< HEAD
 
 struct ConfigurationView {
     api_key_editor: Entity<InputField>,
@@ -537,3 +512,5 @@ impl Render for ConfigurationView {
         }
     }
 }
+=======
+>>>>>>> zed/main

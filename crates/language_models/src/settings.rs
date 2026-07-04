@@ -6,11 +6,19 @@ use settings::RegisterSetting;
 use crate::provider::{
     anthropic, anthropic::AnthropicSettings, anthropic_compatible::AnthropicCompatibleSettings,
     bedrock, bedrock::AmazonBedrockSettings, cloud::ZedDotDevSettings, deepseek::DeepSeekSettings,
+<<<<<<< HEAD
     google::GoogleSettings, lmstudio::LmStudioSettings, mistral, mistral::MistralSettings,
     ollama::OllamaSettings, open_ai::OpenAiSettings, open_ai_compatible::OpenAiCompatibleSettings,
     open_router, open_router::OpenRouterSettings, opencode, opencode::OpenCodeSettings,
     resolve_custom_headers, vercel_ai_gateway::VercelAiGatewaySettings, vertex::VertexSettings,
     x_ai::XAiSettings,
+=======
+    google::GoogleSettings, llama_cpp::LlamaCppSettings, lmstudio::LmStudioSettings, mistral,
+    mistral::MistralSettings, ollama::OllamaSettings, open_ai::OpenAiSettings,
+    open_ai_compatible::OpenAiCompatibleSettings, open_router, open_router::OpenRouterSettings,
+    opencode, opencode::OpenCodeSettings, resolve_custom_headers,
+    vercel_ai_gateway::VercelAiGatewaySettings, x_ai::XAiSettings,
+>>>>>>> zed/main
 };
 
 #[derive(Debug, RegisterSetting)]
@@ -20,8 +28,12 @@ pub struct AllLanguageModelSettings {
     pub bedrock: AmazonBedrockSettings,
     pub deepseek: DeepSeekSettings,
     pub google: GoogleSettings,
+<<<<<<< HEAD
     // PaddleBoard: Vertex AI provider settings.
     pub vertex: VertexSettings,
+=======
+    pub llama_cpp: LlamaCppSettings,
+>>>>>>> zed/main
     pub lmstudio: LmStudioSettings,
     pub mistral: MistralSettings,
     pub ollama: OllamaSettings,
@@ -58,6 +70,7 @@ impl settings::Settings for AllLanguageModelSettings {
         let bedrock = language_models.bedrock.unwrap();
         let deepseek = language_models.deepseek.unwrap();
         let google = language_models.google.unwrap();
+        let llama_cpp = language_models.llama_cpp.unwrap();
         let lmstudio = language_models.lmstudio.unwrap();
         let mistral = language_models.mistral.unwrap();
         let ollama = language_models.ollama.unwrap();
@@ -122,6 +135,7 @@ impl settings::Settings for AllLanguageModelSettings {
                 available_models: google.available_models.unwrap_or_default(),
                 custom_headers: custom_headers_from("Google AI", google.custom_headers, &[]),
             },
+<<<<<<< HEAD
             // PaddleBoard: unwrap_or_default so a missing `vertex` block can't panic startup.
             vertex: {
                 let vertex = language_models.vertex.unwrap_or_default();
@@ -131,6 +145,14 @@ impl settings::Settings for AllLanguageModelSettings {
                     credentials_path: vertex.credentials_path,
                     available_models: vertex.available_models.unwrap_or_default(),
                 }
+=======
+            llama_cpp: LlamaCppSettings {
+                api_url: llama_cpp.api_url.unwrap(),
+                auto_discover: llama_cpp.auto_discover.unwrap_or(true),
+                available_models: llama_cpp.available_models.unwrap_or_default(),
+                context_window: llama_cpp.context_window,
+                custom_headers: custom_headers_from("llama.cpp", llama_cpp.custom_headers, &[]),
+>>>>>>> zed/main
             },
             lmstudio: LmStudioSettings {
                 api_url: lmstudio.api_url.unwrap(),

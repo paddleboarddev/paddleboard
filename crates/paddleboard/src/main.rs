@@ -14,8 +14,6 @@ const _: () = assert!(
      Forks: update APP_NAME in crates/paths/src/paths.rs when renaming the binary.",
 );
 
-use agent::{SharedThread, ThreadStore};
-use agent_client_protocol::schema::v1 as acp;
 use agent_ui::AgentPanel;
 use anyhow::{Context as _, Error, Result};
 use clap::Parser;
@@ -32,8 +30,7 @@ use futures::{StreamExt, channel::oneshot, future};
 use git::GitHostingProviderRegistry;
 use git_ui::clone::clone_and_open;
 use gpui::{
-    App, AppContext, Application, AsyncApp, Focusable as _, QuitMode, Task, TaskExt,
-    UpdateGlobal as _, block_on,
+    App, AppContext, Application, AsyncApp, QuitMode, Task, TaskExt, UpdateGlobal as _, block_on,
 };
 use gpui_platform;
 
@@ -49,7 +46,6 @@ use assets::Assets;
 use node_runtime::{NodeBinaryOptions, NodeRuntime};
 use parking_lot::Mutex;
 use project::{project_settings::ProjectSettings, trusted_worktrees};
-use proto;
 use recent_projects::{RemoteSettings, open_remote_project};
 use release_channel::{AppCommitSha, AppVersion, ReleaseChannel};
 use session::{AppSession, Session};
@@ -67,11 +63,17 @@ use std::{
 };
 use theme::{ActiveTheme, GlobalTheme, ThemeRegistry};
 use theme_settings::load_user_theme;
+<<<<<<< HEAD:crates/paddleboard/src/main.rs
 use util::ResultExt;
+=======
+use util::{ResultExt, maybe};
+>>>>>>> zed/main:crates/zed/src/main.rs
 use uuid::Uuid;
 use workspace::{
     AppState, MultiWorkspace, SerializedWorkspaceLocation, SessionWorkspace, Toast,
-    WorkspaceSettings, WorkspaceStore, notifications::NotificationId, restore_multiworkspace,
+    WorkspaceSettings, WorkspaceStore,
+    notifications::{NotificationId, NotifyResultExt},
+    restore_multiworkspace,
 };
 use zed::{
     OpenListener, OpenRequest, RawOpenRequest, app_menus, build_window_options,
@@ -193,11 +195,10 @@ static STARTUP_TIME: OnceLock<Instant> = OnceLock::new();
 fn main() {
     STARTUP_TIME.get_or_init(|| Instant::now());
 
-    // If this process was re-executed as a sandbox launcher (Linux
-    // bwrap/seccomp), install the seccomp policy and exec the wrapped command
-    // without returning. Must run before argument parsing: the wrapped
-    // command's args are appended verbatim and would otherwise be
-    // misinterpreted as Zed's own arguments.
+    // If this process was re-executed as a Linux sandbox helper, run that mode
+    // without returning. Must run before argument parsing: the wrapped command's
+    // args are appended verbatim and would otherwise be misinterpreted as Zed's
+    // own arguments.
     sandbox::run_sandbox_launcher_if_invoked();
 
     #[cfg(unix)]
@@ -1149,6 +1150,7 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
                 })
                 .detach_and_log_err(cx);
             }
+<<<<<<< HEAD:crates/paddleboard/src/main.rs
             OpenRequestKind::SharedAgentThread { session_id } => {
                 cx.spawn(async move |cx| {
                     let multi_workspace =
@@ -1246,6 +1248,20 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
                     })?;
 
                     anyhow::Ok(())
+=======
+            OpenRequestKind::InstallSkill { content } => {
+                cx.spawn(async move |cx| {
+                    let multi_workspace =
+                        workspace::get_any_active_multi_workspace(app_state, cx.clone()).await?;
+
+                    multi_workspace.update(cx, |_multi_workspace, _window, cx| {
+                        settings_ui::open_skill_creator(
+                            settings_ui::pages::SkillCreatorOpenMode::Install { content },
+                            Some(multi_workspace),
+                            cx,
+                        );
+                    })
+>>>>>>> zed/main:crates/zed/src/main.rs
                 })
                 .detach_and_log_err(cx);
             }
@@ -1464,7 +1480,64 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
         }));
     }
 
+<<<<<<< HEAD:crates/paddleboard/src/main.rs
     if let Some(task) = task {
+=======
+    if !request.open_channel_notes.is_empty() || request.join_channel.is_some() {
+        cx.spawn(async move |cx| {
+            let result = maybe!(async {
+                if let Some(task) = task {
+                    task.await?;
+                }
+                let client = app_state.client.clone();
+                // we continue even if connection fails as join_channel/ open channel notes will
+                // show a visible error message.
+                client.connect(true, cx).await.into_response().log_err();
+
+                if let Some(channel_id) = request.join_channel {
+                    cx.update(|cx| {
+                        workspace::join_channel(
+                            client::ChannelId(channel_id),
+                            app_state.clone(),
+                            None,
+                            None,
+                            cx,
+                        )
+                    })
+                    .await?;
+                }
+
+                let workspace_window =
+                    workspace::get_any_active_multi_workspace(app_state, cx.clone()).await?;
+
+                let workspace = workspace_window.read_with(cx, |mw, _| mw.workspace().clone())?;
+                let weak_workspace = workspace.downgrade();
+
+                let mut promises = Vec::new();
+                for (channel_id, heading) in request.open_channel_notes {
+                    promises.push(cx.update_window(workspace_window.into(), |_, window, cx| {
+                        ChannelView::open(
+                            client::ChannelId(channel_id),
+                            heading,
+                            workspace.clone(),
+                            window,
+                            cx,
+                        )
+                    })?)
+                }
+                for result in future::join_all(promises).await {
+                    result.notify_workspace_async_err(weak_workspace.clone(), cx);
+                }
+                anyhow::Ok(())
+            })
+            .await;
+            if let Err(err) = result {
+                fail_to_open_window_async(err, cx);
+            }
+        })
+        .detach()
+    } else if let Some(task) = task {
+>>>>>>> zed/main:crates/zed/src/main.rs
         cx.spawn(async move |cx| {
             if let Err(err) = task.await {
                 fail_to_open_window_async(err, cx);

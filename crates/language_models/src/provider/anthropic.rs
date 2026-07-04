@@ -5,21 +5,19 @@ use anyhow::Result;
 use collections::BTreeMap;
 use credentials_provider::CredentialsProvider;
 use futures::{FutureExt, StreamExt, future::BoxFuture, stream::BoxStream};
-use gpui::{AnyView, App, AsyncApp, Context, Entity, Task, TaskExt};
+use gpui::{App, AppContext, AsyncApp, Context, Entity, SharedString, Task};
 use http_client::{CustomHeaders, HttpClient};
 use language_model::{
-    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, ApiKeyState, AuthenticateError,
-    ConfigurationViewTargetAgent, EnvVar, FastModeConfirmation, IconOrSvg, LanguageModel,
+    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, ApiKeyConfiguration, ApiKeyState,
+    AuthenticateError, EnvVar, FastModeConfirmation, IconOrSvg, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelId, LanguageModelName,
     LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
     LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
-    ProviderConfigurationView, RateLimiter, env_var,
+    ProviderSettingsView, RateLimiter, env_var,
 };
 use settings::{Settings, SettingsStore};
 use std::sync::{Arc, LazyLock};
-use ui::{ButtonLink, ConfiguredApiCard, List, ListBulletItem, prelude::*};
-use ui_input::InputField;
-use util::ResultExt;
+use ui::IconName;
 
 pub use anthropic::completion::{AnthropicEventMapper, AnthropicPromptCacheMode, into_anthropic};
 pub use settings::AnthropicAvailableModel as AvailableModel;
@@ -275,43 +273,19 @@ impl LanguageModelProvider for AnthropicLanguageModelProvider {
         self.state.update(cx, |state, cx| state.authenticate(cx))
     }
 
-    fn configuration_view(
-        &self,
-        target_agent: ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyView {
-        cx.new(|cx| ConfigurationView::new(self.state.clone(), target_agent, window, cx))
-            .into()
+    fn settings_view(&self, cx: &mut App) -> Option<ProviderSettingsView> {
+        let state = self.state.read(cx);
+        Some(ProviderSettingsView::ApiKey(ApiKeyConfiguration::new(
+            state.api_key_state.has_key(),
+            state.api_key_state.is_from_env_var(),
+            state.api_key_state.env_var_name().clone(),
+            "https://console.anthropic.com/settings/keys".into(),
+        )))
     }
 
-    fn reset_credentials(&self, cx: &mut App) -> Task<Result<()>> {
+    fn set_api_key(&self, api_key: Option<String>, cx: &mut App) -> Task<Result<()>> {
         self.state
-            .update(cx, |state, cx| state.set_api_key(None, cx))
-    }
-
-    fn configuration_view_v2(
-        &self,
-        _target_agent: language_model::ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> ProviderConfigurationView {
-        let state = self.state.clone();
-        ProviderConfigurationView::Inline(
-            cx.new(|cx| {
-                crate::ApiKeyEditor::new(
-                    state,
-                    "https://console.anthropic.com/settings/keys",
-                    "sk-ant-...",
-                    |state, _cx| crate::api_key_status(&state.api_key_state),
-                    |state, key, cx| state.update(cx, |state, cx| state.set_api_key(Some(key), cx)),
-                    |state, cx| state.update(cx, |state, cx| state.set_api_key(None, cx)),
-                    window,
-                    cx,
-                )
-            })
-            .into(),
-        )
+            .update(cx, |state, cx| state.set_api_key(api_key, cx))
     }
 
     fn fast_mode_confirmation(&self, _cx: &App) -> Option<FastModeConfirmation> {
@@ -573,6 +547,7 @@ impl LanguageModel for AnthropicModel {
         async move { Ok(future.await?.boxed()) }.boxed()
     }
 }
+<<<<<<< HEAD
 
 struct ConfigurationView {
     api_key_editor: Entity<InputField>,
@@ -715,3 +690,5 @@ impl Render for ConfigurationView {
         }
     }
 }
+=======
+>>>>>>> zed/main
