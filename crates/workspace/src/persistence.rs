@@ -1693,6 +1693,14 @@ impl WorkspaceDb {
                 host = Some(format!("mock-{}", id));
                 user = Some(format!("mock-user-{}", id));
             }
+            // PaddleBoard: scoped builds can enable remote/test-support (adding the
+            // Mock variant) while this crate's own test-support is off, cfg'ing out
+            // the arm above; this fallback keeps the match exhaustive (E0004).
+            #[allow(unreachable_patterns)]
+            _ => {
+                kind = RemoteConnectionKind::Ssh;
+                user = None;
+            }
         }
 
         if let RemoteConnectionOptions::Docker(options) = options {
