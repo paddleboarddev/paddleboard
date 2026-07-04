@@ -699,79 +699,8 @@ mod tests {
 
     // Tests for telemetry queueing and flushing were removed when telemetry
     // was hard-disabled — `report_event` is now a no-op so events never queue.
-
-    #[gpui::test]
-    async fn test_report_remote_event_tags_origin(cx: &mut TestAppContext) {
-        init_test(cx);
-        let clock = Arc::new(FakeSystemClock::new());
-        let http = FakeHttpClient::with_200_response();
-
-        let telemetry = cx.update(|cx| {
-            let telemetry = Telemetry::new(clock.clone(), http, cx);
-            telemetry.start(
-                Some("system_id".to_string()),
-                Some("installation_id".to_string()),
-                "session_id".to_string(),
-                cx,
-            );
-            telemetry
-        });
-
-        // Mirror what the remote server forwards: a bare `FlexibleEvent`, which
-        // is the type produced by `telemetry::event!` / sent over the queue.
-        let event_json = serde_json::to_string(&FlexibleEvent {
-            event_type: "fs_watcher_poll".to_string(),
-            event_properties: HashMap::from_iter([(
-                "path".to_string(),
-                serde_json::Value::String("/code/project".to_string()),
-            )]),
-        })
-        .unwrap();
-
-        cx.update(|_| {
-            telemetry
-                .report_remote_event(
-                    &event_json,
-                    "ssh",
-                    "Linux".to_string(),
-                    Some("ubuntu 24.04".to_string()),
-                    "aarch64".to_string(),
-                )
-                .unwrap();
-        });
-
-        let queue = telemetry.state.lock().events_queue.clone();
-        assert_eq!(queue.len(), 1);
-        let Event::Flexible(event) = &queue[0].event;
-        assert_eq!(event.event_type, "fs_watcher_poll");
-        // Original properties are preserved.
-        assert_eq!(
-            event.event_properties.get("path"),
-            Some(&serde_json::Value::String("/code/project".to_string()))
-        );
-        // The remote server's OS is attached as properties, since the batch-level
-        // OS describes the uploading client rather than the remote host.
-        assert_eq!(
-            event.event_properties.get("remote"),
-            Some(&serde_json::Value::Bool(true))
-        );
-        assert_eq!(
-            event.event_properties.get("remote_connection_type"),
-            Some(&serde_json::Value::String("ssh".to_string()))
-        );
-        assert_eq!(
-            event.event_properties.get("remote_os_name"),
-            Some(&serde_json::Value::String("Linux".to_string()))
-        );
-        assert_eq!(
-            event.event_properties.get("remote_os_version"),
-            Some(&serde_json::Value::String("ubuntu 24.04".to_string()))
-        );
-        assert_eq!(
-            event.event_properties.get("remote_architecture"),
-            Some(&serde_json::Value::String("aarch64".to_string()))
-        );
-    }
+    // That includes upstream's `test_report_remote_event_tags_origin`, which
+    // asserts remote events reach the queue.
 
     #[gpui::test]
     fn test_project_discovery_does_not_double_report(cx: &mut gpui::TestAppContext) {

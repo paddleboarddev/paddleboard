@@ -1103,7 +1103,7 @@ mod tests {
     use cli::CliResponse;
     use editor::Editor;
     use futures::poll;
-    use gpui::{AppContext as _, TestAppContext, UpdateGlobal as _};
+    use gpui::{TestAppContext, UpdateGlobal as _};
     use language::LineEnding;
     use remote::SshConnectionOptions;
     use rope::Rope;
