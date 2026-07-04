@@ -308,7 +308,8 @@ mod server {
                         200,
                         oauth_callback_page(
                             "Authorization Successful",
-                            "You can close this tab and return to Zed.",
+                            // PaddleBoard: user-visible copy rebranded from Zed.
+                            "You can close this tab and return to PaddleBoard.",
                             false,
                         ),
                     ),
@@ -318,7 +319,7 @@ mod server {
                             400,
                             oauth_callback_page(
                                 "Authorization Failed",
-                                "Something went wrong. Please try again from Zed.",
+                                "Something went wrong. Please try again from PaddleBoard.",
                                 true,
                             ),
                         )
