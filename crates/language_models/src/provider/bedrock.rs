@@ -524,7 +524,8 @@ impl LanguageModelProvider for BedrockLanguageModelProvider {
                     .into()
             })
             .description(InlineDescription::Text(
-                "To use Zed's agent with Bedrock, set a custom authentication strategy in your settings or use static credentials.".into(),
+                // PaddleBoard: user-visible copy rebranded from Zed.
+                "To use PaddleBoard's agent with Bedrock, set a custom authentication strategy in your settings or use static credentials.".into(),
             )),
         ))
     }

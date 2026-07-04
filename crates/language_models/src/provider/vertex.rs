@@ -9,14 +9,14 @@ use credentials_provider::CredentialsProvider;
 use futures::{FutureExt, StreamExt, future::BoxFuture};
 use google_ai::GenerateContentResponse;
 use google_ai::completion::{GoogleEventMapper, into_google};
-use gpui::{AnyView, App, AsyncApp, Context, Entity, SharedString, Task, Window};
+use gpui::{App, AsyncApp, Context, Entity, SharedString, Task, Window};
 use http_client::HttpClient;
 use language_model::{
-    ApiKeyState, AuthenticateError, ConfigurationViewTargetAgent, EnvVar, IconOrSvg, LanguageModel,
+    ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, InlineDescription, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelId, LanguageModelName,
     LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
     LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
-    LanguageModelToolSchemaFormat, RateLimiter,
+    LanguageModelToolSchemaFormat, ProviderSettingsView, RateLimiter, SubPageProviderSettings,
 };
 use paddleboard_vertex::{
     GcloudTokenProvider, ServiceAccountKey, TokenProvider, VertexAuth, stream_generate_content,
@@ -280,18 +280,22 @@ impl LanguageModelProvider for VertexLanguageModelProvider {
         self.state.update(cx, |state, cx| state.authenticate(cx))
     }
 
-    fn configuration_view(
-        &self,
-        target_agent: ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyView {
-        cx.new(|cx| ConfigurationView::new(self.state.clone(), target_agent, window, cx))
-            .into()
+    fn settings_view(&self, _cx: &mut App) -> Option<ProviderSettingsView> {
+        let state = self.state.clone();
+        Some(ProviderSettingsView::SubPage(
+            SubPageProviderSettings::new(move |window, cx| {
+                cx.new(|cx| ConfigurationView::new(state.clone(), window, cx))
+                    .into()
+            })
+            .description(InlineDescription::Text(
+                "To use PaddleBoard's agent with Gemini Enterprise, sign in with a service account, Express-mode API key, or gcloud credentials.".into(),
+            )),
+        ))
     }
 
-    fn reset_credentials(&self, cx: &mut App) -> Task<Result<()>> {
-        self.state.update(cx, |state, cx| state.set_api_key(None, cx))
+    fn set_api_key(&self, api_key: Option<String>, cx: &mut App) -> Task<Result<()>> {
+        self.state
+            .update(cx, |state, cx| state.set_api_key(api_key, cx))
     }
 }
 
@@ -436,12 +440,7 @@ struct ConfigurationView {
 }
 
 impl ConfigurationView {
-    fn new(
-        state: Entity<State>,
-        _target_agent: ConfigurationViewTargetAgent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    fn new(state: Entity<State>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
 
         let settings = VertexLanguageModelProvider::settings(cx).clone();

@@ -889,6 +889,7 @@ impl LanguageModel for CloudLanguageModel {
                     self.model.supports_parallel_tool_calls,
                     false,
                     None,
+                    crate::provider::open_ai::ChatCompletionMaxTokensParameter::MaxCompletionTokens,
                     None,
                     false,
                 );

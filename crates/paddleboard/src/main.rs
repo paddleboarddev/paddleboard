@@ -68,7 +68,7 @@ use uuid::Uuid;
 use workspace::{
     AppState, MultiWorkspace, SerializedWorkspaceLocation, SessionWorkspace, Toast,
     WorkspaceSettings, WorkspaceStore,
-    notifications::{NotificationId, NotifyResultExt},
+    notifications::NotificationId,
     restore_multiworkspace,
 };
 use zed::{
