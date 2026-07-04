@@ -10099,6 +10099,7 @@ dependencies = [
  "anyhow",
  "gpui",
  "language_model",
+ "paddleboard_actions",
  "theme",
  "ui",
  "workspace",
