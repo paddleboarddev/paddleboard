@@ -130,6 +130,16 @@ impl settings::Settings for AllLanguageModelSettings {
                 available_models: llama_cpp.available_models.unwrap_or_default(),
                 context_window: llama_cpp.context_window,
                 custom_headers: custom_headers_from("llama.cpp", llama_cpp.custom_headers, &[]),
+                // PaddleBoard: managed "Local Models" mode.
+                managed: {
+                    let managed = llama_cpp.managed.unwrap_or_default();
+                    crate::provider::llama_cpp::ManagedLocalModelSettings {
+                        enabled: managed.enabled.unwrap_or(false),
+                        model: managed.model.unwrap_or_else(|| {
+                            paddleboard_llama_manager::DEFAULT_MODEL_ID.to_string()
+                        }),
+                    }
+                },
             },
             // PaddleBoard: unwrap_or_default so a missing `vertex` block can't panic startup.
             vertex: {

@@ -57,6 +57,8 @@ opencode = { workspace = true, features = ["schemars"] }
 open_router = { workspace = true, features = ["schemars"] }
 # PaddleBoard: Google Vertex AI provider
 paddleboard_vertex.workspace = true
+# PaddleBoard: managed "Local Models" (llama.cpp) runtime manager
+paddleboard_llama_manager.workspace = true
 rand.workspace = true
 release_channel.workspace = true
 schemars.workspace = true

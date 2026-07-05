@@ -9807,6 +9807,7 @@ dependencies = [
  "open_ai",
  "open_router",
  "opencode",
+ "paddleboard_llama_manager",
  "paddleboard_vertex",
  "parking_lot",
  "pretty_assertions",
@@ -12910,6 +12911,26 @@ dependencies = [
  "settings",
  "ui",
  "workspace",
+]
+
+[[package]]
+name = "paddleboard_llama_manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fs",
+ "futures 0.3.32",
+ "gpui",
+ "http_client",
+ "log",
+ "paths",
+ "settings",
+ "sha2 0.10.9",
+ "smol",
+ "tempfile",
+ "ui",
+ "url",
+ "util",
 ]
 
 [[package]]

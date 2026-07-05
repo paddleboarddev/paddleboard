@@ -275,6 +275,21 @@ Location defaults to `global`, where the newest models live (Gemini 3 and the `-
 
 ---
 
+### Local Models — run a model on your own machine
+
+Open **Local Models** in the AI provider settings to run a model entirely on your Mac — no Ollama, no separate install, no server to start yourself. PaddleBoard manages the whole thing: it ships a pinned, code-signed `llama.cpp` server in the app, downloads an openly-licensed model on first use, and supervises the server on a private loopback port. Metal acceleration is automatic on Apple silicon.
+
+- Flip **"Run locally, managed by PaddleBoard"** on and pick a model:
+  - **Gemma 3 4B** (recommended) — a capable general-purpose model, ~2.5 GB.
+  - **Gemma 3 1B (tiny)** — smallest and fastest, best for low-RAM machines, ~0.8 GB.
+- The **Download & Run** button shows a live progress bar, then the status walks through *downloading → starting → ready*. Once it's ready the model appears in the agent's model picker like any other.
+- Everything stays on your machine. The server binds to `127.0.0.1` only, and PaddleBoard owns the process — it starts when you enable Local Models and is torn down when you switch models or quit.
+- Prefer your own setup? The same provider still lets you **connect to a llama.cpp server you run yourself** under "Connect to your own llama.cpp server" — managed mode is just the default-off convenience path.
+
+Supported on macOS Apple Silicon and Linux today; other platforms show Local Models as unavailable rather than failing.
+
+---
+
 ### Git Login
 
 Run **`git login: Manage`** from the command palette to save a Personal Access Token for **GitHub**, **GitLab**, **BitBucket**, or a custom host. Tokens are stored in your **OS keychain** (never in settings or plaintext). Once saved, git HTTPS `clone`/`fetch`/`push` authenticate silently — the password prompt only appears when there's no saved login.

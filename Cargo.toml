@@ -256,6 +256,7 @@ members = [
     "crates/paddleboard_set_sail",
     "crates/paddleboard_scion_ui",
     "crates/paddleboard_usage",
+    "crates/paddleboard_llama_manager",
     "crates/windows_resources",
     "crates/zeta_prompt",
     "crates/zlog",
@@ -537,6 +538,7 @@ paddleboard_scion_settings = { path = "crates/paddleboard_scion_settings" }
 paddleboard_scion_ui = { path = "crates/paddleboard_scion_ui" }
 paddleboard_set_sail = { path = "crates/paddleboard_set_sail" }
 paddleboard_usage = { path = "crates/paddleboard_usage" }
+paddleboard_llama_manager = { path = "crates/paddleboard_llama_manager" }
 edit_prediction = { path = "crates/edit_prediction" }
 edit_prediction_metrics = { path = "crates/edit_prediction_metrics" }
 zeta_prompt = { path = "crates/zeta_prompt" }

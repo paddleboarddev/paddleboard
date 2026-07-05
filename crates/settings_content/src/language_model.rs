@@ -282,6 +282,22 @@ pub struct LlamaCppSettingsContent {
     /// Overrides the context length reported for every llama.cpp model.
     pub context_window: Option<u64>,
     pub custom_headers: Option<HashMap<String, String>>,
+    // PaddleBoard: "Local Models" — PaddleBoard-managed local inference. When
+    // enabled, PaddleBoard downloads and supervises a llama-server on an
+    // ephemeral loopback port and points this provider at it, so the unmanaged
+    // "connect to my own server" mode stays the default when this is absent.
+    pub managed: Option<ManagedLocalModelSettingsContent>,
+}
+
+// PaddleBoard: settings for the managed "Local Models" experience.
+#[with_fallible_options]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema, MergeFrom)]
+pub struct ManagedLocalModelSettingsContent {
+    /// Whether PaddleBoard should download and run a local model itself.
+    /// Defaults to false (unmanaged mode).
+    pub enabled: Option<bool>,
+    /// The catalog id of the managed model to run (e.g. `gemma-3-4b`).
+    pub model: Option<String>,
 }
 
 #[with_fallible_options]

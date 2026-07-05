@@ -267,6 +267,9 @@ fn register_language_model_providers(
     credentials_provider: Arc<dyn CredentialsProvider>,
     cx: &mut Context<LanguageModelRegistry>,
 ) {
+    // PaddleBoard: install the managed "Local Models" runtime manager before the
+    // llama.cpp provider registers, so it can drive/observe the managed server.
+    paddleboard_llama_manager::init(client.http_client(), cx);
     registry.register_provider(
         Arc::new(CloudLanguageModelProvider::new(
             user_store,
