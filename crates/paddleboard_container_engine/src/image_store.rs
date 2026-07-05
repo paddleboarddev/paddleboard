@@ -117,7 +117,15 @@ impl ImageStore {
             let dir = self.rootfs_dir_for_digest(&digest);
             if !self.complete_marker(&digest).is_file() {
                 log::info!("pulling container image {image_ref} ({digest})");
-                self.download_and_unpack(&client, &reference, &auth, &digest)
+                // Pin every subsequent fetch to the digest we just resolved.
+                // Re-fetching the manifest by its mutable tag would let a
+                // registry remap the tag between the digest resolution and the
+                // pull (TOCTOU), storing foreign content under this digest.
+                // Content addressed by digest is immutable, so this closes the
+                // gap; `oci-client` additionally verifies the manifest body and
+                // each layer blob against their digests as they stream in.
+                let pinned = reference.clone_with_digest(digest.clone());
+                self.download_and_unpack(&client, &pinned, &auth, &digest)
                     .await?;
             }
             self.write_ref(image_ref, &digest)?;
@@ -189,6 +197,12 @@ impl ImageStore {
                 .await
                 .with_context(|| format!("failed to create {blob_path:?}"))?;
             let download = async {
+                // `pull_blob` streams the layer through a digest verifier and
+                // errors on mismatch (oci-client 0.17: it hashes the bytes and
+                // compares against `layer.digest`), so the bytes handed to
+                // `apply_layer` are already authenticated against the manifest.
+                // The manifest itself was fetched by pinned digest, so the whole
+                // pull is content-addressed end to end — no re-hashing needed.
                 client
                     .pull_blob(reference, layer, &mut blob_file)
                     .await
@@ -292,8 +306,10 @@ fn client_config() -> oci_client::client::ClientConfig {
 }
 
 /// Unpack one (possibly compressed) layer tarball onto `target`, applying
-/// OCI whiteouts. `tar::Entry::unpack_in` supplies the safety properties:
-/// it refuses absolute paths, `..` traversal, and writing through symlinks.
+/// OCI whiteouts. `tar::Entry::unpack_in` guards the regular file writes (it
+/// refuses absolute paths, `..` traversal, and writing through symlinks); the
+/// hand-rolled whiteout/removal branches call `fs::remove_*` directly and so
+/// carry their own guard via [`safe_join`].
 fn apply_layer(blob_path: &Path, media_type: &str, target: &Path) -> Result<()> {
     let file = fs::File::open(blob_path)?;
     let reader: Box<dyn Read> = if media_type.ends_with("+gzip") || media_type.ends_with(".gzip") {
@@ -306,6 +322,14 @@ fn apply_layer(blob_path: &Path, media_type: &str, target: &Path) -> Result<()> 
         bail!("unsupported layer media type {media_type}");
     };
 
+    // Resolve symlinks in the store root once, so every containment check below
+    // compares canonical-to-canonical. macOS in particular places temp dirs
+    // behind the /var -> /private/var symlink, which a purely lexical check
+    // would misjudge.
+    let target = target
+        .canonicalize()
+        .with_context(|| format!("failed to canonicalize sandbox root {target:?}"))?;
+
     let mut archive = tar::Archive::new(reader);
     archive.set_preserve_permissions(true);
     archive.set_preserve_mtime(true);
@@ -314,29 +338,41 @@ fn apply_layer(blob_path: &Path, media_type: &str, target: &Path) -> Result<()> 
         let mut entry = entry?;
         let path = entry.path()?.into_owned();
 
-        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+        // Reject `..`/absolute entry paths up front — for the hand-rolled
+        // deletion branches below and the `unpack_in` write path alike — so a
+        // hostile layer can never name a target outside the store.
+        let relative = match normalize_entry_path(&path) {
+            Ok(relative) => relative,
+            Err(err) => {
+                log::warn!("skipping unsafe tar entry {path:?}: {err:#}");
+                continue;
+            }
+        };
+        let Some(file_name) = relative.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
+        let entry_parent = relative.parent().unwrap_or_else(|| Path::new(""));
 
         // OCI whiteouts: `.wh..wh..opq` empties the directory it appears in
         // (opaque dir); `.wh.<name>` deletes `<name>` from lower layers.
         if file_name == ".wh..wh..opq" {
-            if let Some(parent) = path.parent() {
-                let dir = target.join(parent);
-                if dir.starts_with(target) && dir.is_dir() {
+            match safe_join(&target, entry_parent) {
+                // Only clear a real directory: were the entry to resolve to a
+                // symlink, emptying what it points at would escape the store.
+                Ok(dir) if fs::symlink_metadata(&dir).is_ok_and(|meta| meta.is_dir()) => {
                     for child in fs::read_dir(&dir)?.flatten() {
                         remove_any(&child.path());
                     }
                 }
+                Ok(_) => {}
+                Err(err) => log::warn!("skipping unsafe opaque whiteout {path:?}: {err:#}"),
             }
             continue;
         }
         if let Some(hidden) = file_name.strip_prefix(".wh.") {
-            if let Some(parent) = path.parent() {
-                let victim = target.join(parent).join(hidden);
-                if victim.starts_with(target) {
-                    remove_any(&victim);
-                }
+            match safe_join(&target, &entry_parent.join(hidden)) {
+                Ok(victim) => remove_any(&victim),
+                Err(err) => log::warn!("skipping unsafe whiteout {path:?}: {err:#}"),
             }
             continue;
         }
@@ -348,21 +384,74 @@ fn apply_layer(blob_path: &Path, media_type: &str, target: &Path) -> Result<()> 
             _ => {}
         }
 
-        // A file may replace a directory (or vice versa) from a lower layer.
-        let destination = target.join(&path);
-        if destination.starts_with(target)
-            && fs::symlink_metadata(&destination).is_ok_and(|meta| {
+        // A file may replace a directory (or vice versa) from a lower layer. A
+        // missing parent here just means `unpack_in` will create it; an actual
+        // escape is still caught by `unpack_in`'s own traversal guard below.
+        if let Ok(destination) = safe_join(&target, &relative) {
+            if fs::symlink_metadata(&destination).is_ok_and(|meta| {
                 meta.is_dir() != entry.header().entry_type().is_dir()
-            })
-        {
-            remove_any(&destination);
+            }) {
+                remove_any(&destination);
+            }
         }
 
-        if !entry.unpack_in(target)? {
+        if !entry.unpack_in(&target)? {
             log::warn!("skipped suspicious tar entry {path:?}");
         }
     }
     Ok(())
+}
+
+/// Reject tar entry paths that could escape their destination, returning the
+/// path as a clean relative `PathBuf` with `.` components dropped. A legitimate
+/// OCI layer never carries `..`, absolute, or Windows-prefix components, and
+/// `tar`'s own extractor refuses them too.
+fn normalize_entry_path(entry_path: &Path) -> Result<PathBuf> {
+    use std::path::Component;
+    let mut relative = PathBuf::new();
+    for component in entry_path.components() {
+        match component {
+            Component::Normal(part) => relative.push(part),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                bail!("tar entry path contains a `..` component: {entry_path:?}")
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                bail!("tar entry path is absolute: {entry_path:?}")
+            }
+        }
+    }
+    Ok(relative)
+}
+
+/// Resolve an untrusted relative tar path against the canonical `target`,
+/// guaranteeing the result stays inside it.
+///
+/// `PathBuf::starts_with` is component-lexical: it neither resolves `..` nor
+/// accounts for symlinks, so it cannot guard the hand-rolled whiteout/removal
+/// paths that call `fs::remove_*` directly (unlike `tar::Entry::unpack_in`,
+/// which has its own traversal guard). This re-checks for `..`/absolute
+/// components — `hidden` in the caller's `.wh.<name>` is itself attacker
+/// controlled — then canonicalizes the entry's *parent* directory, resolving
+/// any symlink an earlier layer planted in the ancestry, and confirms it is
+/// still within `target`. The final component is deliberately left unresolved:
+/// a whiteout targets the symlink itself and must never be followed through.
+fn safe_join(target: &Path, relative: &Path) -> Result<PathBuf> {
+    let relative = normalize_entry_path(relative)?;
+    let Some(file_name) = relative.file_name() else {
+        // Empty path (e.g. an opaque whiteout at the store root): `target`.
+        return Ok(target.to_path_buf());
+    };
+    let parent = target
+        .join(&relative)
+        .parent()
+        .ok_or_else(|| anyhow!("tar entry {relative:?} has no parent directory"))?
+        .canonicalize()
+        .with_context(|| format!("failed to resolve parent of tar entry {relative:?}"))?;
+    if !parent.starts_with(target) {
+        bail!("tar entry {relative:?} escapes the sandbox root {target:?}");
+    }
+    Ok(parent.join(file_name))
 }
 
 fn remove_any(path: &Path) {
@@ -626,6 +715,167 @@ mod tests {
         assert_eq!(
             fs::read_to_string(target.join("var/run")).expect("replaced"),
             "now a file"
+        );
+    }
+
+    /// Assemble a single raw ustar entry (512-byte header + padded data).
+    /// `tar::Builder` refuses to encode `..`/absolute paths and cannot express
+    /// arbitrary link targets cleanly, so the traversal tests hand-build the
+    /// headers whose paths would otherwise be impossible to produce.
+    fn raw_tar_entry(name: &str, entry_type: u8, link_name: &str, data: &[u8]) -> Vec<u8> {
+        fn put(header: &mut [u8; 512], start: usize, len: usize, value: &[u8]) {
+            let count = value.len().min(len);
+            header[start..start + count].copy_from_slice(&value[..count]);
+        }
+
+        let mut header = [0u8; 512];
+        put(&mut header, 0, 100, name.as_bytes());
+        put(&mut header, 100, 8, b"0000644\0");
+        put(&mut header, 108, 8, b"0000000\0");
+        put(&mut header, 116, 8, b"0000000\0");
+        put(&mut header, 124, 12, format!("{:011o}\0", data.len()).as_bytes());
+        put(&mut header, 136, 12, b"00000000000\0");
+        // The checksum is computed with this field read as eight spaces, per
+        // the ustar format; the tar reader recomputes it the same way.
+        for byte in &mut header[148..156] {
+            *byte = b' ';
+        }
+        header[156] = entry_type;
+        put(&mut header, 157, 100, link_name.as_bytes());
+        put(&mut header, 257, 6, b"ustar\0");
+        put(&mut header, 263, 2, b"00");
+
+        let checksum: u32 = header.iter().map(|byte| *byte as u32).sum();
+        put(&mut header, 148, 8, format!("{checksum:06o}\0 ").as_bytes());
+
+        let mut entry = header.to_vec();
+        entry.extend_from_slice(data);
+        let padding = (512 - data.len() % 512) % 512;
+        entry.extend(std::iter::repeat(0u8).take(padding));
+        entry
+    }
+
+    const REGULAR: u8 = b'0';
+    const SYMLINK: u8 = b'2';
+
+    /// Concatenate raw entries and cap with the two zero blocks that mark a
+    /// tar end-of-archive.
+    fn raw_tar_layer(entries: Vec<Vec<u8>>) -> Vec<u8> {
+        let mut layer: Vec<u8> = entries.into_iter().flatten().collect();
+        layer.extend(std::iter::repeat(0u8).take(1024));
+        layer
+    }
+
+    /// Files the unpacker must never touch live *outside* the store root. Each
+    /// traversal test plants a canary there and asserts it survives.
+    fn planted_canary(dir: &Path, name: &str) -> PathBuf {
+        let victim = dir.join(name);
+        fs::write(&victim, "host secret").expect("plant canary");
+        victim
+    }
+
+    #[test]
+    fn regular_entry_with_parent_dir_component_cannot_escape() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let target = temp.path().join("rootfs");
+        fs::create_dir_all(&target).expect("create target");
+        // An outside *directory* whose type differs from the incoming regular
+        // file: the pre-unpack "file replaces directory" removal would delete
+        // it were the `..` path allowed to escape.
+        let escape_dir = temp.path().join("escape");
+        fs::create_dir_all(&escape_dir).expect("create escape dir");
+        let victim = planted_canary(&escape_dir, "x");
+
+        let layer = raw_tar_layer(vec![raw_tar_entry("../escape", REGULAR, "", b"pwned")]);
+        let blob = write_blob(temp.path(), &layer);
+        // The layer is rejected entry-by-entry, so the pull itself still
+        // succeeds; what matters is that nothing outside `target` changed.
+        apply_layer(&blob, TAR_MEDIA_TYPE, &target).expect("apply layer");
+
+        assert!(
+            victim.exists(),
+            "an escaping regular entry must not delete an outside directory"
+        );
+    }
+
+    #[test]
+    fn whiteout_with_parent_dir_component_cannot_delete_outside_target() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let target = temp.path().join("rootfs");
+        fs::create_dir_all(target.join("foo")).expect("create target/foo");
+        let escape_dir = temp.path().join("escape");
+        fs::create_dir_all(&escape_dir).expect("create escape dir");
+        let victim = planted_canary(&escape_dir, "x");
+
+        let layer = raw_tar_layer(vec![raw_tar_entry(
+            "foo/../../escape/.wh.x",
+            REGULAR,
+            "",
+            b"",
+        )]);
+        let blob = write_blob(temp.path(), &layer);
+        apply_layer(&blob, TAR_MEDIA_TYPE, &target).expect("apply layer");
+
+        assert!(victim.exists(), "whiteout must not delete outside the store");
+    }
+
+    #[test]
+    fn opaque_whiteout_at_parent_dir_path_cannot_clear_outside_target() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let target = temp.path().join("rootfs");
+        fs::create_dir_all(&target).expect("create target");
+        let escape_dir = temp.path().join("escape");
+        fs::create_dir_all(&escape_dir).expect("create escape dir");
+        let victim = planted_canary(&escape_dir, "x");
+
+        let layer = raw_tar_layer(vec![raw_tar_entry(
+            "../escape/.wh..wh..opq",
+            REGULAR,
+            "",
+            b"",
+        )]);
+        let blob = write_blob(temp.path(), &layer);
+        apply_layer(&blob, TAR_MEDIA_TYPE, &target).expect("apply layer");
+
+        assert!(
+            victim.exists(),
+            "opaque whiteout must not clear a directory outside the store"
+        );
+    }
+
+    #[test]
+    fn whiteout_cannot_delete_through_a_symlink_planted_by_a_lower_layer() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let target = temp.path().join("rootfs");
+        fs::create_dir_all(&target).expect("create target");
+        let outside = temp.path().join("outside");
+        fs::create_dir_all(&outside).expect("create outside dir");
+        let victim = planted_canary(&outside, "victim");
+
+        // Lower layer plants `link -> outside`; the upper layer's whiteout
+        // names `link/.wh.victim`, which must not resolve through the symlink.
+        let lower = raw_tar_layer(vec![raw_tar_entry(
+            "link",
+            SYMLINK,
+            outside.to_str().expect("utf8 path"),
+            b"",
+        )]);
+        let lower_blob = write_blob(temp.path(), &lower);
+        apply_layer(&lower_blob, TAR_MEDIA_TYPE, &target).expect("apply lower");
+        assert!(
+            fs::symlink_metadata(target.join("link"))
+                .expect("symlink created")
+                .is_symlink(),
+            "lower layer should have planted the symlink"
+        );
+
+        let upper = raw_tar_layer(vec![raw_tar_entry("link/.wh.victim", REGULAR, "", b"")]);
+        let upper_blob = write_blob(temp.path(), &upper);
+        apply_layer(&upper_blob, TAR_MEDIA_TYPE, &target).expect("apply upper");
+
+        assert!(
+            victim.exists(),
+            "whiteout must not delete through a lower-layer symlink"
         );
     }
 
