@@ -51,6 +51,12 @@ pub enum BuiltInStatus {
     Available { libkrun: PathBuf, helper: PathBuf },
     /// The platform could run libkrun, but the dylib was not found.
     LibraryMissing,
+    /// libkrun was found, but its packaged guest kernel (libkrunfw) was not.
+    /// On macOS libkrun is `dlopen`'d by absolute path, so it cannot resolve
+    /// libkrunfw by bare soname at VM start — the helper has to hand it the
+    /// absolute path. Detecting the gap here keeps the gate from reporting
+    /// Available on a machine that would fail to boot a VM at run time.
+    GuestKernelMissing { libkrun: PathBuf },
     /// libkrun is present but the `paddleboard-krun-helper` binary is not
     /// alongside the app (or at `PADDLEBOARD_KRUN_HELPER`).
     HelperMissing { libkrun: PathBuf },
@@ -70,6 +76,10 @@ impl BuiltInStatus {
             BuiltInStatus::Available { .. } => None,
             BuiltInStatus::LibraryMissing => Some(
                 "libkrun is not installed (run script/setup-builtin-sandbox or `brew install libkrun`)"
+                    .to_string(),
+            ),
+            BuiltInStatus::GuestKernelMissing { .. } => Some(
+                "libkrun's guest kernel (libkrunfw) was not found (run script/setup-builtin-sandbox, which installs it alongside libkrun)"
                     .to_string(),
             ),
             BuiltInStatus::HelperMissing { .. } => {
@@ -157,6 +167,30 @@ pub fn resolve_native_backend(status: &SandboxStatus, os: Os) -> Option<NativeBa
             .is_available()
             .then_some(NativeBackend::BuiltInKrun),
         Os::Windows | Os::Other => None,
+    }
+}
+
+/// The sandbox backend the user has chosen at setup time. "Native" is the
+/// zero-install, OS-native tier (Apple `container` on macOS 26+, else libkrun
+/// microVMs; libkrun on Linux). "Podman" is the Podman + gVisor tier. Unlike
+/// [`NativeBackend`], this is an explicit user preference, not a capability
+/// resolution — the gate honors it rather than silently rerouting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreferredBackend {
+    Native,
+    Podman,
+}
+
+impl PreferredBackend {
+    /// The default backend for a host that hasn't set one. macOS prefers the
+    /// Native tier (bundled libkrun / Apple `container` are lighter there than
+    /// Podman's full Linux VM); Linux and Windows prefer Podman (native
+    /// namespaces on Linux; the only container path on Windows).
+    pub fn platform_default(os: Os) -> PreferredBackend {
+        match os {
+            Os::MacOs => PreferredBackend::Native,
+            Os::Linux | Os::Windows | Os::Other => PreferredBackend::Podman,
+        }
     }
 }
 
@@ -329,13 +363,41 @@ fn builtin_platform_support() -> Result<(), &'static str> {
 /// Probe the built-in libkrun tier. Synchronous — it is only filesystem
 /// checks, no subprocesses.
 pub fn check_builtin() -> BuiltInStatus {
-    if let Err(reason) = builtin_platform_support() {
+    resolve_builtin_status(
+        builtin_platform_support(),
+        find_libkrun(),
+        find_libkrunfw(),
+        find_krun_helper(),
+        // Only macOS needs libkrunfw locatable by absolute path: there libkrun
+        // is `dlopen`'d absolutely and cannot resolve the guest kernel by bare
+        // soname. On Linux the dynamic linker resolves it via ldconfig, so an
+        // absolute-path miss is not fatal and would be a false negative.
+        cfg!(target_os = "macos"),
+    )
+}
+
+/// Pure resolution of the built-in tier from its probe inputs, so the state
+/// matrix — including the libkrunfw gap — is unit-testable on any host without
+/// a real libkrun install. `require_guest_kernel_path` is true only where
+/// libkrun is `dlopen`'d by absolute path (macOS) and therefore needs
+/// libkrunfw's absolute path to boot a VM.
+fn resolve_builtin_status(
+    platform: Result<(), &'static str>,
+    libkrun: Option<PathBuf>,
+    libkrunfw: Option<PathBuf>,
+    helper: Option<PathBuf>,
+    require_guest_kernel_path: bool,
+) -> BuiltInStatus {
+    if let Err(reason) = platform {
         return BuiltInStatus::Unsupported { reason };
     }
-    let Some(libkrun) = find_libkrun() else {
+    let Some(libkrun) = libkrun else {
         return BuiltInStatus::LibraryMissing;
     };
-    match find_krun_helper() {
+    if require_guest_kernel_path && libkrunfw.is_none() {
+        return BuiltInStatus::GuestKernelMissing { libkrun };
+    }
+    match helper {
         Some(helper) => BuiltInStatus::Available { libkrun, helper },
         None => BuiltInStatus::HelperMissing { libkrun },
     }
@@ -879,6 +941,272 @@ fn linux_podman_install_command() -> String {
     }
 }
 
+/// A selectable sandbox backend for the setup picker, labeled honestly for the
+/// host it was built on. `runtime_label` names the concrete runtime "Native"
+/// resolves to on this machine (Apple `container`, libkrun, …), so the user
+/// sees what they'll actually get rather than an abstract choice.
+#[derive(Debug, Clone)]
+pub struct BackendOption {
+    pub backend: PreferredBackend,
+    /// Short chooser label: "Native" or "Podman".
+    pub title: &'static str,
+    /// The concrete runtime this option maps to on this host.
+    pub runtime_label: String,
+    /// One-line description of the tradeoff.
+    pub summary: String,
+    pub availability: BackendAvailability,
+    /// Set when this backend covers only part of the sandboxed surface, so the
+    /// picker can state the limitation up front (e.g. Native is one-shot-only
+    /// in phase 1).
+    pub coverage_note: Option<&'static str>,
+    /// Terminal-staged steps to get this backend to a working state.
+    pub setup: InstallInstructions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BackendAvailability {
+    /// Usable right now with no further setup.
+    Ready,
+    /// Installable on this host; `setup` lists the steps.
+    NeedsSetup,
+    /// Cannot run on this host at all (e.g. libkrun on an Intel Mac).
+    Unsupported { reason: String },
+}
+
+/// Phase-1 coverage caveat shared by every Native runtime: the one-shot
+/// `sandbox_tool` runs on it, but services, sandboxed MCP, and REPL kernels
+/// still require Podman.
+pub const NATIVE_ONE_SHOT_NOTE: &str =
+    "Covers one-shot sandboxed commands. Long-running services, sandboxed MCP servers, and \
+     REPL kernels still require Podman (phase 1).";
+
+/// The backends offered by the setup picker for `os`, in display order. macOS
+/// and Linux get both Native and Podman; Windows has no Native tier (libkrun
+/// has no Windows backend), so it gets Podman only.
+pub fn backend_options(status: &SandboxStatus, os: Os) -> Vec<BackendOption> {
+    let mut options = Vec::new();
+    if let Some(native) = native_backend_option(status, os) {
+        options.push(native);
+    }
+    options.push(podman_backend_option(status, os));
+    options
+}
+
+fn native_backend_option(status: &SandboxStatus, os: Os) -> Option<BackendOption> {
+    match os {
+        Os::MacOs => Some(native_option_macos(status)),
+        Os::Linux => Some(native_option_linux(status)),
+        // libkrun has no Windows backend, and there is no other native tier.
+        Os::Windows | Os::Other => None,
+    }
+}
+
+fn native_option_macos(status: &SandboxStatus) -> BackendOption {
+    match &status.apple_container {
+        AppleContainerStatus::Available { .. } => BackendOption {
+            backend: PreferredBackend::Native,
+            title: "Native",
+            runtime_label: "Apple container (macOS 26+)".to_string(),
+            summary: "Apple's first-party containerization: sub-second microVMs with no \
+                      podman-machine daemon to manage."
+                .to_string(),
+            availability: BackendAvailability::Ready,
+            coverage_note: Some(NATIVE_ONE_SHOT_NOTE),
+            setup: apple_container_setup(status),
+        },
+        AppleContainerStatus::ServiceNotRunning { .. } | AppleContainerStatus::CliMissing => {
+            BackendOption {
+                backend: PreferredBackend::Native,
+                title: "Native",
+                runtime_label: "Apple container (macOS 26+)".to_string(),
+                summary: "Apple's first-party containerization: sub-second microVMs with no \
+                          podman-machine daemon to manage."
+                    .to_string(),
+                availability: BackendAvailability::NeedsSetup,
+                coverage_note: Some(NATIVE_ONE_SHOT_NOTE),
+                setup: apple_container_setup(status),
+            }
+        }
+        // Pre-26 or non-Apple-silicon Macs can't run Apple's tool; the Native
+        // tier falls back to the bundled libkrun path (PR #43).
+        AppleContainerStatus::Unsupported { .. } => libkrun_option_macos(status),
+    }
+}
+
+fn apple_container_setup(status: &SandboxStatus) -> InstallInstructions {
+    let mut steps = Vec::new();
+    match &status.apple_container {
+        AppleContainerStatus::ServiceNotRunning { .. } => {
+            steps.push(InstallStep::note(
+                "Apple's container CLI is installed but its background service isn't running.",
+            ));
+            steps.push(InstallStep::shell(
+                "Start the container service.",
+                "container system start",
+            ));
+        }
+        _ => {
+            steps.push(InstallStep::note(
+                "Apple's container tool is a first-party CLI (github.com/apple/container) for macOS 26+ on Apple silicon.",
+            ));
+            steps.push(InstallStep::shell(
+                "Install the container CLI via Homebrew.",
+                "brew install --cask container",
+            ));
+            steps.push(InstallStep::shell(
+                "Start its background service.",
+                "container system start",
+            ));
+        }
+    }
+    steps.push(InstallStep::note(
+        "Click Refresh below once the service reports as running.",
+    ));
+    InstallInstructions {
+        title: "Set up Apple container".to_string(),
+        steps,
+        doc_url: Some("https://github.com/apple/container"),
+    }
+}
+
+fn libkrun_option_macos(status: &SandboxStatus) -> BackendOption {
+    let availability = match &status.builtin {
+        BuiltInStatus::Available { .. } => BackendAvailability::Ready,
+        BuiltInStatus::Unsupported { reason } => BackendAvailability::Unsupported {
+            reason: (*reason).to_string(),
+        },
+        _ => BackendAvailability::NeedsSetup,
+    };
+    let mut steps = vec![
+        InstallStep::note(
+            "PaddleBoard's built-in microVM tier uses libkrun (Apple silicon, macOS 13+). The \
+             helper ships with the app; you only need the libkrun runtime.",
+        ),
+        InstallStep::shell(
+            "Install libkrun (and its guest kernel libkrunfw) via the maintainer's Homebrew tap.",
+            "brew tap slp/krun && brew trust slp/krun && brew install slp/krun/libkrun",
+        ),
+        InstallStep::note("Click Refresh below to confirm PaddleBoard sees libkrun."),
+    ];
+    if let BuiltInStatus::Unsupported { .. } = &status.builtin {
+        steps = vec![InstallStep::note(
+            "This Mac cannot run the built-in microVM tier: libkrun uses Apple's Hypervisor \
+             framework, which requires Apple silicon. Use Podman instead.",
+        )];
+    }
+    BackendOption {
+        backend: PreferredBackend::Native,
+        title: "Native",
+        runtime_label: "Built-in microVM (libkrun)".to_string(),
+        summary: "PaddleBoard's bundled libkrun microVM runner: zero-install strong isolation on \
+                  macOS 13–25 and Apple silicon."
+            .to_string(),
+        availability,
+        coverage_note: Some(NATIVE_ONE_SHOT_NOTE),
+        setup: InstallInstructions {
+            title: "Set up the built-in microVM sandbox".to_string(),
+            steps,
+            doc_url: Some("https://github.com/containers/libkrun"),
+        },
+    }
+}
+
+fn native_option_linux(status: &SandboxStatus) -> BackendOption {
+    let availability = match &status.builtin {
+        BuiltInStatus::Available { .. } => BackendAvailability::Ready,
+        BuiltInStatus::Unsupported { reason } => BackendAvailability::Unsupported {
+            reason: (*reason).to_string(),
+        },
+        _ => BackendAvailability::NeedsSetup,
+    };
+    let steps = match &status.builtin {
+        BuiltInStatus::Unsupported { .. } => vec![InstallStep::note(
+            "This host cannot run the built-in microVM tier: libkrun needs an accessible \
+             /dev/kvm. Add your user to the kvm group, or use Podman instead.",
+        )],
+        _ => vec![
+            InstallStep::note(
+                "PaddleBoard's built-in microVM tier uses libkrun over KVM. The helper ships \
+                 with the app; you only need the libkrun runtime.",
+            ),
+            InstallStep::shell(
+                "Install libkrun with your distribution's package manager (Fedora shown; on Arch \
+                 use `sudo pacman -S libkrun`; Debian/Ubuntu build from source).",
+                "sudo dnf install -y libkrun libkrunfw",
+            ),
+            InstallStep::note(
+                "Ensure your user can access /dev/kvm (usually membership in the `kvm` group), \
+                 then click Refresh below.",
+            ),
+        ],
+    };
+    BackendOption {
+        backend: PreferredBackend::Native,
+        title: "Native",
+        runtime_label: "Built-in microVM (libkrun/KVM)".to_string(),
+        summary: "PaddleBoard's bundled libkrun microVM runner over KVM: strong isolation with \
+                  no podman-machine VM."
+            .to_string(),
+        availability,
+        coverage_note: Some(NATIVE_ONE_SHOT_NOTE),
+        setup: InstallInstructions {
+            title: "Set up the built-in microVM sandbox".to_string(),
+            steps,
+            doc_url: Some("https://github.com/containers/libkrun"),
+        },
+    }
+}
+
+fn podman_backend_option(status: &SandboxStatus, os: Os) -> BackendOption {
+    let runtime_label = match os {
+        Os::MacOs => "Podman machine (Linux VM)",
+        Os::Linux => "Podman (native, rootless)",
+        Os::Windows => "Podman + WSL2",
+        Os::Other => "Podman",
+    }
+    .to_string();
+    let summary = match os {
+        Os::MacOs => "Podman + gVisor (runsc), PaddleBoard's strongest tier. On macOS it runs a \
+                      small Linux VM (the podman machine).",
+        Os::Linux => "Podman + gVisor (runsc), PaddleBoard's strongest tier. Native and rootless \
+                      on Linux — no VM.",
+        Os::Windows => "Podman is the only container path on Windows. It runs in a WSL2 Linux \
+                        backend, so WSL2 is required. gVisor is Linux-only and unavailable here.",
+        Os::Other => "Podman + gVisor (runsc), PaddleBoard's strongest tier.",
+    }
+    .to_string();
+
+    let availability = if status.is_satisfied() {
+        BackendAvailability::Ready
+    } else {
+        BackendAvailability::NeedsSetup
+    };
+
+    // The existing Podman + gVisor guidance already covers install, machine
+    // start, and runsc registration per platform; reuse it verbatim as the
+    // Podman option's setup so the two never drift.
+    let mut setup = install_instructions(status, os);
+    if os == Os::Windows {
+        setup.steps.insert(
+            0,
+            InstallStep::note(
+                "Windows runs Podman inside WSL2. If you don't have it yet, open an elevated \
+                 PowerShell and run `wsl --install`, then reboot before installing Podman.",
+            ),
+        );
+    }
+
+    BackendOption {
+        backend: PreferredBackend::Podman,
+        title: "Podman",
+        runtime_label,
+        summary,
+        availability,
+        coverage_note: None,
+        setup,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1166,5 +1494,124 @@ mod tests {
                 .unavailable_reason()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn builtin_resolves_guest_kernel_missing_only_when_path_required() {
+        let libkrun_path = PathBuf::from("/opt/homebrew/lib/libkrun.dylib");
+        let helper_path = PathBuf::from("/tmp/paddleboard-krun-helper");
+        let libkrun = Some(libkrun_path.clone());
+        let helper = Some(helper_path.clone());
+
+        // macOS-shaped: libkrun present, libkrunfw absent, path required →
+        // the honest GuestKernelMissing state rather than a false Available.
+        assert_eq!(
+            resolve_builtin_status(Ok(()), libkrun.clone(), None, helper.clone(), true),
+            BuiltInStatus::GuestKernelMissing {
+                libkrun: libkrun_path.clone()
+            }
+        );
+
+        // Linux-shaped: same inputs but the linker resolves libkrunfw via
+        // ldconfig, so an absolute-path miss must NOT gate availability.
+        assert_eq!(
+            resolve_builtin_status(Ok(()), libkrun.clone(), None, helper.clone(), false),
+            BuiltInStatus::Available {
+                libkrun: libkrun_path.clone(),
+                helper: helper_path,
+            }
+        );
+
+        // libkrun missing short-circuits before the kernel check.
+        assert_eq!(
+            resolve_builtin_status(Ok(()), None, None, helper, true),
+            BuiltInStatus::LibraryMissing
+        );
+
+        // Kernel present but helper missing → HelperMissing, not Available.
+        assert_eq!(
+            resolve_builtin_status(
+                Ok(()),
+                libkrun,
+                Some(PathBuf::from("/opt/homebrew/lib/libkrunfw.5.dylib")),
+                None,
+                true,
+            ),
+            BuiltInStatus::HelperMissing {
+                libkrun: libkrun_path
+            }
+        );
+    }
+
+    #[test]
+    fn guest_kernel_missing_has_actionable_reason_and_is_not_available() {
+        let status = BuiltInStatus::GuestKernelMissing {
+            libkrun: PathBuf::from("/opt/homebrew/lib/libkrun.dylib"),
+        };
+        assert!(!status.is_available());
+        assert!(
+            status
+                .unavailable_reason()
+                .is_some_and(|reason| reason.contains("libkrunfw"))
+        );
+    }
+
+    #[test]
+    fn preferred_backend_platform_defaults() {
+        assert_eq!(
+            PreferredBackend::platform_default(Os::MacOs),
+            PreferredBackend::Native
+        );
+        assert_eq!(
+            PreferredBackend::platform_default(Os::Linux),
+            PreferredBackend::Podman
+        );
+        assert_eq!(
+            PreferredBackend::platform_default(Os::Windows),
+            PreferredBackend::Podman
+        );
+    }
+
+    #[test]
+    fn windows_offers_podman_only_and_names_wsl2() {
+        let status = status_with(no_builtin(), no_apple_container());
+        let options = backend_options(&status, Os::Windows);
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0].backend, PreferredBackend::Podman);
+        assert!(options[0].summary.contains("WSL2"));
+        // The very first setup step must call out the WSL2 requirement.
+        assert!(
+            options[0].setup.steps[0]
+                .description
+                .contains("wsl --install")
+        );
+    }
+
+    #[test]
+    fn macos_native_names_the_concrete_runtime_it_will_use() {
+        // macOS 26+ with Apple's tool available → Native reads "Apple container".
+        let apple = status_with(no_builtin(), apple_available());
+        let options = backend_options(&apple, Os::MacOs);
+        assert_eq!(options.len(), 2);
+        assert_eq!(options[0].backend, PreferredBackend::Native);
+        assert!(options[0].runtime_label.contains("Apple container"));
+        assert_eq!(options[0].availability, BackendAvailability::Ready);
+
+        // Older Mac (Apple tool Unsupported) but libkrun present → Native reads
+        // "Built-in microVM (libkrun)" and is Ready.
+        let krun = status_with(krun_available(), no_apple_container());
+        let options = backend_options(&krun, Os::MacOs);
+        assert!(options[0].runtime_label.contains("libkrun"));
+        assert_eq!(options[0].availability, BackendAvailability::Ready);
+    }
+
+    #[test]
+    fn linux_native_is_libkrun_kvm_and_podman_is_native() {
+        let status = status_with(krun_available(), no_apple_container());
+        let options = backend_options(&status, Os::Linux);
+        assert_eq!(options.len(), 2);
+        assert!(options[0].runtime_label.contains("libkrun"));
+        assert_eq!(options[1].backend, PreferredBackend::Podman);
+        assert!(options[1].runtime_label.contains("native"));
     }
 }

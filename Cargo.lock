@@ -12978,11 +12978,14 @@ dependencies = [
 name = "paddleboard_sandbox_prereqs_ui"
 version = "0.1.0"
 dependencies = [
+ "fs",
  "gpui",
  "log",
  "menu",
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_state",
+ "paddleboard_sandbox_settings",
+ "settings",
  "ui",
  "util",
  "which 6.0.3",

@@ -2841,6 +2841,19 @@
     // When false, the gate always allows tools to proceed regardless of
     // cached state.
     "prereq_check_enabled": true
+    // Which sandbox backend PaddleBoard should use. Set from the Sandbox
+    // Backend picker (status bar shield), or here:
+    //
+    // - "native": the OS-native, zero-install tier — Apple `container` on
+    //   macOS 26+ (else the bundled libkrun microVM), or libkrun over KVM on
+    //   Linux. Not available on Windows.
+    // - "podman": the Podman + gVisor ("runsc") tier.
+    //
+    // The gate honors this explicitly: "native" is used even when Podman is
+    // installed, and "podman" is never silently rerouted to native when it's
+    // missing. Left unset, it defaults to "native" on macOS and "podman" on
+    // Linux and Windows.
+    // "preferred_backend": "native"
   },
 
   // PaddleBoard: configuration for OpenTelemetry trace export. When enabled,
