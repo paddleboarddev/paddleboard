@@ -12,11 +12,14 @@ workspace = true
 path = "src/paddleboard_sandbox_prereqs_ui.rs"
 
 [dependencies]
+fs.workspace = true
 gpui.workspace = true
 log.workspace = true
 menu.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
+paddleboard_sandbox_settings.workspace = true
+settings.workspace = true
 ui.workspace = true
 util.workspace = true
 workspace.workspace = true

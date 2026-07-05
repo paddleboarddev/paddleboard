@@ -21,27 +21,20 @@ The browser stays in sync with your layout — it moves and resizes as you rearr
 
 ---
 
-### Secure agent sandbox (Podman + gVisor)
+### Secure agent sandbox — pick your backend
 
-When the agent needs to run untrusted code, compile binaries, or execute tests, it uses the built-in Sandbox Tool instead of your host shell.
+When the agent needs to run untrusted code, compile binaries, or execute tests, it uses the built-in Sandbox Tool instead of your host shell. Your project directory is mounted inside the sandbox so builds have full access to your source, and the agent still goes through the normal permission layer — approve, deny, or set always-allow rules per command pattern. Once a command finishes, the sandbox is discarded.
 
-- Commands run inside an ephemeral `ubuntu:latest` container via **Podman**
-- The `runsc` (gVisor) runtime adds a second layer of kernel-level isolation
-- Your project directory is mounted inside the container so builds have full access to your source
-- Supports a configurable timeout and can be cancelled mid-run
-- The agent still goes through the normal permission layer — you can approve, deny, or set always-allow rules per command pattern
+**Choose how it's sandboxed.** Click the status-bar shield icon to open the **Sandbox Backend** picker and pick the tier you want:
 
-This means an agent mistake cannot touch anything outside the container. Once the command finishes, the container is discarded.
+- **Native** — the zero-install, OS-native tier. On macOS 26+ it uses Apple's first-party **`container`** tool (sub-second microVMs, no daemon); on older Apple silicon Macs it falls back to PaddleBoard's bundled **libkrun** microVM; on Linux it's libkrun over **KVM**. The picker names the exact runtime it will use on *your* machine.
+- **Podman** — the **Podman + gVisor (`runsc`)** tier, PaddleBoard's strongest isolation. Native and rootless on Linux; a small Linux VM on macOS; a WSL2 backend on Windows (the only container path there).
 
-**No Podman? The built-in sandbox takes over.** On Apple silicon Macs and KVM-capable Linux, one-shot sandbox commands can run inside a lightweight **libkrun microVM** with zero external installs — PaddleBoard pulls the image itself, boots a real Linux kernel under hardware virtualization, and mounts your worktree the same way. Podman + gVisor stays the preferred tier whenever it's installed; the microVM tier is the graceful middle rung above running on the host. (Dev builds: run `script/setup-builtin-sandbox` once.)
+Each option carries a **"Set up in Terminal"** button that stages the right install command in a fresh Terminal window — nothing runs inside the app.
 
-**Prerequisites are enforced.** PaddleBoard probes for Podman, gVisor, and the built-in tier on startup; the result lives in the status-bar shield icon (green = ready, yellow = degraded, red = missing). When the Podman tier is missing and the built-in tier can't run either, the policy in `paddleboard_sandbox.on_missing_runtime` decides:
+**Your choice is honored exactly.** A machine set to Native uses the native tier *even when Podman is also installed*, and one set to Podman is *never* silently rerouted to native when Podman is missing — it applies your `paddleboard_sandbox.on_missing_runtime` policy instead (`"block"`, `"fall_back_to_host"`, or `"warn_once"`). Defaults: Native on macOS, Podman on Linux and Windows.
 
-- `"block"` (default) — refuse to launch and surface the install modal. The agent gets a clear "sandbox prerequisites missing" error.
-- `"fall_back_to_host"` — run the command on the host without a container. Escape hatch for Windows or environments where the sandbox stack is genuinely unavailable.
-- `"warn_once"` — emit a one-shot toast with install guidance, then proceed sandboxed.
-
-Click the shield icon any time to see the live status and copy-paste install commands for your OS.
+**The shield tells the truth.** Its color and tooltip reflect the tier that's actually active. The Native tiers currently cover one-shot sandboxed commands; long-running services, sandboxed MCP servers, and REPL kernels still need Podman, and the shield says so rather than showing a misleading all-clear.
 
 ---
 

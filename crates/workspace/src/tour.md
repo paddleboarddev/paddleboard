@@ -11,15 +11,13 @@ A native Chromium/WebKit browser lives inside the editor as a dockable panel.
 - Quick-access bookmarks (Google, GitHub, Hacker News) are one click away.
 - **Unsloth Studio**: `Cmd-Shift-P` → **`workspace: Open Unsloth`** spins up a containerised Jupyter server and points the browser at it once it's ready.
 
-### 2. Secure Agent Sandboxing (Podman + gVisor)
-When the AI needs to run untrusted code, compile new binaries, or run tests, it uses the integrated **Sandbox Tool**.
-- All executions happen in an ephemeral `ubuntu:latest` container.
-- It uses the `runsc` (gVisor) runtime for deep isolation.
-- 🪂 **No Podman? No problem.** On Apple silicon and KVM Linux, one-shot commands run in a built-in **libkrun microVM** — a real Linux kernel, zero installs.
-- Your project directory is safely mounted so builds succeed without host contamination.
-- Permission prompts still gate every command — approve, deny, or set always-allow rules.
-- Watch the **shield icon** in the status bar: green = ready, yellow = degraded, red = missing. Click it for live status + copy-paste install commands.
-- Missing prereqs are enforced, not silently swallowed. When even the built-in tier can't run, `paddleboard_sandbox.on_missing_runtime` chooses what happens: `block` (default, surface install modal), `fall_back_to_host` (run unsandboxed), or `warn_once`.
+### 2. Secure Agent Sandboxing — Pick Your Backend
+When the AI needs to run untrusted code, compile new binaries, or run tests, it uses the integrated **Sandbox Tool** — your project mounts in, permission prompts still gate every command, and the sandbox is discarded when done.
+- 🛡️ Click the **shield icon** in the status bar to open the **Sandbox Backend** picker and choose your tier:
+- 🪂 **Native** — zero-install: Apple's `container` tool on macOS 26+, the bundled **libkrun microVM** on older Apple silicon, or libkrun/**KVM** on Linux. The picker names the exact runtime for *your* machine.
+- 📦 **Podman** — Podman + gVisor (`runsc`), the strongest tier. Native on Linux, a Linux VM on macOS, WSL2 on Windows.
+- Each option has a **"Set up in Terminal"** button that stages the install command in a fresh Terminal — nothing runs inside the app.
+- ✅ **Your choice is honored:** Native stays Native even if Podman is installed; Podman is never silently swapped for Native when it's missing (it applies your `on_missing_runtime` policy instead). The shield reflects the tier that's actually active — and says when Native only covers one-shot commands.
 
 ### 3. Forwarded Ports — Sandbox Services
 Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Service Tool**. Each running service appears in a **Forwarded Ports** row above the browser viewport.

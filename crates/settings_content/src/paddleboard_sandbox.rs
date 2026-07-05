@@ -25,6 +25,21 @@ pub struct PaddleboardSandboxContent {
     ///
     /// Default: true
     pub prereq_check_enabled: Option<bool>,
+
+    /// Which sandbox backend PaddleBoard should use, chosen at setup time.
+    ///
+    /// - `"native"`: the OS-native, zero-install tier — Apple `container` on
+    ///   macOS 26+ (else the bundled libkrun microVM), or libkrun over KVM on
+    ///   Linux. Not available on Windows.
+    /// - `"podman"`: the Podman + gVisor (`runsc`) tier.
+    ///
+    /// The gate honors this explicitly: a machine that picks `"native"` uses
+    /// the Native tier even when Podman is also installed, and one that picks
+    /// `"podman"` is never silently rerouted to Native when Podman is missing —
+    /// it applies `on_missing_runtime` instead.
+    ///
+    /// Default: `"native"` on macOS, `"podman"` on Linux and Windows.
+    pub preferred_backend: Option<PaddleboardPreferredBackendContent>,
 }
 
 #[derive(
@@ -36,4 +51,14 @@ pub enum PaddleboardOnMissingRuntimeContent {
     Block,
     FallBackToHost,
     WarnOnce,
+}
+
+// No `Default` derive: there is no cross-platform default backend. Absence of
+// the field (`None`) means "use the per-platform default", resolved in
+// `paddleboard_sandbox_settings`.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, MergeFrom)]
+#[serde(rename_all = "snake_case")]
+pub enum PaddleboardPreferredBackendContent {
+    Native,
+    Podman,
 }
