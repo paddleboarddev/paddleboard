@@ -174,7 +174,7 @@ impl AgentTool for SandboxServiceTool {
                 // Unreachable with BuiltInCapability::Unsupported above; if it
                 // ever leaks through, refuse rather than run a service in a
                 // tier that cannot publish its port.
-                SandboxGateDecision::UseBuiltIn { reason } => {
+                SandboxGateDecision::UseBuiltIn { reason, .. } => {
                     return Err(format!(
                         "Sandbox prerequisites missing: {reason}. The service tool cannot                          run on the built-in microVM tier yet; install Podman + gVisor."
                     ));

@@ -10,6 +10,10 @@
 //! * [`EngineKind::BuiltInKrun`] — the zero-install tier; boots a libkrun
 //!   microVM via the `paddleboard-krun-helper` binary, with the image pulled
 //!   and unpacked into a content-addressed cache by [`image_store`].
+//! * [`EngineKind::AppleContainer`] — the macOS-native tier on macOS 26+ (Apple
+//!   silicon). Like Podman it is a CLI shell-out (`container run …`) that owns
+//!   its own OCI image pull/unpack, so preparation is pure string assembly and
+//!   this crate never touches [`image_store`] for it.
 //!
 //! Which tier to use is decided by `paddleboard_sandbox_settings::decide_gate`;
 //! this crate only executes that decision.
@@ -47,6 +51,7 @@ const GUEST_COMMAND_FILE: &str = "/.pb-sandbox-cmd.sh";
 pub enum EngineKind {
     PodmanGvisor,
     BuiltInKrun,
+    AppleContainer,
 }
 
 /// A one-shot command to run inside a container.
@@ -82,6 +87,7 @@ pub fn engine(kind: EngineKind) -> Arc<dyn ContainerEngine> {
     match kind {
         EngineKind::PodmanGvisor => Arc::new(PodmanGvisorEngine),
         EngineKind::BuiltInKrun => Arc::new(BuiltInKrunEngine::global()),
+        EngineKind::AppleContainer => Arc::new(AppleContainerEngine),
     }
 }
 
@@ -115,6 +121,49 @@ fn podman_exec_command(request: &ExecRequest) -> String {
     let user_command = shell_single_quote(&request.command);
     format!(
         "podman run --rm --runtime=runsc -v {host_wd}:{container_wd} -w {container_wd} {image} bash -c {user_command}",
+    )
+}
+
+/// The macOS-native tier: Apple's `container` CLI (macOS 26+, Apple silicon).
+/// Like Podman, `container` owns image management and pulls on demand, so
+/// preparation is pure string assembly — this backend never touches
+/// [`ImageStore`]. Selection is gated by `paddleboard_sandbox_prereqs`, which
+/// only resolves this backend when the CLI and its background service are
+/// present; the command builder itself is host-agnostic so its pin test runs
+/// everywhere.
+pub struct AppleContainerEngine;
+
+impl ContainerEngine for AppleContainerEngine {
+    fn kind(&self) -> EngineKind {
+        EngineKind::AppleContainer
+    }
+
+    fn prepare_exec(&self, request: ExecRequest) -> BoxFuture<'static, Result<PreparedExec>> {
+        futures::future::ready(Ok(PreparedExec {
+            shell_command: apple_container_exec_command(&request),
+        }))
+        .boxed()
+    }
+
+    fn is_image_ready(&self, _image: &str) -> bool {
+        // `container run` pulls on demand and streams its own progress into the
+        // terminal, so there is nothing to prepare ahead of time.
+        true
+    }
+}
+
+fn apple_container_exec_command(request: &ExecRequest) -> String {
+    let host_wd = shell_single_quote(&request.host_workdir.to_string_lossy());
+    let container_wd = shell_single_quote(CONTAINER_WORKDIR);
+    let image = shell_single_quote(&request.image);
+    let user_command = shell_single_quote(&request.command);
+    // `container run` mirrors the Podman invocation: bind-mount the worktree at
+    // the fixed guest path, set it as the workdir, remove the container on exit,
+    // and run the user command through `bash -c`. Adjacent single-quoted strings
+    // concatenate in the shell, so `'host':'guest'` reaches `container` as one
+    // `-v host:guest` argument.
+    format!(
+        "container run --rm -v {host_wd}:{container_wd} -w {container_wd} {image} bash -c {user_command}",
     )
 }
 
@@ -303,6 +352,20 @@ mod tests {
     }
 
     #[test]
+    fn apple_container_command_matches_the_cli_contract() {
+        // Pinned bit-for-bit like the Podman invocation: `container run --rm`
+        // with the worktree bind-mounted at the fixed guest path and the user
+        // command run through `bash -c`. `container` owns its own image pull, so
+        // there is no prepare step — this is pure string assembly.
+        let command = apple_container_exec_command(&request());
+        assert_eq!(
+            command,
+            "container run --rm -v '/Users/jay/my project':'/workspace' \
+             -w '/workspace' 'ubuntu:latest' bash -c 'echo \"it'\\''s alive\" && uname -a'"
+        );
+    }
+
+    #[test]
     fn builtin_command_cleans_up_ephemeral_rootfs_and_preserves_status() {
         let command = builtin_exec_command(
             Path::new("/Applications/PaddleBoard.app/Contents/MacOS/paddleboard-krun-helper"),
@@ -344,6 +407,10 @@ mod tests {
         assert_eq!(
             engine(EngineKind::BuiltInKrun).kind(),
             EngineKind::BuiltInKrun
+        );
+        assert_eq!(
+            engine(EngineKind::AppleContainer).kind(),
+            EngineKind::AppleContainer
         );
     }
 

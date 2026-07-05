@@ -1091,7 +1091,7 @@ impl ContextServerStore {
                     match gate {
                         // Unreachable with BuiltInCapability::Unsupported above;
                         // refuse rather than silently changing transport tiers.
-                        SandboxGateDecision::UseBuiltIn { reason } => anyhow::bail!(
+                        SandboxGateDecision::UseBuiltIn { reason, .. } => anyhow::bail!(
                             "Cannot start sandboxed MCP server: {reason}. The MCP \
                              transport cannot run on the built-in microVM tier yet; \
                              install Podman + gVisor."
