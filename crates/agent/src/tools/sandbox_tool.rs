@@ -6,7 +6,7 @@ use gpui::{App, Entity, SharedString, Task};
 use paddleboard_container_engine::{EngineKind, ExecRequest};
 use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
 use paddleboard_sandbox_settings::{
-    BuiltInCapability, SandboxGateDecision, SandboxSettings, decide_gate,
+    BuiltInCapability, NativeBackend, SandboxGateDecision, SandboxSettings, decide_gate,
 };
 use project::Project;
 use schemars::JsonSchema;
@@ -164,11 +164,15 @@ impl AgentTool for SandboxTool {
                     );
                     None
                 }
-                SandboxGateDecision::UseBuiltIn { reason } => {
-                    log::info!(
-                        "PaddleBoard sandbox: {reason}; running in the built-in microVM sandbox."
-                    );
-                    Some(EngineKind::BuiltInKrun)
+                SandboxGateDecision::UseBuiltIn { reason, backend } => {
+                    let (kind, label) = match backend {
+                        NativeBackend::AppleContainer => {
+                            (EngineKind::AppleContainer, "Apple container")
+                        }
+                        NativeBackend::BuiltInKrun => (EngineKind::BuiltInKrun, "built-in microVM"),
+                    };
+                    log::info!("PaddleBoard sandbox: {reason}; running in the {label} sandbox.");
+                    Some(kind)
                 }
                 SandboxGateDecision::Allow => Some(EngineKind::PodmanGvisor),
             };

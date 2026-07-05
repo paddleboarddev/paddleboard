@@ -14,7 +14,8 @@ use gpui::App;
 use serde::Deserialize;
 use settings::{RegisterSetting, Settings};
 
-pub use paddleboard_sandbox_prereqs::SandboxStatus;
+pub use paddleboard_sandbox_prereqs::{NativeBackend, SandboxStatus};
+use paddleboard_sandbox_prereqs::{Os, resolve_native_backend};
 
 /// Force-link the crate so the `RegisterSetting` inventory entry for
 /// [`SandboxSettings`] is reachable. The derive emits an `inventory::submit!`
@@ -104,10 +105,14 @@ impl From<settings::PaddleboardOnMissingRuntimeContent> for OnMissingRuntime {
 pub enum SandboxGateDecision {
     /// Proceed sandboxed via the Podman + gVisor tier.
     Allow,
-    /// The Podman tier is missing but the built-in libkrun microVM tier is
-    /// available; proceed sandboxed via a microVM. The reason describes what
-    /// was missing, for logging / debug surfaces.
-    UseBuiltIn { reason: String },
+    /// The Podman tier is missing but a "Native" tier is available; proceed
+    /// sandboxed via `backend` (Apple `container` on macOS 26+, else the
+    /// built-in libkrun microVM). The reason describes what was missing, for
+    /// logging / debug surfaces.
+    UseBuiltIn {
+        reason: String,
+        backend: NativeBackend,
+    },
     /// Prereqs are missing and the user has opted to run on the host instead.
     /// The reason is included for logging / debug surfaces.
     FallBackToHost { reason: String },
@@ -140,28 +145,39 @@ pub fn decide_gate(
         builtin_capability,
         settings,
         *paddleboard_env_vars::PADDLEBOARD_SANDBOX_FORCE_BUILTIN,
+        Os::detect(),
     )
 }
 
-/// Pure core of [`decide_gate`], with the env override injected so the policy
-/// matrix is testable without a real podman host or process environment.
+/// Pure core of [`decide_gate`], with the env override and host OS injected so
+/// the policy matrix is testable without a real podman host, process
+/// environment, or specific platform.
 fn decide_gate_inner(
     prereqs: Option<&SandboxStatus>,
     builtin_capability: BuiltInCapability,
     settings: &SandboxSettings,
     force_builtin: bool,
+    os: Os,
 ) -> SandboxGateDecision {
-    let builtin_viable = |status: &SandboxStatus| {
-        builtin_capability == BuiltInCapability::Supported && status.builtin.is_available()
+    // The concrete "Native" backend this host resolves to (Apple `container` on
+    // macOS 26+, else libkrun; libkrun on Linux; none on Windows), or `None`
+    // when this call site can't use the Native tier or no backend is available.
+    let native_backend = |status: &SandboxStatus| -> Option<NativeBackend> {
+        if builtin_capability != BuiltInCapability::Supported {
+            return None;
+        }
+        resolve_native_backend(status, os)
     };
 
-    // Dev/test override: force the built-in tier even when Podman is healthy,
-    // so the microVM path can be exercised without uninstalling Podman.
+    // Dev/test override: force the Native tier even when Podman is healthy, so
+    // the microVM / Apple-container path can be exercised without uninstalling
+    // Podman.
     if force_builtin && let Some(status) = prereqs
-        && builtin_viable(status)
+        && let Some(backend) = native_backend(status)
     {
         return SandboxGateDecision::UseBuiltIn {
             reason: format!("{} is set", paddleboard_env_vars::SANDBOX_FORCE_BUILTIN_ENV_VAR),
+            backend,
         };
     }
 
@@ -183,11 +199,12 @@ fn decide_gate_inner(
 
     let reason = describe_missing(status);
 
-    // The middle rung: Podman tier missing, but the workload can run on the
-    // built-in microVM tier with no installs. Preferred over every
-    // missing-runtime policy because it keeps the sandbox guarantee.
-    if builtin_viable(status) {
-        return SandboxGateDecision::UseBuiltIn { reason };
+    // The middle rung: Podman tier missing, but the workload can run on a
+    // Native tier (Apple `container` or libkrun) with no external installs.
+    // Preferred over every missing-runtime policy because it keeps the sandbox
+    // guarantee.
+    if let Some(backend) = native_backend(status) {
+        return SandboxGateDecision::UseBuiltIn { reason, backend };
     }
 
     match settings.on_missing_runtime {
@@ -217,7 +234,9 @@ fn describe_missing(status: &SandboxStatus) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use paddleboard_sandbox_prereqs::{BuiltInStatus, GvisorStatus, PodmanStatus, SandboxStatus};
+    use paddleboard_sandbox_prereqs::{
+        AppleContainerStatus, BuiltInStatus, GvisorStatus, PodmanStatus, SandboxStatus,
+    };
     use std::path::PathBuf;
 
     fn builtin_available() -> BuiltInStatus {
@@ -233,6 +252,18 @@ mod tests {
         }
     }
 
+    fn apple_unavailable() -> AppleContainerStatus {
+        AppleContainerStatus::Unsupported {
+            reason: "test platform",
+        }
+    }
+
+    fn apple_available() -> AppleContainerStatus {
+        AppleContainerStatus::Available {
+            cli: PathBuf::from("/usr/local/bin/container"),
+        }
+    }
+
     fn happy() -> SandboxStatus {
         SandboxStatus {
             podman: PodmanStatus::Ready {
@@ -240,6 +271,7 @@ mod tests {
             },
             gvisor: GvisorStatus::Available,
             builtin: builtin_unavailable(),
+            apple_container: apple_unavailable(),
         }
     }
 
@@ -248,6 +280,7 @@ mod tests {
             podman: PodmanStatus::Missing,
             gvisor: GvisorStatus::Unknown,
             builtin: builtin_unavailable(),
+            apple_container: apple_unavailable(),
         }
     }
 
@@ -265,15 +298,19 @@ mod tests {
             },
             gvisor: GvisorStatus::NotConfigured,
             builtin: builtin_unavailable(),
+            apple_container: apple_unavailable(),
         }
     }
 
+    /// The existing policy tests are platform-agnostic; run them as Linux so
+    /// `builtin_available()` resolves to the libkrun Native backend. macOS-only
+    /// Apple-container resolution is covered by dedicated tests below.
     fn gate(
         prereqs: Option<&SandboxStatus>,
         capability: BuiltInCapability,
         settings: &SandboxSettings,
     ) -> SandboxGateDecision {
-        decide_gate_inner(prereqs, capability, settings, false)
+        decide_gate_inner(prereqs, capability, settings, false, Os::Linux)
     }
 
     #[test]
@@ -406,15 +443,71 @@ mod tests {
             builtin: builtin_available(),
             ..happy()
         };
-        let decision = decide_gate_inner(Some(&status), BuiltInCapability::Supported, &s, true);
+        let decision =
+            decide_gate_inner(Some(&status), BuiltInCapability::Supported, &s, true, Os::Linux);
         assert!(matches!(decision, SandboxGateDecision::UseBuiltIn { .. }));
     }
 
     #[test]
     fn force_builtin_env_is_inert_when_builtin_unavailable() {
         let s = SandboxSettings::default();
-        let decision =
-            decide_gate_inner(Some(&missing_podman()), BuiltInCapability::Supported, &s, true);
+        let decision = decide_gate_inner(
+            Some(&missing_podman()),
+            BuiltInCapability::Supported,
+            &s,
+            true,
+            Os::Linux,
+        );
         assert!(matches!(decision, SandboxGateDecision::Block { .. }));
+    }
+
+    #[test]
+    fn mac_native_resolves_to_apple_container_when_available() {
+        // macOS 26+ with the `container` CLI running: the Podman tier is missing,
+        // so the gate routes to the Native tier and picks Apple's container.
+        let s = SandboxSettings::default();
+        let status = SandboxStatus {
+            apple_container: apple_available(),
+            ..missing_podman()
+        };
+        let decision = decide_gate_inner(
+            Some(&status),
+            BuiltInCapability::Supported,
+            &s,
+            false,
+            Os::MacOs,
+        );
+        assert_eq!(
+            decision,
+            SandboxGateDecision::UseBuiltIn {
+                reason: "podman is not installed on this host".to_string(),
+                backend: NativeBackend::AppleContainer,
+            }
+        );
+    }
+
+    #[test]
+    fn mac_native_falls_back_to_libkrun_without_apple_container() {
+        // macOS 13–25 (or 26 without the CLI): Apple container unavailable but
+        // libkrun present → the PR #43 built-in path.
+        let s = SandboxSettings::default();
+        let status = SandboxStatus {
+            builtin: builtin_available(),
+            apple_container: apple_unavailable(),
+            ..missing_podman()
+        };
+        let decision = decide_gate_inner(
+            Some(&status),
+            BuiltInCapability::Supported,
+            &s,
+            false,
+            Os::MacOs,
+        );
+        match decision {
+            SandboxGateDecision::UseBuiltIn { backend, .. } => {
+                assert_eq!(backend, NativeBackend::BuiltInKrun);
+            }
+            other => panic!("expected UseBuiltIn(BuiltInKrun), got {other:?}"),
+        }
     }
 }

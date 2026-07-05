@@ -12,6 +12,10 @@ pub struct SandboxStatus {
     pub podman: PodmanStatus,
     pub gvisor: GvisorStatus,
     pub builtin: BuiltInStatus,
+    /// Availability of Apple's `container` CLI, the macOS-native tier on
+    /// macOS 26+ (Apple silicon). [`AppleContainerStatus::Unsupported`] on
+    /// every other platform.
+    pub apple_container: AppleContainerStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +80,86 @@ impl BuiltInStatus {
     }
 }
 
+/// Availability of Apple's `container` CLI (github.com/apple/container), the
+/// macOS-native container tier. Unlike libkrun this is a CLI shell-out that
+/// pulls and runs OCI images itself, but it needs a running background service
+/// (`container system start`) to reach its apiserver.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppleContainerStatus {
+    /// macOS 26+ on Apple silicon, the `container` CLI resolved, and its
+    /// apiserver answered a health check — one-shot containers can run here.
+    Available { cli: PathBuf },
+    /// The CLI is installed but its background service did not answer
+    /// (`container system start` has not been run, or the daemon is down).
+    ServiceNotRunning { cli: PathBuf },
+    /// The platform could run Apple's container tool but the `container` CLI
+    /// was not found on `$PATH` or in a well-known install location.
+    CliMissing,
+    /// This host cannot run Apple's container tool at all: not macOS, macOS
+    /// older than 26, or not Apple silicon.
+    Unsupported { reason: &'static str },
+}
+
+impl AppleContainerStatus {
+    pub fn is_available(&self) -> bool {
+        matches!(self, AppleContainerStatus::Available { .. })
+    }
+
+    /// Short human-readable explanation of why the Apple container tier is not
+    /// available, for gate errors and the prereqs modal.
+    pub fn unavailable_reason(&self) -> Option<String> {
+        match self {
+            AppleContainerStatus::Available { .. } => None,
+            AppleContainerStatus::ServiceNotRunning { .. } => Some(
+                "Apple's container service is not running (run `container system start`)"
+                    .to_string(),
+            ),
+            AppleContainerStatus::CliMissing => {
+                Some("Apple's `container` CLI is not installed".to_string())
+            }
+            AppleContainerStatus::Unsupported { reason } => Some((*reason).to_string()),
+        }
+    }
+}
+
+/// The concrete non-Podman ("Native") backend that a host resolves to when the
+/// preferred Podman + gVisor tier is unavailable. Both are strong VM-isolation
+/// tiers, so choosing between them is a mechanical capability resolution, not a
+/// security-relevant tier switch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeBackend {
+    /// Apple's `container` CLI (macOS 26+, Apple silicon).
+    AppleContainer,
+    /// PaddleBoard's bundled libkrun microVM helper.
+    BuiltInKrun,
+}
+
+/// Resolve the "Native" tier to a concrete backend for `os`, given a probed
+/// status. This is the Mac-Native (Option A) resolution: on macOS prefer Apple
+/// `container` when available, else fall back to the bundled libkrun tier; on
+/// Linux the only native tier is libkrun; Windows has none.
+///
+/// Pure and OS-parameterized so the resolution matrix is unit-testable on any
+/// host without a real macOS-version or CLI probe.
+pub fn resolve_native_backend(status: &SandboxStatus, os: Os) -> Option<NativeBackend> {
+    match os {
+        Os::MacOs => {
+            if status.apple_container.is_available() {
+                Some(NativeBackend::AppleContainer)
+            } else if status.builtin.is_available() {
+                Some(NativeBackend::BuiltInKrun)
+            } else {
+                None
+            }
+        }
+        Os::Linux => status
+            .builtin
+            .is_available()
+            .then_some(NativeBackend::BuiltInKrun),
+        Os::Windows | Os::Other => None,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Os {
     MacOs,
@@ -116,10 +200,12 @@ pub async fn check() -> SandboxStatus {
     let podman = check_podman(&podman_bin).await;
     let gvisor = check_gvisor(&podman_bin, &podman).await;
     let builtin = check_builtin();
+    let apple_container = check_apple_container().await;
     SandboxStatus {
         podman,
         gvisor,
         builtin,
+        apple_container,
     }
 }
 
@@ -253,6 +339,126 @@ pub fn check_builtin() -> BuiltInStatus {
         Some(helper) => BuiltInStatus::Available { libkrun, helper },
         None => BuiltInStatus::HelperMissing { libkrun },
     }
+}
+
+/// Environment override for the Apple `container` CLI path, mainly for testing
+/// against a from-source build.
+pub const CONTAINER_ENV_VAR: &str = "PADDLEBOARD_CONTAINER_CLI";
+pub const CONTAINER_BIN_NAME: &str = "container";
+
+/// Minimum macOS major version that ships a `container`-compatible
+/// Virtualization stack. Apple's container tool reached v1.0 alongside macOS 26.
+#[cfg(target_os = "macos")]
+const APPLE_CONTAINER_MIN_MACOS: u32 = 26;
+
+/// Well-known absolute locations for the `container` CLI when it isn't on the
+/// resolved `$PATH`. The signed installer pkg lands it in `/usr/local/bin`.
+const CONTAINER_FALLBACK_PATHS: &[&str] =
+    &["/usr/local/bin/container", "/opt/homebrew/bin/container"];
+
+/// Locate the Apple `container` CLI: `PADDLEBOARD_CONTAINER_CLI` wins, then the
+/// bare name on `$PATH`, then the first existing well-known install location.
+pub fn find_container_cli() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os(CONTAINER_ENV_VAR) {
+        let path = PathBuf::from(path);
+        return path.is_file().then_some(path);
+    }
+    if let Some(path) = std::env::var_os("PATH") {
+        if let Some(found) = std::env::split_paths(&path)
+            .map(|dir| dir.join(CONTAINER_BIN_NAME))
+            .find(|candidate| candidate.is_file())
+        {
+            return Some(found);
+        }
+    }
+    CONTAINER_FALLBACK_PATHS
+        .iter()
+        .map(PathBuf::from)
+        .find(|path| path.is_file())
+}
+
+/// Pure resolution of the Apple container tier from its three inputs, so the
+/// matrix is testable without a real macOS-version or CLI probe. `platform` is
+/// the arch/version gate result; `cli` is the resolved binary (if any);
+/// `service_reachable` is whether the apiserver answered a health check.
+fn resolve_apple_container_status(
+    platform: Result<(), &'static str>,
+    cli: Option<PathBuf>,
+    service_reachable: bool,
+) -> AppleContainerStatus {
+    if let Err(reason) = platform {
+        return AppleContainerStatus::Unsupported { reason };
+    }
+    let Some(cli) = cli else {
+        return AppleContainerStatus::CliMissing;
+    };
+    if service_reachable {
+        AppleContainerStatus::Available { cli }
+    } else {
+        AppleContainerStatus::ServiceNotRunning { cli }
+    }
+}
+
+/// Probe availability of Apple's `container` tier. Off macOS this is a synchronous
+/// `Unsupported`; on macOS it checks arch + version, resolves the CLI, and health-
+/// checks the background service — each subprocess bounded by [`PROBE_TIMEOUT`] so a
+/// stopped service cannot stall the caller.
+pub async fn check_apple_container() -> AppleContainerStatus {
+    #[cfg(target_os = "macos")]
+    {
+        let platform = apple_container_platform_support().await;
+        if platform.is_err() {
+            return resolve_apple_container_status(platform, None, false);
+        }
+        let cli = find_container_cli();
+        let service_reachable = match &cli {
+            Some(bin) => probe_container_service(bin).await,
+            None => false,
+        };
+        resolve_apple_container_status(platform, cli, service_reachable)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        resolve_apple_container_status(
+            Err("Apple's container tool is only available on macOS"),
+            None,
+            false,
+        )
+    }
+}
+
+/// Whether this host can run Apple's container tool at all: macOS 26+ on Apple
+/// silicon. Reads the product version via `sw_vers` rather than a compile-time
+/// constant so it reflects the OS the app is actually running on.
+#[cfg(target_os = "macos")]
+async fn apple_container_platform_support() -> Result<(), &'static str> {
+    if std::env::consts::ARCH != "aarch64" {
+        return Err("Apple's container tool requires Apple silicon");
+    }
+    match macos_major_version().await {
+        Some(major) if major >= APPLE_CONTAINER_MIN_MACOS => Ok(()),
+        Some(_) => Err("Apple's container tool requires macOS 26 or newer"),
+        None => Err("could not determine the macOS version"),
+    }
+}
+
+/// Parse the macOS major version from `sw_vers -productVersion` (e.g. `26.5.1`
+/// → `26`). Uses the absolute path since a GUI-launched app inherits a minimal
+/// `$PATH` that may omit `/usr/bin`.
+#[cfg(target_os = "macos")]
+async fn macos_major_version() -> Option<u32> {
+    let out = run_probe("/usr/bin/sw_vers", &["-productVersion"]).await?;
+    out.trim().split('.').next()?.parse().ok()
+}
+
+/// Health-check the `container` background service. `container system status`
+/// pings the apiserver; a stopped service makes it fail (or hang), and the
+/// [`PROBE_TIMEOUT`] wrapper in [`run_probe`] bounds the hang.
+#[cfg(target_os = "macos")]
+async fn probe_container_service(cli: &std::path::Path) -> bool {
+    run_probe(&cli.to_string_lossy(), &["system", "status"])
+        .await
+        .is_some()
 }
 
 async fn check_podman(podman_bin: &str) -> PodmanStatus {
@@ -683,6 +889,12 @@ mod tests {
         }
     }
 
+    fn no_apple_container() -> AppleContainerStatus {
+        AppleContainerStatus::Unsupported {
+            reason: "test platform",
+        }
+    }
+
     #[test]
     fn is_satisfied_requires_both_podman_and_gvisor() {
         let happy = SandboxStatus {
@@ -691,6 +903,7 @@ mod tests {
             },
             gvisor: GvisorStatus::Available,
             builtin: no_builtin(),
+            apple_container: no_apple_container(),
         };
         assert!(happy.is_satisfied());
 
@@ -698,6 +911,7 @@ mod tests {
             podman: PodmanStatus::Missing,
             gvisor: GvisorStatus::Available,
             builtin: no_builtin(),
+            apple_container: no_apple_container(),
         };
         assert!(!no_podman.is_satisfied());
 
@@ -707,6 +921,7 @@ mod tests {
             },
             gvisor: GvisorStatus::NotConfigured,
             builtin: no_builtin(),
+            apple_container: no_apple_container(),
         };
         assert!(!no_gvisor.is_satisfied());
 
@@ -720,6 +935,7 @@ mod tests {
                 reason: "gVisor only runs on Linux; it is not available on Windows.",
             },
             builtin: no_builtin(),
+            apple_container: no_apple_container(),
         };
         assert!(windows_ready.is_satisfied());
     }
@@ -730,6 +946,7 @@ mod tests {
             podman: PodmanStatus::Missing,
             gvisor: GvisorStatus::Unknown,
             builtin: no_builtin(),
+            apple_container: no_apple_container(),
         };
         let instructions = install_instructions(&status, Os::MacOs);
         assert!(instructions.title.contains("Podman"));
@@ -748,6 +965,7 @@ mod tests {
                 libkrun: PathBuf::from("/opt/homebrew/lib/libkrun.dylib"),
                 helper: PathBuf::from("/tmp/paddleboard-krun-helper"),
             },
+            apple_container: no_apple_container(),
         };
         let instructions = install_instructions(&status, Os::MacOs);
         assert!(
@@ -828,9 +1046,125 @@ mod tests {
             },
             gvisor: GvisorStatus::Available,
             builtin: no_builtin(),
+            apple_container: no_apple_container(),
         };
         let instructions = install_instructions(&status, Os::Linux);
         assert_eq!(instructions.steps.len(), 1);
         assert!(instructions.title.contains("satisfied"));
+    }
+
+    fn status_with(builtin: BuiltInStatus, apple: AppleContainerStatus) -> SandboxStatus {
+        SandboxStatus {
+            podman: PodmanStatus::Missing,
+            gvisor: GvisorStatus::Unknown,
+            builtin,
+            apple_container: apple,
+        }
+    }
+
+    fn apple_available() -> AppleContainerStatus {
+        AppleContainerStatus::Available {
+            cli: PathBuf::from("/usr/local/bin/container"),
+        }
+    }
+
+    fn krun_available() -> BuiltInStatus {
+        BuiltInStatus::Available {
+            libkrun: PathBuf::from("/opt/homebrew/lib/libkrun.dylib"),
+            helper: PathBuf::from("/tmp/paddleboard-krun-helper"),
+        }
+    }
+
+    #[test]
+    fn mac_native_prefers_apple_container_when_available() {
+        let status = status_with(krun_available(), apple_available());
+        assert_eq!(
+            resolve_native_backend(&status, Os::MacOs),
+            Some(NativeBackend::AppleContainer)
+        );
+    }
+
+    #[test]
+    fn mac_native_falls_back_to_libkrun_without_apple_container() {
+        // macOS 13–25 (or macOS 26 without the CLI): Apple container unavailable,
+        // libkrun present → the older-macOS path from PR #43.
+        let status = status_with(krun_available(), no_apple_container());
+        assert_eq!(
+            resolve_native_backend(&status, Os::MacOs),
+            Some(NativeBackend::BuiltInKrun)
+        );
+    }
+
+    #[test]
+    fn mac_native_is_none_when_neither_backend_is_available() {
+        let status = status_with(no_builtin(), no_apple_container());
+        assert_eq!(resolve_native_backend(&status, Os::MacOs), None);
+    }
+
+    #[test]
+    fn linux_native_is_libkrun_and_ignores_apple_container() {
+        // Apple container never resolves off macOS even if its status somehow
+        // claimed availability; Linux "Native" is libkrun only.
+        let status = status_with(krun_available(), apple_available());
+        assert_eq!(
+            resolve_native_backend(&status, Os::Linux),
+            Some(NativeBackend::BuiltInKrun)
+        );
+        let status = status_with(no_builtin(), apple_available());
+        assert_eq!(resolve_native_backend(&status, Os::Linux), None);
+    }
+
+    #[test]
+    fn windows_and_other_have_no_native_backend() {
+        let status = status_with(krun_available(), apple_available());
+        assert_eq!(resolve_native_backend(&status, Os::Windows), None);
+        assert_eq!(resolve_native_backend(&status, Os::Other), None);
+    }
+
+    #[test]
+    fn apple_container_status_resolves_from_probe_inputs() {
+        // Unsupported platform short-circuits before the CLI is even consulted.
+        assert!(matches!(
+            resolve_apple_container_status(Err("old macOS"), None, false),
+            AppleContainerStatus::Unsupported { .. }
+        ));
+        // Supported platform, no CLI → CliMissing.
+        assert_eq!(
+            resolve_apple_container_status(Ok(()), None, false),
+            AppleContainerStatus::CliMissing
+        );
+        // CLI present but the apiserver did not answer → ServiceNotRunning.
+        let cli = PathBuf::from("/usr/local/bin/container");
+        assert_eq!(
+            resolve_apple_container_status(Ok(()), Some(cli.clone()), false),
+            AppleContainerStatus::ServiceNotRunning { cli: cli.clone() }
+        );
+        // CLI present and service reachable → Available.
+        assert_eq!(
+            resolve_apple_container_status(Ok(()), Some(cli.clone()), true),
+            AppleContainerStatus::Available { cli }
+        );
+    }
+
+    #[test]
+    fn apple_container_unavailable_reasons_present_for_all_gap_states() {
+        assert!(apple_available().unavailable_reason().is_none());
+        assert!(
+            AppleContainerStatus::ServiceNotRunning {
+                cli: PathBuf::from("/usr/local/bin/container")
+            }
+            .unavailable_reason()
+            .is_some()
+        );
+        assert!(
+            AppleContainerStatus::CliMissing
+                .unavailable_reason()
+                .is_some()
+        );
+        assert!(
+            AppleContainerStatus::Unsupported { reason: "nope" }
+                .unavailable_reason()
+                .is_some()
+        );
     }
 }
