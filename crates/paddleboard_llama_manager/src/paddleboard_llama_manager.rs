@@ -13,9 +13,11 @@ pub mod ui;
 
 use anyhow::{Context as _, Result};
 use download::download_file_with_progress;
+use futures::AsyncReadExt as _;
 use gpui::{App, AppContext as _, AsyncApp, Context, Entity, Global, Task, WeakEntity};
 use http_client::HttpClient;
 use server::{READINESS_POLL_INTERVAL, READINESS_TIMEOUT, ServerHandle};
+use sha2::{Digest as _, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -131,6 +133,40 @@ async fn model_present(path: &Path, expected_size: u64) -> bool {
     }
 }
 
+/// Whether a cached model file is present, the right size, and matches its
+/// pinned SHA-256. A size-only check can be fooled by a truncated-then-padded or
+/// otherwise corrupt file of the right length, so the digest is re-verified
+/// before the file is handed to `llama-server`.
+async fn verify_cached_model(path: &Path, model: &CatalogModel) -> Result<bool> {
+    if !model_present(path, model.size_bytes).await {
+        return Ok(false);
+    }
+    let digest = sha256_file(path).await?;
+    Ok(digest.eq_ignore_ascii_case(model.sha256))
+}
+
+/// Streams `path` and returns its lowercase-hex SHA-256. Hashing a multi-GB GGUF
+/// takes a couple of seconds — dwarfed by the model-load time — so verifying a
+/// cached file before launch is cheap insurance against a corrupt cache.
+async fn sha256_file(path: &Path) -> Result<String> {
+    let mut file = smol::fs::File::open(path)
+        .await
+        .with_context(|| format!("opening {path:?} to verify its checksum"))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; 128 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .await
+            .with_context(|| format!("reading {path:?} to verify its checksum"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 // ---------------------------------------------------------------------------
 // Binary provisioning
 // ---------------------------------------------------------------------------
@@ -243,7 +279,9 @@ pub async fn resolve_or_install_server(http_client: &dyn HttpClient) -> Result<P
         "llama-server missing after extracting {}",
         asset.url
     );
-    util::fs::make_file_executable(&server_path).await.ok();
+    util::fs::make_file_executable(&server_path)
+        .await
+        .with_context(|| format!("making {server_path:?} executable"))?;
     Ok(server_path)
 }
 
@@ -406,17 +444,24 @@ impl LlamaManager {
         self._run_task = Some(cx.spawn(async move |this, cx| {
             if let Err(error) = run(this.clone(), http_client, model, generation, cx).await {
                 log::error!("Local Models manager failed: {error:#}");
-                this.update(cx, |this, cx| {
-                    if this.generation == generation {
-                        this.status = ManagerStatus::Error {
-                            message: format!("{error:#}"),
-                        };
-                        cx.notify();
-                    }
-                })
-                .ok();
+                this.update(cx, |this, cx| this.fail(generation, format!("{error:#}"), cx))
+                    .ok();
             }
         }));
+    }
+
+    /// Records a failure for `generation`: drops any server handle this run
+    /// stored — killing an unhealthy `llama-server` (e.g. one that spawned but
+    /// never became ready) rather than leaking its RAM/GPU/port — and surfaces
+    /// `message` to the UI. Guarded by generation so a superseded run never
+    /// clobbers newer state.
+    fn fail(&mut self, generation: usize, message: String, cx: &mut Context<Self>) {
+        if self.generation != generation {
+            return;
+        }
+        self.server = None;
+        self.status = ManagerStatus::Error { message };
+        cx.notify();
     }
 
     fn stop(&mut self, cx: &mut Context<Self>) {
@@ -454,7 +499,21 @@ async fn run(
     }
 
     let model_path = model_path(&model);
-    if !model_present(&model_path, model.size_bytes).await {
+    // Re-verify the pinned SHA-256 of any cached file before launching: a
+    // size-only match can still be corrupt, and handing a bad file to
+    // llama-server fails opaquely much later. On mismatch, delete and re-download.
+    if !verify_cached_model(&model_path, &model).await? {
+        // Remove a present-but-unverified file first, so a corrupt cache can
+        // never be launched even if the re-download is later interrupted.
+        if smol::fs::metadata(&model_path).await.is_ok() {
+            log::warn!(
+                "cached local model {} failed SHA-256 verification; re-downloading",
+                model.id
+            );
+            if let Err(error) = smol::fs::remove_file(&model_path).await {
+                log::warn!("failed to remove unverified cached model {model_path:?}: {error:?}");
+            }
+        }
         let mut progress_cx = cx.clone();
         let progress_this = this.clone();
         let mut last_reported: u64 = 0;
@@ -569,5 +628,116 @@ mod tests {
     fn one_gigabyte_ish_reports_reasonable_size() {
         let model = catalog_model("gemma-3-4b").unwrap();
         assert!((model.approx_size_gb() - 2.49).abs() < 0.05);
+    }
+
+    // A size-matching but hash-mismatching cached file must be rejected (and so
+    // re-fetched by `run`), never handed straight to llama-server.
+    #[test]
+    fn cached_model_verification_rejects_size_match_hash_mismatch() {
+        futures::executor::block_on(async {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let path = temp_dir.path().join("model.gguf");
+            let bytes = b"not the genuine weights".to_vec();
+            smol::fs::write(&path, &bytes).await.unwrap();
+
+            let model = CatalogModel {
+                id: "test",
+                display_name: "Test",
+                description: "",
+                repo: "owner/repo",
+                file: "model.gguf",
+                // Length matches the bytes on disk, so the size-only check passes...
+                size_bytes: bytes.len() as u64,
+                // ...but this pin is for different bytes.
+                sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+            };
+
+            assert!(
+                model_present(&path, model.size_bytes).await,
+                "the size-only check should be fooled by the matching length"
+            );
+            assert!(
+                !verify_cached_model(&path, &model).await.unwrap(),
+                "hash re-verification must reject the corrupt cache"
+            );
+
+            // sha256_file reports the true digest of the bytes on disk, so a pin
+            // equal to it would verify as valid.
+            let actual = sha256_file(&path).await.unwrap();
+            assert_eq!(actual, format!("{:x}", Sha256::digest(&bytes)));
+        });
+    }
+
+    struct UnusedHttpClient;
+
+    impl HttpClient for UnusedHttpClient {
+        fn send(
+            &self,
+            _request: http_client::http::Request<http_client::AsyncBody>,
+        ) -> futures::future::BoxFuture<
+            'static,
+            Result<http_client::Response<http_client::AsyncBody>>,
+        > {
+            Box::pin(async { anyhow::bail!("the http client is unused in this test") })
+        }
+
+        fn user_agent(&self) -> Option<&http_client::http::HeaderValue> {
+            None
+        }
+
+        fn proxy(&self) -> Option<&url::Url> {
+            None
+        }
+    }
+
+    #[cfg(unix)]
+    fn process_is_alive(pid: u32) -> bool {
+        // `kill(pid, 0)` performs no signal delivery but reports (via ESRCH)
+        // whether a process with that pid still exists.
+        unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+    }
+
+    // A run that stores its server handle and then fails (e.g. the readiness poll
+    // times out) must clear `self.server`, so the unhealthy process is dropped
+    // (and killed) instead of leaking its RAM/GPU/port.
+    #[cfg(unix)]
+    #[gpui::test]
+    async fn readiness_failure_clears_and_kills_the_server(cx: &mut gpui::TestAppContext) {
+        let manager = cx.new(|_| LlamaManager::new(Arc::new(UnusedHttpClient)));
+
+        // A cheap long-lived process stands in for a spawned-but-never-ready
+        // llama-server, as if `run` had just stored its handle.
+        let mut command = std::process::Command::new("sleep");
+        command.arg("300");
+        let handle = ServerHandle::spawn_for_test(command).unwrap();
+        let pid = handle.pid();
+        assert!(process_is_alive(pid), "the stand-in server should be running");
+
+        let generation = manager.update(cx, |manager, _| {
+            manager.server = Some(handle);
+            manager.generation
+        });
+
+        manager.update(cx, |manager, cx| {
+            manager.fail(generation, "timed out waiting for the model".to_string(), cx);
+        });
+
+        manager.read_with(cx, |manager, _| {
+            assert!(
+                manager.server.is_none(),
+                "the leaked server handle must be cleared on failure"
+            );
+            assert!(matches!(manager.status, ManagerStatus::Error { .. }));
+        });
+
+        // Dropping the handle SIGKILLs the process group; wait for it to die.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while process_is_alive(pid) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the unhealthy llama-server process should be killed after clearing the handle"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
     }
 }

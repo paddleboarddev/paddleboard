@@ -26,6 +26,22 @@ impl ServerHandle {
     }
 }
 
+#[cfg(test)]
+impl ServerHandle {
+    /// Wrap an arbitrary spawned command so tests can exercise the
+    /// clear-and-kill-on-failure behavior without a real `llama-server`.
+    pub(crate) fn spawn_for_test(command: std::process::Command) -> Result<Self> {
+        let child = Child::spawn(command, Stdio::null(), Stdio::null(), Stdio::null())
+            .context("spawning test process")?;
+        Ok(Self { child })
+    }
+
+    /// The OS pid of the wrapped process, for asserting it was killed.
+    pub(crate) fn pid(&self) -> u32 {
+        self.child.id()
+    }
+}
+
 impl Drop for ServerHandle {
     fn drop(&mut self) {
         // Unix `smol::process::Child` does not kill on drop, so do it explicitly;

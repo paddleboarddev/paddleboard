@@ -12922,6 +12922,7 @@ dependencies = [
  "futures 0.3.32",
  "gpui",
  "http_client",
+ "libc",
  "log",
  "paths",
  "settings",

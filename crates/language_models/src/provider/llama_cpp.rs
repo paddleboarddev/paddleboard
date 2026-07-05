@@ -487,14 +487,13 @@ impl LlamaCppLanguageModelProvider {
                             let managed_changed =
                                 last_settings.managed != current_settings.managed;
                             last_settings = current_settings.clone();
+
+                            // Apply the retargets first so the single
+                            // re-authenticate below runs against the new URL:
+                            // start/stop the managed server, and/or point the API
+                            // key state at the changed URL.
                             if managed_changed {
-                                // Start/stop the managed server, then re-discover
-                                // against the (possibly new) effective URL.
                                 Self::sync_managed_state(cx);
-                                this.fetched_models.clear();
-                                this.model_event_task = None;
-                                write_recover(&this.loading_progress).clear();
-                                this.authenticate(cx).detach();
                             }
                             if url_changed {
                                 let credentials_provider = this.credentials_provider.clone();
@@ -505,6 +504,12 @@ impl LlamaCppLanguageModelProvider {
                                     credentials_provider,
                                     cx,
                                 );
+                            }
+                            // Both a managed retarget and a URL change invalidate
+                            // the discovered models and event stream. Clear once
+                            // and re-authenticate once, so a single edit changing
+                            // both doesn't spawn two racing fetch/authenticate tasks.
+                            if managed_changed || url_changed {
                                 this.fetched_models.clear();
                                 // Drop the event stream so it reconnects against
                                 // the new URL (re-auth below restarts it).
@@ -566,6 +571,16 @@ impl LlamaCppLanguageModelProvider {
                 }
             }
         }
+        Self::persisted_api_url(cx)
+    }
+
+    // PaddleBoard: the persisted "bring your own server" URL — the user's
+    // configured value, or the upstream default when unset. Unlike `api_url`,
+    // this never reflects the managed loopback target, so the "connect to your
+    // own server" settings UI shows the real configured value even while managed
+    // mode is Ready. Use this for the settings editor; use `api_url` for what
+    // actually talks to the server.
+    fn persisted_api_url(cx: &App) -> SharedString {
         let api_url = &Self::settings(cx).api_url;
         if api_url.is_empty() {
             LLAMA_CPP_API_URL.into()
@@ -1230,7 +1245,13 @@ impl ConfigurationView {
 
         let api_url_editor = cx.new(|cx| {
             let input = InputField::new(window, cx, LLAMA_CPP_API_URL).label("API URL");
-            input.set_text(&LlamaCppLanguageModelProvider::api_url(cx), window, cx);
+            // PaddleBoard: prefill the BYO-server editor with the persisted URL,
+            // not the effective (possibly managed-loopback) one.
+            input.set_text(
+                &LlamaCppLanguageModelProvider::persisted_api_url(cx),
+                window,
+                cx,
+            );
             input
         });
 
@@ -1313,7 +1334,9 @@ impl ConfigurationView {
 
     fn save_api_url(&self, cx: &mut Context<Self>) {
         let api_url = self.api_url_editor.read(cx).text(cx).trim().to_string();
-        let current_url = LlamaCppLanguageModelProvider::api_url(cx);
+        // PaddleBoard: compare against the persisted setting, not the effective
+        // (possibly managed-loopback) URL, so we only write real user changes.
+        let current_url = LlamaCppLanguageModelProvider::persisted_api_url(cx);
         if !api_url.is_empty() && &api_url != &current_url {
             let fs = <dyn Fs>::global(cx);
             update_settings_file(fs, cx, move |settings, _| {
@@ -1522,7 +1545,9 @@ impl ConfigurationView {
     }
 
     fn render_api_url_editor(&self, cx: &Context<Self>) -> Div {
-        let api_url = LlamaCppLanguageModelProvider::api_url(cx);
+        // PaddleBoard: the BYO-server editor reflects the persisted setting, so a
+        // user's own URL still shows here even while managed mode is Ready.
+        let api_url = LlamaCppLanguageModelProvider::persisted_api_url(cx);
         let custom_api_url_set = api_url != LLAMA_CPP_API_URL;
 
         if custom_api_url_set {

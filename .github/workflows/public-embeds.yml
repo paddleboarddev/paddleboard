@@ -26,3 +26,5 @@ jobs:
         run: bash script/check-public-embeds
       - name: Check for fork-rename breakage (zed-isms)
         run: bash script/check-zed-isms
+      - name: Check llama.cpp pins are in sync
+        run: bash script/check-llama-pins
