@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# PaddleBoard: fetch the pinned llama.cpp `llama-server` (plus the shared
+# libraries it links against) for the "Local Models" feature, verify its
+# SHA-256 against the pin, and stage it into a destination directory.
+#
+# The bundle scripts call this to embed a signed llama-server in the app; the
+# runtime manager (crates/paddleboard_llama_manager) installs the same pinned
+# release into the data directory for unbundled `cargo run` builds.
+#
+# Keep LLAMA_CPP_TAG and the SHA-256 pins in sync with
+# `crates/paddleboard_llama_manager/src/paddleboard_llama_manager.rs`.
+#
+# Usage: script/fetch-llama-server <macos-arm64|linux-x64|linux-arm64> <dest-dir>
+set -euo pipefail
+
+LLAMA_CPP_TAG="b9874"
+
+target="${1:-}"
+dest="${2:-}"
+if [[ -z "$target" || -z "$dest" ]]; then
+    echo "usage: $0 <macos-arm64|linux-x64|linux-arm64> <dest-dir>" >&2
+    exit 1
+fi
+
+case "$target" in
+    macos-arm64)
+        asset="llama-${LLAMA_CPP_TAG}-bin-macos-arm64.tar.gz"
+        sha="6ad88c0f70c4731200e514132043b08894238beebf1a8e80e2b14a0ebecd1cb8"
+        ;;
+    linux-x64)
+        asset="llama-${LLAMA_CPP_TAG}-bin-ubuntu-x64.tar.gz"
+        sha="5a3304b45428c12e8a81709b741d3770fa10d333d663c3c8039456fa9dd447bd"
+        ;;
+    linux-arm64)
+        asset="llama-${LLAMA_CPP_TAG}-bin-ubuntu-arm64.tar.gz"
+        sha="33ad52ddaac26ffc965d41a4a485346ad57aa1a08c22916a47637dc273f007ec"
+        ;;
+    *)
+        echo "unknown target: $target (expected macos-arm64, linux-x64, or linux-arm64)" >&2
+        exit 1
+        ;;
+esac
+
+url="https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_CPP_TAG}/${asset}"
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+
+echo "Downloading ${url}"
+curl --fail --location --silent --show-error -o "${workdir}/${asset}" "$url"
+
+echo "Verifying SHA-256"
+if command -v shasum >/dev/null 2>&1; then
+    actual="$(shasum -a 256 "${workdir}/${asset}" | awk '{print $1}')"
+else
+    actual="$(sha256sum "${workdir}/${asset}" | awk '{print $1}')"
+fi
+if [[ "$actual" != "$sha" ]]; then
+    echo "SHA-256 mismatch for ${asset}: expected ${sha}, got ${actual}" >&2
+    exit 1
+fi
+
+tar -xzf "${workdir}/${asset}" -C "$workdir"
+extracted="${workdir}/llama-${LLAMA_CPP_TAG}"
+if [[ ! -x "${extracted}/llama-server" ]]; then
+    echo "llama-server missing from ${asset}" >&2
+    exit 1
+fi
+
+mkdir -p "$dest"
+cp "${extracted}/llama-server" "${dest}/"
+# Copy only the shared libraries the server links against; skip the sibling CLI
+# tools to keep the bundle small.
+shopt -s nullglob
+for lib in "${extracted}"/*.dylib "${extracted}"/*.so*; do
+    cp "$lib" "${dest}/"
+done
+shopt -u nullglob
+chmod +x "${dest}/llama-server"
+
+echo "Staged llama-server ${LLAMA_CPP_TAG} (${target}) into ${dest}"

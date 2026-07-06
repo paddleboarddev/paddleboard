@@ -156,6 +156,14 @@ cp "${target_dir}/${target_triple}/release/paddleboard" "${zed_dir}/libexec/padd
 cp "${target_dir}/${target_triple}/release/cli" "${zed_dir}/bin/paddleboard"
 # PaddleBoard: built-in sandbox microVM runner, sibling of the editor binary.
 cp "${target_dir}/${target_triple}/release/paddleboard-krun-helper" "${zed_dir}/libexec/paddleboard-krun-helper"
+# PaddleBoard: embed the pinned llama.cpp server for the managed "Local Models"
+# feature into libexec/llama (where the runtime manager looks for it). No signing
+# needed on Linux (matches the krun helper).
+case "${target_triple}" in
+    x86_64-*linux*) script/fetch-llama-server linux-x64 "${zed_dir}/libexec/llama" ;;
+    aarch64-*linux*) script/fetch-llama-server linux-arm64 "${zed_dir}/libexec/llama" ;;
+    *) echo "skipping llama-server embed for ${target_triple}" ;;
+esac
 
 # Libs
 # Bundle libstdc++ so older supported systems can run binaries built with our

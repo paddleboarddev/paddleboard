@@ -37,7 +37,10 @@ const LLAMA_CPP_DOWNLOAD_URL: &str = "https://llama.app";
 const LLAMA_CPP_MODELS_URL: &str = "https://huggingface.co/models?library=gguf&sort=trending";
 
 const PROVIDER_ID: LanguageModelProviderId = LanguageModelProviderId::new("llama.cpp");
-const PROVIDER_NAME: LanguageModelProviderName = LanguageModelProviderName::new("llama.cpp");
+// PaddleBoard: presented as "Local Models" (managed llama.cpp) so it reads as a
+// first-class local-inference choice in the provider list; the id stays
+// "llama.cpp" for settings/credentials compatibility with upstream.
+const PROVIDER_NAME: LanguageModelProviderName = LanguageModelProviderName::new("Local Models");
 
 const API_KEY_ENV_VAR_NAME: &str = "LLAMACPP_API_KEY";
 static API_KEY_ENV_VAR: LazyLock<EnvVar> = env_var!(API_KEY_ENV_VAR_NAME);
@@ -57,6 +60,15 @@ pub struct LlamaCppSettings {
     pub available_models: Vec<AvailableModel>,
     pub context_window: Option<u64>,
     pub custom_headers: CustomHeaders,
+    // PaddleBoard: managed "Local Models" mode (PaddleBoard-run llama-server).
+    pub managed: ManagedLocalModelSettings,
+}
+
+// PaddleBoard: resolved settings for the managed "Local Models" experience.
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct ManagedLocalModelSettings {
+    pub enabled: bool,
+    pub model: String,
 }
 
 pub struct LlamaCppLanguageModelProvider {
@@ -471,7 +483,18 @@ impl LlamaCppLanguageModelProvider {
                         let settings_changed = current_settings != &last_settings;
                         if settings_changed {
                             let url_changed = last_settings.api_url != current_settings.api_url;
+                            // PaddleBoard: managed Local Models toggle/model change.
+                            let managed_changed =
+                                last_settings.managed != current_settings.managed;
                             last_settings = current_settings.clone();
+
+                            // Apply the retargets first so the single
+                            // re-authenticate below runs against the new URL:
+                            // start/stop the managed server, and/or point the API
+                            // key state at the changed URL.
+                            if managed_changed {
+                                Self::sync_managed_state(cx);
+                            }
                             if url_changed {
                                 let credentials_provider = this.credentials_provider.clone();
                                 let api_url = Self::api_url(cx);
@@ -481,6 +504,12 @@ impl LlamaCppLanguageModelProvider {
                                     credentials_provider,
                                     cx,
                                 );
+                            }
+                            // Both a managed retarget and a URL change invalidate
+                            // the discovered models and event stream. Clear once
+                            // and re-authenticate once, so a single edit changing
+                            // both doesn't spawn two racing fetch/authenticate tasks.
+                            if managed_changed || url_changed {
                                 this.fetched_models.clear();
                                 // Drop the event stream so it reconnects against
                                 // the new URL (re-auth below restarts it).
@@ -494,6 +523,18 @@ impl LlamaCppLanguageModelProvider {
                 })
                 .detach();
 
+                // PaddleBoard: re-discover once the managed server becomes ready,
+                // so its model appears without the user re-opening settings.
+                if let Some(manager) = paddleboard_llama_manager::manager(cx) {
+                    cx.observe(&manager, |this: &mut State, manager, cx| {
+                        if manager.read(cx).ready_port().is_some() {
+                            this.fetched_models.clear();
+                            this.restart_fetch_models_task(cx);
+                        }
+                    })
+                    .detach();
+                }
+
                 State {
                     http_client,
                     fetched_models: Default::default(),
@@ -506,6 +547,9 @@ impl LlamaCppLanguageModelProvider {
                 }
             }),
         };
+        // PaddleBoard: apply the persisted managed Local Models state at startup,
+        // so an enabled local model is downloaded/started without opening settings.
+        Self::sync_managed_state(cx);
         // Discover eagerly so a running server is picked up without opening settings.
         this.state
             .update(cx, |state, cx| state.restart_fetch_models_task(cx));
@@ -517,6 +561,26 @@ impl LlamaCppLanguageModelProvider {
     }
 
     fn api_url(cx: &App) -> SharedString {
+        // PaddleBoard: in managed "Local Models" mode, target the PaddleBoard-run
+        // llama-server on its ephemeral loopback port once it is ready. Until it
+        // is ready (or in unmanaged mode) fall back to the configured URL.
+        if Self::settings(cx).managed.enabled {
+            if let Some(manager) = paddleboard_llama_manager::manager(cx) {
+                if let Some(port) = manager.read(cx).ready_port() {
+                    return SharedString::from(format!("http://127.0.0.1:{port}"));
+                }
+            }
+        }
+        Self::persisted_api_url(cx)
+    }
+
+    // PaddleBoard: the persisted "bring your own server" URL — the user's
+    // configured value, or the upstream default when unset. Unlike `api_url`,
+    // this never reflects the managed loopback target, so the "connect to your
+    // own server" settings UI shows the real configured value even while managed
+    // mode is Ready. Use this for the settings editor; use `api_url` for what
+    // actually talks to the server.
+    fn persisted_api_url(cx: &App) -> SharedString {
         let api_url = &Self::settings(cx).api_url;
         if api_url.is_empty() {
             LLAMA_CPP_API_URL.into()
@@ -527,6 +591,21 @@ impl LlamaCppLanguageModelProvider {
 
     fn has_custom_url(cx: &App) -> bool {
         Self::settings(cx).api_url != LLAMA_CPP_API_URL
+    }
+
+    // PaddleBoard: mirror the managed "Local Models" settings into the runtime
+    // manager, so toggling the setting (from our UI or an edited settings file)
+    // starts or stops the local server.
+    fn sync_managed_state(cx: &mut App) {
+        let (enabled, model) = {
+            let managed = &Self::settings(cx).managed;
+            (managed.enabled, managed.model.clone())
+        };
+        if let Some(manager) = paddleboard_llama_manager::manager(cx) {
+            manager.update(cx, |manager, cx| {
+                manager.set_managed(enabled, model, cx);
+            });
+        }
     }
 }
 
@@ -605,7 +684,8 @@ impl LanguageModelProvider for LlamaCppLanguageModelProvider {
                     .into()
             })
             .description(InlineDescription::Text(
-                "Run local models on your machine with LlamaCpp.".into(),
+                // PaddleBoard: leads with the managed experience.
+                "Run a model locally, managed by PaddleBoard — or connect to your own llama.cpp server.".into(),
             )),
         ))
     }
@@ -1153,6 +1233,9 @@ struct ConfigurationView {
     api_key_editor: Entity<InputField>,
     api_url_editor: Entity<InputField>,
     context_window_editor: Entity<InputField>,
+    // PaddleBoard: the managed "Local Models" panel shown above the BYO-server
+    // (unmanaged) settings.
+    local_models_view: Entity<paddleboard_llama_manager::ui::LocalModelsView>,
     state: Entity<State>,
 }
 
@@ -1162,7 +1245,13 @@ impl ConfigurationView {
 
         let api_url_editor = cx.new(|cx| {
             let input = InputField::new(window, cx, LLAMA_CPP_API_URL).label("API URL");
-            input.set_text(&LlamaCppLanguageModelProvider::api_url(cx), window, cx);
+            // PaddleBoard: prefill the BYO-server editor with the persisted URL,
+            // not the effective (possibly managed-loopback) one.
+            input.set_text(
+                &LlamaCppLanguageModelProvider::persisted_api_url(cx),
+                window,
+                cx,
+            );
             input
         });
 
@@ -1180,10 +1269,14 @@ impl ConfigurationView {
         })
         .detach();
 
+        let local_models_view =
+            cx.new(|cx| paddleboard_llama_manager::ui::LocalModelsView::new(cx));
+
         Self {
             api_key_editor,
             api_url_editor,
             context_window_editor,
+            local_models_view,
             state,
         }
     }
@@ -1241,7 +1334,9 @@ impl ConfigurationView {
 
     fn save_api_url(&self, cx: &mut Context<Self>) {
         let api_url = self.api_url_editor.read(cx).text(cx).trim().to_string();
-        let current_url = LlamaCppLanguageModelProvider::api_url(cx);
+        // PaddleBoard: compare against the persisted setting, not the effective
+        // (possibly managed-loopback) URL, so we only write real user changes.
+        let current_url = LlamaCppLanguageModelProvider::persisted_api_url(cx);
         if !api_url.is_empty() && &api_url != &current_url {
             let fs = <dyn Fs>::global(cx);
             update_settings_file(fs, cx, move |settings, _| {
@@ -1450,7 +1545,9 @@ impl ConfigurationView {
     }
 
     fn render_api_url_editor(&self, cx: &Context<Self>) -> Div {
-        let api_url = LlamaCppLanguageModelProvider::api_url(cx);
+        // PaddleBoard: the BYO-server editor reflects the persisted setting, so a
+        // user's own URL still shows here even while managed mode is Ready.
+        let api_url = LlamaCppLanguageModelProvider::persisted_api_url(cx);
         let custom_api_url_set = api_url != LLAMA_CPP_API_URL;
 
         if custom_api_url_set {
@@ -1494,7 +1591,14 @@ impl Render for ConfigurationView {
 
         v_flex()
             .gap_2()
-            .child(Headline::new("llama.cpp").size(HeadlineSize::Small))
+            // PaddleBoard: managed "Local Models" experience leads; the existing
+            // "connect to your own server" flow becomes the advanced fallback.
+            .child(self.local_models_view.clone())
+            .child(Divider::horizontal())
+            .child(
+                Headline::new("Connect to your own llama.cpp server")
+                    .size(HeadlineSize::XSmall),
+            )
             .child(Self::render_instructions(cx))
             .child(self.render_api_url_editor(cx))
             .child(self.render_context_window_editor(cx))
