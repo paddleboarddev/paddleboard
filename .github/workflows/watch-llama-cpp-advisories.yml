@@ -1,0 +1,70 @@
+name: Watch llama.cpp advisories
+
+# AWARENESS ONLY. PaddleBoard bundles a pinned, signed llama.cpp `llama-server`
+# for the Local Models feature; there is deliberately NO runtime auto-updater and
+# patches ride the PB release cadence. This workflow only NOTICES and alerts — it
+# never bumps the pin and never downloads anything. Its sole write is opening or
+# updating a single PaddleBoard tracking issue. See project_managed_local_models
+# "llama.cpp UPDATE STRATEGY" for the design intent.
+
+on:
+  schedule:
+    # Mondays at 16:30 UTC — 30 min after the upstream-merge job, off its peak.
+    # GitHub may delay scheduled runs by 5-15 minutes during peak load.
+    - cron: "30 16 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Analyze advisories and pin lag
+        id: analyze
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Builds-behind-latest that alone warrants an alert. llama.cpp ships many
+          # builds/day, so this is intentionally generous — the primary signal is a
+          # post-pin security advisory, not raw lag.
+          LAG_THRESHOLD: "200"
+        run: script/check-llama-advisories advisory-report.md
+
+      - name: No new advisories
+        if: steps.analyze.outputs.should_alert != 'true'
+        run: echo "pin current, no new advisories — nothing to do."
+
+      - name: Open or update tracking issue
+        if: steps.analyze.outputs.should_alert == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ steps.analyze.outputs.issue_title }}
+        run: |
+          # Labels may not exist yet on a fresh repo; create-if-missing is harmless.
+          gh label create "llama.cpp" --color "5319e7" --description "llama.cpp pin / bundled binary" 2>/dev/null || true
+          gh label create "security" --color "d73a4a" --description "Security-relevant" 2>/dev/null || true
+
+          # Find an existing open tracking issue by exact title to avoid duplicates.
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -1)
+
+          if [ -n "$existing" ]; then
+            echo "Updating existing tracking issue #${existing}."
+            gh issue edit "$existing" --body-file advisory-report.md
+            gh issue comment "$existing" \
+              --body "Refreshed by the weekly llama.cpp advisory watch on $(date -u +%Y-%m-%d)."
+          else
+            echo "Opening a new tracking issue."
+            gh issue create \
+              --title "$ISSUE_TITLE" \
+              --body-file advisory-report.md \
+              --label "llama.cpp" \
+              --label "security"
+          fi
