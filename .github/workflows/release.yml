@@ -1,8 +1,11 @@
 name: Release
 
-# PaddleBoard: builds, signs, notarizes, and publishes a macOS (Apple Silicon)
-# release on a version tag. Signing is driven by repo secrets (see below); if the
-# signing secrets are absent the bundle script falls back to an ad-hoc signature.
+# PaddleBoard: on a version tag, builds release artifacts and attaches them to the
+# Release publish-public.sh created — a signed + notarized macOS (Apple Silicon) DMG
+# and a Linux x86_64 tarball. The two jobs are INDEPENDENT: a Linux failure never
+# blocks the macOS build (or vice versa). macOS signing is driven by repo secrets
+# (below); if they're absent the bundle falls back to an ad-hoc signature. Linux
+# needs no secrets.
 #
 # Required repo secrets for a signed + notarized build:
 #   MACOS_SIGNING_IDENTITY        - e.g. "Developer ID Application: Your Name (TEAMID)"
@@ -83,3 +86,46 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --clobber \
             "${dmg}#PaddleBoard (Apple Silicon).dmg"
+
+  linux:
+    # Independent of the macOS job — a Linux failure won't block the signed DMG or
+    # the release. Built on ubuntu-22.04 for broad glibc compatibility. No signing.
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build the public stable channel
+        run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Set up Rust
+        run: rustup update stable
+
+      - name: Build the Linux bundle (x86_64)
+        env:
+          PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
+        run: script/bundle-linux
+
+      - name: Attach the Linux tarball to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Same create-if-missing + --clobber pattern as the macOS job, so whichever
+          # job reaches the release first creates the shell and the other just uploads.
+          tarball="$(ls target/release/paddleboard-linux-*.tar.gz | head -1)"
+          if ! gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "PaddleBoard ${GITHUB_REF_NAME}" \
+              --prerelease \
+              --generate-notes
+          fi
+          gh release upload "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber \
+            "${tarball}#PaddleBoard (Linux x86_64).tar.gz"
