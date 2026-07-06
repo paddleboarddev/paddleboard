@@ -32,6 +32,26 @@ pub enum Platform {
 
 pub const PLATFORMS: &[Platform] = &[Platform::CloudRun, Platform::AwsLambda, Platform::Vercel];
 
+/// Set Sail's two modes. Quick deploy pushes the current source live once; Rig
+/// the pipeline sets up the vendor-agnostic cloud-side rigging (deploy identity
+/// + resource + deploy command) so the user can wire up any CI/CD tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    QuickDeploy,
+    RigPipeline,
+}
+
+impl Mode {
+    fn label(&self) -> &'static str {
+        match self {
+            Mode::QuickDeploy => "Quick deploy",
+            Mode::RigPipeline => "Rig the pipeline",
+        }
+    }
+}
+
+pub const MODES: &[Mode] = &[Mode::QuickDeploy, Mode::RigPipeline];
+
 impl Platform {
     pub fn label(&self) -> &'static str {
         match self {
@@ -58,6 +78,27 @@ impl Platform {
             Platform::AwsLambda => &["aws-project-setup", "lambda-deploy"],
             Platform::Vercel => &["vercel-project-setup", "vercel-deploy"],
         }
+    }
+
+    /// Skills the "Rig the pipeline" prompt depends on (setup first, then the
+    /// CI/CD rigging pack). Mirrors `required_skills` but swaps the one-shot
+    /// deploy pack for the platform's `<p>-pipeline` pack.
+    fn pipeline_skills(&self) -> &'static [&'static str] {
+        match self {
+            Platform::CloudRun => &["gcloud-project-setup", "cloud-run-pipeline"],
+            Platform::AwsLambda => &["aws-project-setup", "lambda-pipeline"],
+            Platform::Vercel => &["vercel-project-setup", "vercel-pipeline"],
+        }
+    }
+
+    /// Whether the platform's s8sskills `<p>-pipeline` pack exists yet. All three
+    /// launch platforms now have one; a future platform added without a pipeline
+    /// pack would return false here so the modal shows a "coming soon" note.
+    fn pipeline_ready(&self) -> bool {
+        matches!(
+            self,
+            Platform::CloudRun | Platform::AwsLambda | Platform::Vercel
+        )
     }
 
     /// Default region, or None when the platform doesn't take one (Vercel
@@ -218,6 +259,7 @@ impl StatusItemView for SetSailStatusItem {
 /// to the native agent, guided by the platform's s8sskills pack.
 pub struct SetSailModal {
     workspace: WeakEntity<Workspace>,
+    mode: Mode,
     platform: Platform,
     service_input: Entity<InputField>,
     region_input: Entity<InputField>,
@@ -248,6 +290,7 @@ impl SetSailModal {
 
         Self {
             workspace,
+            mode: Mode::QuickDeploy,
             platform: Platform::CloudRun,
             service_input,
             region_input,
@@ -265,8 +308,17 @@ impl SetSailModal {
         cx.notify();
     }
 
+    fn select_mode(&mut self, mode: Mode, cx: &mut Context<Self>) {
+        if self.mode == mode {
+            return;
+        }
+        self.mode = mode;
+        cx.notify();
+    }
+
     fn confirm(&mut self, _: &menu::Confirm, window: &mut Window, cx: &mut Context<Self>) {
         let platform = self.platform;
+        let mode = self.mode;
         let mut service = self.service_input.read(cx).text(cx).trim().to_string();
         if service.is_empty() {
             service = self.default_service.clone();
@@ -295,6 +347,20 @@ impl SetSailModal {
             return;
         }
 
+        // Phase 2 rigging lands one platform at a time; refuse a mode/platform
+        // combo whose s8sskills pipeline pack isn't authored yet.
+        if mode == Mode::RigPipeline && !platform.pipeline_ready() {
+            self.show_error(
+                anyhow!(
+                    "Rig the pipeline isn't available for {} yet — it's rolling out per \
+                     platform. Vercel is ready now.",
+                    platform.label()
+                ),
+                cx,
+            );
+            return;
+        }
+
         let Some(workspace) = self.workspace.upgrade() else {
             return;
         };
@@ -319,7 +385,11 @@ impl SetSailModal {
         cx.spawn_in(window, async move |_this, cx| {
             // Install the s8sskills pack pieces the prompt depends on. Files
             // already present are left untouched (version-pinned by commit).
-            for skill in platform.required_skills() {
+            let skills = match mode {
+                Mode::QuickDeploy => platform.required_skills(),
+                Mode::RigPipeline => platform.pipeline_skills(),
+            };
+            for skill in skills {
                 if let Err(error) = ensure_skill_installed(
                     fs.clone(),
                     http_client.clone(),
@@ -345,9 +415,16 @@ impl SetSailModal {
                 }
             }
 
-            let prompt = quick_deploy_prompt(platform, &service, &region, allow_unauthenticated);
-            let title: SharedString =
-                format!("Set Sail: {service} → {}", platform.label()).into();
+            let (prompt, title): (String, SharedString) = match mode {
+                Mode::QuickDeploy => (
+                    quick_deploy_prompt(platform, &service, &region, allow_unauthenticated),
+                    format!("Set Sail: {service} → {}", platform.label()).into(),
+                ),
+                Mode::RigPipeline => (
+                    rig_pipeline_prompt(platform, &service, &region, allow_unauthenticated),
+                    format!("Rig the pipeline: {service} → {}", platform.label()).into(),
+                ),
+            };
 
             weak_workspace
                 .update_in(cx, |workspace, window, cx| {
@@ -510,6 +587,72 @@ fn quick_deploy_prompt(platform: Platform, service: &str, region: &str, public: 
     )
 }
 
+/// Self-contained "Rig the pipeline" prompt. Sets up the vendor-agnostic
+/// cloud-side rigging (deployable target + least-privilege deploy identity +
+/// exact deploy command) so the user can wire ANY CI/CD tool, then optionally
+/// scaffolds a starter config with every secret left as a TODO placeholder.
+/// The hard guardrail — the agent never fills real auth/secrets — is spelled
+/// out inline so it survives even if the skill pack is terse.
+fn rig_pipeline_prompt(platform: Platform, service: &str, region: &str, public: bool) -> String {
+    let label = platform.label();
+    let skills = platform.pipeline_skills();
+    let skill_lines: String = skills
+        .iter()
+        .map(|skill| format!("- .agents/skills/{skill}/SKILL.md\n"))
+        .collect();
+    let region_line = if platform.default_region().is_some() {
+        format!("Region: {region}\n")
+    } else {
+        String::new()
+    };
+    let visibility_line = if platform.supports_public_toggle() {
+        if public {
+            "The deployed URL should be PUBLIC.\n"
+        } else {
+            "The deployed service should require authentication (private).\n"
+        }
+    } else {
+        ""
+    };
+    let deploy_hint = platform.deploy_hint(service, region, public);
+    let prereqs = platform.prereq_checks();
+
+    format!(
+        "Set Sail: rig a CI/CD pipeline for deploying this project to {label}.\n\n\
+         Service name: {service}\n\
+         {region_line}\
+         {visibility_line}\n\
+         GOAL — do the vendor-agnostic \"basic rigging\" so I can plug in ANY CI/CD tool \
+         (GitHub Actions, GitLab CI, Jenkins, Buildkite, …). You set up the cloud side; I own \
+         the CI tool and all secrets. Stay tool-agnostic — do NOT assume or pick a CI tool \
+         unless I name one.\n\n\
+         These s8sskills skill files are installed in this project. Read them ALL first, in \
+         order — they are the authoritative playbook:\n\
+         {skill_lines}\n\
+         Do the rigging:\n\
+         1. Read the skill files above and follow them wherever they are more specific than \
+         these steps.\n\
+         2. Check prerequisites in the terminal: {prereqs} — never run interactive auth flows \
+         yourself; STOP, give me the exact command to run in a terminal, and wait for me to \
+         confirm before continuing.\n\
+         3. Ensure the deploy target exists and is deployable ({deploy_hint}).\n\
+         4. Create a least-privilege deploy identity for CI to use (a dedicated service \
+         account / IAM role / deploy token per the skill). Prefer KEYLESS OIDC / workload-\
+         identity federation over long-lived keys wherever the skill supports it.\n\
+         5. Produce the exact deploy COMMAND a CI job should run, and tell me precisely which \
+         credential/secret to hand my CI tool and what to name it.\n\n\
+         Then OFFER (ask me first) to scaffold a starter CI config for whichever tool I name — \
+         e.g. .github/workflows/deploy.yml, .gitlab-ci.yml, a Jenkinsfile, or \
+         .buildkite/pipeline.yml — with the deploy command wired in. Leave EVERY secret, token, \
+         login, and OAuth value as a clearly-labeled TODO placeholder for me to fill.\n\n\
+         HARD RULES: never put a real secret, credential, token, or auth value in any file or \
+         run a login/OAuth flow on my behalf; do NOT commit or push anything without asking; do \
+         NOT choose my CI/CD tool for me.\n\n\
+         Finally, summarize the \"deploy contract\": the deploy command, the credential/identity \
+         you created, and exactly where I plug it into my CI tool."
+    )
+}
+
 impl EventEmitter<DismissEvent> for SetSailModal {}
 
 impl Focusable for SetSailModal {
@@ -524,10 +667,30 @@ impl Render for SetSailModal {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focus_handle = self.focus_handle(cx);
         let platform = self.platform;
+        let mode = self.mode;
         let selected_index = PLATFORMS
             .iter()
             .position(|p| *p == platform)
             .unwrap_or(0);
+        let selected_mode_index = MODES.iter().position(|m| *m == mode).unwrap_or(0);
+        let pipeline_unavailable = mode == Mode::RigPipeline && !platform.pipeline_ready();
+        let description = match mode {
+            Mode::QuickDeploy => {
+                "Quick-deploy this project to a serverless platform. PaddleBoard's agent \
+                 follows the s8sskills playbook: it checks your CLI setup, then deploys \
+                 straight from source."
+            }
+            Mode::RigPipeline => {
+                "Rig a CI/CD pipeline. The agent sets up the vendor-agnostic cloud side — a \
+                 deploy identity, the resource, and the exact deploy command — so you can plug \
+                 in any CI tool (GitHub Actions, GitLab, Jenkins, Buildkite). You keep control \
+                 of secrets."
+            }
+        };
+        let confirm_label = match mode {
+            Mode::QuickDeploy => "Set Sail",
+            Mode::RigPipeline => "Rig the pipeline",
+        };
 
         v_flex()
             .id("set-sail-modal")
@@ -542,17 +705,36 @@ impl Render for SetSailModal {
             .child(
                 Modal::new("set-sail", None)
                     .header(
-                        ModalHeader::new().headline("Set Sail ⛵").description(
-                            "Quick-deploy this project to a serverless platform. PaddleBoard's \
-                             agent follows the s8sskills playbook: it checks your CLI setup, \
-                             then deploys straight from source.",
-                        ),
+                        ModalHeader::new()
+                            .headline("Set Sail ⛵")
+                            .description(description),
                     )
                     .child(
                         v_flex()
                             .px_3()
                             .pb_2()
                             .gap_2()
+                            .child(
+                                ToggleButtonGroup::single_row(
+                                    "set-sail-mode",
+                                    [
+                                        ToggleButtonSimple::new(
+                                            Mode::QuickDeploy.label(),
+                                            cx.listener(|this, _, _window, cx| {
+                                                this.select_mode(Mode::QuickDeploy, cx);
+                                            }),
+                                        ),
+                                        ToggleButtonSimple::new(
+                                            Mode::RigPipeline.label(),
+                                            cx.listener(|this, _, _window, cx| {
+                                                this.select_mode(Mode::RigPipeline, cx);
+                                            }),
+                                        ),
+                                    ],
+                                )
+                                .style(ToggleButtonGroupStyle::Outlined)
+                                .selected_index(selected_mode_index),
+                            )
                             .child(
                                 ToggleButtonGroup::single_row(
                                     "set-sail-platform",
@@ -580,6 +762,17 @@ impl Render for SetSailModal {
                                 .style(ToggleButtonGroupStyle::Outlined)
                                 .selected_index(selected_index),
                             )
+                            .when(pipeline_unavailable, |this| {
+                                this.child(
+                                    Label::new(format!(
+                                        "Pipeline rigging for {} is coming soon — Vercel is \
+                                         available now.",
+                                        platform.label()
+                                    ))
+                                    .size(LabelSize::Small)
+                                    .color(Color::Warning),
+                                )
+                            })
                             .child(self.service_input.clone())
                             .when(platform.default_region().is_some(), |this| {
                                 this.child(self.region_input.clone())
@@ -642,7 +835,7 @@ impl Render for SetSailModal {
                                         })),
                                 )
                                 .child(
-                                    Button::new("set-sail-confirm", "Set Sail")
+                                    Button::new("set-sail-confirm", confirm_label)
                                         .style(ButtonStyle::Filled)
                                         .key_binding(
                                             KeyBinding::for_action_in(
@@ -727,5 +920,43 @@ mod tests {
                 "{platform:?} skills out of order: {skills:?}"
             );
         }
+    }
+
+    #[test]
+    fn every_platform_declares_setup_then_pipeline_skills() {
+        for platform in PLATFORMS {
+            let skills = platform.pipeline_skills();
+            assert_eq!(skills.len(), 2, "{platform:?} should have setup + pipeline");
+            assert!(
+                skills[0].contains("setup") && skills[1].contains("pipeline"),
+                "{platform:?} pipeline skills out of order: {skills:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn all_launch_platforms_are_pipeline_ready() {
+        for platform in PLATFORMS {
+            assert!(
+                platform.pipeline_ready(),
+                "{platform:?} should be pipeline-ready"
+            );
+        }
+    }
+
+    #[test]
+    fn rig_pipeline_prompt_is_vendor_agnostic_and_guards_secrets() {
+        let prompt = rig_pipeline_prompt(Platform::Vercel, "boaty", "", true);
+        // Points at the pipeline pack, not the one-shot deploy pack.
+        assert!(prompt.contains("vercel-pipeline/SKILL.md"));
+        assert!(!prompt.contains("vercel-deploy/SKILL.md"));
+        // Vendor-agnostic: names multiple CI tools and refuses to pick one.
+        assert!(prompt.contains("GitHub Actions") && prompt.contains("Buildkite"));
+        assert!(prompt.contains("do NOT choose my CI/CD tool"));
+        // The hard secret-handling guardrail is spelled out inline.
+        assert!(prompt.contains("TODO placeholder"));
+        assert!(prompt.contains("never put a real secret"));
+        // Still carries the concrete deploy command from the platform hint.
+        assert!(prompt.contains("vercel deploy --prod --yes"));
     }
 }
