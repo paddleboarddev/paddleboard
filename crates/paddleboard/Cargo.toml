@@ -4,7 +4,8 @@ edition.workspace = true
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
-version = "0.1.4"
+# Must match the release tag `v<version>` — release.yml validates this on a signed cut.
+version = "0.1.14"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
