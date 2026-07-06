@@ -3,8 +3,11 @@ use agent_settings::AgentSettings;
 use anyhow::Result;
 use futures::FutureExt as _;
 use gpui::{App, Entity, SharedString, Task};
+use paddleboard_container_engine::{EngineKind, ExecRequest};
 use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
-use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_gate};
+use paddleboard_sandbox_settings::{
+    BuiltInCapability, NativeBackend, SandboxGateDecision, SandboxSettings, decide_gate,
+};
 use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,7 +26,8 @@ use crate::{
 
 const COMMAND_OUTPUT_LIMIT: u64 = 16 * 1024;
 
-/// Executes a shell command securely within an isolated Podman (gVisor runsc) container.
+/// Executes a shell command securely within an isolated container — a Podman (gVisor runsc)
+/// container when Podman is installed, or PaddleBoard's built-in microVM sandbox otherwise.
 ///
 /// Use this tool whenever you generate unverified code, run tests, or execute build scripts
 /// that could potentially harm the host system. The command runs inside an ephemeral Ubuntu
@@ -90,7 +94,7 @@ impl AgentTool for SandboxTool {
                 .await
                 .map_err(|e| format!("Failed to receive tool input: {e}"))?;
 
-            let (working_dir, authorize, gate) = cx.update(|cx| {
+            let (working_dir, authorize, gate, builtin_gap) = cx.update(|cx| {
                 let working_dir =
                     working_dir(&input, &self.project, cx).map_err(|err| err.to_string())?;
 
@@ -120,19 +124,25 @@ impl AgentTool for SandboxTool {
 
                 let gate = decide_gate(
                     SandboxPrereqs::status(cx),
+                    BuiltInCapability::Supported,
                     SandboxSettings::get_global(cx),
                 );
+                let builtin_gap = SandboxPrereqs::status(cx)
+                    .and_then(|status| status.builtin.unavailable_reason());
 
-                Ok((working_dir, authorize, gate))
+                Ok((working_dir, authorize, gate, builtin_gap))
             })?;
             if let Some(authorize) = authorize {
                 authorize.await.map_err(|e| e.to_string())?;
             }
 
-            let run_on_host = match &gate {
+            let engine_kind = match &gate {
                 SandboxGateDecision::Block { reason } => {
+                    let builtin_gap = builtin_gap.map_or(String::new(), |gap| {
+                        format!(" The built-in microVM sandbox is also unavailable: {gap}.")
+                    });
                     return Err(format!(
-                        "Sandbox prerequisites missing: {reason}. \
+                        "Sandbox prerequisites missing: {reason}.{builtin_gap} \
                          Open Sandbox Prerequisites from the status bar to install Podman / gVisor, \
                          or set `paddleboard_sandbox.on_missing_runtime` to \"fall_back_to_host\" \
                          to run on the host without a container."
@@ -145,43 +155,70 @@ impl AgentTool for SandboxTool {
                              open Sandbox Prerequisites to install."
                         );
                     }
-                    false
+                    Some(EngineKind::PodmanGvisor)
                 }
                 SandboxGateDecision::FallBackToHost { reason } => {
                     log::warn!(
                         "PaddleBoard sandbox: {reason}. Falling back to host execution \
                          per `paddleboard_sandbox.on_missing_runtime`."
                     );
-                    true
+                    None
                 }
-                SandboxGateDecision::Allow => false,
+                SandboxGateDecision::UseBuiltIn { reason, backend } => {
+                    let (kind, label) = match backend {
+                        NativeBackend::AppleContainer => {
+                            (EngineKind::AppleContainer, "Apple container")
+                        }
+                        NativeBackend::BuiltInKrun => (EngineKind::BuiltInKrun, "built-in microVM"),
+                    };
+                    log::info!("PaddleBoard sandbox: {reason}; running in the {label} sandbox.");
+                    Some(kind)
+                }
+                SandboxGateDecision::Allow => Some(EngineKind::PodmanGvisor),
             };
 
             let image = input
                 .image
                 .clone()
-                .unwrap_or_else(|| "ubuntu:latest".to_string());
+                .unwrap_or_else(|| paddleboard_container_engine::DEFAULT_SANDBOX_IMAGE.to_string());
 
-            // Mount the host worktree at a fixed in-container path so the container filesystem
-            // layout is stable and host paths do not leak through the mount point. The user's
-            // shell command and any host path we interpolate are wrapped with POSIX single-quote
-            // escaping (close quote, backslash-escape, reopen quote) so they survive both the
-            // outer shell that spawns podman and the `bash -c` inside the container.
-            const CONTAINER_WORKDIR: &str = "/workspace";
-            let host_wd = shell_single_quote(&working_dir.to_string_lossy());
-            let container_wd = shell_single_quote(CONTAINER_WORKDIR);
-            let image_arg = shell_single_quote(&image);
-            let user_command = shell_single_quote(&input.command);
-            let command = if run_on_host {
-                // No podman wrapper: the command runs in the host shell. The
-                // worktree is the working directory we pass to `create_terminal`,
-                // so the user's command sees the same `cd` it would have inside
-                // the container — just without isolation.
-                format!("bash -c {user_command}")
-            } else {
-                format!(
-                    "podman run --rm --runtime=runsc -v {host_wd}:{container_wd} -w {container_wd} {image_arg} bash -c {user_command}",
-                )
+            // The engine mounts the host worktree at a fixed in-container path
+            // (`/workspace`) so the container filesystem layout is stable and host
+            // paths do not leak through the mount point. All interpolated strings are
+            // single-quote escaped by the engine, so they survive both the outer shell
+            // and the `bash -c` inside the container.
+            let command = match engine_kind {
+                None => {
+                    // No container wrapper: the command runs in the host shell. The
+                    // worktree is the working directory we pass to `create_terminal`,
+                    // so the user's command sees the same `cd` it would have inside
+                    // the container — just without isolation.
+                    format!("bash -c {}", shell_single_quote(&input.command))
+                }
+                Some(kind) => {
+                    let engine = paddleboard_container_engine::engine(kind);
+                    // First use of the built-in tier downloads the image; tell the
+                    // user what the wait is.
+                    if !engine.is_image_ready(&image) {
+                        event_stream.update_fields(
+                            acp::ToolCallUpdateFields::new()
+                                .title(format!("Sandbox: pulling {image}…")),
+                        );
+                    }
+                    let prepared = engine
+                        .prepare_exec(ExecRequest {
+                            image: image.clone(),
+                            host_workdir: working_dir.clone(),
+                            command: input.command.clone(),
+                        })
+                        .await
+                        .map_err(|e| format!("failed to prepare sandbox: {e:#}"))?;
+                    event_stream.update_fields(
+                        acp::ToolCallUpdateFields::new()
+                            .title(format!("Sandbox: {}", input.command)),
+                    );
+                    prepared.shell_command
+                }
             };
 
             let terminal = self
@@ -347,45 +384,6 @@ pub(super) fn resolve_worktree_dir(
     anyhow::bail!("invalid working directory. must be one of the project root directories")
 }
 
-/// POSIX shell single-quote escaping: wrap `s` in single quotes, and replace every `'` in `s`
-/// with `'\''` (close quote, escaped literal quote, reopen quote). The result is safe to pass
-/// through `bash -c` and through any POSIX shell interpolation, regardless of the original
-/// contents of `s`.
-pub(super) fn shell_single_quote(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('\'');
-    for ch in s.chars() {
-        if ch == '\'' {
-            out.push_str("'\\''");
-        } else {
-            out.push(ch);
-        }
-    }
-    out.push('\'');
-    out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::shell_single_quote;
-
-    #[test]
-    fn quotes_plain_strings() {
-        assert_eq!(shell_single_quote("hello"), "'hello'");
-        assert_eq!(shell_single_quote(""), "''");
-    }
-
-    #[test]
-    fn escapes_embedded_single_quotes() {
-        assert_eq!(shell_single_quote("it's"), "'it'\\''s'");
-        assert_eq!(shell_single_quote("'"), "''\\'''");
-    }
-
-    #[test]
-    fn passes_through_shell_metacharacters_verbatim() {
-        assert_eq!(
-            shell_single_quote("rm -rf $HOME && echo pwned"),
-            "'rm -rf $HOME && echo pwned'"
-        );
-    }
-}
+// Shared with sandbox_service_tool; the implementation (and its tests) moved
+// to the engine crate alongside the command builders that depend on it.
+pub(super) use paddleboard_container_engine::shell_single_quote;

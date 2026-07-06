@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# check-llama-pins — keep the pinned llama.cpp release in sync between the fetch
+# script and the runtime manager.
+#
+# The release tag (LLAMA_CPP_TAG / LLAMA_CPP_VERSION) and the three per-platform
+# SHA-256 pins are duplicated, by necessity, in two places:
+#   - script/fetch-llama-server                                    (bundle staging)
+#   - crates/paddleboard_llama_manager/src/paddleboard_llama_manager.rs (runtime install)
+#
+# If they drift, the bundled binary and the one the runtime downloads disagree,
+# which fails only at a user's runtime. This gate greps both files and asserts
+# the tag plus all three asset SHAs match. Bumping llama.cpp? Update BOTH files;
+# this check enforces it.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+script_file="script/fetch-llama-server"
+rust_file="crates/paddleboard_llama_manager/src/paddleboard_llama_manager.rs"
+
+for file in "$script_file" "$rust_file"; do
+  if [[ ! -f "$file" ]]; then
+    echo "check-llama-pins: expected file not found: $file" >&2
+    exit 1
+  fi
+done
+
+fail=0
+
+script_tag="$(grep -oE 'LLAMA_CPP_TAG="[^"]+"' "$script_file" | head -1 | sed 's/.*="//; s/"//')"
+rust_tag="$(grep -oE 'LLAMA_CPP_VERSION: &str = "[^"]+"' "$rust_file" | head -1 | sed 's/.*= "//; s/"//')"
+
+if [[ -z "$script_tag" || -z "$rust_tag" ]]; then
+  echo "check-llama-pins: could not extract the llama.cpp tag from both files" >&2
+  echo "  $script_file tag: '${script_tag}'" >&2
+  echo "  $rust_file tag: '${rust_tag}'" >&2
+  exit 1
+fi
+
+if [[ "$script_tag" != "$rust_tag" ]]; then
+  echo "check-llama-pins: tag drift — $script_file has '$script_tag', $rust_file has '$rust_tag'" >&2
+  fail=1
+fi
+
+# Keyed off the asset-name substring, which both files embed in the download URL
+# / asset filename (`llama-<tag>-bin-<key>.tar.gz`).
+asset_keys=("macos-arm64" "ubuntu-x64" "ubuntu-arm64")
+for key in "${asset_keys[@]}"; do
+  script_sha="$(grep -A1 -E "bin-${key}\.tar\.gz" "$script_file" | grep -oE '[0-9a-f]{64}' | head -1)"
+  rust_sha="$(grep -A1 -E "bin-${key}\.tar\.gz" "$rust_file" | grep -oE '[0-9a-f]{64}' | head -1)"
+
+  if [[ -z "$script_sha" || -z "$rust_sha" ]]; then
+    echo "check-llama-pins: missing SHA-256 for '${key}' (script='${script_sha}' rust='${rust_sha}')" >&2
+    fail=1
+    continue
+  fi
+
+  if [[ "$script_sha" != "$rust_sha" ]]; then
+    echo "check-llama-pins: SHA-256 drift for '${key}':" >&2
+    echo "  $script_file: $script_sha" >&2
+    echo "  $rust_file: $rust_sha" >&2
+    fail=1
+  fi
+done
+
+if [[ "$fail" -ne 0 ]]; then
+  echo "check-llama-pins: pins are out of sync. Update both $script_file and $rust_file together." >&2
+  exit 1
+fi
+
+echo "check-llama-pins: tag ${script_tag} and all ${#asset_keys[@]} SHA-256 pins match."

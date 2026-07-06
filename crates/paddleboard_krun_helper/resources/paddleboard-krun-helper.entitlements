@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- libkrun drives Hypervisor.framework (HVF); without this entitlement
+         hv_vm_create fails with HV_DENIED even for ad-hoc dev signatures. -->
+    <key>com.apple.security.hypervisor</key>
+    <true/>
+</dict>
+</plist>

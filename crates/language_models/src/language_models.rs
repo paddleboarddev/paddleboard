@@ -11,12 +11,10 @@ use language_model::{
 };
 use provider::deepseek::DeepSeekLanguageModelProvider;
 
-mod api_key_editor;
 pub mod extension;
 pub mod provider;
 mod settings;
 
-pub use crate::api_key_editor::{ApiKeyEditor, ApiKeyStatus, api_key_status};
 pub use crate::extension::init_proxy as init_extension_proxy;
 
 use crate::provider::anthropic::AnthropicLanguageModelProvider;
@@ -25,6 +23,7 @@ use crate::provider::bedrock::BedrockLanguageModelProvider;
 use crate::provider::cloud::CloudLanguageModelProvider;
 use crate::provider::copilot_chat::CopilotChatLanguageModelProvider;
 use crate::provider::google::GoogleLanguageModelProvider;
+use crate::provider::llama_cpp::LlamaCppLanguageModelProvider;
 use crate::provider::lmstudio::LmStudioLanguageModelProvider;
 pub use crate::provider::mistral::MistralLanguageModelProvider;
 use crate::provider::ollama::OllamaLanguageModelProvider;
@@ -268,6 +267,9 @@ fn register_language_model_providers(
     credentials_provider: Arc<dyn CredentialsProvider>,
     cx: &mut Context<LanguageModelRegistry>,
 ) {
+    // PaddleBoard: install the managed "Local Models" runtime manager before the
+    // llama.cpp provider registers, so it can drive/observe the managed server.
+    paddleboard_llama_manager::init(client.http_client(), cx);
     registry.register_provider(
         Arc::new(CloudLanguageModelProvider::new(
             user_store,
@@ -302,6 +304,14 @@ fn register_language_model_providers(
     );
     registry.register_provider(
         Arc::new(LmStudioLanguageModelProvider::new(
+            client.http_client(),
+            credentials_provider.clone(),
+            cx,
+        )),
+        cx,
+    );
+    registry.register_provider(
+        Arc::new(LlamaCppLanguageModelProvider::new(
             client.http_client(),
             credentials_provider.clone(),
             cx,

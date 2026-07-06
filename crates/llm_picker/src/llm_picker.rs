@@ -4,9 +4,11 @@ use gpui::{
     Focusable, IntoElement, Pixels, Render, WeakEntity, Window, prelude::*, px,
 };
 use language_model::{
-    ConfigurationViewTargetAgent, ConfiguredModel, IconOrSvg, LanguageModelProviderId,
-    LanguageModelRegistry, PADDLEBOARD_CLOUD_PROVIDER_ID,
+    ApiKeyConfiguration, ConfiguredModel, IconOrSvg, LanguageModelProvider,
+    LanguageModelProviderId, LanguageModelRegistry, PADDLEBOARD_CLOUD_PROVIDER_ID,
+    ProviderSettingsView,
 };
+use std::sync::Arc;
 use ui::{ButtonSize, ButtonStyle, prelude::*};
 use workspace::{
     Workspace,
@@ -17,11 +19,21 @@ gpui::actions!(llm_picker, [ToggleFocus]);
 
 const LLM_PICKER_PANEL_KEY: &str = "LlmPickerPanel";
 
+// PaddleBoard: upstream replaced the per-provider `configuration_view()` with
+// `settings_view()`, whose API-key mode is pure data rendered by settings_ui.
+// Inline/sub-page providers still hand us an embeddable view; API-key
+// providers get a status summary plus a jump to the settings page.
+#[derive(Clone)]
+enum ProviderConfigView {
+    Embedded(AnyView),
+    ApiKey(ApiKeyConfiguration),
+}
+
 pub struct LlmPicker {
     focus_handle: FocusHandle,
     position: DockPosition,
     selected_provider_id: Option<LanguageModelProviderId>,
-    configuration_view: Option<AnyView>,
+    configuration_view: Option<ProviderConfigView>,
     _subscriptions: Vec<gpui::Subscription>,
 }
 
@@ -40,11 +52,7 @@ impl LlmPicker {
 
         let configuration_view = initial_provider_id.as_ref().and_then(|id| {
             let provider = LanguageModelRegistry::read_global(cx).provider(id)?;
-            Some(provider.configuration_view(
-                ConfigurationViewTargetAgent::Other("PaddleBoard".into()),
-                window,
-                cx,
-            ))
+            Self::configuration_view_for(&provider, window, cx)
         });
 
         Self {
@@ -74,12 +82,24 @@ impl LlmPicker {
         };
 
         self.selected_provider_id = Some(provider_id);
-        self.configuration_view = Some(provider.configuration_view(
-            ConfigurationViewTargetAgent::Other("PaddleBoard".into()),
-            window,
-            cx,
-        ));
+        self.configuration_view = Self::configuration_view_for(&provider, window, cx);
         cx.notify();
+    }
+
+    fn configuration_view_for(
+        provider: &Arc<dyn LanguageModelProvider>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Option<ProviderConfigView> {
+        match provider.settings_view(cx)? {
+            ProviderSettingsView::ApiKey(config) => Some(ProviderConfigView::ApiKey(config)),
+            ProviderSettingsView::Inline(settings) => Some(ProviderConfigView::Embedded(
+                (settings.create_view)(window, cx),
+            )),
+            ProviderSettingsView::SubPage(settings) => Some(ProviderConfigView::Embedded(
+                (settings.create_view)(window, cx),
+            )),
+        }
     }
 
     fn use_as_default(&mut self, cx: &mut Context<Self>) {
@@ -287,7 +307,35 @@ impl Render for LlmPicker {
                         .px_3()
                         .py_2()
                         .gap_2()
-                        .child(config_view)
+                        .map(|this| match config_view {
+                            ProviderConfigView::Embedded(view) => this.child(view),
+                            ProviderConfigView::ApiKey(config) => this
+                                .child(
+                                    Label::new(if config.is_from_env_var {
+                                        format!("API key set via {}.", config.env_var_name)
+                                    } else if config.has_key {
+                                        "API key configured.".to_string()
+                                    } else {
+                                        "No API key configured.".to_string()
+                                    })
+                                    .size(LabelSize::Small)
+                                    .color(Color::Muted),
+                                )
+                                .child(
+                                    Button::new("open-provider-settings", "Open Provider Settings")
+                                        .style(ButtonStyle::Outlined)
+                                        .size(ButtonSize::Default)
+                                        .on_click(|_, window, cx| {
+                                            window.dispatch_action(
+                                                Box::new(paddleboard_actions::OpenSettingsAt {
+                                                    path: "llm_providers".to_string(),
+                                                    target: None,
+                                                }),
+                                                cx,
+                                            );
+                                        }),
+                                ),
+                        })
                         .when(selected_is_authenticated, |this| {
                             this.child(
                                 Button::new("use-as-default", "Use as Default")

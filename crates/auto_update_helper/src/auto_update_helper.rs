@@ -115,7 +115,8 @@ mod windows_impl {
             MessageBoxW(
                 None,
                 &HSTRING::from(content),
-                windows::core::w!("Error: Zed update failed."),
+                // PaddleBoard: user-visible copy rebranded from Zed.
+                windows::core::w!("Error: PaddleBoard update failed."),
                 MB_ICONERROR | MB_SYSTEMMODAL,
             )
         };

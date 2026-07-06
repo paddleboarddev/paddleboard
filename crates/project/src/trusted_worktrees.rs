@@ -175,6 +175,11 @@ impl From<RemoteConnectionOptions> for RemoteHostLocation {
             RemoteConnectionOptions::Mock(mock) => {
                 (None, SharedString::new(format!("mock-{}", mock.id)))
             }
+            // PaddleBoard: scoped builds can enable remote/test-support (adding the
+            // Mock variant) while this crate's own test-support is off, cfg'ing out
+            // the arm above; this fallback keeps the match exhaustive (E0004).
+            #[allow(unreachable_patterns)]
+            _ => (None, SharedString::new("unknown")),
         };
         Self {
             user_name,

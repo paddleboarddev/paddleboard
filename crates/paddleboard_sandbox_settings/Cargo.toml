@@ -13,6 +13,7 @@ path = "src/paddleboard_sandbox_settings.rs"
 
 [dependencies]
 gpui.workspace = true
+paddleboard_env_vars.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 serde.workspace = true
 settings.workspace = true

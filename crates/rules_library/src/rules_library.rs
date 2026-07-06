@@ -492,8 +492,7 @@ impl RulesLibrary {
         };
 
         let picker = cx.new(|cx| {
-            let picker = Picker::list(picker_delegate, window, cx)
-                .modal(false);
+            let picker = Picker::list(picker_delegate, window, cx).embedded();
             picker.focus(window, cx);
             picker
         });

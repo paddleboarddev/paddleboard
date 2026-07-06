@@ -3,3 +3,7 @@
 
 # Ensure the WSL script always has LF line endings, even on Windows
 crates/zed/resources/windows/zed.sh text eol=lf
+
+# RECAPS.md is an append-at-top log; parallel sessions insert sections at the
+# same spot. Union-merge keeps both sides instead of conflicting (or dropping one).
+RECAPS.md merge=union

@@ -16,6 +16,7 @@ doctest = false
 anyhow.workspace = true
 gpui.workspace = true
 language_model.workspace = true
+paddleboard_actions.workspace = true
 theme.workspace = true
 ui.workspace = true
 workspace.workspace = true

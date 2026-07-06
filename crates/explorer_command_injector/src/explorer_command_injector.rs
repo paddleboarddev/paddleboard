@@ -44,7 +44,8 @@ struct ExplorerCommandInjector;
 impl IExplorerCommand_Impl for ExplorerCommandInjector_Impl {
     fn GetTitle(&self, _: Ref<IShellItemArray>) -> Result<windows_core::PWSTR> {
         let command_description =
-            retrieve_command_description().unwrap_or(HSTRING::from("Open with Zed"));
+            // PaddleBoard: user-visible copy rebranded from Zed.
+            retrieve_command_description().unwrap_or(HSTRING::from("Open with PaddleBoard"));
         unsafe { SHStrDupW(&command_description) }
     }
 

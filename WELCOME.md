@@ -21,25 +21,20 @@ The browser stays in sync with your layout — it moves and resizes as you rearr
 
 ---
 
-### Secure agent sandbox (Podman + gVisor)
+### Secure agent sandbox — pick your backend
 
-When the agent needs to run untrusted code, compile binaries, or execute tests, it uses the built-in Sandbox Tool instead of your host shell.
+When the agent needs to run untrusted code, compile binaries, or execute tests, it uses the built-in Sandbox Tool instead of your host shell. Your project directory is mounted inside the sandbox so builds have full access to your source, and the agent still goes through the normal permission layer — approve, deny, or set always-allow rules per command pattern. Once a command finishes, the sandbox is discarded.
 
-- Commands run inside an ephemeral `ubuntu:latest` container via **Podman**
-- The `runsc` (gVisor) runtime adds a second layer of kernel-level isolation
-- Your project directory is mounted inside the container so builds have full access to your source
-- Supports a configurable timeout and can be cancelled mid-run
-- The agent still goes through the normal permission layer — you can approve, deny, or set always-allow rules per command pattern
+**Choose how it's sandboxed.** Click the status-bar shield icon to open the **Sandbox Backend** picker and pick the tier you want:
 
-This means an agent mistake cannot touch anything outside the container. Once the command finishes, the container is discarded.
+- **Native** — the zero-install, OS-native tier. On macOS 26+ it uses Apple's first-party **`container`** tool (sub-second microVMs, no daemon); on older Apple silicon Macs it falls back to PaddleBoard's bundled **libkrun** microVM; on Linux it's libkrun over **KVM**. The picker names the exact runtime it will use on *your* machine.
+- **Podman** — the **Podman + gVisor (`runsc`)** tier, PaddleBoard's strongest isolation. Native and rootless on Linux; a small Linux VM on macOS; a WSL2 backend on Windows (the only container path there).
 
-**Prerequisites are enforced.** PaddleBoard probes for Podman and gVisor on startup; the result lives in the status-bar shield icon (green = ready, yellow = degraded, red = missing). When prereqs are missing the agent can't silently fall through to a `podman: command not found` shell error — the policy in `paddleboard_sandbox.on_missing_runtime` decides:
+Each option carries a **"Set up in Terminal"** button that stages the right install command in a fresh Terminal window — nothing runs inside the app.
 
-- `"block"` (default) — refuse to launch and surface the install modal. The agent gets a clear "sandbox prerequisites missing" error.
-- `"fall_back_to_host"` — run the command on the host without a container. Escape hatch for Windows or environments where the sandbox stack is genuinely unavailable.
-- `"warn_once"` — emit a one-shot toast with install guidance, then proceed sandboxed.
+**Your choice is honored exactly.** A machine set to Native uses the native tier *even when Podman is also installed*, and one set to Podman is *never* silently rerouted to native when Podman is missing — it applies your `paddleboard_sandbox.on_missing_runtime` policy instead (`"block"`, `"fall_back_to_host"`, or `"warn_once"`). Defaults: Native on macOS, Podman on Linux and Windows.
 
-Click the shield icon any time to see the live status and copy-paste install commands for your OS.
+**The shield tells the truth.** Its color and tooltip reflect the tier that's actually active. The Native tiers currently cover one-shot sandboxed commands; long-running services, sandboxed MCP servers, and REPL kernels still need Podman, and the shield says so rather than showing a misleading all-clear.
 
 ---
 
@@ -277,6 +272,21 @@ A dedicated panel for configuring and switching your active language model provi
 - **Express API key:** paste a Vertex Express key (stored in the keychain) for a quick start with no project setup.
 
 Location defaults to `global`, where the newest models live (Gemini 3 and the `-latest` aliases); the curated default model list is confirmed-available there, and you can add region-specific ids under `available_models`. Pick a model that isn't published for your project/location and you'll get a clear message pointing you to `global` or `available_models` rather than a cryptic error.
+
+---
+
+### Local Models — run a model on your own machine
+
+Open **Local Models** in the AI provider settings to run a model entirely on your Mac — no Ollama, no separate install, no server to start yourself. PaddleBoard manages the whole thing: it ships a pinned, code-signed `llama.cpp` server in the app, downloads an openly-licensed model on first use, and supervises the server on a private loopback port. Metal acceleration is automatic on Apple silicon.
+
+- Flip **"Run locally, managed by PaddleBoard"** on and pick a model:
+  - **Gemma 3 4B** (recommended) — a capable general-purpose model, ~2.5 GB.
+  - **Gemma 3 1B (tiny)** — smallest and fastest, best for low-RAM machines, ~0.8 GB.
+- The **Download & Run** button shows a live progress bar, then the status walks through *downloading → starting → ready*. Once it's ready the model appears in the agent's model picker like any other.
+- Everything stays on your machine. The server binds to `127.0.0.1` only, and PaddleBoard owns the process — it starts when you enable Local Models and is torn down when you switch models or quit.
+- Prefer your own setup? The same provider still lets you **connect to a llama.cpp server you run yourself** under "Connect to your own llama.cpp server" — managed mode is just the default-off convenience path.
+
+Supported on macOS Apple Silicon and Linux today; other platforms show Local Models as unavailable rather than failing.
 
 ---
 

@@ -11,14 +11,13 @@ A native Chromium/WebKit browser lives inside the editor as a dockable panel.
 - Quick-access bookmarks (Google, GitHub, Hacker News) are one click away.
 - **Unsloth Studio**: `Cmd-Shift-P` → **`workspace: Open Unsloth`** spins up a containerised Jupyter server and points the browser at it once it's ready.
 
-### 2. Secure Agent Sandboxing (Podman + gVisor)
-When the AI needs to run untrusted code, compile new binaries, or run tests, it uses the integrated **Sandbox Tool**.
-- All executions happen in an ephemeral `ubuntu:latest` container.
-- It uses the `runsc` (gVisor) runtime for deep isolation.
-- Your project directory is safely mounted so builds succeed without host contamination.
-- Permission prompts still gate every command — approve, deny, or set always-allow rules.
-- Watch the **shield icon** in the status bar: green = ready, yellow = degraded, red = missing. Click it for live status + copy-paste install commands.
-- Missing prereqs are enforced, not silently swallowed. `paddleboard_sandbox.on_missing_runtime` chooses what happens: `block` (default, surface install modal), `fall_back_to_host` (run unsandboxed), or `warn_once`.
+### 2. Secure Agent Sandboxing — Pick Your Backend
+When the AI needs to run untrusted code, compile new binaries, or run tests, it uses the integrated **Sandbox Tool** — your project mounts in, permission prompts still gate every command, and the sandbox is discarded when done.
+- 🛡️ Click the **shield icon** in the status bar to open the **Sandbox Backend** picker and choose your tier:
+- 🪂 **Native** — zero-install: Apple's `container` tool on macOS 26+, the bundled **libkrun microVM** on older Apple silicon, or libkrun/**KVM** on Linux. The picker names the exact runtime for *your* machine.
+- 📦 **Podman** — Podman + gVisor (`runsc`), the strongest tier. Native on Linux, a Linux VM on macOS, WSL2 on Windows.
+- Each option has a **"Set up in Terminal"** button that stages the install command in a fresh Terminal — nothing runs inside the app.
+- ✅ **Your choice is honored:** Native stays Native even if Podman is installed; Podman is never silently swapped for Native when it's missing (it applies your `on_missing_runtime` policy instead). The shield reflects the tier that's actually active — and says when Native only covers one-shot commands.
 
 ### 3. Forwarded Ports — Sandbox Services
 Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Service Tool**. Each running service appears in a **Forwarded Ports** row above the browser viewport.
@@ -92,20 +91,26 @@ A dedicated panel for switching the active language model provider without openi
 - **ChatGPT Subscription auth**: sign in with your ChatGPT Plus or Pro account via OAuth — no API key needed. The flow opens in the embedded browser panel; tokens persist in PB's credential store.
 - **Vertex AI (Gemini Enterprise)**: run Gemini through your own GCP project. Configure it right in the agent settings — fill in a Project ID and Save. Recommended auth stores no key (`gcloud auth login` + borrow short-lived tokens); a service-account key file or Vertex Express API key also work.
 
-### 12. Multi-Workspace
+### 12. Local Models — Run One On Your Machine
+Run a model entirely on your Mac — no Ollama, no install, no server to start. 🖥️
+- Open **Local Models** in the AI provider settings, flip on **"Run locally, managed by PaddleBoard"**, and pick **Gemma 3 4B** (recommended) or **Gemma 3 1B** (tiny).
+- **Download & Run** shows a live progress bar, then *downloading → starting → ready*; the model then appears in the agent's picker like any other.
+- PaddleBoard ships a signed `llama.cpp` server, binds it to `127.0.0.1` only, and owns the process. Metal-accelerated on Apple silicon. Power users can still point it at their own server.
+
+### 13. Multi-Workspace
 Keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads.
 - Open the worktree picker: `Cmd-Shift-P` → **`git: Worktree`**.
 - **Switch** between existing worktrees, **create** a new worktree-backed workspace (accept the auto-generated branch name like `dusty-pelican` or supply your own), or **open in new window**.
 - The orchestration panel shows agent threads from every workspace at once — perfect for parallel agent sessions against different projects.
 
-### 13. Language Support — Two Tiers
+### 14. Language Support — Two Tiers
 PaddleBoard keeps the default install lean and lets you add the rest with one click.
 - **Ready to use**: Rust, TypeScript, JavaScript, Python, Go, JSON, YAML, HTML/CSS, and **Dockerfile** attach automatically — open a file and the server downloads on first use. Dockerfiles get highlighting + `docker-langserver` out of the box.
 - **Install support** (run **`Manage Languages`**): **Java**, **Kotlin** (JDK 17+), **PHP** (Node), **C#** (.NET), **C++** (clangd), and **Swift** (SourceKit-LSP, PATH-resolved from your toolchain) ship a built-in server — click Install, prerequisite shown up front. **Ruby** and **Dart** come from extensions.
 - **Build tool context**: Java and Kotlin auto-detect Gradle/Maven projects and expose `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables.
 - **Prose checking**: Markdown and git commit messages get offline spelling + grammar squiggles via [Harper](https://writewithharper.com) — private, no text leaves your machine. Keep a deliberate word with `cmd-.` → **Add to dictionary**.
 
-### 14. Git Login
+### 15. Git Login
 Save your git host credentials once so HTTPS git operations stop prompting.
 - Run **`git login: Manage`** → pick GitHub, GitLab, BitBucket (or a custom host), paste a Personal Access Token. Stored in your **OS keychain**.
 - `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
@@ -113,17 +118,17 @@ Save your git host credentials once so HTTPS git operations stop prompting.
 - `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback; SSH is untouched.
 - On GitHub, builds with an OAuth client id offer **Sign in with GitHub (browser)** — approve a short code on github.com and you're done.
 
-### 15. Search As You Type
+### 16. Search As You Type
 Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
 - Prefer the classic behavior? Set `"search": { "search_on_type": false }` in settings.
 
-### 16. Agent Context Gauge
+### 17. Agent Context Gauge
 Watch the status bar while an agent thread runs — a percentage shows how much of the model's context window you've used. 🌊
 - Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
 - Goes yellow near the limit, red past it; hidden when no thread is active.
 - Purely local — reads counts the thread already tracks. Telemetry stays off.
 
-### 17. Local Usage Stats
+### 18. Local Usage Stats
 Mix multiple providers? PaddleBoard tracks **how your token usage splits across them** over time — all on your machine. 📊
 - Open the **AI Dock → Usage** tab: today / 7-day / all-time totals, then a per-provider, per-model breakdown.
 - Stored as a **text JSON file per day** (`<data_dir>/usage/`) — point `paddleboard_usage.directory` at your own private git repo to back it up; clean diffs guaranteed.

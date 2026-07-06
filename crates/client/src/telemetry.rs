@@ -162,18 +162,7 @@ pub fn os_version() -> String {
                );
                "".to_string()
            };
-           let mut name = "unknown";
-           let mut version = "unknown";
-
-           for line in content.lines() {
-               match line.split_once('=') {
-                   Some(("ID", val)) => name = val.trim_matches('"'),
-                   Some(("VERSION_ID", val)) => version = val.trim_matches('"'),
-                   _ => {}
-               }
-           }
-
-           format!("{} {}", name, version)
+           util::parse_os_release(&content).unwrap_or_else(|| "unknown".to_string())
        }
        target_os = "windows" => {
            let mut info = unsafe { std::mem::zeroed() };
@@ -518,6 +507,65 @@ impl Telemetry {
         Some(project_types)
     }
 
+    /// Report a telemetry event that originated on a remote server.
+    ///
+    /// The remote server cannot upload telemetry itself, so it forwards events
+    /// (as a JSON-serialized [`Event`]) to the client. Since the OS metadata in
+    /// [`EventRequestBody`] is batch-level (describing the uploading client),
+    /// the remote server's OS is attached as event properties instead, so the
+    /// origin can still be distinguished downstream.
+    ///
+    /// PaddleBoard: inert in practice — this feeds `report_event`, which is a
+    /// no-op, so remote events are dropped like local ones. The function shape
+    /// is kept so upstream call sites keep compiling.
+    pub fn report_remote_event(
+        self: &Arc<Self>,
+        event_json: &str,
+        connection_type: &str,
+        os_name: String,
+        os_version: Option<String>,
+        architecture: String,
+    ) -> Result<()> {
+        // The remote server forwards a bare `telemetry_events::FlexibleEvent`
+        // (the type behind `telemetry::event!`), not the tagged `Event` enum.
+        let mut flexible: telemetry_events::FlexibleEvent =
+            serde_json::from_str(event_json).context("invalid remote telemetry event")?;
+        flexible
+            .event_properties
+            .insert("remote".into(), true.into());
+        flexible
+            .event_properties
+            .insert("remote_connection_type".into(), connection_type.into());
+        flexible
+            .event_properties
+            .insert("remote_os_name".into(), os_name.into());
+        flexible
+            .event_properties
+            .insert("remote_architecture".into(), architecture.into());
+        if let Some(os_version) = os_version {
+            flexible
+                .event_properties
+                .insert("remote_os_version".into(), os_version.into());
+        }
+        self.report_event(Event::Flexible(flexible));
+        Ok(())
+    }
+
+    /// Returns a snapshot of the currently queued (not-yet-flushed) telemetry
+    /// events, for use in tests.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn queued_events(self: &Arc<Self>) -> Vec<telemetry_events::FlexibleEvent> {
+        self.state
+            .lock()
+            .events_queue
+            .iter()
+            .map(|wrapper| {
+                let Event::Flexible(event) = &wrapper.event;
+                event.clone()
+            })
+            .collect()
+    }
+
     fn report_event(self: &Arc<Self>, _event: Event) {
         // PaddleBoard ships with telemetry permanently disabled. Events are
         // dropped here so they never queue, never log, and never reach the
@@ -651,6 +699,8 @@ mod tests {
 
     // Tests for telemetry queueing and flushing were removed when telemetry
     // was hard-disabled — `report_event` is now a no-op so events never queue.
+    // That includes upstream's `test_report_remote_event_tags_origin`, which
+    // asserts remote events reach the queue.
 
     #[gpui::test]
     fn test_project_discovery_does_not_double_report(cx: &mut gpui::TestAppContext) {

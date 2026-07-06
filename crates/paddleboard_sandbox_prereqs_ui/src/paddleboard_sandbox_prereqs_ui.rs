@@ -1,20 +1,32 @@
-//! UI surface for PaddleBoard's sandbox prerequisites (Podman + gVisor `runsc`).
+//! UI surface for PaddleBoard's sandbox backend setup.
 //!
 //! Two pieces live here:
-//! * `SandboxStatusItem` — a status-bar entry showing a shield icon colored
-//!   by severity. Click dispatches `OpenSandboxPrereqs`.
-//! * `SandboxPrereqsModal` — the full status + install-steps view with a
-//!   per-step copy-to-clipboard button and a Refresh control.
+//! * `SandboxStatusItem` — a status-bar entry showing a shield icon colored by
+//!   the *active* sandbox tier (derived from the same gate the tools use, so
+//!   the shield and gate can never disagree). Click dispatches
+//!   `OpenSandboxPrereqs`.
+//! * `SandboxPrereqsModal` — a backend picker. The user chooses "Native"
+//!   (Apple `container` / libkrun microVM) or "Podman" (Podman + gVisor); each
+//!   option is labeled honestly for this host, carries a Terminal-handoff
+//!   installer, and persists the choice to `paddleboard_sandbox.preferred_backend`.
 //!
 //! The cached probe status lives in `paddleboard_sandbox_prereqs_state` so
 //! non-UI consumers can read it without taking a `workspace` dependency.
 
+use fs::Fs;
 use gpui::{
     Action, App, ClickEvent, ClipboardItem, DismissEvent, EventEmitter, FocusHandle, Focusable,
     MouseDownEvent, Render, SharedString,
 };
-use paddleboard_sandbox_prereqs::{CommandKind, GvisorStatus, Os, PodmanStatus, SandboxStatus};
+use paddleboard_sandbox_prereqs::{
+    BackendAvailability, BackendOption, CommandKind, InstallStep, Os, PreferredBackend,
+    backend_options,
+};
 use paddleboard_sandbox_prereqs_state::{OpenSandboxPrereqs, SandboxPrereqs};
+use paddleboard_sandbox_settings::{ActiveTier, ActiveTierKind, SandboxSettings, active_tier};
+use settings::{
+    PaddleboardPreferredBackendContent, Settings, SettingsStore, update_settings_file,
+};
 use ui::{Tooltip, prelude::*};
 use workspace::{HideStatusItem, ModalView, StatusItemView, Workspace};
 
@@ -32,37 +44,36 @@ pub fn init(cx: &mut App) {
     .detach();
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Severity {
-    Unknown,
-    Ok,
-    Warning,
-    Error,
+/// Appearance of the status-bar shield, derived from the active tier. Color
+/// signals severity; the tooltip names the chosen backend and — critically —
+/// states when only one-shot commands are covered (phase-1 Native tiers), so
+/// the shield can't read "green = everything sandboxed" when it isn't
+/// (review finding #6).
+fn shield_appearance(tier: ActiveTier) -> (Color, SharedString) {
+    match tier.kind {
+        ActiveTierKind::Unknown => (Color::Muted, "Sandbox: checking…".into()),
+        ActiveTierKind::Podman => (Color::Success, "Sandbox: ready — Podman + gVisor".into()),
+        ActiveTierKind::AppleContainer => (
+            Color::Success,
+            "Sandbox: Apple container — one-shot commands only (services & MCP need Podman)".into(),
+        ),
+        ActiveTierKind::BuiltInKrun => (
+            Color::Success,
+            "Sandbox: built-in microVM — one-shot commands only (services & MCP need Podman)".into(),
+        ),
+        ActiveTierKind::Host => (
+            Color::Warning,
+            "Sandbox: off — commands run on the host (no isolation)".into(),
+        ),
+        ActiveTierKind::Unavailable => (
+            Color::Error,
+            "Sandbox: unavailable — open to pick a backend".into(),
+        ),
+    }
 }
 
-impl Severity {
-    fn from_status(status: Option<&SandboxStatus>) -> Severity {
-        let Some(status) = status else {
-            return Severity::Unknown;
-        };
-        match (&status.podman, &status.gvisor) {
-            (PodmanStatus::Missing, _) | (PodmanStatus::InstalledNotRunning { .. }, _) => {
-                Severity::Error
-            }
-            (PodmanStatus::Ready { .. }, GvisorStatus::Available)
-            | (PodmanStatus::Ready { .. }, GvisorStatus::NotApplicable { .. }) => Severity::Ok,
-            (PodmanStatus::Ready { .. }, _) => Severity::Warning,
-        }
-    }
-
-    fn color(self) -> Color {
-        match self {
-            Severity::Unknown => Color::Muted,
-            Severity::Ok => Color::Success,
-            Severity::Warning => Color::Warning,
-            Severity::Error => Color::Error,
-        }
-    }
+fn current_tier(cx: &App) -> ActiveTier {
+    active_tier(SandboxPrereqs::status(cx), SandboxSettings::get_global(cx))
 }
 
 pub struct SandboxStatusItem;
@@ -70,6 +81,10 @@ pub struct SandboxStatusItem;
 impl SandboxStatusItem {
     pub fn new(cx: &mut Context<Self>) -> Self {
         cx.observe_global::<SandboxPrereqs>(|_, cx| cx.notify())
+            .detach();
+        // The shield reflects the chosen backend, so a settings change (a new
+        // preferred_backend) must repaint it too.
+        cx.observe_global::<SettingsStore>(|_, cx| cx.notify())
             .detach();
         Self
     }
@@ -91,35 +106,17 @@ impl StatusItemView for SandboxStatusItem {
 
 impl Render for SandboxStatusItem {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let status = SandboxPrereqs::status(cx);
-        let severity = Severity::from_status(status);
-        let tooltip_text = severity_tooltip(severity, status);
+        let (color, tooltip_text) = shield_appearance(current_tier(cx));
 
         IconButton::new("sandbox-prereqs-status", IconName::Box)
             .icon_size(IconSize::Small)
-            .icon_color(severity.color())
+            .icon_color(color)
             .tooltip(move |_window, cx| {
                 Tooltip::for_action(tooltip_text.clone(), &OpenSandboxPrereqs, cx)
             })
             .on_click(|_, window, cx| {
                 window.dispatch_action(OpenSandboxPrereqs.boxed_clone(), cx);
             })
-    }
-}
-
-fn severity_tooltip(severity: Severity, status: Option<&SandboxStatus>) -> SharedString {
-    match severity {
-        Severity::Unknown => "Sandbox: checking…".into(),
-        Severity::Ok => "Sandbox: ready".into(),
-        Severity::Warning => match status.map(|s| &s.gvisor) {
-            Some(GvisorStatus::NotConfigured) => "Sandbox: gVisor not configured".into(),
-            _ => "Sandbox: degraded".into(),
-        },
-        Severity::Error => match status.map(|s| &s.podman) {
-            Some(PodmanStatus::Missing) => "Sandbox: Podman not installed".into(),
-            Some(PodmanStatus::InstalledNotRunning { .. }) => "Sandbox: Podman not running".into(),
-            _ => "Sandbox: unavailable".into(),
-        },
     }
 }
 
@@ -132,6 +129,10 @@ impl SandboxPrereqsModal {
         workspace.toggle_modal(window, cx, |_window, cx| {
             cx.observe_global::<SandboxPrereqs>(|_, cx| cx.notify())
                 .detach();
+            // Re-render when the persisted backend choice changes so the
+            // selected card updates as soon as the write lands.
+            cx.observe_global::<SettingsStore>(|_, cx| cx.notify())
+                .detach();
             SandboxPrereqsModal {
                 focus_handle: cx.focus_handle(),
             }
@@ -140,6 +141,228 @@ impl SandboxPrereqsModal {
 
     fn cancel(&mut self, _: &menu::Cancel, _: &mut Window, cx: &mut Context<Self>) {
         cx.emit(DismissEvent);
+    }
+
+    /// Persist the user's backend choice. The write is async; the modal's
+    /// `SettingsStore` observer repaints once it lands.
+    fn select_backend(backend: PreferredBackend, cx: &mut App) {
+        let fs = <dyn Fs>::global(cx);
+        let value = match backend {
+            PreferredBackend::Native => PaddleboardPreferredBackendContent::Native,
+            PreferredBackend::Podman => PaddleboardPreferredBackendContent::Podman,
+        };
+        update_settings_file(fs, cx, move |settings, _| {
+            settings
+                .paddleboard_sandbox
+                .get_or_insert_default()
+                .preferred_backend = Some(value);
+        });
+    }
+
+    /// Render a single install/setup step: numbered description, plus the
+    /// command (if any) with Copy and — on macOS/Linux for runnable shell
+    /// commands — a "Run in a new Terminal window" button.
+    fn render_step(
+        index: usize,
+        key: &str,
+        step: InstallStep,
+        bg_color: gpui::Hsla,
+        host_os: Os,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        v_flex()
+            .w_full()
+            .gap_1()
+            .child(
+                h_flex()
+                    .w_full()
+                    .gap_2()
+                    .items_start()
+                    .child(
+                        Label::new(format!("{}.", index + 1))
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .child(Label::new(step.description).size(LabelSize::Small)),
+                    ),
+            )
+            .when_some(step.command, |this, command| {
+                let command_for_copy = command.clone();
+                let command_for_run = command.clone();
+                let is_runnable = step.command_kind == CommandKind::Shell;
+                let can_open_terminal = is_runnable && matches!(host_os, Os::MacOs | Os::Linux);
+                this.child(
+                    h_flex()
+                        .w_full()
+                        .pl_4()
+                        .gap_1()
+                        .items_start()
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .px_2()
+                                .py_1()
+                                .rounded_sm()
+                                .bg(bg_color)
+                                .child(
+                                    Label::new(SharedString::from(command)).size(LabelSize::Small),
+                                ),
+                        )
+                        .child(
+                            IconButton::new(
+                                SharedString::from(format!("sandbox-copy-{key}-{index}")),
+                                IconName::Copy,
+                            )
+                            .icon_size(IconSize::Small)
+                            .tooltip(Tooltip::text("Copy to clipboard"))
+                            .on_click(cx.listener(move |_, _, _window, cx| {
+                                cx.write_to_clipboard(ClipboardItem::new_string(
+                                    command_for_copy.clone(),
+                                ));
+                            })),
+                        )
+                        .when(can_open_terminal, |this| {
+                            this.child(
+                                IconButton::new(
+                                    SharedString::from(format!("sandbox-run-{key}-{index}")),
+                                    IconName::Terminal,
+                                )
+                                .icon_size(IconSize::Small)
+                                .tooltip(Tooltip::text("Run in a new Terminal window"))
+                                .on_click(cx.listener(move |_, _, _window, cx| {
+                                    if let Err(err) = open_in_terminal(&command_for_run) {
+                                        log::warn!(
+                                            "Failed to open Terminal for sandbox step: {err}"
+                                        );
+                                    }
+                                    SandboxPrereqs::refresh(cx);
+                                })),
+                            )
+                        }),
+                )
+            })
+            .into_any_element()
+    }
+
+    fn render_backend_card(
+        option: BackendOption,
+        selected: bool,
+        bg_color: gpui::Hsla,
+        host_os: Os,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let backend = option.backend;
+        let key = match backend {
+            PreferredBackend::Native => "native",
+            PreferredBackend::Podman => "podman",
+        };
+        let (badge_color, badge_text) = availability_badge(&option.availability);
+        let is_unsupported = matches!(option.availability, BackendAvailability::Unsupported { .. });
+        let is_ready = matches!(option.availability, BackendAvailability::Ready);
+
+        let border_color = if selected {
+            cx.theme().colors().border_selected
+        } else {
+            cx.theme().colors().border
+        };
+
+        // Header: selection indicator + title + concrete runtime + availability.
+        let header = h_flex()
+            .w_full()
+            .gap_2()
+            .items_center()
+            .child(
+                Icon::new(if selected {
+                    IconName::Check
+                } else {
+                    IconName::Circle
+                })
+                .size(IconSize::Small)
+                .color(if selected { Color::Accent } else { Color::Muted }),
+            )
+            .child(Label::new(option.title).weight(gpui::FontWeight::BOLD))
+            .child(Label::new(option.runtime_label).color(Color::Muted))
+            .child(div().flex_1())
+            .child(
+                Label::new(badge_text)
+                    .size(LabelSize::Small)
+                    .color(badge_color),
+            );
+
+        let mut card = v_flex()
+            .id(SharedString::from(format!("sandbox-backend-{key}")))
+            .w_full()
+            .p_3()
+            .gap_2()
+            .rounded_md()
+            .border_1()
+            .border_color(border_color)
+            .child(header)
+            .child(Label::new(option.summary).size(LabelSize::Small).color(Color::Muted));
+
+        if let Some(note) = option.coverage_note {
+            card = card.child(
+                h_flex()
+                    .gap_1()
+                    .items_start()
+                    .child(Icon::new(IconName::Info).size(IconSize::XSmall).color(Color::Muted))
+                    .child(Label::new(note).size(LabelSize::Small).color(Color::Muted)),
+            );
+        }
+
+        if let BackendAvailability::Unsupported { reason } = &option.availability {
+            card = card.child(
+                h_flex()
+                    .gap_1()
+                    .items_start()
+                    .child(Icon::new(IconName::Warning).size(IconSize::XSmall).color(Color::Warning))
+                    .child(Label::new(reason.clone()).size(LabelSize::Small).color(Color::Warning)),
+            );
+        }
+
+        // "Use this backend" affordance — hidden when the backend can't run here.
+        if !is_unsupported {
+            card = card.child(
+                Button::new(
+                    SharedString::from(format!("sandbox-use-{key}")),
+                    if selected { "Selected" } else { "Use this backend" },
+                )
+                .disabled(selected)
+                .on_click(cx.listener(move |_, _, _window, cx| {
+                    Self::select_backend(backend, cx);
+                    cx.notify();
+                })),
+            );
+        }
+
+        // Setup steps: only when there's something to do. A Ready backend needs
+        // none; an Unsupported one shows its reason above instead.
+        if !is_ready && !is_unsupported {
+            let setup = option.setup;
+            card = card.child(ui::Divider::horizontal());
+            card = card.child(
+                v_flex()
+                    .gap_2()
+                    .child(Label::new(setup.title).size(LabelSize::Small).weight(gpui::FontWeight::MEDIUM))
+                    .children(setup.steps.into_iter().enumerate().map(|(i, step)| {
+                        Self::render_step(i, key, step, bg_color, host_os, cx)
+                    }))
+                    .when_some(setup.doc_url, |this, url| {
+                        this.child(
+                            Label::new(format!("More: {url}"))
+                                .size(LabelSize::Small)
+                                .color(Color::Muted),
+                        )
+                    }),
+            );
+        }
+
+        card.into_any_element()
     }
 }
 
@@ -158,15 +381,15 @@ impl Render for SandboxPrereqsModal {
         let status = SandboxPrereqs::status(cx).cloned();
         let refreshing = SandboxPrereqs::is_refreshing(cx);
         let os = Os::detect();
-        let instructions = status
-            .as_ref()
-            .map(|s| paddleboard_sandbox_prereqs::install_instructions(s, os));
+        let preferred = SandboxSettings::get_global(cx).preferred_backend;
+        let tier = current_tier(cx);
+        let bg_color = cx.theme().colors().editor_background;
 
         // Header row with title + close button.
         let header = h_flex()
             .w_full()
             .justify_between()
-            .child(Headline::new("Sandbox Prerequisites").size(HeadlineSize::Medium))
+            .child(Headline::new("Sandbox Backend").size(HeadlineSize::Medium))
             .child(
                 IconButton::new("sandbox-prereqs-close", IconName::Close).on_click(cx.listener(
                     |_, _: &ClickEvent, _window, cx| {
@@ -175,172 +398,40 @@ impl Render for SandboxPrereqsModal {
                 )),
             );
 
-        // Status rows for Podman + gVisor.
-        let podman_row = {
-            let (icon, color, label): (IconName, Color, SharedString) = match status
-                .as_ref()
-                .map(|s| &s.podman)
-            {
-                None => (IconName::Ellipsis, Color::Muted, "Podman: checking…".into()),
-                Some(PodmanStatus::Missing) => (
-                    IconName::XCircle,
-                    Color::Error,
-                    "Podman: not found on PATH".into(),
-                ),
-                Some(PodmanStatus::InstalledNotRunning { version }) => (
-                    IconName::Warning,
-                    Color::Warning,
-                    format!("Podman: {version} — daemon unreachable").into(),
-                ),
-                Some(PodmanStatus::Ready { version }) => (
-                    IconName::Check,
-                    Color::Success,
-                    format!("Podman: {version}").into(),
-                ),
-            };
-            h_flex()
-                .gap_2()
-                .child(Icon::new(icon).color(color).size(IconSize::Small))
-                .child(Label::new(label))
-        };
-        let gvisor_row = {
-            let (icon, color, label): (IconName, Color, SharedString) = match status
-                .as_ref()
-                .map(|s| &s.gvisor)
-            {
-                None => (IconName::Ellipsis, Color::Muted, "gVisor: checking…".into()),
-                Some(GvisorStatus::Available) => (
-                    IconName::Check,
-                    Color::Success,
-                    "gVisor: runsc registered with Podman".into(),
-                ),
-                Some(GvisorStatus::NotConfigured) => (
-                    IconName::XCircle,
-                    Color::Warning,
-                    "gVisor: runsc not registered with Podman".into(),
-                ),
-                Some(GvisorStatus::NotApplicable { reason }) => (
-                    IconName::Info,
-                    Color::Muted,
-                    format!("gVisor: {reason}").into(),
-                ),
-                Some(GvisorStatus::Unknown) => (
-                    IconName::Ellipsis,
-                    Color::Muted,
-                    "gVisor: status unknown (Podman unreachable)".into(),
-                ),
-            };
-            h_flex()
-                .gap_2()
-                .child(Icon::new(icon).color(color).size(IconSize::Small))
-                .child(Label::new(label))
-        };
-        let status_block = v_flex().gap_1().child(podman_row).child(gvisor_row);
+        // Active-tier banner: what will actually run right now, mirroring the
+        // shield so the two never disagree.
+        let (banner_color, banner_text) = shield_appearance(tier);
+        let banner = h_flex()
+            .gap_2()
+            .items_center()
+            .child(Icon::new(IconName::Box).size(IconSize::Small).color(banner_color))
+            .child(Label::new(banner_text).size(LabelSize::Small));
 
-        // Install steps block. Each step is a numbered description; if the
-        // step carries a copy-pasteable command we render it inline as a
-        // styled monospace block with a Copy button on the right.
-        let bg_color = cx.theme().colors().editor_background;
-        let host_os = os;
-        let instructions_block = instructions.map(|inst| {
-            let title = inst.title.clone();
-            let doc_url = inst.doc_url;
-            v_flex()
-                .gap_3()
-                .child(Headline::new(title).size(HeadlineSize::XSmall))
-                .children(inst.steps.into_iter().enumerate().map(|(i, step)| {
-                    v_flex()
-                        .w_full()
-                        .gap_1()
-                        .child(
-                            h_flex()
-                                .w_full()
-                                .gap_2()
-                                .items_start()
-                                .child(
-                                    Label::new(format!("{}.", i + 1))
-                                        .size(LabelSize::Small)
-                                        .color(Color::Muted),
-                                )
-                                .child(
-                                    div().flex_1().min_w_0().child(
-                                        Label::new(step.description).size(LabelSize::Small),
-                                    ),
-                                ),
-                        )
-                        .when_some(step.command, |this, command| {
-                            let command_for_copy = command.clone();
-                            let command_for_run = command.clone();
-                            let is_runnable = step.command_kind == CommandKind::Shell;
-                            let can_open_terminal =
-                                is_runnable && matches!(host_os, Os::MacOs | Os::Linux);
-                            this.child(
-                                h_flex()
-                                    .w_full()
-                                    .pl_4()
-                                    .gap_1()
-                                    .items_start()
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .min_w_0()
-                                            .px_2()
-                                            .py_1()
-                                            .rounded_sm()
-                                            .bg(bg_color)
-                                            .child(
-                                                Label::new(SharedString::from(command))
-                                                    .size(LabelSize::Small),
-                                            ),
-                                    )
-                                    .child(
-                                        IconButton::new(
-                                            SharedString::from(format!("sandbox-copy-{i}")),
-                                            IconName::Copy,
-                                        )
-                                        .icon_size(IconSize::Small)
-                                        .tooltip(Tooltip::text("Copy to clipboard"))
-                                        .on_click(cx.listener(move |_, _, _window, cx| {
-                                            cx.write_to_clipboard(ClipboardItem::new_string(
-                                                command_for_copy.clone(),
-                                            ));
-                                        })),
-                                    )
-                                    .when(can_open_terminal, |this| {
-                                        this.child(
-                                            IconButton::new(
-                                                SharedString::from(format!("sandbox-run-{i}")),
-                                                IconName::Terminal,
-                                            )
-                                            .icon_size(IconSize::Small)
-                                            .tooltip(Tooltip::text(
-                                                "Run in a new Terminal window",
-                                            ))
-                                            .on_click(cx.listener(
-                                                move |_, _, _window, cx| {
-                                                    if let Err(err) = open_in_terminal(
-                                                        &command_for_run,
-                                                    ) {
-                                                        log::warn!(
-                                                            "Failed to open Terminal for sandbox step: {err}"
-                                                        );
-                                                    }
-                                                    SandboxPrereqs::refresh(cx);
-                                                },
-                                            )),
-                                        )
-                                    }),
-                            )
-                        })
-                }))
-                .when_some(doc_url, |this, url| {
-                    this.child(
-                        Label::new(format!("More: {url}"))
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
+        let intro = Label::new(
+            "Choose how PaddleBoard sandboxes the tools that run untrusted code. \
+             Your choice is honored exactly — a machine set to Native uses the native \
+             tier even when Podman is installed, and vice versa.",
+        )
+        .size(LabelSize::Small)
+        .color(Color::Muted);
+
+        // Build the picker cards. Until the first probe lands we show a
+        // placeholder rather than guessing availability.
+        let cards: Vec<gpui::AnyElement> = match status.as_ref() {
+            Some(status) => backend_options(status, os)
+                .into_iter()
+                .map(|option| {
+                    let selected = option.backend == preferred;
+                    Self::render_backend_card(option, selected, bg_color, os, cx)
                 })
-        });
+                .collect(),
+            None => vec![
+                Label::new("Probing this machine for available backends…")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted)
+                    .into_any_element(),
+            ],
+        };
 
         let refresh_button = Button::new(
             "sandbox-prereqs-refresh",
@@ -352,26 +443,41 @@ impl Render for SandboxPrereqsModal {
         v_flex()
             .id("sandbox-prereqs-modal")
             .key_context("SandboxPrereqsModal")
-            .w(rems(36.))
+            .w(rems(38.))
             .elevation_3(cx)
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::cancel))
             .on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, window, cx| {
                 this.focus_handle.focus(window, cx);
             }))
-            .child(v_flex().p_4().gap_3().child(header).child(status_block))
+            .child(
+                v_flex()
+                    .p_4()
+                    .gap_3()
+                    .child(header)
+                    .child(banner)
+                    .child(intro),
+            )
             .child(ui::Divider::horizontal())
             .child(
                 v_flex()
-                    .id("sandbox-prereqs-steps")
+                    .id("sandbox-backend-cards")
                     .p_4()
                     .gap_3()
-                    .max_h(rems(24.))
+                    .max_h(rems(30.))
                     .overflow_y_scroll()
-                    .children(instructions_block),
+                    .children(cards),
             )
             .child(ui::Divider::horizontal())
             .child(h_flex().p_3().justify_end().child(refresh_button))
+    }
+}
+
+fn availability_badge(availability: &BackendAvailability) -> (Color, SharedString) {
+    match availability {
+        BackendAvailability::Ready => (Color::Success, "Ready".into()),
+        BackendAvailability::NeedsSetup => (Color::Warning, "Needs setup".into()),
+        BackendAvailability::Unsupported { .. } => (Color::Muted, "Unavailable here".into()),
     }
 }
 
@@ -428,7 +534,7 @@ fn write_wrapper_script(command: &str) -> std::io::Result<std::path::PathBuf> {
     // `rm -- "$0"` cleans the script up after the user dismisses the window.
     let script = format!(
         "#!/usr/bin/env bash\n\
-         echo '=== PaddleBoard sandbox step ==='\n\
+         echo '=== PaddleBoard sandbox setup ==='\n\
          echo\n\
          {command}\n\
          status=$?\n\

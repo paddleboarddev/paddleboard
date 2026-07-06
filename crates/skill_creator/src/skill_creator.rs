@@ -819,7 +819,8 @@ impl SkillCreator {
             .child(self.url_editor.clone())
             .child(match &self.url_import_status {
                 UrlImportStatus::Idle => Label::new(
-                    "Paste a GitHub .md URL. Zed will fetch it and fill out the skill form.",
+                    // PaddleBoard: user-visible copy rebranded from Zed.
+                    "Paste a GitHub .md URL. PaddleBoard will fetch it and fill out the skill form.",
                 )
                 .size(LabelSize::Small)
                 .color(Color::Muted)

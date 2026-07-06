@@ -89,7 +89,9 @@ script/generate-licenses
 rustup target add $target_triple
 
 echo "Compiling paddleboard binaries"
-cargo build ${build_flag} --package paddleboard --package cli --target $target_triple
+# PaddleBoard: paddleboard_krun_helper is the built-in container sandbox's microVM
+# runner; it ships in Contents/MacOS next to the main binary.
+cargo build ${build_flag} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
 cargo build ${build_flag} --package remote_server --target $target_triple
@@ -210,6 +212,15 @@ function sign_app_binaries() {
         # sequence of codesign commands modeled after this example: https://developer.apple.com/forums/thread/701514
         /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "${app_path}/Contents/MacOS/cli" -v
         /usr/bin/codesign --deep --force --timestamp --options runtime --sign "$IDENTITY" "${app_path}/Contents/MacOS/git" -v
+        # PaddleBoard: the krun helper needs the hypervisor entitlement or HVF refuses to create microVMs.
+        /usr/bin/codesign --force --timestamp --options runtime --entitlements crates/paddleboard_krun_helper/resources/paddleboard-krun-helper.entitlements --sign "$IDENTITY" "${app_path}/Contents/MacOS/paddleboard-krun-helper" -v
+        # PaddleBoard: sign the bundled llama.cpp server + dylibs with the hardened
+        # runtime. Metal needs no special entitlement (unlike the krun helper's HVF one).
+        if [[ -d "${app_path}/Contents/MacOS/llama" ]]; then
+            for llama_file in "${app_path}/Contents/MacOS/llama/"*; do
+                /usr/bin/codesign --force --timestamp --options runtime --sign "$IDENTITY" "$llama_file" -v
+            done
+        fi
         /usr/bin/codesign --deep --force --timestamp --options runtime --entitlements crates/paddleboard/resources/zed.entitlements --sign "$IDENTITY" "${app_path}/Contents/MacOS/paddleboard" -v
         /usr/bin/codesign --force --timestamp --options runtime --entitlements crates/paddleboard/resources/zed.entitlements --sign "$IDENTITY" "${app_path}" -v
     else
@@ -227,6 +238,15 @@ function sign_app_binaries() {
         cat crates/paddleboard/resources/zed.entitlements | sed '/com.apple.developer.associated-domains/,+1d' > "${app_path}/Contents/Resources/zed.entitlements"
 
         codesign --force --deep --entitlements "${app_path}/Contents/Resources/zed.entitlements" --sign ${MACOS_SIGNING_KEY:- -} "${app_path}" -v
+        # PaddleBoard: re-sign the krun helper AFTER the --deep pass (which strips
+        # nested entitlements) so it keeps the hypervisor entitlement HVF requires.
+        codesign --force --entitlements crates/paddleboard_krun_helper/resources/paddleboard-krun-helper.entitlements --sign ${MACOS_SIGNING_KEY:- -} "${app_path}/Contents/MacOS/paddleboard-krun-helper" -v
+        # PaddleBoard: re-sign the bundled llama.cpp server + dylibs after --deep.
+        if [[ -d "${app_path}/Contents/MacOS/llama" ]]; then
+            for llama_file in "${app_path}/Contents/MacOS/llama/"*; do
+                codesign --force --options runtime --sign ${MACOS_SIGNING_KEY:- -} "$llama_file" -v
+            done
+        fi
     fi
 
     bundle_name=$(basename "$app_path")
@@ -355,6 +375,16 @@ upload_debug_symbols
 
 cp target/${target_triple}/${target_dir}/paddleboard "${app_path}/Contents/MacOS/paddleboard"
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
+# PaddleBoard: ship the built-in sandbox's microVM runner next to the app binary
+# (that is where the engine's runtime detection looks for it).
+cp target/${target_triple}/${target_dir}/paddleboard-krun-helper "${app_path}/Contents/MacOS/paddleboard-krun-helper"
+# PaddleBoard: embed the pinned llama.cpp server for the managed "Local Models"
+# feature into Contents/MacOS/llama (where the runtime manager looks for it).
+# Apple Silicon only in phase 1; the runtime reports Local Models unsupported
+# on other macOS architectures, so skip the fetch there.
+if [[ "$target_triple" = "aarch64-apple-darwin" ]]; then
+    script/fetch-llama-server macos-arm64 "${app_path}/Contents/MacOS/llama"
+fi
 sign_app_binaries
 
 # PaddleBoard: use ${target_dir} instead of a hardcoded release/ so `bundle-mac -d`

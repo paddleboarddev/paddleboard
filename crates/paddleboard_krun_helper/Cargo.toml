@@ -1,0 +1,18 @@
+[package]
+name = "paddleboard_krun_helper"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "paddleboard-krun-helper"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+libloading.workspace = true

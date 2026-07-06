@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Set up PaddleBoard's built-in (libkrun microVM) container sandbox for
+# development:
+#   1. Installs libkrun + libkrunfw (Homebrew on macOS; distro hints on Linux).
+#   2. Builds the paddleboard-krun-helper binary.
+#   3. On macOS, signs the helper with the com.apple.security.hypervisor
+#      entitlement — Hypervisor.framework refuses VM creation without it.
+#
+# Usage: script/setup-builtin-sandbox [--release]
+#
+# Bundled builds: script/bundle-mac ships and signs the helper itself; this
+# script is for cargo-built dev trees. Shipping the libkrun dylibs inside the
+# .app is a Phase 1 follow-up — until then the app picks them up from
+# /opt/homebrew/lib.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+profile=debug
+cargo_flags=()
+if [[ "${1:-}" == "--release" ]]; then
+    profile=release
+    cargo_flags+=(--release)
+fi
+
+case "$(uname -s)" in
+Darwin)
+    if [[ "$(uname -m)" != "arm64" ]]; then
+        echo "error: the built-in sandbox requires Apple silicon (libkrun uses HVF on aarch64 only)." >&2
+        exit 1
+    fi
+    if ! brew list libkrun >/dev/null 2>&1; then
+        # libkrun is not in homebrew-core; the canonical macOS distribution is
+        # the tap maintained by libkrun's author (slp = Sergio Lopez, Red Hat).
+        echo "==> Installing libkrun (and libkrunfw) via the slp/krun tap…"
+        brew tap slp/krun
+        brew trust slp/krun
+        brew install slp/krun/libkrun
+    else
+        echo "==> libkrun already installed: $(brew list --versions libkrun)"
+    fi
+    ;;
+Linux)
+    if [[ ! -e /dev/kvm ]]; then
+        echo "error: /dev/kvm not present — the built-in sandbox requires KVM." >&2
+        exit 1
+    fi
+    if ! ldconfig -p 2>/dev/null | grep -q libkrun.so; then
+        echo "==> libkrun not found. Install it with your package manager, e.g.:"
+        echo "      Fedora:        sudo dnf install libkrun"
+        echo "      Arch:          sudo pacman -S libkrun"
+        echo "      Ubuntu/Debian: build from source — https://github.com/containers/libkrun"
+        exit 1
+    fi
+    ;;
+*)
+    echo "error: the built-in sandbox only supports macOS (Apple silicon) and Linux." >&2
+    exit 1
+    ;;
+esac
+
+echo "==> Building paddleboard-krun-helper ($profile)…"
+cargo build -p paddleboard_krun_helper "${cargo_flags[@]}"
+
+helper="target/$profile/paddleboard-krun-helper"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "==> Signing $helper with the hypervisor entitlement (ad-hoc)…"
+    codesign --force \
+        --entitlements crates/paddleboard_krun_helper/resources/paddleboard-krun-helper.entitlements \
+        --sign - "$helper"
+    codesign --display --entitlements - "$helper" 2>&1 | grep -q hypervisor \
+        || { echo "error: entitlement did not stick" >&2; exit 1; }
+fi
+
+echo "==> Done. The built-in sandbox tier is ready:"
+echo "    helper:  $helper"
+echo "    Re-run this script after every rebuild of the helper (signing does not survive relink)."
+echo "    To force the built-in tier while Podman is installed, launch with:"
+echo "      PADDLEBOARD_SANDBOX_FORCE_BUILTIN=1"

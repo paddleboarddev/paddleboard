@@ -73,9 +73,10 @@ impl MoveToApplicationsRequest {
         let response = cx
             .prompt(
                 PromptLevel::Info,
-                "Move Zed to Applications?",
+                // PaddleBoard: user-visible copy rebranded from Zed.
+                "Move PaddleBoard to Applications?",
                 Some(
-                    "Zed is running from a temporary location. Move it to Applications to finish installing it.",
+                    "PaddleBoard is running from a temporary location. Move it to Applications to finish installing it.",
                 ),
                 &[
                     PromptButton::ok("Yes"),
@@ -103,7 +104,7 @@ impl MoveToApplicationsRequest {
                         .ok();
                     cx.prompt(
                         PromptLevel::Critical,
-                        "Failed to move Zed to Applications",
+                        "Failed to move PaddleBoard to Applications",
                         Some(&error.to_string()),
                         &["Ok"],
                     )
@@ -178,7 +179,7 @@ impl Render for InstallingZedModal {
                     .py_3()
                     .border_b_1()
                     .border_color(theme.colors().border_variant)
-                    .child(Label::new("Installing Zed…")),
+                    .child(Label::new("Installing PaddleBoard…")),
             )
             .child(
                 h_flex()
@@ -196,9 +197,9 @@ impl Render for InstallingZedModal {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(Label::new("Moving Zed to Applications"))
+                            .child(Label::new("Moving PaddleBoard to Applications"))
                             .child(
-                                Label::new("Zed will reopen when installation is complete.")
+                                Label::new("PaddleBoard will reopen when installation is complete.")
                                     .size(LabelSize::Small)
                                     .color(Color::Muted),
                             ),

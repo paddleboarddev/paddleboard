@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# check-llama-advisories — AWARENESS-ONLY watcher for llama.cpp security issues
+# affecting the bundled, pinned llama-server behind the Local Models feature.
+#
+# This script is READ-ONLY against llama.cpp: it never bumps the pin and never
+# downloads a binary. Its only side effect is emitting a report + a decision; the
+# calling workflow (.github/workflows/watch-llama-cpp-advisories.yml) is what opens
+# or updates the single PaddleBoard tracking issue.
+#
+# What it does:
+#   1. Reads the CURRENTLY PINNED llama.cpp tag from the crate constant
+#      (LLAMA_CPP_VERSION) — the same source `script/check-llama-pins` treats as
+#      canonical for the runtime install. No third copy of the pin is introduced.
+#   2. Queries GitHub via `gh api` (read-only) for:
+#        - the pinned release's `published_at`,
+#        - the repo's published security advisories,
+#        - the latest release tag.
+#   3. Determines any advisory published AFTER the pinned release date (a potential
+#      post-pin vuln), and how many builds behind `latest` the pin is.
+#   4. Writes a Markdown report and decides SHOULD_ALERT. Under a workflow
+#      (GITHUB_OUTPUT set) it also exports `should_alert`, `issue_title`, and
+#      `report_path` for the workflow to act on.
+#
+# The correct response to ANY finding is a MANUAL pin bump + patch release — never
+# auto-latest. llama.cpp ships multiple builds/day with no stable/LTS channel, so
+# "latest" is untested upstream. See project_managed_local_models "UPDATE STRATEGY".
+#
+# Usage: script/check-llama-advisories [REPORT_PATH]
+#   REPORT_PATH   where to write the Markdown report (default: llama-advisories-report.md)
+# Env:
+#   LAG_THRESHOLD builds-behind-latest that alone triggers an alert (default: 200)
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+UPSTREAM_REPO="ggml-org/llama.cpp"
+LAG_THRESHOLD="${LAG_THRESHOLD:-200}"
+ISSUE_TITLE="llama.cpp security & pin-lag watch"
+report_path="${1:-llama-advisories-report.md}"
+rust_file="crates/paddleboard_llama_manager/src/paddleboard_llama_manager.rs"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "check-llama-advisories: the GitHub CLI (gh) is required." >&2
+  exit 1
+fi
+
+if [[ ! -f "$rust_file" ]]; then
+  echo "check-llama-advisories: expected file not found: $rust_file" >&2
+  exit 1
+fi
+
+# Canonical pin: the runtime-install constant, matching check-llama-pins' rust_tag.
+pinned_tag="$(grep -oE 'LLAMA_CPP_VERSION: &str = "[^"]+"' "$rust_file" | head -1 | sed 's/.*= "//; s/"//')"
+if [[ -z "$pinned_tag" ]]; then
+  echo "check-llama-advisories: could not read LLAMA_CPP_VERSION from $rust_file" >&2
+  exit 1
+fi
+
+# --- Queries (read-only) ---------------------------------------------------
+
+# Pinned release publish date. Empty if the tag has no GitHub release object.
+pinned_published_at="$(gh api "repos/${UPSTREAM_REPO}/releases/tags/${pinned_tag}" --jq '.published_at' 2>/dev/null || true)"
+
+# Latest non-prerelease tag. Empty on API hiccup — lag then reported as unknown.
+latest_tag="$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
+
+# Security advisories. --paginate merges the top-level arrays; default to an empty
+# array so the zero-advisory case (and any transient failure) stays robust.
+advisories_json="$(gh api --paginate "repos/${UPSTREAM_REPO}/security-advisories" 2>/dev/null || echo '[]')"
+if ! echo "$advisories_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+  advisories_json='[]'
+fi
+advisory_count="$(echo "$advisories_json" | jq 'length')"
+
+# --- Analysis --------------------------------------------------------------
+
+# Advisories published strictly after the pinned release. ISO-8601 UTC timestamps
+# sort lexicographically, so a string `>` is a correct chronological compare.
+if [[ -n "$pinned_published_at" ]]; then
+  post_pin_json="$(echo "$advisories_json" | jq --arg pin "$pinned_published_at" \
+    '[.[] | select(.published_at != null and .published_at > $pin)]')"
+else
+  post_pin_json='[]'
+fi
+post_pin_count="$(echo "$post_pin_json" | jq 'length')"
+post_pin_severe_count="$(echo "$post_pin_json" | jq '[.[] | select(.severity == "high" or .severity == "critical")] | length')"
+
+# Build-number lag. Tags look like `b9874`; strip the `b` and subtract.
+pin_num="${pinned_tag#b}"
+latest_num="${latest_tag#b}"
+if [[ "$pin_num" =~ ^[0-9]+$ && "$latest_num" =~ ^[0-9]+$ ]]; then
+  lag=$(( latest_num - pin_num ))
+  if [[ "$lag" -lt 0 ]]; then lag=0; fi
+  lag_display="$lag"
+else
+  lag=-1
+  lag_display="unknown"
+fi
+
+# --- Decision --------------------------------------------------------------
+
+should_alert=false
+alert_reasons=()
+
+if [[ "$post_pin_count" -gt 0 ]]; then
+  should_alert=true
+  alert_reasons+=("${post_pin_count} advisory(ies) published after the pin (${post_pin_severe_count} high/critical)")
+fi
+if [[ "$lag" -ge 0 && "$lag" -gt "$LAG_THRESHOLD" ]]; then
+  should_alert=true
+  alert_reasons+=("pin is ${lag} builds behind latest (> ${LAG_THRESHOLD})")
+fi
+if [[ -z "$pinned_published_at" ]]; then
+  # Can't date-compare, so we can't rule out a post-pin advisory — surface for review.
+  should_alert=true
+  alert_reasons+=("could not resolve the pinned release '${pinned_tag}' on GitHub — advisory dating skipped")
+fi
+
+# --- Report ----------------------------------------------------------------
+
+if [[ "$post_pin_count" -gt 0 ]]; then
+  post_pin_bullets="$(echo "$post_pin_json" | jq -r \
+    '.[] | "- **\(.severity // "unknown")** — [\(.ghsa_id)](\(.html_url)) — \(.summary) _(published \(.published_at))_"')"
+else
+  post_pin_bullets="_None published after the pinned release._"
+fi
+
+pin_date_display="${pinned_published_at:-unknown}"
+
+{
+  echo "## 🛡️ llama.cpp security & pin-lag watch"
+  echo ""
+  echo "PaddleBoard bundles a **pinned, signed** llama.cpp \`llama-server\` for the Local Models feature."
+  echo "This report is **awareness-only** — nothing here changed the pin or downloaded anything."
+  echo "The correct response to any finding is a **manual pin bump + patch release**; never auto-latest"
+  echo "(llama.cpp has no stable/LTS channel, so \`latest\` is untested upstream)."
+  echo ""
+  echo "- **Current pin:** \`${pinned_tag}\` (released \`${pin_date_display}\`)"
+  echo "- **Latest upstream:** \`${latest_tag:-unknown}\` — pin is **${lag_display} builds behind** (alert threshold: ${LAG_THRESHOLD})"
+  echo "- **Advisories scanned:** ${advisory_count}"
+  echo ""
+  if [[ "$should_alert" == "true" ]]; then
+    echo "### ⚠️ Why this issue is open"
+    echo ""
+    for reason in "${alert_reasons[@]}"; do
+      echo "- ${reason}"
+    done
+    echo ""
+  fi
+  echo "### Post-pin security advisories (${post_pin_count})"
+  echo ""
+  echo "Advisories published after the pinned release date (\`${pin_date_display}\`):"
+  echo ""
+  echo "${post_pin_bullets}"
+  echo ""
+  echo "### What to do"
+  echo ""
+  echo "1. Review the advisories above against the managed flow (server binds \`127.0.0.1\` only,"
+  echo "   \`--rpc\` is off, models are SHA-pinned + re-verified before launch)."
+  echo "2. If action is warranted, **manually** bump the pin in both \`script/fetch-llama-server\`"
+  echo "   and \`crates/paddleboard_llama_manager/src/paddleboard_llama_manager.rs\` to a specific,"
+  echo "   vetted tag (\`script/check-llama-pins\` enforces they match), then cut a patch release."
+  echo "3. Do **not** move to \`latest\` blindly — pick a deliberate, tested build."
+  echo ""
+  echo "_Generated by \`.github/workflows/watch-llama-cpp-advisories.yml\` via \`script/check-llama-advisories\`._"
+} > "$report_path"
+
+# --- Outputs & human log ---------------------------------------------------
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  {
+    echo "should_alert=${should_alert}"
+    echo "issue_title=${ISSUE_TITLE}"
+    echo "report_path=${report_path}"
+  } >> "$GITHUB_OUTPUT"
+fi
+
+echo "check-llama-advisories: pin=${pinned_tag} (${pin_date_display}), latest=${latest_tag:-unknown}, lag=${lag_display}, post-pin advisories=${post_pin_count}."
+if [[ "$should_alert" == "true" ]]; then
+  echo "check-llama-advisories: SHOULD_ALERT — ${alert_reasons[*]}"
+else
+  echo "check-llama-advisories: pin current, no new advisories — nothing to do."
+fi

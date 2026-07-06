@@ -1,3 +1,7 @@
+// PaddleBoard: upstream moved its LLM-provider configuration into
+// settings_ui and reduced this file to a module shim; PaddleBoard keeps the
+// in-panel AgentConfiguration view (vendor-grouped providers, ConfiguredApiCard,
+// AI Dock wiring) along with the modals below.
 mod add_llm_provider_modal;
 pub mod configure_context_server_modal;
 mod configure_context_server_tools_modal;
@@ -23,7 +27,7 @@ use itertools::Itertools;
 use language::LanguageRegistry;
 use language_model::{
     IconOrSvg, LanguageModelProvider, LanguageModelProviderId, LanguageModelRegistry,
-    PADDLEBOARD_CLOUD_PROVIDER_ID,
+    PADDLEBOARD_CLOUD_PROVIDER_ID, ProviderSettingsView,
 };
 use language_models::AllLanguageModelSettings;
 use notifications::status_toast::StatusToast;
@@ -33,10 +37,11 @@ use project::{
 };
 use settings::{Settings, SettingsContent, SettingsStore, update_settings_file};
 use ui::{
-    AiSettingItem, AiSettingItemSource, AiSettingItemStatus, ButtonStyle, Chip, ContextMenu,
-    ContextMenuEntry, Disclosure, Divider, DividerColor, ElevationIndex, LabelSize, PopoverMenu,
-    Switch, Tooltip, WithScrollbar, prelude::*,
+    AiSettingItem, AiSettingItemSource, AiSettingItemStatus, ButtonLink, ButtonStyle, Chip,
+    ConfiguredApiCard, ContextMenu, ContextMenuEntry, Disclosure, Divider, DividerColor,
+    ElevationIndex, LabelSize, PopoverMenu, Switch, Tooltip, WithScrollbar, prelude::*,
 };
+use ui_input::InputField;
 use util::ResultExt as _;
 use workspace::{Workspace, create_and_open_local_file};
 use paddleboard_actions::{ExtensionCategoryFilter, OpenBrowser};
@@ -139,13 +144,140 @@ impl AgentConfiguration {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let configuration_view = provider.configuration_view(
-            language_model::ConfigurationViewTargetAgent::ZedAgent,
-            window,
-            cx,
-        );
-        self.configuration_views_by_provider
-            .insert(provider.id(), configuration_view);
+        // PaddleBoard: upstream replaced the per-provider `configuration_view()`
+        // with `settings_view()`, whose API-key mode is pure data rendered by
+        // settings_ui. The in-panel configuration overlay embeds inline and
+        // sub-page views directly and renders API-key providers with the
+        // generic editor below, so they stay configurable from the panel.
+        let configuration_view: Option<AnyView> = match provider.settings_view(cx) {
+            Some(ProviderSettingsView::ApiKey(_)) => Some(
+                cx.new(|cx| ApiKeyProviderView::new(provider.clone(), window, cx))
+                    .into(),
+            ),
+            Some(ProviderSettingsView::Inline(settings)) => {
+                Some((settings.create_view)(window, cx))
+            }
+            Some(ProviderSettingsView::SubPage(settings)) => {
+                Some((settings.create_view)(window, cx))
+            }
+            None => None,
+        };
+        match configuration_view {
+            Some(view) => {
+                self.configuration_views_by_provider
+                    .insert(provider.id(), view);
+            }
+            None => {
+                self.configuration_views_by_provider.remove(&provider.id());
+            }
+        }
+    }
+}
+
+// PaddleBoard: generic API-key editor for the in-panel configuration overlay,
+// covering providers whose `settings_view()` is `ProviderSettingsView::ApiKey`.
+struct ApiKeyProviderView {
+    provider: Arc<dyn LanguageModelProvider>,
+    api_key_editor: Entity<InputField>,
+}
+
+impl ApiKeyProviderView {
+    fn new(
+        provider: Arc<dyn LanguageModelProvider>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let api_key_editor =
+            cx.new(|cx| InputField::new(window, cx, "Paste your API key").label("API key"));
+        Self {
+            provider,
+            api_key_editor,
+        }
+    }
+
+    fn save_api_key(&mut self, _: &menu::Confirm, window: &mut Window, cx: &mut Context<Self>) {
+        let api_key = self.api_key_editor.read(cx).text(cx).trim().to_string();
+        if api_key.is_empty() {
+            return;
+        }
+
+        self.api_key_editor
+            .update(cx, |editor, cx| editor.set_text("", window, cx));
+
+        let provider = self.provider.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            cx.update(|_, cx| provider.set_api_key(Some(api_key), cx))?
+                .await?;
+            this.update(cx, |_, cx| cx.notify())
+        })
+        .detach_and_log_err(cx);
+    }
+
+    fn reset_api_key(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.api_key_editor
+            .update(cx, |editor, cx| editor.set_text("", window, cx));
+
+        let provider = self.provider.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            cx.update(|_, cx| provider.set_api_key(None, cx))?.await?;
+            this.update(cx, |_, cx| cx.notify())
+        })
+        .detach_and_log_err(cx);
+    }
+}
+
+impl Render for ApiKeyProviderView {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let Some(ProviderSettingsView::ApiKey(config)) = self.provider.settings_view(cx) else {
+            return v_flex().into_any_element();
+        };
+
+        if config.has_key {
+            let label = if config.is_from_env_var {
+                format!("API key set in {} environment variable", config.env_var_name)
+            } else {
+                "API key configured".to_string()
+            };
+            let env_var_name = config.env_var_name.clone();
+            ConfiguredApiCard::new(
+                SharedString::from(format!("{}-reset-key", self.provider.id().0)),
+                label,
+            )
+            .disabled(config.is_from_env_var)
+            .when(config.is_from_env_var, |this| {
+                this.tooltip_label(format!(
+                    "To reset your API key, unset the {env_var_name} environment variable."
+                ))
+            })
+            .on_click(cx.listener(|this, _, window, cx| this.reset_api_key(window, cx)))
+            .into_any_element()
+        } else {
+            v_flex()
+                .on_action(cx.listener(Self::save_api_key))
+                .gap_1p5()
+                .child(
+                    h_flex()
+                        .gap_1()
+                        .child(
+                            Label::new("Paste your API key below and hit enter. Get one at")
+                                .color(Color::Muted),
+                        )
+                        .child(ButtonLink::new(
+                            "this provider's console",
+                            config.api_key_url.to_string(),
+                        )),
+                )
+                .child(self.api_key_editor.clone())
+                .child(
+                    Label::new(format!(
+                        "You can also set the {} environment variable and restart PaddleBoard.",
+                        config.env_var_name
+                    ))
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+                )
+                .into_any_element()
+        }
     }
 }
 
@@ -485,7 +617,8 @@ impl AgentConfiguration {
             .w_full()
             .child(self.render_section_title(
                 "LLM Providers",
-                "Add at least one provider to use AI-powered features with Zed's native agent.",
+                // PaddleBoard: user-visible copy rebranded from Zed.
+                "Add at least one provider to use AI-powered features with PaddleBoard's native agent.",
                 popover_menu.into_any_element(),
             ))
             .child(
@@ -586,7 +719,7 @@ impl AgentConfiguration {
             .border_color(cx.theme().colors().border)
             .child(self.render_section_title(
                 "Model Context Protocol (MCP) Servers",
-                "All MCP servers connected directly or via a Zed extension.",
+                "All MCP servers connected directly or via an extension.",
                 add_server_popover.into_any_element(),
             ))
             .child(

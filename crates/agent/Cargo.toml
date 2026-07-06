@@ -81,6 +81,7 @@ uuid.workspace = true
 watch.workspace = true
 web_search.workspace = true
 paddleboard_env_vars.workspace = true
+paddleboard_container_engine.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
 paddleboard_personas.workspace = true
 paddleboard_personas_settings.workspace = true
@@ -89,6 +90,11 @@ paddleboard_scion_settings.workspace = true
 paddleboard_sandbox_settings.workspace = true
 paddleboard_usage.workspace = true
 zstd.workspace = true
+
+# Used only on Windows to resolve the running release channel/version so the WSL
+# sandbox helper can fetch a matching Linux `zed`.
+[target.'cfg(target_os = "windows")'.dependencies]
+release_channel.workspace = true
 
 [dev-dependencies]
 assets.workspace = true

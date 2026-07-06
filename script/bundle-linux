@@ -84,7 +84,10 @@ if [[ "$(uname -m)" == "aarch64" ]]; then
 else
     export RUSTFLAGS="${RUSTFLAGS:-} -C link-args=-Wl,--disable-new-dtags,-rpath,\$ORIGIN/../lib"
 fi
-cargo build --release --target "${target_triple}" --package paddleboard --package cli
+# PaddleBoard: paddleboard_krun_helper is the built-in container sandbox's microVM
+# runner; it ships in libexec next to the editor binary (find_krun_helper looks
+# for a sibling of the running executable). Mirrors script/bundle-mac.
+cargo build --release --target "${target_triple}" --package paddleboard --package cli --package paddleboard_krun_helper
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
 if [[ "$remote_server_triple" == "$musl_triple" ]]; then
@@ -125,6 +128,7 @@ fi
 # doesn't understand CREL sections produced by newer LLVM.
 llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/paddleboard"
 llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/cli"
+llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/paddleboard-krun-helper"
 llvm-objcopy --strip-debug "${target_dir}/${remote_server_triple}/release/remote_server"
 
 # Ensure that remote_server does not depend on libssl nor libcrypto, as we got rid of these deps.
@@ -150,6 +154,16 @@ zed_dir="${temp_dir}/paddleboard$suffix.app"
 mkdir -p "${zed_dir}/bin" "${zed_dir}/libexec"
 cp "${target_dir}/${target_triple}/release/paddleboard" "${zed_dir}/libexec/paddleboard-editor"
 cp "${target_dir}/${target_triple}/release/cli" "${zed_dir}/bin/paddleboard"
+# PaddleBoard: built-in sandbox microVM runner, sibling of the editor binary.
+cp "${target_dir}/${target_triple}/release/paddleboard-krun-helper" "${zed_dir}/libexec/paddleboard-krun-helper"
+# PaddleBoard: embed the pinned llama.cpp server for the managed "Local Models"
+# feature into libexec/llama (where the runtime manager looks for it). No signing
+# needed on Linux (matches the krun helper).
+case "${target_triple}" in
+    x86_64-*linux*) script/fetch-llama-server linux-x64 "${zed_dir}/libexec/llama" ;;
+    aarch64-*linux*) script/fetch-llama-server linux-arm64 "${zed_dir}/libexec/llama" ;;
+    *) echo "skipping llama-server embed for ${target_triple}" ;;
+esac
 
 # Libs
 # Bundle libstdc++ so older supported systems can run binaries built with our

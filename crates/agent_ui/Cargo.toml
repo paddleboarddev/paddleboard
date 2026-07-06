@@ -93,6 +93,7 @@ rope.workspace = true
 # PaddleBoard: rules library + skill creator features
 rules_library.workspace = true
 skill_creator.workspace = true
+sandbox.workspace = true
 schemars.workspace = true
 search.workspace = true
 serde.workspace = true
@@ -112,6 +113,7 @@ time.workspace = true
 time_format.workspace = true
 ui.workspace = true
 ui_input.workspace = true
+unicode-segmentation.workspace = true
 url.workspace = true
 util.workspace = true
 uuid.workspace = true
@@ -156,6 +158,7 @@ smol.workspace = true
 
 search = { workspace = true, features = ["test-support"] }
 semver.workspace = true
+shlex.workspace = true
 reqwest_client.workspace = true
 tempfile.workspace = true
 vim.workspace = true

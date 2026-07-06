@@ -173,9 +173,10 @@ impl NodeRuntime {
                     // TODO: Have `install_if_needed` indicate which failure cases are retryable
                     // and/or have shared tracking of when internet is available.
                     Box::new(UnavailableNodeRuntime {
+                        // PaddleBoard: user-visible copy rebranded from Zed.
                         error_message: format!(
-                            "failure while downloading and/or installing Zed managed Node.js, \
-                            restart Zed to retry: {}",
+                            "failure while downloading and/or installing PaddleBoard managed Node.js, \
+                            restart PaddleBoard to retry: {}",
                             err
                         )
                         .into(),

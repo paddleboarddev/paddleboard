@@ -4,7 +4,9 @@ use anyhow::Result;
 use browser::{ForwardedPort, ForwardedPorts};
 use gpui::{App, AppContext as _, Entity, SharedString, Task};
 use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
-use paddleboard_sandbox_settings::{SandboxGateDecision, SandboxSettings, decide_gate};
+use paddleboard_sandbox_settings::{
+    BuiltInCapability, SandboxGateDecision, SandboxSettings, decide_gate,
+};
 use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -131,6 +133,9 @@ impl AgentTool for SandboxServiceTool {
 
                 let gate = decide_gate(
                     SandboxPrereqs::status(cx),
+                    // Phase 1: long-lived services stay Podman-only (the
+                    // built-in microVM tier does not do port publishing yet).
+                    BuiltInCapability::Unsupported,
                     SandboxSettings::get_global(cx),
                 );
 
@@ -165,6 +170,15 @@ impl AgentTool for SandboxServiceTool {
                          (no container) per `paddleboard_sandbox.on_missing_runtime`."
                     );
                     true
+                }
+                // Unreachable with BuiltInCapability::Unsupported above; if it
+                // ever leaks through, refuse rather than run a service in a
+                // tier that cannot publish its port.
+                SandboxGateDecision::UseBuiltIn { reason, .. } => {
+                    return Err(format!(
+                        "Sandbox prerequisites missing: {reason}. The service tool cannot \
+                         run on the built-in microVM tier yet; install Podman + gVisor."
+                    ));
                 }
                 SandboxGateDecision::Allow => false,
             };

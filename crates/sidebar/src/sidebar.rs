@@ -6765,7 +6765,7 @@ impl Sidebar {
                 })
             })
             .trigger_with_tooltip(
-                IconButton::new("open-project", IconName::OpenFolder)
+                IconButton::new("open-project", IconName::FolderAdd)
                     .icon_size(IconSize::Small)
                     .selected_style(ButtonStyle::Tinted(TintColor::Accent)),
                 |_window, cx| Tooltip::for_action("Add Project", &OpenRecent::default(), cx),
@@ -7706,7 +7706,8 @@ impl Sidebar {
         render_import_onboarding_banner(
             "acp",
             "Looking for threads from external agents?",
-            "Import threads from agents like Claude Agent, Codex, and more, whether started in Zed or another client.",
+            // PaddleBoard: user-visible copy rebranded from Zed.
+            "Import threads from agents like Claude Agent, Codex, and more, whether started in PaddleBoard or another client.",
             if verbose_labels {
                 "Import Threads from External Agents"
             } else {
