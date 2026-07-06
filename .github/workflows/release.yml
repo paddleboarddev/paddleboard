@@ -27,7 +27,11 @@ permissions:
 
 jobs:
   macos:
-    runs-on: macos-14
+    # PaddleBoard: macos-15 (Xcode 16.x / newer libc++). macos-14's Xcode 15.4
+    # libc++ fails to compile the inherited webrtc-sys cxx bridge under C++20
+    # (rust::Slice iterator not treated as a contiguous_iterator). Local builds
+    # on a newer Xcode compile it fine, so match the runner toolchain to that.
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
