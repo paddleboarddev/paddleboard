@@ -20,6 +20,9 @@ accepted = [
     "Zlib",
     "BSL-1.0",
     "bzip2-1.0.6",
+    # PaddleBoard: webpki-root-certs ships Mozilla's CA bundle under CDLA-Permissive-2.0,
+    # a permissive data license on Google's allowed-license reference (linked above).
+    "CDLA-Permissive-2.0",
 ]
 
 [procinfo.clarify]

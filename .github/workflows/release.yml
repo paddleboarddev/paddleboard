@@ -13,7 +13,9 @@ name: Release
 #   APPLE_NOTARIZATION_ISSUER_ID  - the API key's Issuer ID
 #
 # The git tag must match the paddleboard crate version, i.e. `v<version>`
-# (currently v0.232.0). Releases are created as drafts for manual review.
+# (currently v0.1.14). publish-public.sh owns the Release shell (notes, tag, site
+# bump) and creates it as a prerelease; this workflow builds the signed DMG and
+# ATTACHES it to that Release, then a human drops the prerelease flag after review.
 
 on:
   push:
@@ -57,13 +59,23 @@ jobs:
           PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
         run: script/bundle-mac aarch64-apple-darwin
 
-      - name: Publish draft release
+      - name: Attach signed DMG to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
+          # publish-public.sh creates the Release (as a prerelease, with notes)
+          # right after pushing this tag, so normally it already exists by the time
+          # this ~25-min build finishes. Create-if-missing guards the unlikely race
+          # where CI beats the publish script; --clobber makes re-runs idempotent.
+          dmg="target/aarch64-apple-darwin/release/PaddleBoard-aarch64.dmg"
+          if ! gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "PaddleBoard ${GITHUB_REF_NAME}" \
+              --prerelease \
+              --generate-notes
+          fi
+          gh release upload "${GITHUB_REF_NAME}" \
             --repo "${GITHUB_REPOSITORY}" \
-            --title "PaddleBoard ${GITHUB_REF_NAME}" \
-            --draft \
-            --generate-notes \
-            "target/aarch64-apple-darwin/release/PaddleBoard-aarch64.dmg#PaddleBoard (Apple Silicon).dmg"
+            --clobber \
+            "${dmg}#PaddleBoard (Apple Silicon).dmg"
