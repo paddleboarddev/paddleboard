@@ -59,6 +59,7 @@ Quick-deploy the current project to **Cloud Run, AWS Lambda, Vercel, Azure (Cont
 - Run it: `Cmd-Shift-P` → **`set sail: Deploy`** — pick a platform, service name, and public/private, then the agent takes the helm.
 - Powered by the open-source [s8sskills](https://s8sskills.com) catalog: PaddleBoard installs the platform's skill pack into `.agents/skills/` and the agent follows that playbook.
 - Interactive steps (`gcloud auth login`, `aws configure`, `vercel login`) are handed to you in the terminal — the agent never runs auth flows itself.
+- **Custom target**: host somewhere else? Describe it (Knative on your cluster, Fly.io, a VPS…) and the agent takes it from there.
 - **Rig the pipeline**: flip the modal's mode toggle and the agent sets up CI/CD groundwork instead — a least-privilege deploy identity, the resource, and the exact deploy command for *any* CI tool, with every secret left as a TODO placeholder for you. (Cloud Run, AWS Lambda, and Vercel today.)
 
 ### 8. Step-Through Mode

@@ -22,6 +22,7 @@ pub struct StartAgentModal {
     templates: Vec<TemplateInfo>,
     selected_template: Option<usize>,
     personas: Vec<Persona>,
+    personas_enabled: bool,
     selected_persona: Option<usize>,
     focus_handle: FocusHandle,
 }
@@ -36,7 +37,8 @@ impl StartAgentModal {
         // Discover personas HERE, while we hold the Workspace lease — the closure
         // passed to `toggle_modal` runs inside `Workspace::update`, so reading the
         // workspace from the modal constructor double-leases and panics.
-        let personas = if PersonasSettings::get_global(cx).enabled {
+        let personas_enabled = PersonasSettings::get_global(cx).enabled;
+        let personas = if personas_enabled {
             let project_root = workspace
                 .project()
                 .read(cx)
@@ -49,7 +51,7 @@ impl StartAgentModal {
         };
         let weak_workspace = cx.entity().downgrade();
         workspace.toggle_modal(window, cx, |window, cx| {
-            Self::new(store, weak_workspace, personas, window, cx)
+            Self::new(store, weak_workspace, personas, personas_enabled, window, cx)
         });
     }
 
@@ -57,6 +59,7 @@ impl StartAgentModal {
         store: Entity<ScionStore>,
         workspace: WeakEntity<Workspace>,
         personas: Vec<Persona>,
+        personas_enabled: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -87,6 +90,7 @@ impl StartAgentModal {
             templates,
             selected_template: None,
             personas,
+            personas_enabled,
             selected_persona: None,
             focus_handle: cx.focus_handle(),
         }
@@ -163,6 +167,22 @@ impl StartAgentModal {
     }
 
     fn render_persona_selector(&self, cx: &mut Context<Self>) -> Div {
+        // Empty state instead of hiding the section — an invisible feature with
+        // no explanation reads as a bug (and hides how to get personas at all).
+        if self.personas.is_empty() {
+            return v_flex()
+                .gap_1()
+                .child(Label::new("Persona").size(LabelSize::Small))
+                .child(
+                    Label::new(
+                        "No personas found — drop a PERSONA.md at the project root, or grab \
+                         a starter role in AI Dock → Personas.",
+                    )
+                    .size(LabelSize::XSmall)
+                    .color(Color::Muted),
+                );
+        }
+
         let mut options = v_flex().gap_0p5();
         options = options.child(self.render_persona_option(None, cx));
         for idx in 0..self.personas.len() {
@@ -364,7 +384,7 @@ impl Render for StartAgentModal {
                             .when(!self.templates.is_empty(), |el| {
                                 el.child(self.render_template_selector(cx))
                             })
-                            .when(!self.personas.is_empty(), |el| {
+                            .when(self.personas_enabled, |el| {
                                 el.child(self.render_persona_selector(cx))
                             }),
                     )

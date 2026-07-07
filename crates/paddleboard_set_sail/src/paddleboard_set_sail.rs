@@ -328,8 +328,13 @@ pub struct SetSailModal {
     workspace: WeakEntity<Workspace>,
     mode: Mode,
     platform: Platform,
+    /// "Custom target" mode: no vendor, no s8sskills pack — the user describes
+    /// the target (their own Kubernetes/Knative, Fly.io, a VPS, …) and the
+    /// agent works from that description plus whatever skills the project has.
+    custom_target: bool,
     service_input: Entity<InputField>,
     region_input: Entity<InputField>,
+    target_input: Entity<InputField>,
     allow_unauthenticated: bool,
     default_service: String,
     focus_handle: FocusHandle,
@@ -354,13 +359,21 @@ impl SetSailModal {
                 .tab_index(2)
                 .tab_stop(true)
         });
+        let target_input = cx.new(|cx| {
+            InputField::new(window, cx, "Knative on my GKE cluster, Fly.io, a VPS with Docker…")
+                .label("Target")
+                .tab_index(3)
+                .tab_stop(true)
+        });
 
         Self {
             workspace,
             mode: Mode::QuickDeploy,
             platform: Platform::CloudRun,
+            custom_target: false,
             service_input,
             region_input,
+            target_input,
             allow_unauthenticated: true,
             default_service,
             focus_handle: cx.focus_handle(),
@@ -368,10 +381,19 @@ impl SetSailModal {
     }
 
     fn select_platform(&mut self, platform: Platform, cx: &mut Context<Self>) {
-        if self.platform == platform {
+        if self.platform == platform && !self.custom_target {
             return;
         }
         self.platform = platform;
+        self.custom_target = false;
+        cx.notify();
+    }
+
+    fn select_custom_target(&mut self, cx: &mut Context<Self>) {
+        if self.custom_target {
+            return;
+        }
+        self.custom_target = true;
         cx.notify();
     }
 
@@ -386,6 +408,8 @@ impl SetSailModal {
     fn confirm(&mut self, _: &menu::Confirm, window: &mut Window, cx: &mut Context<Self>) {
         let platform = self.platform;
         let mode = self.mode;
+        let custom = self.custom_target;
+        let target = self.target_input.read(cx).text(cx).trim().to_string();
         let mut service = self.service_input.read(cx).text(cx).trim().to_string();
         if service.is_empty() {
             service = self.default_service.clone();
@@ -405,7 +429,8 @@ impl SetSailModal {
             );
             return;
         }
-        if platform.default_region().is_some()
+        if !custom
+            && platform.default_region().is_some()
             && !region
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
@@ -413,10 +438,18 @@ impl SetSailModal {
             self.show_error(anyhow!("Invalid region {region:?}."), cx);
             return;
         }
+        if custom && target.is_empty() {
+            self.show_error(
+                anyhow!("Describe the deploy target — e.g. \"Knative on my GKE cluster\"."),
+                cx,
+            );
+            return;
+        }
 
         // Phase 2 rigging lands one platform at a time; refuse a mode/platform
-        // combo whose s8sskills pipeline pack isn't authored yet.
-        if mode == Mode::RigPipeline && !platform.pipeline_ready() {
+        // combo whose s8sskills pipeline pack isn't authored yet. Custom targets
+        // skip this — their rigging prompt is generic by construction.
+        if mode == Mode::RigPipeline && !custom && !platform.pipeline_ready() {
             self.show_error(
                 anyhow!(
                     "Rig the pipeline isn't available for {} yet — it's rolling out per \
@@ -448,14 +481,21 @@ impl SetSailModal {
             )
         };
 
-        let allow_unauthenticated = self.allow_unauthenticated && platform.supports_public_toggle();
+        let allow_unauthenticated =
+            self.allow_unauthenticated && (custom || platform.supports_public_toggle());
         let weak_workspace = self.workspace.clone();
         cx.spawn_in(window, async move |_this, cx| {
             // Install the s8sskills pack pieces the prompt depends on. Files
             // already present are left untouched (version-pinned by commit).
-            let skills = match mode {
-                Mode::QuickDeploy => platform.required_skills(),
-                Mode::RigPipeline => platform.pipeline_skills(),
+            // Custom targets have no pack — the agent works from the target
+            // description plus whatever skills the project already has.
+            let skills: &[&str] = if custom {
+                &[]
+            } else {
+                match mode {
+                    Mode::QuickDeploy => platform.required_skills(),
+                    Mode::RigPipeline => platform.pipeline_skills(),
+                }
             };
             for skill in skills {
                 if let Err(error) = ensure_skill_installed(
@@ -483,12 +523,20 @@ impl SetSailModal {
                 }
             }
 
-            let (prompt, title): (String, SharedString) = match mode {
-                Mode::QuickDeploy => (
+            let (prompt, title): (String, SharedString) = match (custom, mode) {
+                (true, Mode::QuickDeploy) => (
+                    custom_deploy_prompt(&target, &service, allow_unauthenticated),
+                    format!("Set Sail: {service} → custom target").into(),
+                ),
+                (true, Mode::RigPipeline) => (
+                    custom_rig_pipeline_prompt(&target, &service, allow_unauthenticated),
+                    format!("Rig the pipeline: {service} → custom target").into(),
+                ),
+                (false, Mode::QuickDeploy) => (
                     quick_deploy_prompt(platform, &service, &region, allow_unauthenticated),
                     format!("Set Sail: {service} → {}", platform.label()).into(),
                 ),
-                Mode::RigPipeline => (
+                (false, Mode::RigPipeline) => (
                     rig_pipeline_prompt(platform, &service, &region, allow_unauthenticated),
                     format!("Rig the pipeline: {service} → {}", platform.label()).into(),
                 ),
@@ -542,6 +590,85 @@ fn slugify(name: &str) -> String {
     // Cloud Run (the strictest target) requires a leading letter.
     let slug = slug.trim_start_matches(|c: char| c.is_ascii_digit() || c == '-');
     slug.chars().take(63).collect()
+}
+
+/// Quick-deploy prompt for a user-described custom target (their own
+/// Kubernetes/Knative, Fly.io, a VPS, …). No s8sskills pack — the agent works
+/// from the description, any skills the project already has, and by asking.
+fn custom_deploy_prompt(target: &str, service: &str, public: bool) -> String {
+    let visibility_line = if public {
+        "The deployed URL should be PUBLIC.\n"
+    } else {
+        "The deployed service should require authentication (private).\n"
+    };
+    format!(
+        "Set Sail: deploy this project to a custom target (quick deploy).\n\n\
+         Target (as described by me): {target}\n\
+         Service name: {service}\n\
+         {visibility_line}\n\
+         There is no s8sskills pack for this target. First check `.agents/skills/` and \
+         `.claude/skills/` for skills matching it and read them if present — they are \
+         authoritative. Otherwise work from the target description and your own knowledge, \
+         and ASK me for any specifics you're missing (cluster context, registry, domain, \
+         hosting account) instead of guessing.\n\n\
+         Steps:\n\
+         1. Identify the CLIs/tooling the target needs and check them in the terminal — \
+         never run interactive auth flows yourself; STOP, give me the exact command to run \
+         in a terminal, and wait for me to confirm before continuing.\n\
+         2. Identify the project type (look at the files present) and make sure it is \
+         deployable; fix only what blocks the deploy.\n\
+         3. Deploy to the target, naming the service/app `{service}` wherever the platform \
+         takes a name.\n\
+         4. On success, report the live URL (or endpoint) and what got created, so I can \
+         find (and later clean up) every resource.\n\
+         5. On failure, diagnose from the error output and retry sensibly (a few attempts \
+         at most), keeping me informed.\n\n\
+         This is a one-off quick deploy — do NOT set up CI/CD pipelines or create git \
+         infrastructure in this run."
+    )
+}
+
+/// "Rig the pipeline" for a custom target — the same vendor-agnostic contract
+/// as the platform version (identity + resource + command, secrets stay with
+/// the user), minus the s8sskills pack.
+fn custom_rig_pipeline_prompt(target: &str, service: &str, public: bool) -> String {
+    let visibility_line = if public {
+        "The deployed URL should be PUBLIC.\n"
+    } else {
+        "The deployed service should require authentication (private).\n"
+    };
+    format!(
+        "Set Sail: rig a CI/CD pipeline for deploying this project to a custom target.\n\n\
+         Target (as described by me): {target}\n\
+         Service name: {service}\n\
+         {visibility_line}\n\
+         GOAL — do the vendor-agnostic \"basic rigging\" so I can plug in ANY CI/CD tool \
+         (GitHub Actions, GitLab CI, Jenkins, Buildkite, …). You set up the target side; I \
+         own the CI tool and all secrets. Stay tool-agnostic — do NOT assume or pick a CI \
+         tool unless I name one.\n\n\
+         There is no s8sskills pack for this target. Check `.agents/skills/` and \
+         `.claude/skills/` for matching skills and follow them if present; otherwise work \
+         from the description and ASK me for the specifics you're missing.\n\n\
+         Do the rigging:\n\
+         1. Check the target's prerequisites in the terminal — never run interactive auth \
+         flows yourself; STOP, give me the exact command to run, and wait for me to \
+         confirm.\n\
+         2. Ensure the deploy target exists and is deployable (service/app name \
+         `{service}`).\n\
+         3. Create a least-privilege deploy identity for CI to use, preferring KEYLESS \
+         OIDC / workload-identity federation over long-lived keys wherever the target \
+         supports it.\n\
+         4. Produce the exact deploy COMMAND a CI job should run, and tell me precisely \
+         which credential/secret to hand my CI tool and what to name it.\n\n\
+         Then OFFER (ask me first) to scaffold a starter CI config for whichever tool I \
+         name — with the deploy command wired in and EVERY secret, token, login, and OAuth \
+         value left as a clearly-labeled TODO placeholder for me to fill.\n\n\
+         HARD RULES: never put a real secret, credential, token, or auth value in any file \
+         or run a login/OAuth flow on my behalf; do NOT commit or push anything without \
+         asking; do NOT choose my CI/CD tool for me.\n\n\
+         Finally, summarize the \"deploy contract\": the deploy command, the \
+         credential/identity you created, and exactly where I plug it into my CI tool."
+    )
 }
 
 /// Human-readable list of the platforms whose pipeline packs are ready
@@ -752,12 +879,20 @@ impl Render for SetSailModal {
         let focus_handle = self.focus_handle(cx);
         let platform = self.platform;
         let mode = self.mode;
-        let selected_index = PLATFORMS
-            .iter()
-            .position(|p| *p == platform)
-            .unwrap_or(0);
+        let custom = self.custom_target;
+        // When the custom target is active, point selected_index past the grid so
+        // no platform button renders as selected (it's only ever compared).
+        let selected_index = if custom {
+            PLATFORMS.len()
+        } else {
+            PLATFORMS
+                .iter()
+                .position(|p| *p == platform)
+                .unwrap_or(0)
+        };
         let selected_mode_index = MODES.iter().position(|m| *m == mode).unwrap_or(0);
-        let pipeline_unavailable = mode == Mode::RigPipeline && !platform.pipeline_ready();
+        let pipeline_unavailable =
+            mode == Mode::RigPipeline && !custom && !platform.pipeline_ready();
         // 2x3 grid, row-major — must match PLATFORMS order so the flat
         // selected_index lines up.
         let platform_row_one = [Platform::CloudRun, Platform::AwsLambda, Platform::Vercel].map(
@@ -850,6 +985,47 @@ impl Render for SetSailModal {
                                 .style(ToggleButtonGroupStyle::Outlined)
                                 .selected_index(selected_index),
                             )
+                            .child(
+                                h_flex()
+                                    .id("set-sail-custom-target")
+                                    .gap_2()
+                                    .px_2()
+                                    .py_1()
+                                    .rounded_sm()
+                                    .cursor_pointer()
+                                    .when(custom, |el| {
+                                        el.bg(cx.theme().colors().element_selected)
+                                    })
+                                    .hover(|el| el.bg(cx.theme().colors().element_hover))
+                                    .on_click(cx.listener(|this, _, _window, cx| {
+                                        this.select_custom_target(cx);
+                                    }))
+                                    .child(
+                                        Icon::new(if custom {
+                                            IconName::Check
+                                        } else {
+                                            IconName::Circle
+                                        })
+                                        .size(IconSize::Small)
+                                        .color(if custom { Color::Accent } else { Color::Muted }),
+                                    )
+                                    .child(
+                                        v_flex()
+                                            .child(
+                                                Label::new("Custom target")
+                                                    .size(LabelSize::Small),
+                                            )
+                                            .child(
+                                                Label::new(
+                                                    "Deploy anywhere — your own \
+                                                     Kubernetes/Knative, Fly.io, a VPS…",
+                                                )
+                                                .size(LabelSize::XSmall)
+                                                .color(Color::Muted),
+                                            ),
+                                    ),
+                            )
+                            .when(custom, |this| this.child(self.target_input.clone()))
                             .when(pipeline_unavailable, |this| {
                                 this.child(
                                     Label::new(format!(
@@ -863,10 +1039,10 @@ impl Render for SetSailModal {
                                 )
                             })
                             .child(self.service_input.clone())
-                            .when(platform.default_region().is_some(), |this| {
+                            .when(!custom && platform.default_region().is_some(), |this| {
                                 this.child(self.region_input.clone())
                             })
-                            .when(platform.supports_public_toggle(), |this| {
+                            .when(custom || platform.supports_public_toggle(), |this| {
                                 this.child(
                                     Checkbox::new(
                                         "set-sail-public",
@@ -883,27 +1059,29 @@ impl Render for SetSailModal {
                                     })),
                                 )
                             })
-                            .child(
-                                h_flex()
-                                    .gap_0p5()
-                                    .child(
-                                        Label::new(format!(
-                                            "Not set up on {}?",
-                                            platform.vendor_name()
-                                        ))
-                                        .size(LabelSize::Small)
-                                        .color(Color::Muted),
-                                    )
-                                    .child(
-                                        Button::new("set-sail-get-started", "Get started!")
-                                            .style(ButtonStyle::Transparent)
-                                            .label_size(LabelSize::Small)
-                                            .color(Color::Accent)
-                                            .on_click(move |_, _window, cx| {
-                                                cx.open_url(platform.getting_started_url());
-                                            }),
-                                    ),
-                            ),
+                            .when(!custom, |this| {
+                                this.child(
+                                    h_flex()
+                                        .gap_0p5()
+                                        .child(
+                                            Label::new(format!(
+                                                "Not set up on {}?",
+                                                platform.vendor_name()
+                                            ))
+                                            .size(LabelSize::Small)
+                                            .color(Color::Muted),
+                                        )
+                                        .child(
+                                            Button::new("set-sail-get-started", "Get started!")
+                                                .style(ButtonStyle::Transparent)
+                                                .label_size(LabelSize::Small)
+                                                .color(Color::Accent)
+                                                .on_click(move |_, _window, cx| {
+                                                    cx.open_url(platform.getting_started_url());
+                                                }),
+                                        ),
+                                )
+                            }),
                     )
                     .footer(
                         ModalFooter::new().end_slot(
@@ -1041,6 +1219,29 @@ mod tests {
             pipeline_ready_platforms(),
             "Cloud Run, AWS Lambda, and Vercel"
         );
+    }
+
+    #[test]
+    fn custom_deploy_prompt_carries_target_and_skips_packs() {
+        let prompt = custom_deploy_prompt("Knative on my GKE cluster", "boaty", true);
+        assert!(prompt.contains("Knative on my GKE cluster"));
+        assert!(prompt.contains("naming the service/app `boaty`"));
+        assert!(prompt.contains("PUBLIC"));
+        // No s8sskills pack lines, and quick deploy still forbids CI/CD setup.
+        assert!(!prompt.contains("SKILL.md\n"));
+        assert!(prompt.contains("do NOT set up CI/CD pipelines"));
+        assert!(prompt.contains("never run interactive auth flows"));
+    }
+
+    #[test]
+    fn custom_rig_prompt_keeps_the_vendor_agnostic_contract() {
+        let prompt = custom_rig_pipeline_prompt("KEDA on our bare-metal cluster", "boaty", false);
+        assert!(prompt.contains("KEDA on our bare-metal cluster"));
+        assert!(prompt.contains("require authentication (private)"));
+        assert!(prompt.contains("do NOT choose my CI/CD tool"));
+        assert!(prompt.contains("TODO placeholder"));
+        assert!(prompt.contains("never put a real secret"));
+        assert!(prompt.contains("KEYLESS"));
     }
 
     #[test]
