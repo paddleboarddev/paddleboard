@@ -89,8 +89,11 @@ jobs:
 
   linux:
     # Independent of the macOS job — a Linux failure won't block the signed DMG or
-    # the release. Built on ubuntu-22.04 for broad glibc compatibility. No signing.
-    runs-on: ubuntu-22.04
+    # the release. Runs on a Blacksmith 8-vCPU runner: the stock GitHub runner's
+    # 7 GB RAM OOM-killed the release link phase (see git history), and Blacksmith
+    # has ample RAM and is faster. Kept on the 22.04 image for broad glibc
+    # compatibility. No signing. REQUIRES the Blacksmith GitHub App on the repo.
+    runs-on: blacksmith-8vcpu-ubuntu-2204
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -99,19 +102,6 @@ jobs:
 
       - name: Build the public stable channel
         run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
-
-      - name: Free up disk space
-        # A full Zed-fork release build produces a large target/ dir; the stock
-        # ubuntu runner (~14 GB free on /) can run out mid-build. Reclaim ~20 GB of
-        # preinstalled toolchains a Rust build never touches, and print disk/RAM so
-        # a resource failure is visible instead of a silently-killed runner.
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
-                      /usr/local/lib/android /opt/hostedtoolcache/CodeQL \
-                      /usr/share/swift || true
-          sudo docker image prune --all --force || true
-          echo "=== disk ===" ; df -h /
-          echo "=== ram ===" ; free -h
 
       - name: Install Linux build dependencies
         run: ./script/linux
@@ -128,25 +118,9 @@ jobs:
       - name: Set up Rust
         run: rustup update stable
 
-      - name: Add swap space
-        # A full Zed-fork release build (esp. the link/codegen phase) exceeds the
-        # stock runner's 7 GB RAM and gets OOM-killed — the runner dies mid-build,
-        # so the build step's conclusion is empty and even the failure() log-upload
-        # never runs. A large swapfile trades speed for headroom so it can finish.
-        run: |
-          sudo swapoff -a || true
-          sudo rm -f /mnt/swapfile
-          sudo fallocate -l 16G /mnt/swapfile
-          sudo chmod 600 /mnt/swapfile
-          sudo mkswap /mnt/swapfile
-          sudo swapon /mnt/swapfile
-          free -h
-
       - name: Build the Linux bundle (x86_64)
         env:
           PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
-          # Cap parallel codegen to lower peak RAM (fewer concurrent rustc).
-          CARGO_BUILD_JOBS: "4"
         run: |
           # Capture the full output to a file so we can read the error via an
           # uploaded artifact even when GitHub loses the job-log blob (as happened
