@@ -28,9 +28,21 @@ pub enum Platform {
     CloudRun,
     AwsLambda,
     Vercel,
+    Azure,
+    Cloudflare,
+    Netlify,
 }
 
-pub const PLATFORMS: &[Platform] = &[Platform::CloudRun, Platform::AwsLambda, Platform::Vercel];
+// Order matters: the modal renders these as a 2x3 grid (row-major), and the
+// flat index doubles as ToggleButtonGroup's selected_index.
+pub const PLATFORMS: &[Platform] = &[
+    Platform::CloudRun,
+    Platform::AwsLambda,
+    Platform::Vercel,
+    Platform::Azure,
+    Platform::Cloudflare,
+    Platform::Netlify,
+];
 
 /// Set Sail's two modes. Quick deploy pushes the current source live once; Rig
 /// the pipeline sets up the vendor-agnostic cloud-side rigging (deploy identity
@@ -58,6 +70,9 @@ impl Platform {
             Platform::CloudRun => "Cloud Run",
             Platform::AwsLambda => "AWS Lambda",
             Platform::Vercel => "Vercel",
+            Platform::Azure => "Azure",
+            Platform::Cloudflare => "Cloudflare",
+            Platform::Netlify => "Netlify",
         }
     }
 
@@ -67,16 +82,23 @@ impl Platform {
             Platform::CloudRun => "gcp",
             Platform::AwsLambda => "aws",
             Platform::Vercel => "vercel",
+            Platform::Azure => "azure",
+            Platform::Cloudflare => "cloudflare",
+            Platform::Netlify => "netlify",
         }
     }
 
     /// Skills the deploy prompt depends on, in the order the agent should
-    /// read them (setup first, then deploy).
+    /// read them (setup first, then deploy). Each vendor gets one flagship
+    /// serverless target (Azure -> Container Apps, Cloudflare -> Workers).
     fn required_skills(&self) -> &'static [&'static str] {
         match self {
             Platform::CloudRun => &["gcloud-project-setup", "cloud-run-deploy"],
             Platform::AwsLambda => &["aws-project-setup", "lambda-deploy"],
             Platform::Vercel => &["vercel-project-setup", "vercel-deploy"],
+            Platform::Azure => &["azure-project-setup", "azure-container-apps-deploy"],
+            Platform::Cloudflare => &["cloudflare-project-setup", "cloudflare-workers-deploy"],
+            Platform::Netlify => &["netlify-project-setup", "netlify-deploy"],
         }
     }
 
@@ -88,12 +110,15 @@ impl Platform {
             Platform::CloudRun => &["gcloud-project-setup", "cloud-run-pipeline"],
             Platform::AwsLambda => &["aws-project-setup", "lambda-pipeline"],
             Platform::Vercel => &["vercel-project-setup", "vercel-pipeline"],
+            Platform::Azure => &["azure-project-setup", "azure-container-apps-pipeline"],
+            Platform::Cloudflare => &["cloudflare-project-setup", "cloudflare-workers-pipeline"],
+            Platform::Netlify => &["netlify-project-setup", "netlify-pipeline"],
         }
     }
 
-    /// Whether the platform's s8sskills `<p>-pipeline` pack exists yet. All three
-    /// launch platforms now have one; a future platform added without a pipeline
-    /// pack would return false here so the modal shows a "coming soon" note.
+    /// Whether the platform's s8sskills `<p>-pipeline` pack exists yet. The
+    /// original three have packs; the Azure/Cloudflare/Netlify pipeline packs
+    /// aren't authored yet, so the modal shows a "coming soon" note there.
     fn pipeline_ready(&self) -> bool {
         matches!(
             self,
@@ -108,13 +133,20 @@ impl Platform {
             Platform::CloudRun => Some("us-central1"),
             Platform::AwsLambda => Some("us-east-1"),
             Platform::Vercel => None,
+            Platform::Azure => Some("eastus"),
+            Platform::Cloudflare => None,
+            Platform::Netlify => None,
         }
     }
 
-    /// Whether the public/private toggle applies. Vercel production deploys
-    /// are public by nature, so the toggle is hidden there.
+    /// Whether the public/private toggle applies. Vercel/Netlify production
+    /// deploys and Cloudflare Workers are public by nature, so the toggle is
+    /// hidden there; Azure Container Apps has external vs internal ingress.
     fn supports_public_toggle(&self) -> bool {
-        !matches!(self, Platform::Vercel)
+        !matches!(
+            self,
+            Platform::Vercel | Platform::Cloudflare | Platform::Netlify
+        )
     }
 
     /// Vendor name for user-facing copy ("Not set up on X?").
@@ -123,6 +155,9 @@ impl Platform {
             Platform::CloudRun => "Google Cloud",
             Platform::AwsLambda => "AWS",
             Platform::Vercel => "Vercel",
+            Platform::Azure => "Microsoft Azure",
+            Platform::Cloudflare => "Cloudflare",
+            Platform::Netlify => "Netlify",
         }
     }
 
@@ -132,6 +167,9 @@ impl Platform {
             Platform::CloudRun => "https://cloud.google.com/run",
             Platform::AwsLambda => "https://aws.amazon.com/lambda/getting-started/",
             Platform::Vercel => "https://vercel.com/signup",
+            Platform::Azure => "https://azure.microsoft.com/products/container-apps",
+            Platform::Cloudflare => "https://workers.cloudflare.com",
+            Platform::Netlify => "https://app.netlify.com/signup",
         }
     }
 
@@ -152,6 +190,18 @@ impl Platform {
             Platform::Vercel => {
                 "`vercel --version` and an authenticated session (`vercel whoami`). If auth \
                  is missing, hand me `vercel login`"
+            }
+            Platform::Azure => {
+                "`az --version` and a signed-in account with a subscription (`az account \
+                 show`). If auth is missing, hand me `az login`"
+            }
+            Platform::Cloudflare => {
+                "`npx wrangler --version` and an authenticated session (`npx wrangler \
+                 whoami`). If auth is missing, hand me `npx wrangler login`"
+            }
+            Platform::Netlify => {
+                "`npx netlify --version` and an authenticated session (`npx netlify \
+                 status`). If auth is missing, hand me `npx netlify login`"
             }
         }
     }
@@ -185,6 +235,23 @@ impl Platform {
             Platform::Vercel => format!(
                 "Link the project as `{service}` per the vercel-project-setup skill, then \
                  deploy to production: `vercel deploy --prod --yes`"
+            ),
+            Platform::Azure => {
+                let ingress = if public { "external" } else { "internal" };
+                format!(
+                    "Deploy from source: `az containerapp up --name {service} \
+                     --resource-group {service}-rg --location {region} --source . --ingress \
+                     {ingress} --target-port <the port this app listens on>` (creates the \
+                     resource group, environment, and registry as needed)"
+                )
+            }
+            Platform::Cloudflare => format!(
+                "Make sure the wrangler config names the worker `{service}`, then deploy: \
+                 `npx wrangler deploy`"
+            ),
+            Platform::Netlify => format!(
+                "Link the site as `{service}` per the netlify-project-setup skill, then \
+                 deploy to production: `npx netlify deploy --prod`"
             ),
         }
     }
@@ -353,8 +420,9 @@ impl SetSailModal {
             self.show_error(
                 anyhow!(
                     "Rig the pipeline isn't available for {} yet — it's rolling out per \
-                     platform. Vercel is ready now.",
-                    platform.label()
+                     platform. Available today for {}.",
+                    platform.label(),
+                    pipeline_ready_platforms()
                 ),
                 cx,
             );
@@ -474,6 +542,22 @@ fn slugify(name: &str) -> String {
     // Cloud Run (the strictest target) requires a leading letter.
     let slug = slug.trim_start_matches(|c: char| c.is_ascii_digit() || c == '-');
     slug.chars().take(63).collect()
+}
+
+/// Human-readable list of the platforms whose pipeline packs are ready
+/// ("Cloud Run, AWS Lambda, and Vercel") — keeps the coming-soon copy honest
+/// as packs land without anyone remembering to update a hardcoded string.
+fn pipeline_ready_platforms() -> String {
+    let labels: Vec<&'static str> = PLATFORMS
+        .iter()
+        .filter(|platform| platform.pipeline_ready())
+        .map(|platform| platform.label())
+        .collect();
+    match labels.as_slice() {
+        [] => "no platforms yet".to_string(),
+        [only] => (*only).to_string(),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
 }
 
 /// One validation for all platforms: Cloud Run's rules are the strictest and
@@ -674,6 +758,28 @@ impl Render for SetSailModal {
             .unwrap_or(0);
         let selected_mode_index = MODES.iter().position(|m| *m == mode).unwrap_or(0);
         let pipeline_unavailable = mode == Mode::RigPipeline && !platform.pipeline_ready();
+        // 2x3 grid, row-major — must match PLATFORMS order so the flat
+        // selected_index lines up.
+        let platform_row_one = [Platform::CloudRun, Platform::AwsLambda, Platform::Vercel].map(
+            |row_platform| {
+                ToggleButtonSimple::new(
+                    row_platform.label(),
+                    cx.listener(move |this, _, _window, cx| {
+                        this.select_platform(row_platform, cx);
+                    }),
+                )
+            },
+        );
+        let platform_row_two = [Platform::Azure, Platform::Cloudflare, Platform::Netlify].map(
+            |row_platform| {
+                ToggleButtonSimple::new(
+                    row_platform.label(),
+                    cx.listener(move |this, _, _window, cx| {
+                        this.select_platform(row_platform, cx);
+                    }),
+                )
+            },
+        );
         let description = match mode {
             Mode::QuickDeploy => {
                 "Quick-deploy this project to a serverless platform. PaddleBoard's agent \
@@ -736,28 +842,10 @@ impl Render for SetSailModal {
                                 .selected_index(selected_mode_index),
                             )
                             .child(
-                                ToggleButtonGroup::single_row(
+                                ToggleButtonGroup::two_rows(
                                     "set-sail-platform",
-                                    [
-                                        ToggleButtonSimple::new(
-                                            Platform::CloudRun.label(),
-                                            cx.listener(|this, _, _window, cx| {
-                                                this.select_platform(Platform::CloudRun, cx);
-                                            }),
-                                        ),
-                                        ToggleButtonSimple::new(
-                                            Platform::AwsLambda.label(),
-                                            cx.listener(|this, _, _window, cx| {
-                                                this.select_platform(Platform::AwsLambda, cx);
-                                            }),
-                                        ),
-                                        ToggleButtonSimple::new(
-                                            Platform::Vercel.label(),
-                                            cx.listener(|this, _, _window, cx| {
-                                                this.select_platform(Platform::Vercel, cx);
-                                            }),
-                                        ),
-                                    ],
+                                    platform_row_one,
+                                    platform_row_two,
                                 )
                                 .style(ToggleButtonGroupStyle::Outlined)
                                 .selected_index(selected_index),
@@ -765,9 +853,10 @@ impl Render for SetSailModal {
                             .when(pipeline_unavailable, |this| {
                                 this.child(
                                     Label::new(format!(
-                                        "Pipeline rigging for {} is coming soon — Vercel is \
-                                         available now.",
-                                        platform.label()
+                                        "Pipeline rigging for {} is coming soon — available \
+                                         today for {}.",
+                                        platform.label(),
+                                        pipeline_ready_platforms()
                                     ))
                                     .size(LabelSize::Small)
                                     .color(Color::Warning),
@@ -935,13 +1024,50 @@ mod tests {
     }
 
     #[test]
-    fn all_launch_platforms_are_pipeline_ready() {
-        for platform in PLATFORMS {
+    fn pipeline_ready_matches_authored_packs() {
+        for platform in [Platform::CloudRun, Platform::AwsLambda, Platform::Vercel] {
             assert!(
                 platform.pipeline_ready(),
                 "{platform:?} should be pipeline-ready"
             );
         }
+        for platform in [Platform::Azure, Platform::Cloudflare, Platform::Netlify] {
+            assert!(
+                !platform.pipeline_ready(),
+                "{platform:?} has no pipeline pack authored yet"
+            );
+        }
+        assert_eq!(
+            pipeline_ready_platforms(),
+            "Cloud Run, AWS Lambda, and Vercel"
+        );
+    }
+
+    #[test]
+    fn azure_prompt_carries_region_and_ingress() {
+        let prompt = quick_deploy_prompt(Platform::Azure, "boaty", "westus2", true);
+        assert!(prompt.contains("azure-container-apps-deploy/SKILL.md"));
+        assert!(prompt.contains("azure-project-setup/SKILL.md"));
+        assert!(prompt.contains("az account show"));
+        assert!(prompt.contains("--location westus2"));
+        assert!(prompt.contains("--ingress external"));
+        let private_prompt = quick_deploy_prompt(Platform::Azure, "boaty", "eastus", false);
+        assert!(private_prompt.contains("--ingress internal"));
+    }
+
+    #[test]
+    fn cloudflare_and_netlify_prompts_omit_region_and_visibility() {
+        let cloudflare = quick_deploy_prompt(Platform::Cloudflare, "boaty", "", true);
+        assert!(cloudflare.contains("cloudflare-workers-deploy/SKILL.md"));
+        assert!(cloudflare.contains("npx wrangler deploy"));
+        assert!(!cloudflare.contains("Region:"));
+        assert!(!cloudflare.contains("PUBLIC"));
+
+        let netlify = quick_deploy_prompt(Platform::Netlify, "boaty", "", true);
+        assert!(netlify.contains("netlify-deploy/SKILL.md"));
+        assert!(netlify.contains("npx netlify deploy --prod"));
+        assert!(!netlify.contains("Region:"));
+        assert!(!netlify.contains("PUBLIC"));
     }
 
     #[test]

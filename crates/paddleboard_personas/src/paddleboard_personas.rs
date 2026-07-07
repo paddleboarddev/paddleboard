@@ -252,6 +252,18 @@ pub fn build_overlay(persona: &Persona, all_personas: &[Persona]) -> String {
     )
 }
 
+/// Compose an external agent's one-shot task prompt from a persona overlay plus
+/// the task text. Used where the persona can't ride a system prompt — Scion
+/// agents, for example, receive exactly one task string — so the overlay is
+/// prepended to the task itself.
+pub fn prepend_overlay_to_task(overlay: &str, task: &str) -> String {
+    if task.trim().is_empty() {
+        overlay.to_string()
+    } else {
+        format!("{overlay}\n\n---\n\nYour task:\n\n{task}")
+    }
+}
+
 fn split_frontmatter(raw: &str) -> Option<(&str, &str)> {
     let rest = raw.strip_prefix("---")?;
     let rest = rest.strip_prefix("\r\n").or_else(|| rest.strip_prefix('\n'))?;
@@ -300,6 +312,15 @@ mod tests {
     use super::*;
 
     const QA: &str = "---\nname: qa-tester\ndescription: A meticulous QA engineer.\ntype: role\nvoice: terse, skeptical\n---\n\n# Identity\n\nYou think in failure modes.\n";
+
+    #[test]
+    fn prepend_overlay_composes_task_and_handles_empty_tasks() {
+        let composed = prepend_overlay_to_task("OVERLAY", "fix the bug");
+        assert!(composed.starts_with("OVERLAY"));
+        assert!(composed.contains("Your task:"));
+        assert!(composed.ends_with("fix the bug"));
+        assert_eq!(prepend_overlay_to_task("OVERLAY", "  "), "OVERLAY");
+    }
 
     #[test]
     fn parses_library_persona() {
