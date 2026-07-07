@@ -1,4 +1,5 @@
 use anyhow::{Context as _, Result};
+use std::ffi::OsString;
 use std::net::{Ipv4Addr, TcpListener};
 use std::path::Path;
 use std::process::Stdio;
@@ -65,6 +66,37 @@ pub fn find_free_port() -> Result<u16> {
     Ok(port)
 }
 
+/// The argv for a managed `llama-server`, shared by the chat and embedding
+/// spawns so their common security posture (loopback-only, never `--rpc`) can't
+/// drift between the two paths.
+fn server_args(model: &Path, port: u16, context_size: u32, embeddings: bool) -> Vec<OsString> {
+    let mut args: Vec<OsString> = vec![
+        "--host".into(),
+        "127.0.0.1".into(),
+        "--port".into(),
+        port.to_string().into(),
+        "--model".into(),
+        model.as_os_str().to_owned(),
+        "--ctx-size".into(),
+        context_size.to_string().into(),
+    ];
+    if embeddings {
+        // Serve /v1/embeddings. Pooling is taken from the GGUF metadata (our
+        // pinned embedding model declares mean pooling), so it is not overridden
+        // here.
+        args.push("--embeddings".into());
+    }
+    args
+}
+
+fn spawn_with_args(binary: &Path, args: Vec<OsString>) -> Result<ServerHandle> {
+    let mut command = std::process::Command::new(binary);
+    command.args(args);
+    let child = Child::spawn(command, Stdio::null(), Stdio::inherit(), Stdio::inherit())
+        .context("spawning llama-server")?;
+    Ok(ServerHandle { child })
+}
+
 /// Spawns `llama-server` bound to `127.0.0.1:{port}` serving `model`.
 ///
 /// The server is intentionally bound to loopback only and never receives the
@@ -76,20 +108,18 @@ pub fn spawn_llama_server(
     port: u16,
     context_size: u32,
 ) -> Result<ServerHandle> {
-    let mut command = std::process::Command::new(binary);
-    command
-        .arg("--host")
-        .arg("127.0.0.1")
-        .arg("--port")
-        .arg(port.to_string())
-        .arg("--model")
-        .arg(model)
-        .arg("--ctx-size")
-        .arg(context_size.to_string());
+    spawn_with_args(binary, server_args(model, port, context_size, false))
+}
 
-    let child = Child::spawn(command, Stdio::null(), Stdio::inherit(), Stdio::inherit())
-        .context("spawning llama-server")?;
-    Ok(ServerHandle { child })
+/// Spawns `llama-server` in embeddings mode (`--embeddings`), serving the
+/// OpenAI-compatible `/v1/embeddings` endpoint on loopback.
+pub fn spawn_llama_embedding_server(
+    binary: &Path,
+    model: &Path,
+    port: u16,
+    context_size: u32,
+) -> Result<ServerHandle> {
+    spawn_with_args(binary, server_args(model, port, context_size, true))
 }
 
 /// Repeatedly calls `is_ready` until it resolves `true` or `timeout` elapses,
@@ -138,6 +168,21 @@ pub async fn health_ready(http_client: &dyn http_client::HttpClient, port: u16) 
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn embedding_args_add_only_the_embeddings_flag() {
+        let model = Path::new("/tmp/m.gguf");
+        let chat = server_args(model, 8080, 4096, false);
+        let embed = server_args(model, 8080, 2048, true);
+        assert!(!chat.iter().any(|a| a == "--embeddings"));
+        assert_eq!(embed.last().unwrap(), "--embeddings");
+        // Both stay loopback-only and never enable the RPC surface.
+        for args in [&chat, &embed] {
+            assert!(args.iter().any(|a| a == "127.0.0.1"));
+            assert!(!args.iter().any(|a| a == "--rpc"));
+            assert!(!args.iter().any(|a| a == "--pooling"));
+        }
+    }
 
     #[test]
     fn find_free_port_returns_a_bindable_port() {
