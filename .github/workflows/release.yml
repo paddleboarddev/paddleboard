@@ -100,6 +100,19 @@ jobs:
       - name: Build the public stable channel
         run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
 
+      - name: Free up disk space
+        # A full Zed-fork release build produces a large target/ dir; the stock
+        # ubuntu runner (~14 GB free on /) can run out mid-build. Reclaim ~20 GB of
+        # preinstalled toolchains a Rust build never touches, and print disk/RAM so
+        # a resource failure is visible instead of a silently-killed runner.
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+                      /usr/local/lib/android /opt/hostedtoolcache/CodeQL \
+                      /usr/share/swift || true
+          sudo docker image prune --all --force || true
+          echo "=== disk ===" ; df -h /
+          echo "=== ram ===" ; free -h
+
       - name: Install Linux build dependencies
         run: ./script/linux
 
@@ -118,7 +131,24 @@ jobs:
       - name: Build the Linux bundle (x86_64)
         env:
           PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
-        run: script/bundle-linux
+        run: |
+          # Capture the full output to a file so we can read the error via an
+          # uploaded artifact even when GitHub loses the job-log blob (as happened
+          # on the first attempts). pipefail keeps bundle-linux's exit code, not tee's.
+          set -o pipefail
+          script/bundle-linux 2>&1 | tee /tmp/bundle-linux.log
+
+      - name: Upload Linux build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build-log
+          path: /tmp/bundle-linux.log
+          if-no-files-found: warn
+
+      - name: Disk after build
+        if: always()
+        run: df -h /
 
       - name: Attach the Linux tarball to the release
         env:
