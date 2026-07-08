@@ -35,6 +35,10 @@ const LLAMA_CPP_VERSION: &str = "b9874";
 /// point the provider at their own server are unaffected.
 const DEFAULT_CONTEXT_SIZE: u32 = 8192;
 
+/// Context window for the managed embedding server. EmbeddingGemma's maximum
+/// input length is 2048 tokens; chunks are sized well below this anyway.
+const EMBEDDING_CONTEXT_SIZE: u32 = 2048;
+
 // ---------------------------------------------------------------------------
 // Model catalog
 // ---------------------------------------------------------------------------
@@ -97,6 +101,34 @@ pub const CATALOG: &[CatalogModel] = &[
 
 pub fn catalog_model(id: &str) -> Option<&'static CatalogModel> {
     CATALOG.iter().find(|model| model.id == id)
+}
+
+/// The default managed embedding model.
+pub const DEFAULT_EMBEDDING_MODEL_ID: &str = "embeddinggemma-300m";
+
+/// Embedding models, kept separate from `CATALOG` so the chat-model picker
+/// never offers a model that can't chat. Consumed by the semantic-search
+/// indexer (paddleboard_rag), not by the Local Models UI.
+pub const EMBEDDING_CATALOG: &[CatalogModel] = &[CatalogModel {
+    id: "embeddinggemma-300m",
+    display_name: "EmbeddingGemma 300M",
+    description: "Google's EmbeddingGemma (QAT, 8-bit) for local semantic search. \
+                  ~0.33 GB download.",
+    repo: "ggml-org/embeddinggemma-300m-qat-q8_0-GGUF",
+    file: "embeddinggemma-300m-qat-Q8_0.gguf",
+    size_bytes: 328_577_056,
+    sha256: "6fa0c02a9c302be6f977521d399b4de3a46310a4f2621ee0063747881b673f67",
+}];
+
+pub fn embedding_catalog_model(id: &str) -> Option<&'static CatalogModel> {
+    EMBEDDING_CATALOG.iter().find(|model| model.id == id)
+}
+
+/// The default embedding model, tolerating a mistyped id like [`default_model`].
+pub fn default_embedding_model() -> &'static CatalogModel {
+    embedding_catalog_model(DEFAULT_EMBEDDING_MODEL_ID)
+        .or(EMBEDDING_CATALOG.first())
+        .expect("the embedding catalog is never empty")
 }
 
 /// The default model, falling back to the first catalog entry if the default id
@@ -313,6 +345,15 @@ pub enum ManagerStatus {
     Unsupported,
 }
 
+/// Which managed server a lifecycle operation targets. The chat and embedding
+/// servers run independently: separate processes, ports, status machines, and
+/// generations, sharing only the provisioning/download plumbing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ServerSlot {
+    Chat,
+    Embedding,
+}
+
 pub struct LlamaManager {
     http_client: Arc<dyn HttpClient>,
     status: ManagerStatus,
@@ -329,6 +370,12 @@ pub struct LlamaManager {
     /// Bumped on every desired-state change so a superseded task can detect that
     /// it is stale and avoid clobbering newer state.
     generation: usize,
+    /// The embedding server's independent lifecycle (feature-driven by the
+    /// semantic-search indexer rather than by user settings).
+    embedding_status: ManagerStatus,
+    embedding_server: Option<ServerHandle>,
+    _embedding_run_task: Option<Task<()>>,
+    embedding_generation: usize,
 }
 
 struct GlobalLlamaManager(Entity<LlamaManager>);
@@ -364,6 +411,14 @@ impl LlamaManager {
             server: None,
             _run_task: None,
             generation: 0,
+            embedding_status: if platform_supported() {
+                ManagerStatus::Idle
+            } else {
+                ManagerStatus::Unsupported
+            },
+            embedding_server: None,
+            _embedding_run_task: None,
+            embedding_generation: 0,
         }
     }
 
@@ -386,6 +441,73 @@ impl LlamaManager {
         match &self.status {
             ManagerStatus::Ready { port, .. } => Some(*port),
             _ => None,
+        }
+    }
+
+    /// Lifecycle state of the managed embedding server.
+    pub fn embedding_status(&self) -> &ManagerStatus {
+        &self.embedding_status
+    }
+
+    /// The loopback port serving `/v1/embeddings`, once ready.
+    pub fn embedding_ready_port(&self) -> Option<u16> {
+        match &self.embedding_status {
+            ManagerStatus::Ready { port, .. } => Some(*port),
+            _ => None,
+        }
+    }
+
+    /// Starts (or restarts) the managed embedding server. Idempotent while the
+    /// requested model is already starting or ready. Driven by features that
+    /// need embeddings (the semantic-search indexer), not by user settings.
+    pub fn ensure_embedding_running(&mut self, model_id: &str, cx: &mut Context<Self>) {
+        match &self.embedding_status {
+            ManagerStatus::Ready { model, .. }
+            | ManagerStatus::Starting { model }
+            | ManagerStatus::Downloading { model, .. }
+                if model == model_id =>
+            {
+                return;
+            }
+            _ => {}
+        }
+        let Some(model) = embedding_catalog_model(model_id) else {
+            self.embedding_status = ManagerStatus::Error {
+                message: format!("Unknown local embedding model \"{model_id}\""),
+            };
+            cx.notify();
+            return;
+        };
+        self.start_slot(ServerSlot::Embedding, *model, cx);
+    }
+
+    /// Stops the managed embedding server and returns the slot to `Idle`.
+    pub fn stop_embedding(&mut self, cx: &mut Context<Self>) {
+        self.embedding_generation += 1;
+        self._embedding_run_task = None;
+        self.embedding_server = None;
+        self.embedding_status = ManagerStatus::Idle;
+        cx.notify();
+    }
+
+    fn slot_generation(&self, slot: ServerSlot) -> usize {
+        match slot {
+            ServerSlot::Chat => self.generation,
+            ServerSlot::Embedding => self.embedding_generation,
+        }
+    }
+
+    fn set_slot_status(&mut self, slot: ServerSlot, status: ManagerStatus) {
+        match slot {
+            ServerSlot::Chat => self.status = status,
+            ServerSlot::Embedding => self.embedding_status = status,
+        }
+    }
+
+    fn store_slot_server(&mut self, slot: ServerSlot, server: Option<ServerHandle>) {
+        match slot {
+            ServerSlot::Chat => self.server = server,
+            ServerSlot::Embedding => self.embedding_server = server,
         }
     }
 
@@ -417,13 +539,6 @@ impl LlamaManager {
     }
 
     fn start(&mut self, model_id: String, cx: &mut Context<Self>) {
-        if !platform_supported() {
-            self.server = None;
-            self._run_task = None;
-            self.status = ManagerStatus::Unsupported;
-            cx.notify();
-            return;
-        }
         let Some(model) = catalog_model(&model_id) else {
             self.status = ManagerStatus::Error {
                 message: format!("Unknown local model \"{model_id}\""),
@@ -431,36 +546,63 @@ impl LlamaManager {
             cx.notify();
             return;
         };
-        let model = *model;
+        self.start_slot(ServerSlot::Chat, *model, cx);
+    }
 
-        self.generation += 1;
-        let generation = self.generation;
-        // Kill any running server before switching models.
-        self.server = None;
-        self.status = ManagerStatus::Preparing;
+    fn start_slot(&mut self, slot: ServerSlot, model: CatalogModel, cx: &mut Context<Self>) {
+        if !platform_supported() {
+            self.store_slot_server(slot, None);
+            self.set_slot_status(slot, ManagerStatus::Unsupported);
+            match slot {
+                ServerSlot::Chat => self._run_task = None,
+                ServerSlot::Embedding => self._embedding_run_task = None,
+            }
+            cx.notify();
+            return;
+        }
+
+        let generation = match slot {
+            ServerSlot::Chat => {
+                self.generation += 1;
+                self.generation
+            }
+            ServerSlot::Embedding => {
+                self.embedding_generation += 1;
+                self.embedding_generation
+            }
+        };
+        // Kill any running server in this slot before switching models.
+        self.store_slot_server(slot, None);
+        self.set_slot_status(slot, ManagerStatus::Preparing);
         cx.notify();
 
         let http_client = self.http_client.clone();
-        self._run_task = Some(cx.spawn(async move |this, cx| {
-            if let Err(error) = run(this.clone(), http_client, model, generation, cx).await {
-                log::error!("Local Models manager failed: {error:#}");
-                this.update(cx, |this, cx| this.fail(generation, format!("{error:#}"), cx))
-                    .ok();
+        let task = cx.spawn(async move |this, cx| {
+            if let Err(error) = run(this.clone(), http_client, model, slot, generation, cx).await {
+                log::error!("Local Models manager failed ({slot:?}): {error:#}");
+                this.update(cx, |this, cx| {
+                    this.fail(slot, generation, format!("{error:#}"), cx)
+                })
+                .ok();
             }
-        }));
+        });
+        match slot {
+            ServerSlot::Chat => self._run_task = Some(task),
+            ServerSlot::Embedding => self._embedding_run_task = Some(task),
+        }
     }
 
-    /// Records a failure for `generation`: drops any server handle this run
-    /// stored — killing an unhealthy `llama-server` (e.g. one that spawned but
-    /// never became ready) rather than leaking its RAM/GPU/port — and surfaces
-    /// `message` to the UI. Guarded by generation so a superseded run never
-    /// clobbers newer state.
-    fn fail(&mut self, generation: usize, message: String, cx: &mut Context<Self>) {
-        if self.generation != generation {
+    /// Records a failure for `generation` in `slot`: drops any server handle
+    /// this run stored — killing an unhealthy `llama-server` (e.g. one that
+    /// spawned but never became ready) rather than leaking its RAM/GPU/port —
+    /// and surfaces `message` to the UI. Guarded by generation so a superseded
+    /// run never clobbers newer state.
+    fn fail(&mut self, slot: ServerSlot, generation: usize, message: String, cx: &mut Context<Self>) {
+        if self.slot_generation(slot) != generation {
             return;
         }
-        self.server = None;
-        self.status = ManagerStatus::Error { message };
+        self.store_slot_server(slot, None);
+        self.set_slot_status(slot, ManagerStatus::Error { message });
         cx.notify();
     }
 
@@ -474,9 +616,14 @@ impl LlamaManager {
     }
 }
 
-/// True while `generation` is still the manager's current generation.
-fn is_current(this: &WeakEntity<LlamaManager>, generation: usize, cx: &mut AsyncApp) -> bool {
-    this.update(cx, |this, _| this.generation == generation)
+/// True while `generation` is still the current generation for `slot`.
+fn is_current(
+    this: &WeakEntity<LlamaManager>,
+    slot: ServerSlot,
+    generation: usize,
+    cx: &mut AsyncApp,
+) -> bool {
+    this.update(cx, |this, _| this.slot_generation(slot) == generation)
         .unwrap_or(false)
 }
 
@@ -488,13 +635,14 @@ async fn run(
     this: WeakEntity<LlamaManager>,
     http_client: Arc<dyn HttpClient>,
     model: CatalogModel,
+    slot: ServerSlot,
     generation: usize,
     cx: &mut AsyncApp,
 ) -> Result<()> {
     let binary = resolve_or_install_server(http_client.as_ref())
         .await
         .context("preparing the local model runtime")?;
-    if !is_current(&this, generation, cx) {
+    if !is_current(&this, slot, generation, cx) {
         return Ok(());
     }
 
@@ -533,12 +681,15 @@ async fn run(
                 last_reported = progress.received;
                 progress_this
                     .update(&mut progress_cx, |this, cx| {
-                        if this.generation == generation {
-                            this.status = ManagerStatus::Downloading {
-                                model: model.id.to_string(),
-                                received: progress.received,
-                                total: progress.total,
-                            };
+                        if this.slot_generation(slot) == generation {
+                            this.set_slot_status(
+                                slot,
+                                ManagerStatus::Downloading {
+                                    model: model.id.to_string(),
+                                    received: progress.received,
+                                    total: progress.total,
+                                },
+                            );
                             cx.notify();
                         }
                     })
@@ -548,24 +699,38 @@ async fn run(
         .await
         .context("downloading the model")?;
     }
-    if !is_current(&this, generation, cx) {
+    if !is_current(&this, slot, generation, cx) {
         return Ok(());
     }
 
     let port = server::find_free_port()?;
-    let handle = server::spawn_llama_server(&binary, &model_path, port, DEFAULT_CONTEXT_SIZE)?;
+    let handle = match slot {
+        ServerSlot::Chat => {
+            server::spawn_llama_server(&binary, &model_path, port, DEFAULT_CONTEXT_SIZE)?
+        }
+        ServerSlot::Embedding => server::spawn_llama_embedding_server(
+            &binary,
+            &model_path,
+            port,
+            EMBEDDING_CONTEXT_SIZE,
+        )?,
+    };
 
     // Store the handle only if this run is still current; otherwise let it drop
     // here, which kills the just-spawned process.
     let mut handle = Some(handle);
     let stored = this.update(cx, |this, cx| {
-        if this.generation != generation {
+        if this.slot_generation(slot) != generation {
             return false;
         }
-        this.server = handle.take();
-        this.status = ManagerStatus::Starting {
-            model: model.id.to_string(),
-        };
+        let handle = handle.take();
+        this.store_slot_server(slot, handle);
+        this.set_slot_status(
+            slot,
+            ManagerStatus::Starting {
+                model: model.id.to_string(),
+            },
+        );
         cx.notify();
         true
     })?;
@@ -587,16 +752,19 @@ async fn run(
     )
     .await
     .context("waiting for the model to load")?;
-    if !is_current(&this, generation, cx) {
+    if !is_current(&this, slot, generation, cx) {
         return Ok(());
     }
 
     this.update(cx, |this, cx| {
-        if this.generation == generation {
-            this.status = ManagerStatus::Ready {
-                model: model.id.to_string(),
-                port,
-            };
+        if this.slot_generation(slot) == generation {
+            this.set_slot_status(
+                slot,
+                ManagerStatus::Ready {
+                    model: model.id.to_string(),
+                    port,
+                },
+            );
             cx.notify();
         }
     })?;
@@ -613,6 +781,73 @@ mod tests {
         assert_eq!(catalog_model("gemma-3-1b").unwrap().id, "gemma-3-1b");
         assert!(catalog_model("does-not-exist").is_none());
         assert_eq!(default_model().id, DEFAULT_MODEL_ID);
+    }
+
+    #[test]
+    fn embedding_catalog_is_separate_from_the_chat_catalog() {
+        assert_eq!(
+            default_embedding_model().id,
+            DEFAULT_EMBEDDING_MODEL_ID,
+            "the default embedding id resolves"
+        );
+        // The chat picker must never see embedding models, and vice versa.
+        assert!(catalog_model(DEFAULT_EMBEDDING_MODEL_ID).is_none());
+        for chat_model in CATALOG {
+            assert!(embedding_catalog_model(chat_model.id).is_none());
+        }
+        let model = default_embedding_model();
+        assert!(model.download_url().contains("/resolve/main/"));
+        assert!(model.approx_size_gb() < 0.5, "embedding model stays tiny");
+    }
+
+    // Failing the embedding slot must not touch the chat slot's state (and the
+    // other way around) — the two lifecycles are independent.
+    #[gpui::test]
+    async fn embedding_failure_does_not_clobber_the_chat_slot(cx: &mut gpui::TestAppContext) {
+        let manager = cx.new(|_| LlamaManager::new(Arc::new(UnusedHttpClient)));
+
+        let (chat_generation, embedding_generation) = manager.update(cx, |manager, _| {
+            manager.status = ManagerStatus::Ready {
+                model: "gemma-3-4b".into(),
+                port: 12345,
+            };
+            (manager.generation, manager.embedding_generation)
+        });
+
+        manager.update(cx, |manager, cx| {
+            manager.fail(
+                ServerSlot::Embedding,
+                embedding_generation,
+                "embedding model failed to load".to_string(),
+                cx,
+            );
+        });
+
+        manager.read_with(cx, |manager, _| {
+            assert!(
+                matches!(manager.status, ManagerStatus::Ready { port: 12345, .. }),
+                "the chat slot must be untouched by an embedding failure"
+            );
+            assert!(matches!(
+                manager.embedding_status,
+                ManagerStatus::Error { .. }
+            ));
+            assert_eq!(manager.embedding_ready_port(), None);
+            assert_eq!(manager.ready_port(), Some(12345));
+        });
+
+        // And a stale-generation chat failure must not clobber the embedding slot.
+        manager.update(cx, |manager, cx| {
+            manager.fail(
+                ServerSlot::Chat,
+                chat_generation + 1,
+                "stale".to_string(),
+                cx,
+            );
+        });
+        manager.read_with(cx, |manager, _| {
+            assert!(matches!(manager.status, ManagerStatus::Ready { .. }));
+        });
     }
 
     #[test]
@@ -719,7 +954,12 @@ mod tests {
         });
 
         manager.update(cx, |manager, cx| {
-            manager.fail(generation, "timed out waiting for the model".to_string(), cx);
+            manager.fail(
+                ServerSlot::Chat,
+                generation,
+                "timed out waiting for the model".to_string(),
+                cx,
+            );
         });
 
         manager.read_with(cx, |manager, _| {

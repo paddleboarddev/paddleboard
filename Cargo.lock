@@ -12583,7 +12583,7 @@ checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
 name = "paddleboard"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "acp_thread",
  "acp_tools",
@@ -13061,6 +13061,8 @@ dependencies = [
  "menu",
  "multi_buffer",
  "paddleboard_actions",
+ "paddleboard_personas",
+ "paddleboard_personas_settings",
  "paddleboard_scion",
  "paddleboard_scion_settings",
  "project",

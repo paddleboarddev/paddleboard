@@ -10,6 +10,7 @@ use paddleboard_scion::{AgentPhase, ScionCli, StartAgentOptions};
 use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use settings::Settings as _;
 
 use crate::{AgentTool, ToolCallEventStream, ToolInput};
 
@@ -33,6 +34,9 @@ const LOG_TAIL_LINES: usize = 200;
 /// - The Scion agent runs in a fresh, isolated checkout and does NOT see this
 ///   conversation. Put all required context (goal, constraints, file paths) in `task`.
 /// - Give it a short, unique, filesystem-safe `name` (e.g. "auth-refactor").
+/// - Optionally give it a `persona` from the "Available Personas" list — its
+///   identity overlay is prepended to the task, since the agent can't see this
+///   session's persona.
 /// - Prefer this over `spawn_agent` specifically when isolation matters; for quick
 ///   in-process lookups, use `spawn_agent` instead.
 ///
@@ -55,6 +59,11 @@ pub struct SpawnScionAgentToolInput {
     /// Optional git branch name for the agent's isolated worktree.
     #[serde(default)]
     pub branch: Option<String>,
+    /// Optional persona for the agent, by name from the "Available Personas"
+    /// list (e.g. "qa-engineer"). The Scion agent runs outside this session, so
+    /// the persona's identity overlay is prepended to the task prompt.
+    #[serde(default)]
+    pub persona: Option<String>,
     /// Wait for the agent to reach a terminal phase before returning (default true).
     /// When false, returns as soon as the agent has started.
     #[serde(default = "default_true")]
@@ -203,6 +212,8 @@ impl AgentTool for SpawnScionAgentTool {
             .worktrees(cx)
             .next()
             .map(|worktree| worktree.read(cx).abs_path().to_path_buf());
+        let personas_enabled =
+            paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled;
 
         cx.spawn(async move |cx| {
             let input = input
@@ -215,6 +226,58 @@ impl AgentTool for SpawnScionAgentTool {
             if let Err(message) = validate_scion_input(&input) {
                 return Err(error_output(Some(name), message));
             }
+
+            // Scion agents run outside this session, so a persona can't ride the
+            // system prompt — resolve it here and prepend its overlay to the task.
+            let task = if let Some(requested) = input
+                .persona
+                .clone()
+                .filter(|requested| !requested.trim().is_empty())
+            {
+                if !personas_enabled {
+                    return Err(error_output(
+                        Some(name),
+                        "The persona system is disabled in settings, so the `persona` \
+                         parameter is unavailable.",
+                    ));
+                }
+                let Some(root) = project_dir.clone() else {
+                    return Err(error_output(
+                        Some(name),
+                        "The `persona` parameter needs an open project to discover personas.",
+                    ));
+                };
+                let personas = cx
+                    .background_executor()
+                    .spawn(async move { paddleboard_personas::discover(Some(root.as_path())) })
+                    .await;
+                let Some(persona) = personas
+                    .iter()
+                    .find(|persona| persona.name == requested)
+                    .or_else(|| {
+                        personas
+                            .iter()
+                            .find(|persona| persona.name.eq_ignore_ascii_case(&requested))
+                    })
+                else {
+                    let available = personas
+                        .iter()
+                        .map(|persona| persona.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return Err(error_output(
+                        Some(name),
+                        format!(
+                            "No persona named '{requested}'. Available: {}",
+                            if available.is_empty() { "(none)" } else { &available }
+                        ),
+                    ));
+                };
+                let overlay = paddleboard_personas::build_overlay(persona, &personas);
+                paddleboard_personas::prepend_overlay_to_task(&overlay, &input.task)
+            } else {
+                input.task.clone()
+            };
 
             let cli = {
                 let mut cli = ScionCli::new();
@@ -242,7 +305,7 @@ impl AgentTool for SpawnScionAgentTool {
             let start_result = Tokio::spawn_result(cx, {
                 let cli = cli.clone();
                 let name = name.clone();
-                let task = input.task.clone();
+                let task = task.clone();
                 async move { cli.start_agent(&name, Some(&task), &options).await }
             })
             .await;
@@ -386,7 +449,17 @@ mod tests {
         assert!(!input.sync_on_complete);
         assert!(input.template.is_none());
         assert!(input.branch.is_none());
+        assert!(input.persona.is_none());
         assert!(input.timeout_secs.is_none());
+    }
+
+    #[test]
+    fn input_accepts_a_persona() {
+        let input: SpawnScionAgentToolInput = serde_json::from_str(
+            r#"{"name":"auth-refactor","task":"do the thing","persona":"qa-engineer"}"#,
+        )
+        .expect("input with persona should parse");
+        assert_eq!(input.persona.as_deref(), Some("qa-engineer"));
     }
 
     #[test]

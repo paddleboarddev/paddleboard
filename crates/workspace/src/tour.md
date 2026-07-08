@@ -51,15 +51,16 @@ A **persona** describes who the agent should mimic — a Senior Developer, an SR
 - Keep a library as `.claude/personas/*.persona.md` files (project or `~/.claude/personas/` for user-wide), then switch per thread with the **persona picker** next to the profile selector in the agent panel.
 - Grab starter roles in **AI Dock → Personas** — Senior Developer, Site Reliability Engineer, QA Engineer — with one-click **Add to project / Add to user**.
 - Or just ask mid-conversation — "be my QA tester" — and the agent switches itself via its `adopt_persona` tool.
-- Compose with `extends:` (inherit a shared house base), and give **sub-agents** their own personas — a QA-persona reviewer genuinely thinks like a reviewer.
+- Compose with `extends:` (inherit a shared house base), and give **sub-agents** their own personas — a QA-persona reviewer genuinely thinks like a reviewer. Works for container-isolated **Scion agents** too (picker in the start modal, `persona` on the `spawn_scion_agent` tool).
 - Works identically with every LLM provider; the persona is saved with the thread. Opt out with `"paddleboard_personas": { "enabled": false }`.
 
 ### 7. Set Sail — Deploy to Serverless
-Quick-deploy the current project to **Cloud Run, AWS Lambda, or Vercel**, no YAML safari. ⛵
+Quick-deploy the current project to **Cloud Run, AWS Lambda, Vercel, Azure (Container Apps), Cloudflare (Workers), or Netlify**, no YAML safari. ⛵
 - Run it: `Cmd-Shift-P` → **`set sail: Deploy`** — pick a platform, service name, and public/private, then the agent takes the helm.
 - Powered by the open-source [s8sskills](https://s8sskills.com) catalog: PaddleBoard installs the platform's skill pack into `.agents/skills/` and the agent follows that playbook.
 - Interactive steps (`gcloud auth login`, `aws configure`, `vercel login`) are handed to you in the terminal — the agent never runs auth flows itself.
-- More platforms (Azure, Cloudflare, Netlify…) arrive as skill packs; a future **Rig the pipeline** mode will set up git-push CD.
+- **Custom target**: host somewhere else? Describe it (Knative on your cluster, Fly.io, a VPS…) and the agent takes it from there.
+- **Rig the pipeline**: flip the modal's mode toggle and the agent sets up CI/CD groundwork instead — a least-privilege deploy identity, the resource, and the exact deploy command for *any* CI tool, with every secret left as a TODO placeholder for you. (Cloud Run, AWS Lambda, and Vercel today.)
 
 ### 8. Step-Through Mode
 Approve every tool call before the agent executes it.
@@ -77,7 +78,7 @@ A live tree view of every active agent session, including subagents.
 Run multiple deep agents in parallel, each in its own container and git worktree, via [Scion](https://github.com/GoogleCloudPlatform/scion).
 - **Opt-in:** enable with `"paddleboard_scion": { "enabled": true }` in settings (installing the CLI alone won't turn it on).
 - Install: `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then `scion init --machine` and `scion init` in your project.
-- Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, and template.
+- Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, template — and optionally a **persona**, so the isolated agent adopts that identity.
 - The **Orchestration Panel** shows a **Scion Agents** section below native threads. Each row shows the agent's phase (provisioning → running → stopped) and activity (working, thinking, waiting, etc.).
 - Right-click any agent row for **View Logs** (opens a live-streaming log tab that tails output in real time), **Sync Changes** (pulls changes into your local copy and shows a toast), or **Stop Agent**.
 - **Agents can delegate to Scion themselves:** with the CLI installed, the agent gains a `spawn_scion_agent` tool — it hands a subtask to a container + worktree-isolated agent (instead of an in-process sub-agent that shares your workspace), waits for it, and returns the result.

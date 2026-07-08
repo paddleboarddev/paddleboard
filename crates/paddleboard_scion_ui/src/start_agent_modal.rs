@@ -1,7 +1,10 @@
 use gpui::{
     DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Render, Stateful, WeakEntity,
 };
+use paddleboard_personas::{Persona, build_overlay, prepend_overlay_to_task};
+use paddleboard_personas_settings::PersonasSettings;
 use paddleboard_scion::{StartAgentOptions, TemplateInfo};
+use settings::Settings as _;
 use ui::{
     Button, Icon, IconName, KeyBinding, Label, LabelSize, Modal, ModalFooter, ModalHeader,
     prelude::*,
@@ -18,6 +21,9 @@ pub struct StartAgentModal {
     name_input: Entity<InputField>,
     templates: Vec<TemplateInfo>,
     selected_template: Option<usize>,
+    personas: Vec<Persona>,
+    personas_enabled: bool,
+    selected_persona: Option<usize>,
     focus_handle: FocusHandle,
 }
 
@@ -28,15 +34,32 @@ impl StartAgentModal {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
+        // Discover personas HERE, while we hold the Workspace lease — the closure
+        // passed to `toggle_modal` runs inside `Workspace::update`, so reading the
+        // workspace from the modal constructor double-leases and panics.
+        let personas_enabled = PersonasSettings::get_global(cx).enabled;
+        let personas = if personas_enabled {
+            let project_root = workspace
+                .project()
+                .read(cx)
+                .visible_worktrees(cx)
+                .next()
+                .map(|worktree| worktree.read(cx).abs_path().to_path_buf());
+            paddleboard_personas::discover(project_root.as_deref())
+        } else {
+            Vec::new()
+        };
         let weak_workspace = cx.entity().downgrade();
         workspace.toggle_modal(window, cx, |window, cx| {
-            Self::new(store, weak_workspace, window, cx)
+            Self::new(store, weak_workspace, personas, personas_enabled, window, cx)
         });
     }
 
     fn new(
         store: Entity<ScionStore>,
         workspace: WeakEntity<Workspace>,
+        personas: Vec<Persona>,
+        personas_enabled: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -66,6 +89,9 @@ impl StartAgentModal {
             name_input,
             templates,
             selected_template: None,
+            personas,
+            personas_enabled,
+            selected_persona: None,
             focus_handle: cx.focus_handle(),
         }
     }
@@ -87,10 +113,16 @@ impl StartAgentModal {
             }
         }
 
-        let task_desc = if task_text.is_empty() {
-            None
-        } else {
-            Some(task_text)
+        // A Scion agent runs outside this session, so a selected persona can't
+        // ride a system prompt — prepend its overlay to the task text instead.
+        let persona_overlay = self
+            .selected_persona
+            .and_then(|idx| self.personas.get(idx))
+            .map(|persona| build_overlay(persona, &self.personas));
+        let task_desc = match persona_overlay {
+            Some(overlay) => Some(prepend_overlay_to_task(&overlay, &task_text)),
+            None if task_text.is_empty() => None,
+            None => Some(task_text),
         };
 
         let start_task = self.scion_store.update(cx, |store, cx| {
@@ -132,6 +164,101 @@ impl StartAgentModal {
         cx: &mut Context<Self>,
     ) {
         window.focus_prev(cx);
+    }
+
+    fn render_persona_selector(&self, cx: &mut Context<Self>) -> Div {
+        // Empty state instead of hiding the section — an invisible feature with
+        // no explanation reads as a bug (and hides how to get personas at all).
+        if self.personas.is_empty() {
+            return v_flex()
+                .gap_1()
+                .child(Label::new("Persona").size(LabelSize::Small))
+                .child(
+                    Label::new(
+                        "No personas found — drop a PERSONA.md at the project root, or grab \
+                         a starter role in AI Dock → Personas.",
+                    )
+                    .size(LabelSize::XSmall)
+                    .color(Color::Muted),
+                );
+        }
+
+        let mut options = v_flex().gap_0p5();
+        options = options.child(self.render_persona_option(None, cx));
+        for idx in 0..self.personas.len() {
+            options = options.child(self.render_persona_option(Some(idx), cx));
+        }
+
+        v_flex()
+            .gap_1()
+            .child(Label::new("Persona").size(LabelSize::Small))
+            .child(options)
+    }
+
+    fn render_persona_option(
+        &self,
+        index: Option<usize>,
+        cx: &mut Context<Self>,
+    ) -> Stateful<Div> {
+        let is_selected = self.selected_persona == index;
+        let (label, description) = match index {
+            Some(idx) => {
+                let persona = &self.personas[idx];
+                let description = if persona.description.is_empty() {
+                    persona.kind.clone()
+                } else {
+                    persona.description.clone()
+                };
+                (persona.name.clone(), description)
+            }
+            None => (
+                "No persona".to_string(),
+                "The agent runs with its default identity".to_string(),
+            ),
+        };
+
+        let icon = if is_selected {
+            IconName::Check
+        } else {
+            IconName::Circle
+        };
+
+        let icon_color = if is_selected {
+            Color::Accent
+        } else {
+            Color::Muted
+        };
+
+        h_flex()
+            .id(SharedString::from(format!(
+                "persona-{}",
+                index.map_or("none".to_string(), |i| i.to_string())
+            )))
+            .gap_2()
+            .px_2()
+            .py_1()
+            .rounded_sm()
+            .cursor_pointer()
+            .when(is_selected, |el| {
+                el.bg(cx.theme().colors().element_selected)
+            })
+            .hover(|el| el.bg(cx.theme().colors().element_hover))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.selected_persona = index;
+                cx.notify();
+            }))
+            .child(Icon::new(icon).size(ui::IconSize::Small).color(icon_color))
+            .child(
+                v_flex()
+                    .child(Label::new(label).size(LabelSize::Small))
+                    .when(!description.is_empty(), |el| {
+                        el.child(
+                            Label::new(description)
+                                .size(LabelSize::XSmall)
+                                .color(Color::Muted),
+                        )
+                    }),
+            )
     }
 
     fn render_template_selector(&self, cx: &mut Context<Self>) -> Div {
@@ -256,6 +383,9 @@ impl Render for StartAgentModal {
                             .child(self.name_input.clone())
                             .when(!self.templates.is_empty(), |el| {
                                 el.child(self.render_template_selector(cx))
+                            })
+                            .when(self.personas_enabled, |el| {
+                                el.child(self.render_persona_selector(cx))
                             }),
                     )
                     .footer(
