@@ -113,7 +113,7 @@ jobs:
         # browser). libwebkit2gtk-4.1-dev pulls in gtk-3/gdk/soup/jsc transitively.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang
 
       - name: Set up Rust
         run: rustup update stable
@@ -121,6 +121,13 @@ jobs:
       - name: Build the Linux bundle (x86_64)
         env:
           PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
+          # PaddleBoard: build the inherited webrtc-sys (LiveKit/Chromium C++) with
+          # clang, not the runner's default g++. That code is Clang-only — g++
+          # rejects it with "changes meaning of 'Network' [-fpermissive]" in
+          # p2p/base/port_interface.h. macOS builds fine because Apple's c++ IS
+          # clang; matching that on Linux is the fix.
+          CC: clang
+          CXX: clang++
         run: |
           # Capture the full output to a file so we can read the error via an
           # uploaded artifact even when GitHub loses the job-log blob (as happened
