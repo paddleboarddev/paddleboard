@@ -282,8 +282,11 @@ dependencies = [
  "lsp",
  "paddleboard_container_engine",
  "paddleboard_env_vars",
+ "paddleboard_llama_manager",
  "paddleboard_personas",
  "paddleboard_personas_settings",
+ "paddleboard_rag",
+ "paddleboard_rag_settings",
  "paddleboard_sandbox_prereqs_state",
  "paddleboard_sandbox_settings",
  "paddleboard_scion",
@@ -12692,6 +12695,7 @@ dependencies = [
  "paddleboard_otel",
  "paddleboard_otel_settings",
  "paddleboard_personas_settings",
+ "paddleboard_rag_settings",
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_ui",
  "paddleboard_sandbox_settings",
@@ -12972,6 +12976,35 @@ dependencies = [
 
 [[package]]
 name = "paddleboard_personas_settings"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "settings",
+]
+
+[[package]]
+name = "paddleboard_rag"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "collections",
+ "futures 0.3.32",
+ "gpui",
+ "http_client",
+ "log",
+ "paddleboard_llama_manager",
+ "paths",
+ "project",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlez",
+ "tempfile",
+ "worktree",
+]
+
+[[package]]
+name = "paddleboard_rag_settings"
 version = "0.1.0"
 dependencies = [
  "gpui",

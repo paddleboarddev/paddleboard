@@ -12,6 +12,8 @@ mod paddleboard_sandbox;
 mod paddleboard_otel;
 // PaddleBoard: schema for the persona system (PERSONA.md).
 mod paddleboard_personas;
+// PaddleBoard: schema for local RAG / semantic search (opt-in).
+mod paddleboard_rag;
 // PaddleBoard: schema for the Scion integration (opt-in).
 mod paddleboard_scion;
 // PaddleBoard: schema for the local LLM usage tracker.
@@ -34,6 +36,7 @@ pub use merge_from::MergeFrom as MergeFromTrait;
 // PaddleBoard: re-export sandbox and OTEL content types alongside the rest.
 pub use paddleboard_otel::*;
 pub use paddleboard_personas::*;
+pub use paddleboard_rag::*;
 pub use paddleboard_scion::*;
 pub use paddleboard_sandbox::*;
 pub use paddleboard_usage::*;
@@ -282,6 +285,9 @@ pub struct SettingsContent {
 
     // PaddleBoard: configuration for the persona system (opt-out).
     pub paddleboard_personas: Option<PaddleboardPersonasContent>,
+
+    // PaddleBoard: configuration for local RAG / semantic search (opt-in, default off).
+    pub paddleboard_rag: Option<PaddleboardRagContent>,
 
     // PaddleBoard: configuration for the Scion integration (opt-in, default off).
     pub paddleboard_scion: Option<PaddleboardScionContent>,
