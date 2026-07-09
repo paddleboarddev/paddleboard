@@ -5,7 +5,8 @@ use crate::{
     FetchTool, FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
     InstallMcpServerTool, ListAgentsAndModelsTool, ListDirectoryTool, MovePathTool, ProjectSnapshot,
     ReadFileTool,
-    RenameTool, SandboxServiceTool, SandboxTool, SandboxedTerminalTool, SpawnAgentTool,
+    RenameTool, SandboxServiceTool, SandboxTool, SandboxedTerminalTool, SemanticSearchTool,
+    SpawnAgentTool,
     SpawnScionAgentTool, SystemPromptTemplate, Template, Templates, TerminalTool,
     ToolPermissionDecision, WebSearchTool, WriteFileTool, decide_permission_from_settings,
 };
@@ -2202,6 +2203,12 @@ impl Thread {
         // the persona system is enabled.
         if paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled {
             self.add_tool(AdoptPersonaTool::new(cx.weak_entity(), self.project.clone()));
+        }
+
+        // PaddleBoard: local semantic search over the project, indexed on demand
+        // with the built-in embedding model. Opt-in (settings, default off).
+        if paddleboard_rag_settings::RagSettings::get_global(cx).enabled {
+            self.add_tool(SemanticSearchTool::new(self.project.clone()));
         }
     }
 

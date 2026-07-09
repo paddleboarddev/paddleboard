@@ -510,6 +510,7 @@ fn main() {
         paddleboard_sandbox_settings::init(cx);
         paddleboard_otel_settings::init(cx);
         paddleboard_personas_settings::init(cx);
+        paddleboard_rag_settings::init(cx);
         paddleboard_scion_settings::init(cx);
         // PaddleBoard: force-link the usage-tracker settings before
         // `settings::init` collects registrations; real setup runs below.

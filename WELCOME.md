@@ -291,6 +291,18 @@ Supported on macOS Apple Silicon and Linux today; other platforms show Local Mod
 
 ---
 
+### Semantic search — find code by meaning, locally
+
+Turn on `"paddleboard_rag": { "enabled": true }` (default off) and the native agent gains a **`semantic_search`** tool: it searches the current project by *meaning* rather than exact strings, so it can find where a concept, behavior, or feature lives even when you don't know the keyword to grep for. It complements the literal `grep` tool — reach for semantic search when the search terms are fuzzy.
+
+- **Fully local, fully private.** Embeddings are computed by PaddleBoard's built-in **EmbeddingGemma** model on the same managed `llama.cpp` stack as [Local Models](#local-models--run-a-model-on-your-own-machine) — bound to `127.0.0.1`, nothing leaves your machine. The model (~0.33 GB) downloads once on first use; that first search may report it's still downloading, so just ask again in a moment.
+- **Indexes on demand, incrementally.** The first search for a project indexes its files (respecting `.gitignore`); after that only changed files are re-embedded (tracked by content hash), so repeat searches are fast. Vectors live in a small local SQLite database under PaddleBoard's embeddings directory — **no external vector database** to run.
+- **Just ask.** In an agent thread, ask something like *"use semantic_search to find where worktree files are enumerated"* and you get back the most similar chunks with file path, line number, and an excerpt, ranked by cosine similarity.
+- Large or binary files and very large repos are bounded (and any skips are reported in the result, never hidden). v1 chunks files structurally by paragraph/block; indexing covers local project files.
+- **Bring your own store (optional).** For big codebases or a shared team index, point the index at your own **Postgres + pgvector** database instead of the local SQLite store — set `"store_backend": "pgvector"` with `"store_url_env"` naming the environment variable that holds the connection string (the string itself never lives in settings). Search then runs server-side over an hnsw index (approximate-nearest-neighbor, for corpus scale). Embeddings are still computed on-device; only the vectors and chunk text go to *your* database. The local store stays the default — this tier is purely opt-in.
+
+---
+
 ### Git Login
 
 Run **`git login: Manage`** from the command palette to save a Personal Access Token for **GitHub**, **GitLab**, **BitBucket**, or a custom host. Tokens are stored in your **OS keychain** (never in settings or plaintext). Once saved, git HTTPS `clone`/`fetch`/`push` authenticate silently — the password prompt only appears when there's no saved login.
@@ -369,6 +381,7 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 | Start a Scion agent | `Cmd-Shift-P` → `scion: Start Agent` |
 | Enable OTEL tracing | Set `PADDLEBOARD_OTEL_ENABLED=1` or add `"paddleboard_otel": { "enabled": true }` to settings |
 | Switch / create a worktree | `Cmd-Shift-P` → `git: Worktree` |
+| Search the project by meaning | Enable `"paddleboard_rag": { "enabled": true }`, then ask the agent to `semantic_search` for a concept |
 | Run code in a sandbox | Ask the agent to run a command — it uses the Sandbox Tool automatically |
 | Run a service in a sandbox | Ask the agent to start a server (e.g. `python3 -m http.server 8000`) — it uses the Sandbox Service Tool, and the URL appears in the Forwarded Ports row of the browser panel |
 

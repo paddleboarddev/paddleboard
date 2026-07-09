@@ -111,9 +111,12 @@ jobs:
         # GTK3 + WebKit2GTK dev stack (gdk-sys/gtk-sys/javascriptcore/webkit2gtk).
         # script/linux is Zed's dep set and omits these (upstream has no embedded
         # browser). libwebkit2gtk-4.1-dev pulls in gtk-3/gdk/soup/jsc transitively.
+        # PaddleBoard: libssl-dev + pkg-config are needed by openssl-sys, pulled
+        # in (on Linux only) via native-tls behind paddleboard_rag's `pgvector`
+        # feature. macOS uses Secure Transport, so it doesn't need these.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang libssl-dev pkg-config
 
       - name: Set up Rust
         run: rustup update stable

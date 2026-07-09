@@ -1176,8 +1176,18 @@
           "rename_symbol": true,
           "read_file": true,
           "grep": true,
+          // PaddleBoard: local semantic search. Exposed only when the tool is
+          // actually registered (paddleboard_rag.enabled, default off), so this
+          // entry is inert until the user opts in.
+          "semantic_search": true,
           "skill": true,
           "spawn_agent": true,
+          // PaddleBoard: opt-in delegation/persona tools. Each is exposed only
+          // when its own setting registers it (paddleboard_scion.enabled + the
+          // scion CLI; paddleboard_personas.enabled), so these are inert until
+          // the user opts in.
+          "spawn_scion_agent": true,
+          "adopt_persona": true,
           "terminal": true,
           "search_web": true,
           "install_mcp_server": true,
@@ -1199,8 +1209,17 @@
           "go_to_definition": true,
           "read_file": true,
           "grep": true,
+          // PaddleBoard: local semantic search. Exposed only when the tool is
+          // actually registered (paddleboard_rag.enabled, default off), so this
+          // entry is inert until the user opts in.
+          "semantic_search": true,
           "skill": true,
           "spawn_agent": true,
+          // PaddleBoard: opt-in delegation/persona tools, inert until their own
+          // settings register them (paddleboard_scion.enabled + scion CLI;
+          // paddleboard_personas.enabled).
+          "spawn_scion_agent": true,
+          "adopt_persona": true,
           "search_web": true,
         },
       },

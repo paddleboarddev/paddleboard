@@ -5,7 +5,7 @@ name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
-version = "0.1.17"
+version = "0.1.18"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -242,6 +242,11 @@ paddleboard_agent_frameworks.workspace = true
 paddleboard_ai_dock.workspace = true
 paddleboard_languages_ui.workspace = true
 paddleboard_personas_settings.workspace = true
+# PaddleBoard: enable the bring-your-own pgvector store for official builds. The
+# `paddleboard_rag` crate is lean by default (no Postgres client); the binary
+# opts in here. Drop this feature for a lean build.
+paddleboard_rag = { workspace = true, features = ["pgvector"] }
+paddleboard_rag_settings.workspace = true
 paddleboard_scion_settings.workspace = true
 paddleboard_scion_ui.workspace = true
 paddleboard_set_sail.workspace = true

@@ -136,6 +136,13 @@ Mix multiple providers? PaddleBoard tracks **how your token usage splits across 
 - Counts every provider equally (Anthropic, OpenAI, Gemini, Vertex, Bedrock, Ollama, …) — recorded at the one spot every billed token flows through.
 - Opt-out via `"paddleboard_usage": { "enabled": false }`; optional `auto_commit` commits the files for you.
 
+### 19. Semantic Search — Find Code by Meaning
+Turn on `"paddleboard_rag": { "enabled": true }` and the agent gains a **`semantic_search`** tool that searches the project by *meaning*, not keywords — great when you don't know the term to grep for. 🧭
+- Fully local & private: embeddings run on the built-in **EmbeddingGemma** model (same managed `llama.cpp` stack as Local Models, `127.0.0.1` only). The ~0.33 GB model downloads once on first use.
+- Indexes on demand and incrementally — only changed files re-embed — into a small local SQLite database. No external vector store to run.
+- Just ask: *"use semantic_search to find where worktree files are enumerated"* → ranked hits with file, line, and excerpt.
+- **Bring your own store (optional):** point it at your own Postgres + **pgvector** database (`"store_backend": "pgvector"`) for a big or shared index — search runs server-side over an hnsw index. Embeddings stay on-device; local SQLite is the default.
+
 ---
 
 *You can always revisit this tour by opening the Command Palette (`Cmd-Shift-P`) and selecting **`workspace: Open Paddle Board Tour`**.*
