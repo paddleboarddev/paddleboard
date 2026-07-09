@@ -11,6 +11,12 @@ workspace = true
 [lib]
 path = "src/paddleboard_rag.rs"
 
+[features]
+# Bring-your-own vector store (pgvector over a user-provided Postgres). Off by
+# default so the lean footprint carries no Postgres client; the `paddleboard`
+# binary turns it on for official builds.
+pgvector = ["dep:postgres", "dep:pgvector", "dep:postgres-native-tls", "dep:native-tls"]
+
 [dependencies]
 anyhow.workspace = true
 collections.workspace = true
@@ -26,6 +32,12 @@ serde_json.workspace = true
 sha2.workspace = true
 sqlez.workspace = true
 worktree.workspace = true
+
+# Feature-gated (`pgvector`) bring-your-own vector store.
+postgres = { workspace = true, optional = true }
+pgvector = { workspace = true, optional = true }
+postgres-native-tls = { workspace = true, optional = true }
+native-tls = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

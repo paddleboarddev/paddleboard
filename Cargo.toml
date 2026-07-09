@@ -543,6 +543,13 @@ paddleboard_usage = { path = "crates/paddleboard_usage" }
 paddleboard_llama_manager = { path = "crates/paddleboard_llama_manager" }
 paddleboard_rag = { path = "crates/paddleboard_rag" }
 paddleboard_rag_settings = { path = "crates/paddleboard_rag_settings" }
+# PaddleBoard: feature-gated (paddleboard_rag `pgvector`) bring-your-own vector store.
+# Sync `postgres` client + native-tls so it drops into the existing blocking
+# background-thread path (GPUI runs on smol, not tokio).
+postgres = "0.19"
+pgvector = { version = "0.4", default-features = false, features = ["postgres"] }
+postgres-native-tls = "0.5"
+native-tls = "0.2"
 edit_prediction = { path = "crates/edit_prediction" }
 edit_prediction_metrics = { path = "crates/edit_prediction_metrics" }
 zeta_prompt = { path = "crates/zeta_prompt" }

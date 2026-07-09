@@ -242,6 +242,10 @@ paddleboard_agent_frameworks.workspace = true
 paddleboard_ai_dock.workspace = true
 paddleboard_languages_ui.workspace = true
 paddleboard_personas_settings.workspace = true
+# PaddleBoard: enable the bring-your-own pgvector store for official builds. The
+# `paddleboard_rag` crate is lean by default (no Postgres client); the binary
+# opts in here. Drop this feature for a lean build.
+paddleboard_rag = { workspace = true, features = ["pgvector"] }
 paddleboard_rag_settings.workspace = true
 paddleboard_scion_settings.workspace = true
 paddleboard_scion_ui.workspace = true

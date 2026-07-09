@@ -7,8 +7,11 @@
 //! happens lazily on demand, so the first query for a project pays the indexing
 //! cost and later queries are fast.
 
+mod backend;
 mod chunk;
 mod embedding;
+#[cfg(feature = "pgvector")]
+mod pgvector_store;
 mod store;
 
 use std::{
@@ -25,8 +28,9 @@ use project::Project;
 
 use paddleboard_llama_manager::{DEFAULT_EMBEDDING_MODEL_ID, LlamaManager, ManagerStatus};
 
+use crate::backend::Backend;
+pub use crate::backend::StoreConfig;
 use crate::embedding::{EmbedKind, EmbeddingClient};
-use crate::store::RagStore;
 
 /// Files larger than this are skipped (generated bundles, vendored blobs).
 const MAX_FILE_BYTES: u64 = 512 * 1024;
@@ -69,6 +73,7 @@ pub async fn search(
     project: WeakEntity<Project>,
     manager: Entity<LlamaManager>,
     http_client: Arc<dyn HttpClient>,
+    store: StoreConfig,
     query: String,
     limit: usize,
     cx: &mut AsyncApp,
@@ -78,7 +83,9 @@ pub async fn search(
     let roots = distinct_roots(&files);
 
     let mut outcome = cx
-        .background_spawn(async move { index_and_search(http_client, port, files, roots, query, limit).await })
+        .background_spawn(async move {
+            index_and_search(http_client, port, store, files, roots, query, limit).await
+        })
         .await?;
     outcome.files_capped = files_capped;
     Ok(outcome)
@@ -171,12 +178,13 @@ fn distinct_roots(files: &[FileRef]) -> Vec<String> {
 async fn index_and_search(
     http_client: Arc<dyn HttpClient>,
     port: u16,
+    store: StoreConfig,
     files: Vec<FileRef>,
     roots: Vec<String>,
     query: String,
     limit: usize,
 ) -> Result<SearchOutcome> {
-    let store = RagStore::new()?;
+    let store = Backend::open(store)?;
     let client = EmbeddingClient::new(http_client, port);
 
     let mut outcome = SearchOutcome::default();

@@ -49,11 +49,11 @@ pub struct ScoredChunk {
     pub score: f32,
 }
 
-pub struct RagStore {
+pub struct LocalStore {
     db_path: PathBuf,
 }
 
-impl RagStore {
+impl LocalStore {
     /// Open (creating the directory if needed) the shared index database under
     /// `paths::embeddings_dir()`.
     pub fn new() -> Result<Self> {
@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn replace_search_and_prune() {
         let directory = tempfile::tempdir().unwrap();
-        let store = RagStore::at(directory.path().join("index.db"));
+        let store = LocalStore::at(directory.path().join("index.db"));
         let root = "/tmp/project";
 
         // Two files, each one chunk. Embeddings chosen so a query near [1,0]
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn dimension_mismatch_is_skipped() {
         let directory = tempfile::tempdir().unwrap();
-        let store = RagStore::at(directory.path().join("index.db"));
+        let store = LocalStore::at(directory.path().join("index.db"));
         let root = "/tmp/project";
         store
             .replace_file(root, "a.rs", "h", &[(chunk(1, "x"), vec![1.0, 0.0, 0.0])], 1)

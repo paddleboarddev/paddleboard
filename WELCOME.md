@@ -299,6 +299,7 @@ Turn on `"paddleboard_rag": { "enabled": true }` (default off) and the native ag
 - **Indexes on demand, incrementally.** The first search for a project indexes its files (respecting `.gitignore`); after that only changed files are re-embedded (tracked by content hash), so repeat searches are fast. Vectors live in a small local SQLite database under PaddleBoard's embeddings directory — **no external vector database** to run.
 - **Just ask.** In an agent thread, ask something like *"use semantic_search to find where worktree files are enumerated"* and you get back the most similar chunks with file path, line number, and an excerpt, ranked by cosine similarity.
 - Large or binary files and very large repos are bounded (and any skips are reported in the result, never hidden). v1 chunks files structurally by paragraph/block; indexing covers local project files.
+- **Bring your own store (optional).** For big codebases or a shared team index, point the index at your own **Postgres + pgvector** database instead of the local SQLite store — set `"store_backend": "pgvector"` with `"store_url_env"` naming the environment variable that holds the connection string (the string itself never lives in settings). Search then runs server-side over an hnsw index (approximate-nearest-neighbor, for corpus scale). Embeddings are still computed on-device; only the vectors and chunk text go to *your* database. The local store stays the default — this tier is purely opt-in.
 
 ---
 

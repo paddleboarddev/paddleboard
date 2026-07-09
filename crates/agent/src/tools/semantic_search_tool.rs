@@ -7,6 +7,7 @@ use language_model::LanguageModelToolResultContent;
 use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use settings::Settings as _;
 
 use crate::{AgentTool, ToolCallEventStream, ToolInput};
 
@@ -110,6 +111,26 @@ impl AgentTool for SemanticSearchTool {
                 "The local model manager is unavailable, so semantic search can't run.",
             )));
         };
+        let store = match &paddleboard_rag_settings::RagSettings::get_global(cx).store {
+            paddleboard_rag_settings::RagStoreSetting::Local => paddleboard_rag::StoreConfig::Local,
+            paddleboard_rag_settings::RagStoreSetting::Pgvector {
+                url_env,
+                table_prefix,
+                ssl,
+            } => match std::env::var(url_env) {
+                Ok(url) => paddleboard_rag::StoreConfig::Pgvector {
+                    url,
+                    table_prefix: table_prefix.clone(),
+                    ssl: *ssl,
+                },
+                Err(_) => {
+                    return Task::ready(Err(error_output(format!(
+                        "Semantic search is set to use a pgvector store, but the connection-string \
+                         environment variable {url_env} is not set."
+                    ))));
+                }
+            },
+        };
         let http_client = cx.http_client();
         let project = self.project.downgrade();
 
@@ -121,9 +142,10 @@ impl AgentTool for SemanticSearchTool {
             }
             let limit = input.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, 50);
 
-            let outcome = paddleboard_rag::search(project, manager, http_client, query, limit, cx)
-                .await
-                .map_err(|error| error_output(error.to_string()))?;
+            let outcome =
+                paddleboard_rag::search(project, manager, http_client, store, query, limit, cx)
+                    .await
+                    .map_err(|error| error_output(error.to_string()))?;
 
             let results = outcome
                 .hits
