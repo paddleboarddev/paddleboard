@@ -3474,7 +3474,7 @@ impl Pane {
         let tab_bar_settings = TabBarSettings::get_global(cx);
         let use_separate_rows = tab_bar_settings.show_pinned_tabs_in_separate_row;
 
-        if use_separate_rows && !pinned_tabs.is_empty() && !unpinned_tabs.is_empty() {
+        let tab_bar = if use_separate_rows && !pinned_tabs.is_empty() && !unpinned_tabs.is_empty() {
             self.render_two_row_tab_bar(
                 pinned_tabs,
                 unpinned_tabs,
@@ -3494,7 +3494,47 @@ impl Pane {
                 window,
                 cx,
             )
+        };
+
+        // PaddleBoard: In multi-workspace mode there is no per-workspace title bar,
+        // so when the AI sidebar is closed (or docked on the right) nothing reserves
+        // the macOS traffic-light space at the window's top-left and this pane's tab
+        // bar renders under the window buttons. Inset the tab bar so its leading
+        // content clears the buttons. Only the top-left pane is affected, and only
+        // when no left sidebar already covers that space.
+        if self.should_reserve_traffic_light_space(window, cx) {
+            h_flex()
+                .flex_none()
+                .w_full()
+                .bg(cx.theme().colors().tab_bar_background)
+                .pl(px(ui::utils::TRAFFIC_LIGHT_PADDING))
+                .child(tab_bar)
+                .into_any_element()
+        } else {
+            tab_bar
         }
+    }
+
+    // PaddleBoard: See `render_tab_bar`. True only on macOS, when this is the
+    // workspace's top-left pane, there is no title bar, the window is not
+    // fullscreen, and no open left sidebar is reserving the traffic-light space.
+    fn should_reserve_traffic_light_space(&self, window: &Window, cx: &Context<Pane>) -> bool {
+        if !cfg!(target_os = "macos") || window.is_fullscreen() {
+            return false;
+        }
+        let Some(workspace) = self.workspace.upgrade() else {
+            return false;
+        };
+        let workspace = workspace.read(cx);
+        workspace.titlebar_item().is_none()
+            && workspace.top_left_pane() == cx.entity()
+            && workspace
+                .multi_workspace()
+                .and_then(|multi_workspace| multi_workspace.upgrade())
+                .is_none_or(|multi_workspace| {
+                    let state = multi_workspace.read(cx).sidebar_render_state(cx);
+                    !(state.open && state.side == crate::SidebarSide::Left)
+                })
     }
 
     fn configure_tab_bar_start(
