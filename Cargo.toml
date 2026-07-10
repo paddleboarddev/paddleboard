@@ -257,6 +257,7 @@ members = [
     "crates/paddleboard_scion_ui",
     "crates/paddleboard_usage",
     "crates/paddleboard_llama_manager",
+    "crates/paddleboard_manifest",
     "crates/paddleboard_rag",
     "crates/paddleboard_rag_settings",
     "crates/windows_resources",
@@ -541,6 +542,7 @@ paddleboard_scion_ui = { path = "crates/paddleboard_scion_ui" }
 paddleboard_set_sail = { path = "crates/paddleboard_set_sail" }
 paddleboard_usage = { path = "crates/paddleboard_usage" }
 paddleboard_llama_manager = { path = "crates/paddleboard_llama_manager" }
+paddleboard_manifest = { path = "crates/paddleboard_manifest" }
 paddleboard_rag = { path = "crates/paddleboard_rag" }
 paddleboard_rag_settings = { path = "crates/paddleboard_rag_settings" }
 # PaddleBoard: feature-gated (paddleboard_rag `pgvector`) bring-your-own vector store.

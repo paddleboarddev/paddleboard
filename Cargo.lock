@@ -12755,6 +12755,7 @@ dependencies = [
  "paddleboard_credentials_provider",
  "paddleboard_env_vars",
  "paddleboard_languages_ui",
+ "paddleboard_manifest",
  "paddleboard_otel",
  "paddleboard_otel_settings",
  "paddleboard_personas_settings",
@@ -13001,6 +13002,20 @@ dependencies = [
  "ui",
  "url",
  "util",
+]
+
+[[package]]
+name = "paddleboard_manifest"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "git",
+ "git_ui",
+ "gpui",
+ "project",
+ "theme",
+ "ui",
+ "workspace",
 ]
 
 [[package]]
