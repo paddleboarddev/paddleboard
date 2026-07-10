@@ -376,6 +376,7 @@ pub struct LlamaManager {
     embedding_server: Option<ServerHandle>,
     _embedding_run_task: Option<Task<()>>,
     embedding_generation: usize,
+    _quit_subscription: gpui::Subscription,
 }
 
 struct GlobalLlamaManager(Entity<LlamaManager>);
@@ -387,8 +388,76 @@ pub fn init(http_client: Arc<dyn HttpClient>, cx: &mut App) {
     if cx.has_global::<GlobalLlamaManager>() {
         return;
     }
-    let manager = cx.new(|_| LlamaManager::new(http_client));
+    if platform_supported() {
+        cx.background_spawn(async {
+            reap_stray_servers();
+        })
+        .detach();
+    }
+    let manager = cx.new(|cx| LlamaManager::new(http_client, cx));
     cx.set_global(GlobalLlamaManager(manager));
+}
+
+/// Whether `command_line` is a managed `llama-server`: the executable is named
+/// `llama-server` and some argument points into our `llama_cpp` data directory.
+/// The `--model` argument always does — every managed model lives there — even
+/// when the binary itself is the bundled one inside the app, so this matches
+/// managed servers regardless of how the binary was provisioned, and never a
+/// user's own llama.cpp install.
+fn matches_managed_server(command_line: &[String], data_dir_marker: &str) -> bool {
+    let Some(executable) = command_line.first() else {
+        return false;
+    };
+    Path::new(executable)
+        .file_name()
+        .is_some_and(|name| name == server_bin_name())
+        && command_line
+            .iter()
+            .any(|argument| argument.contains(data_dir_marker))
+}
+
+/// Kills managed `llama-server` processes orphaned by a previous app instance
+/// that died without cleanup (crash or force-quit predating the stdin-pipe
+/// watchdog, or any future watchdog failure), so stale servers are reaped on
+/// launch instead of accumulating. A matching server is considered orphaned
+/// when its parent is gone: reparented to init, or its recorded parent no
+/// longer exists. Servers of a live instance keep that instance's watchdog
+/// shell as their parent and are never touched.
+fn reap_stray_servers() {
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System, UpdateKind};
+
+    let data_dir_marker = paths::data_dir()
+        .join("llama_cpp")
+        .to_string_lossy()
+        .into_owned();
+    let refresh = ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always);
+    let mut system = System::new_with_specifics(RefreshKind::nothing().with_processes(refresh));
+    system.refresh_processes_specifics(ProcessesToUpdate::All, true, refresh);
+
+    for (pid, process) in system.processes() {
+        let command_line: Vec<String> = process
+            .cmd()
+            .iter()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect();
+        if !matches_managed_server(&command_line, &data_dir_marker) {
+            continue;
+        }
+        let orphaned = match process.parent() {
+            None => true,
+            Some(parent) => parent.as_u32() == 1 || system.process(parent).is_none(),
+        };
+        if !orphaned {
+            continue;
+        }
+        if process.kill() {
+            log::warn!(
+                "killed a stray managed llama-server (pid {pid}) left behind by a previous session"
+            );
+        } else {
+            log::warn!("failed to kill a stray managed llama-server (pid {pid})");
+        }
+    }
 }
 
 /// The global manager, if [`init`] has run.
@@ -398,7 +467,15 @@ pub fn manager(cx: &App) -> Option<Entity<LlamaManager>> {
 }
 
 impl LlamaManager {
-    fn new(http_client: Arc<dyn HttpClient>) -> Self {
+    fn new(http_client: Arc<dyn HttpClient>, cx: &mut Context<Self>) -> Self {
+        // The stdin-pipe watchdog already covers every exit path (the pipe
+        // closes even on SIGKILL), but killing explicitly on a graceful quit is
+        // immediate rather than waiting on the watchdog's read to wake.
+        let quit_subscription = cx.on_app_quit(|this, _cx| {
+            this.server = None;
+            this.embedding_server = None;
+            async {}
+        });
         Self {
             http_client,
             status: if platform_supported() {
@@ -419,6 +496,7 @@ impl LlamaManager {
             embedding_server: None,
             _embedding_run_task: None,
             embedding_generation: 0,
+            _quit_subscription: quit_subscription,
         }
     }
 
@@ -804,7 +882,7 @@ mod tests {
     // other way around) — the two lifecycles are independent.
     #[gpui::test]
     async fn embedding_failure_does_not_clobber_the_chat_slot(cx: &mut gpui::TestAppContext) {
-        let manager = cx.new(|_| LlamaManager::new(Arc::new(UnusedHttpClient)));
+        let manager = cx.new(|cx| LlamaManager::new(Arc::new(UnusedHttpClient), cx));
 
         let (chat_generation, embedding_generation) = manager.update(cx, |manager, _| {
             manager.status = ManagerStatus::Ready {
@@ -848,6 +926,86 @@ mod tests {
         manager.read_with(cx, |manager, _| {
             assert!(matches!(manager.status, ManagerStatus::Ready { .. }));
         });
+    }
+
+    #[test]
+    fn stray_sweep_matches_only_managed_servers() {
+        let marker = "/Users/jay/Library/Application Support/PaddleBoard/llama_cpp";
+        let argument = |text: &str| text.to_string();
+
+        // The exact shape of the observed orphans: data-dir binary + data-dir model.
+        let orphan = vec![
+            argument(&format!("{marker}/b9874/llama-b9874/llama-server")),
+            argument("--host"),
+            argument("127.0.0.1"),
+            argument("--port"),
+            argument("57791"),
+            argument("--model"),
+            argument(&format!("{marker}/models/embeddinggemma-300m-qat-Q8_0.gguf")),
+            argument("--ctx-size"),
+            argument("2048"),
+            argument("--embeddings"),
+        ];
+        assert!(matches_managed_server(&orphan, marker));
+
+        // A bundled binary still matches through its --model argument.
+        let bundled = vec![
+            argument("/Applications/PaddleBoard.app/Contents/MacOS/llama/llama-server"),
+            argument("--model"),
+            argument(&format!("{marker}/models/gemma-3-4b-it-Q4_K_M.gguf")),
+        ];
+        assert!(matches_managed_server(&bundled, marker));
+
+        // A user's own llama.cpp install must never be touched.
+        let unrelated = vec![
+            argument("/opt/homebrew/bin/llama-server"),
+            argument("--model"),
+            argument("/Users/jay/models/own.gguf"),
+        ];
+        assert!(!matches_managed_server(&unrelated, marker));
+
+        // The watchdog shell wrapper references the same paths but is not the
+        // server (argv[0] is sh); killing it would orphan its child.
+        let watchdog = vec![
+            argument("/bin/sh"),
+            argument("-c"),
+            argument("\"$0\" \"$@\" &"),
+            argument(&format!("{marker}/b9874/llama-b9874/llama-server")),
+            argument("--model"),
+            argument(&format!("{marker}/models/gemma-3-4b-it-Q4_K_M.gguf")),
+        ];
+        assert!(!matches_managed_server(&watchdog, marker));
+
+        assert!(!matches_managed_server(&[], marker));
+    }
+
+    // A graceful quit must kill both managed servers even though the process
+    // is about to exit anyway — deterministic teardown, not watchdog latency.
+    #[cfg(unix)]
+    #[gpui::test]
+    async fn app_quit_kills_the_managed_servers(cx: &mut gpui::TestAppContext) {
+        let manager = cx.new(|cx| LlamaManager::new(Arc::new(UnusedHttpClient), cx));
+
+        let mut command = std::process::Command::new("sleep");
+        command.arg("300");
+        let handle = ServerHandle::spawn_for_test(command).unwrap();
+        let pid = handle.pid();
+        assert!(process_is_alive(pid));
+
+        manager.update(cx, |manager, _| {
+            manager.embedding_server = Some(handle);
+        });
+
+        cx.update(|cx| cx.shutdown());
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while process_is_alive(pid) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the managed server should be killed by the on_app_quit handler"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
     }
 
     #[test]
@@ -938,7 +1096,7 @@ mod tests {
     #[cfg(unix)]
     #[gpui::test]
     async fn readiness_failure_clears_and_kills_the_server(cx: &mut gpui::TestAppContext) {
-        let manager = cx.new(|_| LlamaManager::new(Arc::new(UnusedHttpClient)));
+        let manager = cx.new(|cx| LlamaManager::new(Arc::new(UnusedHttpClient), cx));
 
         // A cheap long-lived process stands in for a spawned-but-never-ready
         // llama-server, as if `run` had just stored its handle.
