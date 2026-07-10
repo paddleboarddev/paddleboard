@@ -117,7 +117,7 @@ Save your git host credentials once so HTTPS git operations stop prompting.
 - `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
 - When the prompt does appear, tick **"Remember on this device"** as you submit — saved to the keychain, no prompt next time.
 - `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback; SSH is untouched.
-- On GitHub, builds with an OAuth client id offer **Sign in with GitHub (browser)** — approve a short code on github.com and you're done.
+- On **GitHub and GitLab (gitlab.com)**, a one-click **browser OAuth sign-in** — the device page opens with the code pre-filled, you approve, done. Self-managed hosts/BitBucket stay PAT-based.
 
 ### 16. Search As You Type
 Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
