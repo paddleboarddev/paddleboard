@@ -5661,6 +5661,13 @@ impl Workspace {
         &self.active_pane
     }
 
+    // PaddleBoard: Expose the top-left pane of the center group so its tab bar can
+    // reserve the macOS traffic-light space when multi-workspace mode has no
+    // per-workspace title bar and no left sidebar covering the window buttons.
+    pub(crate) fn top_left_pane(&self) -> Entity<Pane> {
+        self.center.first_pane()
+    }
+
     pub fn focused_pane(&self, window: &Window, cx: &App) -> Entity<Pane> {
         for dock in self.all_docks() {
             if dock.focus_handle(cx).contains_focused(window, cx)
