@@ -313,8 +313,20 @@ Run **`git login: Manage`** from the command palette to save a Personal Access T
 - PaddleBoard sends the conventional token username per provider (`x-access-token` for GitHub, `oauth2` for GitLab, `x-token-auth` for BitBucket) unless you set your own.
 - No saved login yet? When git's password prompt does appear, check **"Remember on this device"** before submitting and the credential is saved to your keychain — the next operation authenticates silently.
 - Saved GitHub logins also authenticate PaddleBoard's GitHub API requests (commit-author avatars in blame), so private repos work and you skip the unauthenticated rate limit. `GITHUB_TOKEN` still wins when set.
-- **Sign in with GitHub (browser):** builds configured with an OAuth client id show a one-click sign-in — PaddleBoard displays a short code, you approve it on github.com, and the token lands in your keychain automatically (the same device flow the `gh` CLI uses; no client secret involved). PATs always work regardless, and they're the path for GitLab/Bitbucket, which don't offer a device flow.
+- **Sign in with GitHub / GitLab (browser):** for **github.com** and **gitlab.com**, a one-click browser sign-in — PaddleBoard opens the provider's device page with the code already filled in, you approve, and the token lands in your keychain automatically (the same OAuth device flow the `gh` CLI uses; no client secret involved). A **Copy** button next to the code is there if you ever need to paste it by hand. PATs always work regardless, and they're the path for BitBucket, custom hosts, and self-managed GitLab instances, which don't offer this flow.
 - SSH and host-key prompts are untouched (they still prompt as usual).
+
+---
+
+### Manifest — your git state at a glance
+
+A dockable panel (the tree icon in the dock, or **`manifest: Toggle Focus`**) that lays out the project's git world as one collapsible tree — the ship's manifest. Everything reads from data PaddleBoard already tracks, so it's instant and never runs git commands on the UI thread.
+
+- **Repositories** — every repo in the workspace (multi-repo and worktree setups included), each flying a ⛵. The active one is highlighted; click another to make it active — Branches, Commits, and Stashes below all follow.
+- **Branches** — the active repo's local and remote branches, current branch first, with ahead/behind counts (`↑2 ↓1`) against each branch's upstream.
+- **Commits** — the current branch's recent history (up to 250 commits; the Git Graph remains the deep-history view). Click any commit to open its full diff. Subjects stream in as commit metadata loads.
+- **Stashes** — every `stash@{n}` with its message. Click one to open it in the stash view, where **Apply / Pop / Drop** live.
+- **Contributors** — who built this repo: every author with their commit count, busiest first (`git shortlog`, aggregated locally).
 
 ---
 

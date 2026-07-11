@@ -15,8 +15,54 @@ pub const READINESS_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 /// A running managed `llama-server` process bound to a loopback port. Killing it
 /// (explicitly or on drop) tears down the whole process group.
+///
+/// On Unix the handle also holds the write end of the spawned watchdog's stdin
+/// pipe (inside `child`), which is what ties the server's lifetime to the app:
+/// see [`WATCHDOG_SCRIPT`].
 pub struct ServerHandle {
     child: Child,
+}
+
+/// Ties a spawned `llama-server` to the lifetime of the PaddleBoard process at
+/// the OS level. `util::process::Child` detaches Unix children into their own
+/// session (`setsid`), so without this a server outlives the app whenever Rust
+/// destructors don't run — crash, force-quit, SIGKILL, or an `exit()` that
+/// skips dropping globals — which is exactly how orphaned servers were observed
+/// parented to launchd.
+///
+/// The mechanism is a pipe, not polling: the wrapper starts the real server in
+/// the background, then blocks `read`ing its stdin, which is a pipe whose only
+/// write end lives in this app (held open by `ServerHandle`). The app never
+/// writes to it, so `read` returns only at EOF — and the kernel delivers that
+/// EOF the moment the app exits *for any reason*, at which point the wrapper
+/// kills the server and exits. `wait` ensures the wrapper only exits after the
+/// server is truly gone. Explicit kills are unaffected: the wrapper is the
+/// session/group leader, so `killpg` in `ServerHandle::kill` takes down both.
+#[cfg(unix)]
+const WATCHDOG_SCRIPT: &str = r#"
+"$0" "$@" &
+server=$!
+read -r _
+kill -9 "$server" 2>/dev/null
+wait "$server" 2>/dev/null
+"#;
+
+#[cfg(unix)]
+fn server_command(binary: &Path, args: Vec<OsString>) -> std::process::Command {
+    let mut command = std::process::Command::new("/bin/sh");
+    command.arg("-c").arg(WATCHDOG_SCRIPT).arg(binary);
+    command.args(args);
+    command
+}
+
+#[cfg(not(unix))]
+fn server_command(binary: &Path, args: Vec<OsString>) -> std::process::Command {
+    // Windows needs no wrapper: `util::process::Child` assigns the child to a
+    // job object that the OS terminates when the app's handles close, so the
+    // server can't outlive the app even on hard kills.
+    let mut command = std::process::Command::new(binary);
+    command.args(args);
+    command
 }
 
 impl ServerHandle {
@@ -90,10 +136,15 @@ fn server_args(model: &Path, port: u16, context_size: u32, embeddings: bool) -> 
 }
 
 fn spawn_with_args(binary: &Path, args: Vec<OsString>) -> Result<ServerHandle> {
-    let mut command = std::process::Command::new(binary);
-    command.args(args);
-    let child = Child::spawn(command, Stdio::null(), Stdio::inherit(), Stdio::inherit())
-        .context("spawning llama-server")?;
+    // Stdin must be a pipe (not null) for the Unix watchdog: its write end is
+    // retained inside `child`, and its closure on app exit is the kill signal.
+    let child = Child::spawn(
+        server_command(binary, args),
+        Stdio::piped(),
+        Stdio::inherit(),
+        Stdio::inherit(),
+    )
+    .context("spawning llama-server")?;
     Ok(ServerHandle { child })
 }
 
@@ -181,6 +232,36 @@ mod tests {
             assert!(args.iter().any(|a| a == "127.0.0.1"));
             assert!(!args.iter().any(|a| a == "--rpc"));
             assert!(!args.iter().any(|a| a == "--pooling"));
+        }
+    }
+
+    // The core orphan fix: if the app dies without running destructors
+    // (crash, force-quit, SIGKILL), the watchdog must kill the server. Closing
+    // the app-side write end of the stdin pipe is exactly what the kernel does
+    // on app death, so taking it out of the handle simulates that.
+    #[cfg(unix)]
+    #[test]
+    fn watchdog_kills_the_server_when_the_app_side_of_the_pipe_closes() {
+        // A long sleep stands in for llama-server, spawned through the real
+        // watchdog wrapper.
+        let mut handle = spawn_with_args(Path::new("/bin/sleep"), vec!["300".into()]).unwrap();
+
+        drop(handle.child.stdin.take());
+
+        // The watchdog `wait`s for the server before exiting, so the wrapper
+        // reaching an exit status proves the server died too.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            match handle.child.try_status() {
+                Ok(Some(_)) => break,
+                Ok(None) => {}
+                Err(error) => panic!("polling the watchdog's status failed: {error:?}"),
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the watchdog should kill the server and exit once the pipe closes"
+            );
+            std::thread::sleep(Duration::from_millis(50));
         }
     }
 

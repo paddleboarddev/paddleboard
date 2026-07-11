@@ -771,6 +771,7 @@ fn main() {
         browser::init(cx);
         agent_ui::orchestration_panel::init(cx);
         llm_picker::init(cx);
+        paddleboard_manifest::init(cx);
         ui_prompt::init(cx);
 
         go_to_line::init(cx);

@@ -240,17 +240,23 @@ impl GitLoginModal {
         cx.notify();
     }
 
-    /// GitHub OAuth Device Flow: fetch a user code, send the user to the
-    /// browser, poll until approved, then store the token like a saved PAT.
-    fn start_github_oauth(&mut self, cx: &mut Context<Self>) {
-        let Some(client_id) = device_flow::github_oauth_client_id() else {
+    /// OAuth Device Flow: fetch a user code, send the user to the browser, poll
+    /// until approved, then store the token like a saved PAT. Provider-agnostic
+    /// (GitHub, GitLab) via [`device_flow::OAuthProvider`].
+    fn start_oauth(
+        &mut self,
+        oauth_provider: &'static device_flow::OAuthProvider,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(client_id) = (oauth_provider.client_id)() else {
             return;
         };
         let http = cx.http_client();
         self.oauth_prompt = Some(OauthPrompt {
             user_code: "····".into(),
             verification_uri: "".into(),
-            status: "Requesting a sign-in code from GitHub…".into(),
+            status: format!("Requesting a sign-in code from {}…", oauth_provider.display_name)
+                .into(),
         });
         self.oauth_task = Some(cx.spawn(async move |this, cx| {
             let set_status = |this: &gpui::WeakEntity<Self>,
@@ -265,22 +271,38 @@ impl GitLoginModal {
                 .ok();
             };
 
-            let auth = match device_flow::request_device_authorization(&client_id, &http).await {
+            let auth = match device_flow::request_device_authorization(oauth_provider, &client_id, &http)
+                .await
+            {
                 Ok(auth) => auth,
                 Err(error) => {
-                    set_status(&this, cx, format!("GitHub sign-in failed: {error}"));
+                    set_status(
+                        &this,
+                        cx,
+                        format!("{} sign-in failed: {error}", oauth_provider.display_name),
+                    );
                     return;
                 }
             };
 
-            let verification_uri = auth.verification_uri.clone();
+            // Prefer the pre-filled URL when the provider supplies one (GitLab),
+            // so the browser page already has the code and the user just approves.
+            let open_uri = auth
+                .verification_uri_complete
+                .clone()
+                .unwrap_or_else(|| auth.verification_uri.clone());
+            let prefilled = auth.verification_uri_complete.is_some();
             this.update(cx, |this, cx| {
                 this.oauth_prompt = Some(OauthPrompt {
                     user_code: auth.user_code.clone().into(),
-                    verification_uri: verification_uri.clone().into(),
-                    status: "Enter the code in your browser, then approve access…".into(),
+                    verification_uri: open_uri.clone().into(),
+                    status: if prefilled {
+                        "Approve access in the browser — the code is already filled in.".into()
+                    } else {
+                        "Enter the code in your browser, then approve access…".into()
+                    },
                 });
-                cx.open_url(&verification_uri);
+                cx.open_url(&open_uri);
                 cx.notify();
             })
             .ok();
@@ -297,6 +319,7 @@ impl GitLoginModal {
                     return;
                 }
                 match device_flow::poll_device_authorization_once(
+                    oauth_provider,
                     &client_id,
                     &auth.device_code,
                     &http,
@@ -304,19 +327,24 @@ impl GitLoginModal {
                 .await
                 {
                     Ok(PollOutcome::AccessToken(token)) => {
-                        let provider = cx.update(|cx| paddleboard_credentials_provider::global(cx));
+                        let credentials_provider =
+                            cx.update(|cx| paddleboard_credentials_provider::global(cx));
                         let result = paddleboard_git_login::save(
-                            "https://github.com",
-                            "x-access-token",
+                            oauth_provider.save_host,
+                            oauth_provider.save_username,
                             &token,
-                            provider.as_ref(),
+                            credentials_provider.as_ref(),
                             cx,
                         )
                         .await;
                         this.update(cx, |this, cx| {
                             this.oauth_prompt = None;
                             this.status = Some(match result {
-                                Ok(()) => "Signed in with GitHub — token saved to keychain".into(),
+                                Ok(()) => format!(
+                                    "Signed in with {} — token saved to keychain",
+                                    oauth_provider.display_name
+                                )
+                                .into(),
                                 Err(error) => format!("Failed to save token: {error}").into(),
                             });
                             this.reload_rows(cx);
@@ -329,7 +357,11 @@ impl GitLoginModal {
                     Ok(PollOutcome::Pending) => {}
                     Ok(PollOutcome::SlowDown) => interval += 5,
                     Ok(PollOutcome::Denied) => {
-                        set_status(&this, cx, "GitHub reported the request was denied.".to_string());
+                        set_status(
+                            &this,
+                            cx,
+                            format!("{} reported the request was denied.", oauth_provider.display_name),
+                        );
                         return;
                     }
                     Ok(PollOutcome::Expired) => {
@@ -337,7 +369,11 @@ impl GitLoginModal {
                         return;
                     }
                     Err(error) => {
-                        set_status(&this, cx, format!("GitHub sign-in failed: {error}"));
+                        set_status(
+                            &this,
+                            cx,
+                            format!("{} sign-in failed: {error}", oauth_provider.display_name),
+                        );
                         return;
                     }
                 }
@@ -348,9 +384,11 @@ impl GitLoginModal {
 
     fn render_oauth(&self, cx: &mut Context<Self>) -> Option<gpui::AnyElement> {
         let host = self.host.read(cx).text(cx);
-        if paddleboard_git_login::credential_key(&host) != "https://github.com" {
-            return None;
-        }
+        let oauth_provider = match paddleboard_git_login::credential_key(&host).as_str() {
+            "https://github.com" => &device_flow::GITHUB,
+            "https://gitlab.com" => &device_flow::GITLAB,
+            _ => return None,
+        };
         if let Some(prompt) = &self.oauth_prompt {
             Some(
                 v_flex()
@@ -363,6 +401,14 @@ impl GitLoginModal {
                                 Headline::new(prompt.user_code.clone())
                                     .size(HeadlineSize::Small),
                             )
+                            .child(Button::new("oauth-copy", "Copy").on_click({
+                                let code = prompt.user_code.clone();
+                                move |_, _, cx| {
+                                    cx.write_to_clipboard(gpui::ClipboardItem::new_string(
+                                        code.to_string(),
+                                    ))
+                                }
+                            }))
                             .child(Button::new("oauth-open", "Open browser").on_click({
                                 let uri = prompt.verification_uri.clone();
                                 move |_, _, cx| {
@@ -385,10 +431,13 @@ impl GitLoginModal {
                     .into_any_element(),
             )
         } else {
-            device_flow::github_oauth_client_id().map(|_| {
-                Button::new("oauth-start", "Sign in with GitHub (browser)")
-                    .on_click(cx.listener(|this, _, _, cx| this.start_github_oauth(cx)))
-                    .into_any_element()
+            (oauth_provider.client_id)().map(|_| {
+                Button::new(
+                    "oauth-start",
+                    format!("Sign in with {} (browser)", oauth_provider.display_name),
+                )
+                .on_click(cx.listener(move |this, _, _, cx| this.start_oauth(oauth_provider, cx)))
+                .into_any_element()
             })
         }
     }

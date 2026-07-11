@@ -35,7 +35,8 @@ use git::{
     parse_git_remote_url,
     repository::{
         Branch, BranchesScanResult, CommitData, CommitDetails, CommitDiff, CommitFile,
-        CommitOptions, CreateWorktreeTarget, DiffType, FetchOptions, FileHistoryChangedFileSets,
+        CommitOptions, Contributor, CreateWorktreeTarget, DiffType, FetchOptions,
+        FileHistoryChangedFileSets,
         GitCommitTemplate, GitRepository, GitRepositoryCheckpoint, InitialGraphCommitData,
         LogOrder, LogSource, PushOptions, Remote, RemoteCommandOutput, RepoPath, ResetMode,
         SearchCommitArgs, UpstreamTrackingStatus, Worktree as GitWorktree, delete_branch_flag,
@@ -7370,6 +7371,20 @@ impl Repository {
 
                     Ok(remotes)
                 }
+            }
+        })
+    }
+
+    // PaddleBoard: aggregated commit authorship for the Manifest panel. Remote
+    // (collab) repositories report no contributors — there is no proto message
+    // for this query yet.
+    pub fn contributors(&mut self) -> oneshot::Receiver<Result<Vec<Contributor>>> {
+        self.send_job("contributors", None, move |repo, _| async move {
+            match repo {
+                RepositoryState::Local(LocalRepositoryState { backend, .. }) => {
+                    backend.contributors().await
+                }
+                RepositoryState::Remote(_) => Ok(Vec::new()),
             }
         })
     }

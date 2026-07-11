@@ -117,26 +117,32 @@ Save your git host credentials once so HTTPS git operations stop prompting.
 - `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
 - When the prompt does appear, tick **"Remember on this device"** as you submit — saved to the keychain, no prompt next time.
 - `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback; SSH is untouched.
-- On GitHub, builds with an OAuth client id offer **Sign in with GitHub (browser)** — approve a short code on github.com and you're done.
+- On **GitHub and GitLab (gitlab.com)**, a one-click **browser OAuth sign-in** — the device page opens with the code pre-filled, you approve, done. Self-managed hosts/BitBucket stay PAT-based.
 
-### 16. Search As You Type
+### 16. Manifest — Your Git State at a Glance
+One dockable tree for the whole git picture — the ship's manifest. 🗂️ Open it with the tree icon in the dock or **`manifest: Toggle Focus`**.
+- **Repositories** (⛵ per repo — click to switch the active one), **Branches** (ahead/behind counts), **Commits** (click → full diff), **Stashes** (click → apply/pop/drop), **Contributors** (ranked by commit count).
+- Reads state PaddleBoard already tracks — instant, no git commands on the UI thread.
+- The Git Graph stays the deep-history view; Manifest is the overview.
+
+### 17. Search As You Type
 Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
 - Prefer the classic behavior? Set `"search": { "search_on_type": false }` in settings.
 
-### 17. Agent Context Gauge
+### 18. Agent Context Gauge
 Watch the status bar while an agent thread runs — a percentage shows how much of the model's context window you've used. 🌊
 - Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
 - Goes yellow near the limit, red past it; hidden when no thread is active.
 - Purely local — reads counts the thread already tracks. Telemetry stays off.
 
-### 18. Local Usage Stats
+### 19. Local Usage Stats
 Mix multiple providers? PaddleBoard tracks **how your token usage splits across them** over time — all on your machine. 📊
 - Open the **AI Dock → Usage** tab: today / 7-day / all-time totals, then a per-provider, per-model breakdown.
 - Stored as a **text JSON file per day** (`<data_dir>/usage/`) — point `paddleboard_usage.directory` at your own private git repo to back it up; clean diffs guaranteed.
 - Counts every provider equally (Anthropic, OpenAI, Gemini, Vertex, Bedrock, Ollama, …) — recorded at the one spot every billed token flows through.
 - Opt-out via `"paddleboard_usage": { "enabled": false }`; optional `auto_commit` commits the files for you.
 
-### 19. Semantic Search — Find Code by Meaning
+### 20. Semantic Search — Find Code by Meaning
 Turn on `"paddleboard_rag": { "enabled": true }` and the agent gains a **`semantic_search`** tool that searches the project by *meaning*, not keywords — great when you don't know the term to grep for. 🧭
 - Fully local & private: embeddings run on the built-in **EmbeddingGemma** model (same managed `llama.cpp` stack as Local Models, `127.0.0.1` only). The ~0.33 GB model downloads once on first use.
 - Indexes on demand and incrementally — only changed files re-embed — into a small local SQLite database. No external vector store to run.
