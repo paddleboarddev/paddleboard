@@ -5,16 +5,20 @@ use std::collections::HashSet;
 use std::ops::Range;
 
 use anyhow::Result;
-use git::repository::Branch;
+use git::Oid;
+use git::repository::{Branch, Contributor, LogOrder, LogSource};
 use git::stash::StashEntry;
 use git_ui::commit_view::CommitView;
 use gpui::{
     Action, AnyElement, App, AsyncWindowContext, Context, Entity, EventEmitter, FocusHandle,
-    Focusable, IntoElement, Pixels, Render, SharedString, Subscription, WeakEntity, Window,
+    Focusable, IntoElement, Pixels, Render, SharedString, Subscription, Task, WeakEntity, Window,
     prelude::*, px, uniform_list,
 };
-use project::git_store::{GitStore, GitStoreEvent, Repository};
+use project::git_store::{
+    CommitDataState, GitStore, GitStoreEvent, Repository, RepositoryEvent, RepositoryId,
+};
 use ui::{ListItem, prelude::*};
+use util::ResultExt;
 use workspace::{
     Workspace,
     dock::{DockPosition, Panel, PanelEvent},
@@ -28,7 +32,9 @@ const MANIFEST_PANEL_KEY: &str = "ManifestPanel";
 enum Section {
     Repositories,
     Branches,
+    Commits,
     Stashes,
+    Contributors,
 }
 
 impl Section {
@@ -36,10 +42,17 @@ impl Section {
         match self {
             Section::Repositories => "Repositories",
             Section::Branches => "Branches",
+            Section::Commits => "Commits",
             Section::Stashes => "Stashes",
+            Section::Contributors => "Contributors",
         }
     }
 }
+
+// A sidebar overview, not the full log — the Git Graph is the surface for deep
+// history, and rebuilding an unbounded entry vec on every repo event is wasted
+// work on large repos.
+const COMMIT_ROW_LIMIT: usize = 250;
 
 enum ManifestEntry {
     Header {
@@ -53,10 +66,15 @@ enum ManifestEntry {
         is_active: bool,
     },
     Branch(Branch),
+    Commit {
+        repository: WeakEntity<Repository>,
+        sha: Oid,
+    },
     Stash {
         repository: WeakEntity<Repository>,
         entry: StashEntry,
     },
+    Contributor(Contributor),
 }
 
 pub struct ManifestPanel {
@@ -66,7 +84,11 @@ pub struct ManifestPanel {
     git_store: Entity<GitStore>,
     collapsed_sections: HashSet<Section>,
     entries: Vec<ManifestEntry>,
+    tracked_repository_id: Option<RepositoryId>,
+    contributors: Vec<Contributor>,
     _subscriptions: Vec<Subscription>,
+    _repository_subscriptions: Vec<Subscription>,
+    _contributors_task: Option<Task<()>>,
 }
 
 impl ManifestPanel {
@@ -74,6 +96,10 @@ impl ManifestPanel {
         let git_store = workspace.project().read(cx).git_store().clone();
 
         let subscription = cx.subscribe(&git_store, |this, _git_store, event, cx| match event {
+            GitStoreEvent::RepositoryUpdated(_, RepositoryEvent::HeadChanged, true) => {
+                this.fetch_contributors(cx);
+                this.update_entries(cx);
+            }
             GitStoreEvent::ActiveRepositoryChanged(_)
             | GitStoreEvent::RepositoryUpdated(..)
             | GitStoreEvent::RepositoryAdded
@@ -88,7 +114,11 @@ impl ManifestPanel {
             git_store,
             collapsed_sections: HashSet::new(),
             entries: Vec::new(),
+            tracked_repository_id: None,
+            contributors: Vec::new(),
             _subscriptions: vec![subscription],
+            _repository_subscriptions: Vec::new(),
+            _contributors_task: None,
         };
         this.update_entries(cx);
         this
@@ -106,6 +136,27 @@ impl ManifestPanel {
         let active_id = active_repository
             .as_ref()
             .map(|repository| repository.read(cx).id);
+
+        // The commit log streams in chunks and its per-commit metadata loads
+        // lazily; both signal through the repository entity, so follow the
+        // active repository directly.
+        if self.tracked_repository_id != active_id {
+            self.tracked_repository_id = active_id;
+            self._repository_subscriptions.clear();
+            if let Some(repository) = active_repository.as_ref() {
+                self._repository_subscriptions.push(cx.subscribe(
+                    repository,
+                    |this, _repository, event: &RepositoryEvent, cx| {
+                        if matches!(event, RepositoryEvent::GraphEvent(..)) {
+                            this.update_entries(cx);
+                        }
+                    },
+                ));
+                self._repository_subscriptions
+                    .push(cx.observe(repository, |_this, _repository, cx| cx.notify()));
+            }
+            self.fetch_contributors(cx);
+        }
 
         let mut repositories: Vec<Entity<Repository>> = self
             .git_store
@@ -142,6 +193,27 @@ impl ManifestPanel {
                 .then(a.is_remote().cmp(&b.is_remote()))
                 .then(b.priority_key().1.cmp(&a.priority_key().1))
         });
+
+        let commit_shas: Vec<Oid> = active_repository
+            .as_ref()
+            .and_then(|repository| {
+                let branch_name = repository.read(cx).branch.as_ref()?.name().to_string();
+                Some(repository.update(cx, |repository, cx| {
+                    let response = repository.graph_data(
+                        LogSource::Branch(branch_name.into()),
+                        LogOrder::DateOrder,
+                        0..COMMIT_ROW_LIMIT,
+                        cx,
+                    );
+                    response
+                        .commits
+                        .iter()
+                        .take(COMMIT_ROW_LIMIT)
+                        .map(|commit| commit.sha)
+                        .collect()
+                }))
+            })
+            .unwrap_or_default();
 
         let stash_rows: Vec<ManifestEntry> = active_repository
             .as_ref()
@@ -181,6 +253,21 @@ impl ManifestPanel {
         }
 
         self.entries.push(ManifestEntry::Header {
+            section: Section::Commits,
+            count: commit_shas.len(),
+        });
+        if !self.collapsed_sections.contains(&Section::Commits) {
+            if let Some(repository) = active_repository.as_ref() {
+                let weak_repository = repository.downgrade();
+                self.entries
+                    .extend(commit_shas.into_iter().map(|sha| ManifestEntry::Commit {
+                        repository: weak_repository.clone(),
+                        sha,
+                    }));
+            }
+        }
+
+        self.entries.push(ManifestEntry::Header {
             section: Section::Stashes,
             count: stash_rows.len(),
         });
@@ -188,7 +275,40 @@ impl ManifestPanel {
             self.entries.extend(stash_rows);
         }
 
+        self.entries.push(ManifestEntry::Header {
+            section: Section::Contributors,
+            count: self.contributors.len(),
+        });
+        if !self.collapsed_sections.contains(&Section::Contributors) {
+            self.entries.extend(
+                self.contributors
+                    .iter()
+                    .cloned()
+                    .map(ManifestEntry::Contributor),
+            );
+        }
+
         cx.notify();
+    }
+
+    fn fetch_contributors(&mut self, cx: &mut Context<Self>) {
+        let Some(repository) = self.git_store.read(cx).active_repository() else {
+            self.contributors.clear();
+            self._contributors_task = None;
+            return;
+        };
+        let receiver = repository.update(cx, |repository, _| repository.contributors());
+        self._contributors_task = Some(cx.spawn(async move |this, cx| {
+            if let Ok(result) = receiver.await
+                && let Some(contributors) = result.log_err()
+            {
+                this.update(cx, |this, cx| {
+                    this.contributors = contributors;
+                    this.update_entries(cx);
+                })
+                .ok();
+            }
+        }));
     }
 
     fn toggle_section(&mut self, section: Section, cx: &mut Context<Self>) {
@@ -200,6 +320,16 @@ impl ManifestPanel {
 
     fn activate_repository(&self, repository: &Entity<Repository>, cx: &mut Context<Self>) {
         repository.update(cx, |repository, cx| repository.set_as_active_repository(cx));
+    }
+
+    fn open_commit(
+        &self,
+        repository: WeakEntity<Repository>,
+        sha: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        CommitView::open(sha, repository, self.workspace.clone(), None, None, window, cx);
     }
 
     fn open_stash(
@@ -329,6 +459,45 @@ impl ManifestPanel {
                     )
                     .into_any_element()
             }
+            ManifestEntry::Commit { repository, sha } => {
+                let sha = *sha;
+                let commit_data = repository.upgrade().and_then(|repository| {
+                    repository.update(cx, |repository, cx| {
+                        match repository.fetch_commit_data(sha, false, cx) {
+                            CommitDataState::Loaded(data) => Some(data.clone()),
+                            CommitDataState::Loading(_) => None,
+                        }
+                    })
+                });
+                let subject: SharedString = commit_data
+                    .map(|data| data.subject.clone())
+                    .unwrap_or_else(|| "Loading…".into());
+                let sha_string = sha.to_string();
+                let short_sha: SharedString =
+                    sha_string[..7.min(sha_string.len())].to_string().into();
+                let repository = repository.clone();
+                ListItem::new(("manifest-commit", ix))
+                    .indent_level(1)
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.open_commit(repository.clone(), sha_string.clone(), window, cx)
+                    }))
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .child(
+                                Icon::new(IconName::GitCommit)
+                                    .size(IconSize::Small)
+                                    .color(Color::Muted),
+                            )
+                            .child(Label::new(subject).size(LabelSize::Small))
+                            .child(
+                                Label::new(short_sha)
+                                    .size(LabelSize::XSmall)
+                                    .color(Color::Muted),
+                            ),
+                    )
+                    .into_any_element()
+            }
             ManifestEntry::Stash { repository, entry } => {
                 let repository = repository.clone();
                 let stash_entry = entry.clone();
@@ -351,6 +520,31 @@ impl ManifestPanel {
                             )
                             .child(
                                 Label::new(entry.message.clone())
+                                    .size(LabelSize::XSmall)
+                                    .color(Color::Muted),
+                            ),
+                    )
+                    .into_any_element()
+            }
+            ManifestEntry::Contributor(contributor) => {
+                let commit_count_label = if contributor.commit_count == 1 {
+                    "1 commit".to_string()
+                } else {
+                    format!("{} commits", contributor.commit_count)
+                };
+                ListItem::new(("manifest-contributor", ix))
+                    .indent_level(1)
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .child(
+                                Icon::new(IconName::Person)
+                                    .size(IconSize::Small)
+                                    .color(Color::Muted),
+                            )
+                            .child(Label::new(contributor.name.clone()).size(LabelSize::Small))
+                            .child(
+                                Label::new(commit_count_label)
                                     .size(LabelSize::XSmall)
                                     .color(Color::Muted),
                             ),

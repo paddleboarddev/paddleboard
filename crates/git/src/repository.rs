@@ -240,6 +240,36 @@ pub struct BranchesScanResult {
     pub error: Option<SharedString>,
 }
 
+// PaddleBoard: aggregated commit authorship (`git shortlog -sne`), used by the
+// Manifest panel's Contributors view.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Contributor {
+    pub name: SharedString,
+    pub email: SharedString,
+    pub commit_count: usize,
+}
+
+// PaddleBoard: parses `git shortlog -sne` output — lines shaped like
+// "  1234\tName <email>".
+pub fn parse_shortlog(stdout: &str) -> Vec<Contributor> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let (count, rest) = line.trim().split_once('\t')?;
+            let commit_count = count.trim().parse().ok()?;
+            let (name, email) = match rest.rsplit_once(" <") {
+                Some((name, email)) => (name.trim(), email.trim_end_matches('>')),
+                None => (rest.trim(), ""),
+            };
+            Some(Contributor {
+                name: name.to_string().into(),
+                email: email.to_string().into(),
+                commit_count,
+            })
+        })
+        .collect()
+}
+
 impl From<Vec<Branch>> for BranchesScanResult {
     fn from(branches: Vec<Branch>) -> Self {
         Self {
@@ -854,6 +884,12 @@ pub trait GitRepository: Send + Sync {
     }
 
     fn branches(&self) -> BoxFuture<'_, Result<BranchesScanResult>>;
+
+    // PaddleBoard: aggregated commit authorship for the Manifest panel. The
+    // default returns no contributors so fake/test repositories need no impl.
+    fn contributors(&self) -> BoxFuture<'_, Result<Vec<Contributor>>> {
+        async move { Ok(Vec::new()) }.boxed()
+    }
 
     fn change_branch(&self, name: String) -> BoxFuture<'_, Result<()>>;
     fn create_branch(&self, name: String, base_branch: Option<String>)
@@ -1886,6 +1922,33 @@ impl GitRepository for RealGitRepository {
                 } else {
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     anyhow::bail!("git status failed: {stderr}");
+                }
+            })
+            .boxed()
+    }
+
+    // PaddleBoard: see the trait doc. Unborn HEAD (fresh repo with no commits)
+    // is a normal state, not an error — report it as "no contributors".
+    fn contributors(&self) -> BoxFuture<'_, Result<Vec<Contributor>>> {
+        let git = self.git_binary();
+        self.executor
+            .spawn(async move {
+                let output = git
+                    .build_command(&["shortlog", "-sne", "HEAD"])
+                    .output()
+                    .await?;
+                if output.status.success() {
+                    Ok(parse_shortlog(&String::from_utf8_lossy(&output.stdout)))
+                } else {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    if stderr.contains("unknown revision")
+                        || stderr.contains("bad revision")
+                        || stderr.contains("ambiguous argument")
+                    {
+                        Ok(Vec::new())
+                    } else {
+                        anyhow::bail!("git shortlog failed: {stderr}");
+                    }
                 }
             })
             .boxed()
@@ -3909,6 +3972,24 @@ mod tests {
             std::env::set_var("GIT_CONFIG_GLOBAL", "");
             std::env::set_var("GIT_CONFIG_SYSTEM", "");
         }
+    }
+
+    // PaddleBoard: Manifest panel contributors query.
+    #[test]
+    fn test_parse_shortlog() {
+        let contributors = parse_shortlog(
+            "  1234\tJay Smith <jay@example.com>\n     7\tNo Email Person\n     2\tOdd <Name> Jr. <odd@example.com>\n",
+        );
+        assert_eq!(contributors.len(), 3);
+        assert_eq!(contributors[0].name.as_ref(), "Jay Smith");
+        assert_eq!(contributors[0].email.as_ref(), "jay@example.com");
+        assert_eq!(contributors[0].commit_count, 1234);
+        assert_eq!(contributors[1].name.as_ref(), "No Email Person");
+        assert_eq!(contributors[1].email.as_ref(), "");
+        assert_eq!(contributors[1].commit_count, 7);
+        assert_eq!(contributors[2].name.as_ref(), "Odd <Name> Jr.");
+        assert_eq!(contributors[2].email.as_ref(), "odd@example.com");
+        assert_eq!(parse_shortlog(""), Vec::new());
     }
 
     #[allow(clippy::disallowed_methods)]

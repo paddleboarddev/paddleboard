@@ -20,4 +20,5 @@ gpui.workspace = true
 project.workspace = true
 theme.workspace = true
 ui.workspace = true
+util.workspace = true
 workspace.workspace = true
