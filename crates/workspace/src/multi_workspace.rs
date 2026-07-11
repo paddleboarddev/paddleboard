@@ -341,6 +341,9 @@ impl MultiWorkspace {
                     this.collapse_to_single_workspace(window, cx);
                 }
                 previous_multi_workspace_enabled = multi_workspace_enabled;
+                // PaddleBoard: sidebar side and AI enablement both feed the
+                // traffic-light inset; settings changes don't notify panes.
+                this.notify_traffic_light_panes(cx);
             }
         });
         Self::subscribe_to_workspace(&workspace, window, cx);
@@ -493,8 +496,22 @@ impl MultiWorkspace {
                 workspace.set_sidebar_focus_handle(sidebar_focus_handle.clone());
             });
         }
+        self.notify_traffic_light_panes(cx);
         self.serialize(cx);
         cx.notify();
+    }
+
+    // PaddleBoard: the top-left pane's tab bar insets itself for the macOS
+    // traffic lights based on sidebar state (see
+    // Pane::should_reserve_traffic_light_space). Panes only re-render when
+    // notified, so poke them whenever that state changes or the cached inset
+    // goes stale.
+    fn notify_traffic_light_panes(&self, cx: &mut Context<Self>) {
+        for workspace in self.retained_workspaces.clone() {
+            workspace.update(cx, |workspace, cx| {
+                workspace.top_left_pane().update(cx, |_, cx| cx.notify());
+            });
+        }
     }
 
     pub fn close_sidebar(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -518,6 +535,7 @@ impl MultiWorkspace {
         } else {
             self.previous_focus_handle.take();
         }
+        self.notify_traffic_light_panes(cx);
         self.serialize(cx);
         cx.notify();
     }
