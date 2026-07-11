@@ -1,0 +1,115 @@
+name: Watch Scion releases
+
+# AWARENESS ONLY. The Scion integration (paddleboard_scion) shells out to
+# whatever `scion` CLI the user installed and gates on TESTED_VERSION in
+# crates/paddleboard_scion/src/compat.rs — same major.minor is Compatible,
+# anything else shows a warning in the panel. This workflow only NOTICES when
+# upstream ships a release outside the tested major.minor and opens/updates a
+# single tracking issue prompting a re-test + TESTED_VERSION bump. It never
+# changes the pin and never installs anything.
+
+on:
+  schedule:
+    # Mondays at 17:00 UTC — after the upstream-merge and llama.cpp jobs.
+    - cron: "0 17 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Compare latest Scion release against TESTED_VERSION
+        id: analyze
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          tested=$(sed -n 's/^pub const TESTED_VERSION: &str = "\(.*\)";$/\1/p' \
+            crates/paddleboard_scion/src/compat.rs)
+          if [ -z "$tested" ]; then
+            echo "::error::could not extract TESTED_VERSION from compat.rs"
+            exit 1
+          fi
+
+          # Prefer the latest GitHub release; fall back to the highest semver
+          # tag. Upstream currently cuts no releases and tags like `0.1.0-dev`
+          # (pre-release suffix), so accept suffixed versions — a `0.2.0-dev`
+          # tag is exactly the early signal we want. gh api prints an error
+          # JSON body on 404, so validate the shape rather than trusting
+          # non-empty output.
+          version_re='^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
+          latest=$(gh api repos/GoogleCloudPlatform/scion/releases/latest \
+            --jq .tag_name 2>/dev/null || true)
+          if ! echo "$latest" | grep -qE "$version_re"; then
+            latest=$(gh api repos/GoogleCloudPlatform/scion/tags --paginate \
+              --jq '.[].name' 2>/dev/null | grep -E "$version_re" \
+              | sort -V | tail -1 || true)
+          fi
+          if ! echo "$latest" | grep -qE "$version_re"; then
+            latest=""
+          fi
+          if [ -z "$latest" ]; then
+            echo "::warning::could not determine latest Scion version; skipping"
+            echo "should_alert=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          latest="${latest#v}"
+
+          tested_mm=$(echo "$tested" | cut -d. -f1-2)
+          latest_mm=$(echo "$latest" | cut -d. -f1-2)
+          newest=$(printf '%s\n%s\n' "$tested" "$latest" | sort -V | tail -1)
+
+          echo "tested=$tested latest=$latest"
+          if [ "$latest_mm" != "$tested_mm" ] && [ "$newest" = "$latest" ]; then
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "issue_title=Scion v${latest} released — re-test integration and bump TESTED_VERSION" >> "$GITHUB_OUTPUT"
+            {
+              echo "Upstream [Scion](https://github.com/GoogleCloudPlatform/scion) has released **v${latest}**, outside the tested \`${tested_mm}.x\` range (\`TESTED_VERSION = \"${tested}\"\` in \`crates/paddleboard_scion/src/compat.rs\`)."
+              echo
+              echo "Users who \`go install ...@latest\` will now see a *newer than tested* warning in the Scion panel."
+              echo
+              echo "**To resolve:**"
+              echo "1. Install v${latest} and re-test the integration: panel section, start-agent modal, log streaming, sync changes, stop agent, and the \`spawn_scion_agent\` tool."
+              echo "2. Fix any CLI-contract drift (flags, output formats)."
+              echo "3. Bump \`TESTED_VERSION\` to \`${latest}\` and update the compat tests."
+              echo
+              echo "_Opened by the weekly Scion release watch. This issue is refreshed, not duplicated, while it stays open._"
+            } > scion-report.md
+          else
+            echo "should_alert=false" >> "$GITHUB_OUTPUT"
+            echo "latest ${latest} is within the tested ${tested_mm}.x range — nothing to do."
+          fi
+
+      - name: Open or update tracking issue
+        if: steps.analyze.outputs.should_alert == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ steps.analyze.outputs.issue_title }}
+        run: |
+          gh label create "scion" --color "0e8a16" --description "Scion integration" 2>/dev/null || true
+
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -1)
+
+          if [ -n "$existing" ]; then
+            echo "Updating existing tracking issue #${existing}."
+            gh issue edit "$existing" --body-file scion-report.md
+            gh issue comment "$existing" \
+              --body "Refreshed by the weekly Scion release watch on $(date -u +%Y-%m-%d)."
+          else
+            echo "Opening a new tracking issue."
+            gh issue create \
+              --title "$ISSUE_TITLE" \
+              --body-file scion-report.md \
+              --label "scion"
+          fi
