@@ -318,6 +318,18 @@ Run **`git login: Manage`** from the command palette to save a Personal Access T
 
 ---
 
+### Manifest — your git state at a glance
+
+A dockable panel (the tree icon in the dock, or **`manifest: Toggle Focus`**) that lays out the project's git world as one collapsible tree — the ship's manifest. Everything reads from data PaddleBoard already tracks, so it's instant and never runs git commands on the UI thread.
+
+- **Repositories** — every repo in the workspace (multi-repo and worktree setups included), each flying a ⛵. The active one is highlighted; click another to make it active — Branches, Commits, and Stashes below all follow.
+- **Branches** — the active repo's local and remote branches, current branch first, with ahead/behind counts (`↑2 ↓1`) against each branch's upstream.
+- **Commits** — the current branch's recent history (up to 250 commits; the Git Graph remains the deep-history view). Click any commit to open its full diff. Subjects stream in as commit metadata loads.
+- **Stashes** — every `stash@{n}` with its message. Click one to open it in the stash view, where **Apply / Pop / Drop** live.
+- **Contributors** — who built this repo: every author with their commit count, busiest first (`git shortlog`, aggregated locally).
+
+---
+
 ### Built-in language servers
 
 PaddleBoard splits language support into two tiers so the default install stays lean and languages that need an external toolchain don't fail silently.
