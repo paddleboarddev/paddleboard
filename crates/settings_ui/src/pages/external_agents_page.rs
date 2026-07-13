@@ -18,7 +18,10 @@ use ui::{
 };
 use util::ResultExt as _;
 use workspace::{MultiWorkspace, Workspace, create_and_open_local_file};
+<<<<<<< HEAD
 use paddleboard_actions::OpenBrowser;
+=======
+>>>>>>> zed/main
 
 use crate::SettingsWindow;
 
@@ -310,14 +313,7 @@ pub(crate) fn render_add_agent_popover(
                         .icon(IconName::ArrowUpRight)
                         .icon_color(Color::Muted)
                         .icon_position(IconPosition::End)
-                        .handler(move |window, cx| {
-                            window.dispatch_action(
-                                Box::new(OpenBrowser {
-                                    url: "https://agentclientprotocol.com/".into(),
-                                }),
-                                cx,
-                            );
-                        }),
+                        .handler(|_window, cx| cx.open_url("https://agentclientprotocol.com/")),
                 )
             }))
         });

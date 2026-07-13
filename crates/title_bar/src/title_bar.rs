@@ -50,8 +50,13 @@ use ui::{
 use update_version::UpdateVersion;
 use util::ResultExt;
 use workspace::{
+<<<<<<< HEAD
     MultiWorkspace, ToggleWorktreeSecurity, Workspace,
     notifications::NotifyTaskExt as _,
+=======
+    AccessibleMode, MultiWorkspace, ToggleWorktreeSecurity, Workspace,
+    notifications::{NotifyResultExt, NotifyTaskExt as _},
+>>>>>>> zed/main
 };
 
 use paddleboard_actions::OpenRemote;
@@ -296,8 +301,13 @@ impl Render for TitleBar {
                         .when_some(
                             self.application_menu.clone().filter(|_| !show_menus),
                             |title_bar, menu| {
-                                render_project_items &=
-                                    !menu.update(cx, |menu, cx| menu.all_menus_shown(cx));
+                                // Hide the project/branch items to make room when the
+                                // menu bar is expanded -- except in accessible mode,
+                                // where the menu bar is always expanded but those
+                                // controls must still remain reachable.
+                                render_project_items &= !menu
+                                    .update(cx, |menu, cx| menu.all_menus_shown(cx))
+                                    || cx.accessible_mode();
                                 title_bar.child(menu)
                             },
                         )
@@ -743,6 +753,7 @@ impl TitleBar {
             Button::new("project_owner_trigger", host_user.username.clone())
                 .color(Color::Player(participant_index.0))
                 .label_size(LabelSize::Small)
+                .tab_index(0isize)
                 .tooltip(move |_, cx| {
                     let tooltip_title = format!(
                         "{} is sharing this project. Click to follow.",
@@ -828,6 +839,7 @@ impl TitleBar {
             .trigger_with_tooltip(
                 Button::new("project_name_trigger", display_name)
                     .label_size(LabelSize::Small)
+                    .tab_index(0isize)
                     .when(self.worktree_count(cx) > 1, |this| {
                         this.end_icon(
                             Icon::new(IconName::ChevronDown)
@@ -879,6 +891,7 @@ impl TitleBar {
             .trigger_with_tooltip(
                 Button::new("project_name_trigger", display_name)
                     .label_size(LabelSize::Small)
+                    .tab_index(0isize)
                     .when(self.worktree_count(cx) > 1, |this| {
                         this.end_icon(
                             Icon::new(IconName::ChevronDown)
@@ -982,6 +995,7 @@ impl TitleBar {
                         .selected_style(ButtonStyle::Tinted(TintColor::Accent))
                         .label_size(LabelSize::Small)
                         .color(Color::Muted)
+                        .tab_index(0isize)
                         .loading(is_creating)
                         .start_icon(
                             Icon::new(IconName::GitWorktree)
@@ -1013,6 +1027,7 @@ impl TitleBar {
                     Button::new("project_branch_trigger", "Create Branch")
                         .selected_style(ButtonStyle::Tinted(TintColor::Accent))
                         .label_size(LabelSize::Small)
+                        .tab_index(0isize)
                         .start_icon(
                             Icon::new(IconName::GitBranchPlus)
                                 .size(IconSize::XSmall)
@@ -1023,6 +1038,7 @@ impl TitleBar {
                         .selected_style(ButtonStyle::Tinted(TintColor::Accent))
                         .label_size(LabelSize::Small)
                         .color(Color::Muted)
+                        .tab_index(0isize)
                         .start_icon(
                             Icon::new(branch_icon)
                                 .size(IconSize::XSmall)
@@ -1126,8 +1142,29 @@ impl TitleBar {
         }
     }
 
+<<<<<<< HEAD
     pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> impl Element {
         ui::div() // Removed Sign In
+=======
+    pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> Button {
+        let client = self.client.clone();
+        let workspace = self.workspace.clone();
+        Button::new("sign_in", "Sign In")
+            .label_size(LabelSize::Small)
+            .tab_index(0isize)
+            .on_click(move |_, window, cx| {
+                let client = client.clone();
+                let workspace = workspace.clone();
+                window
+                    .spawn(cx, async move |mut cx| {
+                        client
+                            .sign_in_with_optional_connect(true, cx)
+                            .await
+                            .notify_workspace_async_err(workspace, &mut cx);
+                    })
+                    .detach();
+            })
+>>>>>>> zed/main
     }
 
     pub fn render_user_menu_button(&mut self, cx: &mut Context<Self>) -> impl Element {
@@ -1173,17 +1210,21 @@ impl TitleBar {
                 }
             });
 
-            ButtonLike::new("user-menu").aria_label("User menu").child(
-                h_flex()
-                    .when_some(business_organization, |this, organization| {
-                        this.gap_2()
-                            .child(Label::new(&organization.name).size(LabelSize::Small))
-                    })
-                    .children(avatar),
-            )
+            ButtonLike::new("user-menu")
+                .aria_label("User menu")
+                .tab_index(0isize)
+                .child(
+                    h_flex()
+                        .when_some(business_organization, |this, organization| {
+                            this.gap_2()
+                                .child(Label::new(&organization.name).size(LabelSize::Small))
+                        })
+                        .children(avatar),
+                )
         } else {
             ButtonLike::new("user-menu")
                 .aria_label("User menu")
+                .tab_index(0isize)
                 .child(Icon::new(IconName::ChevronDown).size(IconSize::Small))
         };
 

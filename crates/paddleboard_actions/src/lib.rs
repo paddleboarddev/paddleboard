@@ -358,6 +358,12 @@ pub mod git {
             /// Opens the git branch selector.
             #[action(deprecated_aliases = ["branches::OpenRecent"])]
             Branch,
+            /// Shows uncommitted changes across the project.
+            ViewUncommittedChanges,
+            /// Shows unstaged changes across the project.
+            ViewUnstagedChanges,
+            /// Shows staged changes across the project.
+            ViewStagedChanges,
             /// Opens the git stash selector.
             ViewStash,
             /// Opens the git worktree selector.
@@ -583,6 +589,17 @@ pub mod agent {
             PasteRaw,
         ]
     );
+
+    /// Selects the agent used for new threads in the agent panel, without
+    /// opening the panel. The selected agent is launched the next time the
+    /// panel is opened.
+    #[derive(Clone, PartialEq, Deserialize, JsonSchema, Action)]
+    #[action(namespace = agent)]
+    #[serde(deny_unknown_fields)]
+    pub struct SelectAgent {
+        /// The id of the agent to select.
+        pub agent: String,
+    }
 
     /// Opens a new agent thread with the provided branch diff for review.
     #[derive(Clone, PartialEq, Deserialize, JsonSchema, Action)]
@@ -957,6 +974,7 @@ pub mod notebook {
     );
 }
 
+<<<<<<< HEAD:crates/paddleboard_actions/src/lib.rs
 pub mod ai_dock {
     use gpui::actions;
 
@@ -1088,6 +1106,16 @@ pub mod a2a {
             RunAgent,
             /// Stops the running A2A agent server.
             StopAgent,
+=======
+pub mod git_panel {
+    use gpui::actions;
+
+    actions!(
+        git_panel,
+        [
+            /// Toggles focus on the git panel.
+            ToggleFocus,
+>>>>>>> zed/main:crates/zed_actions/src/lib.rs
         ]
     );
 }

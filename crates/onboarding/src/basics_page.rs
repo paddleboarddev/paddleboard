@@ -454,6 +454,54 @@ pub(crate) fn featured_agent_ids(cx: &App) -> Vec<String> {
     } else {
         ids
     }
+<<<<<<< HEAD
+=======
+    .size(IconSize::XSmall)
+    .color(Color::Muted);
+
+    let fs = <dyn Fs>::global(cx);
+
+    let state_element = if installed {
+        Icon::new(IconName::Check)
+            .size(IconSize::Small)
+            .color(Color::Success)
+            .into_any_element()
+    } else {
+        Label::new("Install")
+            .size(LabelSize::XSmall)
+            .color(Color::Muted)
+            .into_any_element()
+    };
+
+    AgentSetupButton::new(element_id)
+        .icon(icon)
+        .name(agent.name().clone())
+        .state(state_element)
+        .disabled(installed)
+        .on_click(move |_, window, cx| {
+            telemetry::event!("Welcome Agent Install Clicked", agent = agent_id.as_str());
+            update_settings_file(fs.clone(), cx, {
+                let agent_id = agent_id.clone();
+                move |settings, _| {
+                    let agent_servers = settings.agent_servers.get_or_insert_default();
+                    agent_servers.entry(agent_id).or_insert_with(|| {
+                        CustomAgentServerSettings::Registry {
+                            env: Default::default(),
+                            default_mode: None,
+                            default_config_options: HashMap::default(),
+                            favorite_config_option_values: HashMap::default(),
+                        }
+                    });
+                }
+            });
+            window.dispatch_action(
+                Box::new(zed_actions::agent::SelectAgent {
+                    agent: agent_id.clone(),
+                }),
+                cx,
+            );
+        })
+>>>>>>> zed/main
 }
 
 // PaddleBoard: replaces the upstream 5-card "Agent Setup" row with a single
