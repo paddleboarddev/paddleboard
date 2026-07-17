@@ -530,7 +530,7 @@ impl AgentRegistryPage {
                             }
                         });
                         window.dispatch_action(
-                            Box::new(zed_actions::agent::SelectAgent {
+                            Box::new(paddleboard_actions::agent::SelectAgent {
                                 agent: agent_id.clone(),
                             }),
                             cx,

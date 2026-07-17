@@ -18,10 +18,6 @@ use ui::{
 };
 use util::ResultExt as _;
 use workspace::{MultiWorkspace, Workspace, create_and_open_local_file};
-<<<<<<< HEAD
-use paddleboard_actions::OpenBrowser;
-=======
->>>>>>> zed/main
 
 use crate::SettingsWindow;
 

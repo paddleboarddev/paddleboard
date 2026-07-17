@@ -94,13 +94,9 @@ use workspace::{
     dock::{DockPosition, Panel, PanelEvent},
     notifications::{DetachAndPromptErr, NotificationId, NotifyTaskExt},
 };
-<<<<<<< HEAD
-use paddleboard_actions::{DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize};
-=======
-use zed_actions::{
+use paddleboard_actions::{
     DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize, git_panel::ToggleFocus,
 };
->>>>>>> zed/main
 
 const GIT_PANEL_KEY: &str = "GitPanel";
 const UPDATE_DEBOUNCE: Duration = Duration::from_millis(50);

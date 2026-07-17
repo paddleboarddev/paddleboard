@@ -664,6 +664,12 @@ pub mod assistant {
             /// Opens the project AGENTS.md rules file.
             #[action(name = "OpenProjectAGENTS.mdRules")]
             OpenProjectAgentsMdRules,
+            /// Opens the skills manager in the settings window.
+            // PaddleBoard: upstream's OpenRulesLibrary replacement; our richer
+            // OpenRulesLibrary struct (with prompt_to_select) keeps the
+            // deprecated aliases, so this stays alias-free to avoid duplicate
+            // action registration.
+            ManageSkills,
         ]
     );
 
@@ -974,7 +980,6 @@ pub mod notebook {
     );
 }
 
-<<<<<<< HEAD:crates/paddleboard_actions/src/lib.rs
 pub mod ai_dock {
     use gpui::actions;
 
@@ -1106,7 +1111,10 @@ pub mod a2a {
             RunAgent,
             /// Stops the running A2A agent server.
             StopAgent,
-=======
+        ]
+    );
+}
+
 pub mod git_panel {
     use gpui::actions;
 
@@ -1115,7 +1123,6 @@ pub mod git_panel {
         [
             /// Toggles focus on the git panel.
             ToggleFocus,
->>>>>>> zed/main:crates/zed_actions/src/lib.rs
         ]
     );
 }

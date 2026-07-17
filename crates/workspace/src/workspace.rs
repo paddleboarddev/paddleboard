@@ -7251,13 +7251,8 @@ impl Workspace {
             return None;
         }
 
-<<<<<<< HEAD
-=======
-        let leader_border = dock.read(cx).active_panel().and_then(|panel| {
-            let pane = panel.pane(cx)?;
-            let follower_states = &self.follower_states;
-            leader_border_for_pane(follower_states, &pane, window, cx)
-        });
+        // PaddleBoard: upstream's collab leader-border for docks is omitted —
+        // collab following has no UI in PaddleBoard.
 
         // Expose each open dock as a landmark region so assistive technology
         // can navigate to it, and so region navigation announces it. While a
@@ -7274,7 +7269,6 @@ impl Workspace {
         let dock_is_open = dock.read(cx).is_open();
         let a11y_active = window.is_a11y_active();
 
->>>>>>> zed/main
         let mut container = div()
             .id(dock_element_id)
             .when(dock_is_open, |this| {

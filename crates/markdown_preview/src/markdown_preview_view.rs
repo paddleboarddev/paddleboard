@@ -32,13 +32,8 @@ use workspace::notifications::NotifyResultExt;
 use workspace::searchable::{
     Direction, SearchEvent, SearchOptions, SearchToken, SearchableItem, SearchableItemHandle,
 };
-<<<<<<< HEAD
-use workspace::{ItemId, Pane, Workspace, WorkspaceId, delete_unloaded_items};
-use paddleboard_actions::{DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize};
-=======
 use workspace::{ItemId, Pane, SaveIntent, Workspace, WorkspaceId, delete_unloaded_items};
-use zed_actions::{DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize};
->>>>>>> zed/main
+use paddleboard_actions::{DecreaseBufferFontSize, IncreaseBufferFontSize, ResetBufferFontSize};
 
 use crate::markdown_preview_settings::MarkdownPreviewSettings;
 use crate::{

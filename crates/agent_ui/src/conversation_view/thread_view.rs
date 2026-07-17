@@ -9064,8 +9064,8 @@ impl ThreadView {
                             .tooltip(Tooltip::text("Configure unicode confusables warning"))
                             .on_click(|_, window, cx| {
                                 window.dispatch_action(
-                                    Box::new(zed_actions::OpenSettingsAt {
-                                        path: zed_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
+                                    Box::new(paddleboard_actions::OpenSettingsAt {
+                                        path: paddleboard_actions::AGENT_SANDBOX_SETTINGS_PATH.to_string(),
                                         target: None,
                                     }),
                                     cx,
@@ -11132,7 +11132,7 @@ impl ThreadView {
             .on_click(cx.listener(|this, _, window, cx| {
                 this.clear_thread_error(cx);
                 window.dispatch_action(
-                    Box::new(zed_actions::OpenSettingsAt {
+                    Box::new(paddleboard_actions::OpenSettingsAt {
                         path: "llm_providers".to_string(),
                         target: None,
                     }),

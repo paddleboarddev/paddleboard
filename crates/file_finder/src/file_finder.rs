@@ -464,7 +464,7 @@ impl SelectedMatch {
     fn new(m: Match) -> Option<Self> {
         match m {
             Match::History { .. } | Match::Search(_) => Some(Self(m)),
-            Match::Channel { .. } | Match::CreateNew(_) => None,
+            Match::CreateNew(_) => None,
         }
     }
 }
@@ -1600,7 +1600,7 @@ impl FileFinderDelegate {
                     path: Arc::clone(&path.project.path),
                 }),
                 Match::Search(m) => Some(project_path_for_search_match(&self.project, &m.0, cx)),
-                Match::Channel { .. } | Match::CreateNew(_) => None,
+                Match::CreateNew(_) => None,
             })
             .collect();
         if paths.is_empty() {

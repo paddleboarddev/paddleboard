@@ -32,13 +32,7 @@ use project::{
 
 use settings::{SeedQuerySetting, Settings};
 use std::{any::TypeId, sync::Arc};
-<<<<<<< HEAD
-use paddleboard_actions::{
-    OpenSettingsAt, outline::ToggleOutline, workspace::CopyPath, workspace::CopyRelativePath,
-};
-=======
-use zed_actions::{outline::ToggleOutline, workspace::CopyPath, workspace::CopyRelativePath};
->>>>>>> zed/main
+use paddleboard_actions::{outline::ToggleOutline, workspace::CopyPath, workspace::CopyRelativePath};
 
 use ui::{BASE_REM_SIZE_IN_PX, IconButtonShape, Tooltip, prelude::*, utils::SearchInputWidth};
 use util::{ResultExt, paths::PathMatcher};

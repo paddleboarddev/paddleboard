@@ -219,11 +219,6 @@ impl Drop for MacOsUnmounter<'_> {
     }
 }
 
-<<<<<<< HEAD
-// PaddleBoard: the setting is now vestigial — auto-update polling is unconditionally disabled in
-// `init`, so this value isn't read at runtime. Kept registered for upstream-merge stability and
-// because the test below exercises its `Settings` impl.
-=======
 async fn unmount_disk_image(mount_path: &Path) {
     let unmount_output = new_command("hdiutil")
         .args(["detach", "-force"])
@@ -246,7 +241,9 @@ async fn unmount_disk_image(mount_path: &Path) {
     }
 }
 
->>>>>>> zed/main
+// PaddleBoard: the setting is now vestigial — auto-update polling is unconditionally disabled in
+// `init`, so this value isn't read at runtime. Kept registered for upstream-merge stability and
+// because the test below exercises its `Settings` impl.
 #[derive(Clone, Copy, Debug, RegisterSetting)]
 struct AutoUpdateSetting(#[allow(dead_code)] bool);
 

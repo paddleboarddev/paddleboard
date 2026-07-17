@@ -50,13 +50,8 @@ use ui::{
 use update_version::UpdateVersion;
 use util::ResultExt;
 use workspace::{
-<<<<<<< HEAD
-    MultiWorkspace, ToggleWorktreeSecurity, Workspace,
-    notifications::NotifyTaskExt as _,
-=======
     AccessibleMode, MultiWorkspace, ToggleWorktreeSecurity, Workspace,
-    notifications::{NotifyResultExt, NotifyTaskExt as _},
->>>>>>> zed/main
+    notifications::NotifyTaskExt as _,
 };
 
 use paddleboard_actions::OpenRemote;
@@ -1142,29 +1137,9 @@ impl TitleBar {
         }
     }
 
-<<<<<<< HEAD
+    // PaddleBoard: Zed Cloud sign-in stays removed from the title bar.
     pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> impl Element {
         ui::div() // Removed Sign In
-=======
-    pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> Button {
-        let client = self.client.clone();
-        let workspace = self.workspace.clone();
-        Button::new("sign_in", "Sign In")
-            .label_size(LabelSize::Small)
-            .tab_index(0isize)
-            .on_click(move |_, window, cx| {
-                let client = client.clone();
-                let workspace = workspace.clone();
-                window
-                    .spawn(cx, async move |mut cx| {
-                        client
-                            .sign_in_with_optional_connect(true, cx)
-                            .await
-                            .notify_workspace_async_err(workspace, &mut cx);
-                    })
-                    .detach();
-            })
->>>>>>> zed/main
     }
 
     pub fn render_user_menu_button(&mut self, cx: &mut Context<Self>) -> impl Element {

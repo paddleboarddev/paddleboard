@@ -703,12 +703,8 @@ impl LanguageModelProvider for BedrockLanguageModelProvider {
                     .into()
             })
             .description(InlineDescription::Text(
-<<<<<<< HEAD
                 // PaddleBoard: user-visible copy rebranded from Zed.
-                "To use PaddleBoard's agent with Bedrock, set a custom authentication strategy in your settings or use static credentials.".into(),
-=======
-                "To use Zed's agent with Bedrock, set a custom authentication strategy in your settings or use static credentials. Mantle-only models (e.g. GPT-5.5, GPT-5.4, Grok 4.3) additionally require IAM permissions for the `bedrock-mantle` endpoint.".into(),
->>>>>>> zed/main
+                "To use PaddleBoard's agent with Bedrock, set a custom authentication strategy in your settings or use static credentials. Mantle-only models (e.g. GPT-5.5, GPT-5.4, Grok 4.3) additionally require IAM permissions for the `bedrock-mantle` endpoint.".into(),
             )),
         ))
     }

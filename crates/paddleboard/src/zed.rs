@@ -37,14 +37,10 @@ use futures::{StreamExt, channel::mpsc, select_biased};
 use git_ui::branch_diff::BranchDiffToolbar;
 use git_ui::commit_view::CommitViewToolbar;
 use git_ui::git_panel::GitPanel;
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-use git_ui::project_diff::{BranchDiffToolbar, ProjectDiffToolbar};
-=======
 use git_ui::project_diff::ProjectDiffToolbar;
 use git_ui::solo_diff_view::{SoloDiffGitToolbar, SoloDiffStyleToolbar};
 use git_ui::staged_diff::StagedDiffToolbar;
 use git_ui::unstaged_diff::UnstagedDiffToolbar;
->>>>>>> zed/main:crates/zed/src/zed.rs
 use gpui::{
     Action, App, AppContext as _, AsyncWindowContext, ClipboardItem, Context, DismissEvent,
     Element, Entity, FocusHandle, Focusable, Image, ImageFormat, KeyBinding, ParentElement,
@@ -175,8 +171,6 @@ actions!(
     ]
 );
 
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-=======
 /// Serializes the window's most recent accessibility tree to JSON for the
 /// `dev: dump/copy accessibility tree` actions, falling back to a friendly
 /// placeholder when no tree has been built yet.
@@ -198,7 +192,6 @@ actions!(
     ]
 );
 
->>>>>>> zed/main:crates/zed/src/zed.rs
 pub fn init(cx: &mut App) {
     #[cfg(target_os = "macos")]
     cx.on_action(|_: &Hide, cx| cx.hide());
@@ -1485,6 +1478,8 @@ fn initialize_pane(
         pane.toolbar().update(cx, |toolbar, cx| {
             let multibuffer_hint = cx.new(|_| MultibufferHint::new());
             toolbar.add_item(multibuffer_hint, window, cx);
+            let solo_diff_style_toolbar = cx.new(SoloDiffStyleToolbar::new);
+            toolbar.add_item(solo_diff_style_toolbar, window, cx);
             let breadcrumbs = cx.new(|_| Breadcrumbs::new());
             toolbar.add_item(breadcrumbs, window, cx);
             let buffer_search_bar = cx.new(|cx| {
@@ -1527,6 +1522,8 @@ fn initialize_pane(
             toolbar.add_item(unstaged_diff_toolbar, window, cx);
             let branch_diff_toolbar = cx.new(BranchDiffToolbar::new);
             toolbar.add_item(branch_diff_toolbar, window, cx);
+            let solo_diff_git_toolbar = cx.new(SoloDiffGitToolbar::new);
+            toolbar.add_item(solo_diff_git_toolbar, window, cx);
             let commit_view_toolbar = cx.new(|_| CommitViewToolbar::new());
             toolbar.add_item(commit_view_toolbar, window, cx);
             let agent_diff_toolbar = cx.new(AgentDiffToolbar::new);
@@ -2325,19 +2322,18 @@ pub fn load_default_keymap(cx: &mut App) {
         return;
     }
 
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
     // PaddleBoard: use log_err instead of unwrap so a stale keymap reference never crashes the app
     if let Some(bindings) =
         KeymapFile::load_asset(DEFAULT_KEYMAP_PATH, Some(KeybindSource::Default), cx).log_err()
     {
-        cx.bind_keys(bindings);
+        cx.bind_keys(filter_disabled_ai_bindings(bindings, cx));
     }
 
     if let Some(asset_path) = base_keymap.asset_path() {
         if let Some(bindings) =
             KeymapFile::load_asset(asset_path, Some(KeybindSource::Base), cx).log_err()
         {
-            cx.bind_keys(bindings);
+            cx.bind_keys(filter_disabled_ai_bindings(bindings, cx));
         }
     }
 
@@ -2345,27 +2341,8 @@ pub fn load_default_keymap(cx: &mut App) {
         if let Some(bindings) =
             KeymapFile::load_asset(VIM_KEYMAP_PATH, Some(KeybindSource::Vim), cx).log_err()
         {
-            cx.bind_keys(bindings);
+            cx.bind_keys(filter_disabled_ai_bindings(bindings, cx));
         }
-=======
-    cx.bind_keys(filter_disabled_ai_bindings(
-        KeymapFile::load_asset(DEFAULT_KEYMAP_PATH, Some(KeybindSource::Default), cx).unwrap(),
-        cx,
-    ));
-
-    if let Some(asset_path) = base_keymap.asset_path() {
-        cx.bind_keys(filter_disabled_ai_bindings(
-            KeymapFile::load_asset(asset_path, Some(KeybindSource::Base), cx).unwrap(),
-            cx,
-        ));
-    }
-
-    if VimModeSetting::get_global(cx).0 || vim_mode_setting::HelixModeSetting::get_global(cx).0 {
-        cx.bind_keys(filter_disabled_ai_bindings(
-            KeymapFile::load_asset(VIM_KEYMAP_PATH, Some(KeybindSource::Vim), cx).unwrap(),
-            cx,
-        ));
->>>>>>> zed/main:crates/zed/src/zed.rs
     }
 
     cx.bind_keys(
@@ -5988,7 +5965,7 @@ mod tests {
         // User-defined bindings to AI actions should also be filtered.
         let user_binding = KeyBinding::new(
             "ctrl-enter",
-            zed_actions::assistant::InlineAssist { prompt: None },
+            paddleboard_actions::assistant::InlineAssist { prompt: None },
             None,
         );
         cx.update(|cx| reload_keymaps(cx, vec![user_binding]));

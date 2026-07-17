@@ -1,17 +1,11 @@
 use gpui::{App, Menu, MenuItem, OsAction};
 use release_channel::ReleaseChannel;
 use terminal_view::terminal_panel;
-<<<<<<< HEAD:crates/paddleboard/src/zed/app_menus.rs
-use paddleboard_actions::{debug_panel, dev};
+use paddleboard_actions::{assistant, debug_panel, dev, git_panel};
 
 pub fn app_menus(cx: &mut App) -> Vec<Menu> {
     use paddleboard_actions::Quit;
 
-=======
-use zed_actions::{Quit, assistant, debug_panel, dev, git_panel, project_panel};
-
-pub fn app_menus(cx: &mut App) -> Vec<Menu> {
->>>>>>> zed/main:crates/zed/src/zed/app_menus.rs
     let mut view_items = vec![
         MenuItem::action(
             "Zoom In",
@@ -45,16 +39,10 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
             ],
         }),
         MenuItem::separator(),
-<<<<<<< HEAD:crates/paddleboard/src/zed/app_menus.rs
         MenuItem::action("Project Panel", paddleboard_actions::project_panel::ToggleFocus),
         MenuItem::action("Outline Panel", outline_panel::ToggleFocus),
-        MenuItem::action("Terminal Panel", terminal_panel::ToggleFocus),
-=======
-        MenuItem::action("Project Panel", project_panel::ToggleFocus),
-        MenuItem::action("Outline Panel", outline_panel::ToggleFocus),
-        MenuItem::action("Collab Panel", collab_panel::ToggleFocus),
+        // PaddleBoard: no Collab Panel; terminal action renamed upstream ToggleFocus -> Toggle.
         MenuItem::action("Terminal Panel", terminal_panel::Toggle),
->>>>>>> zed/main:crates/zed/src/zed/app_menus.rs
         MenuItem::action("Debugger Panel", debug_panel::ToggleFocus),
         MenuItem::action("Agent Panel", assistant::ToggleFocus),
         MenuItem::action("Git Panel", git_panel::ToggleFocus),

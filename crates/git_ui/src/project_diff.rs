@@ -35,12 +35,7 @@ use workspace::{
     item::{Item, ItemEvent, ItemHandle, SaveOptions, TabContentParams},
     searchable::SearchableItemHandle,
 };
-<<<<<<< HEAD
-use paddleboard_actions::agent::ReviewBranchDiff;
-use ztracing::instrument;
-=======
-use zed_actions::git as git_actions;
->>>>>>> zed/main
+use paddleboard_actions::git as git_actions;
 
 actions!(
     git,
@@ -1013,7 +1008,7 @@ mod tests {
         });
     }
 
-    use zed_actions::git as git_actions;
+    use paddleboard_actions::git as git_actions;
 
     use crate::project_diff::{self, ProjectDiff};
 

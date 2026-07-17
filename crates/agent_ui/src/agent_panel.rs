@@ -29,8 +29,8 @@ use paddleboard_actions::{
         ResolveConflictsWithAgent, ReviewBranchDiff, SelectAgent,
     },
     assistant::{
-        CreateSkillFromUrl, FocusAgent, OpenGlobalAgentsMdRules, OpenProjectAgentsMdRules,
-        OpenRulesLibrary, OpenSkillCreator, Toggle, ToggleFocus,
+        CreateSkillFromUrl, FocusAgent, ManageSkills, OpenGlobalAgentsMdRules,
+        OpenProjectAgentsMdRules, OpenRulesLibrary, OpenSkillCreator, Toggle, ToggleFocus,
     },
 };
 
@@ -429,9 +429,6 @@ pub fn init(cx: &mut App) {
                         });
                     }
                 })
-<<<<<<< HEAD
-                .register_action(|workspace, action: &OpenRulesLibrary, window, cx| {
-=======
                 .register_action(|workspace, action: &SelectAgent, window, cx| {
                     if let Some(panel) = workspace.panel::<AgentPanel>(cx) {
                         panel.update(cx, |panel, cx| {
@@ -440,12 +437,18 @@ pub fn init(cx: &mut App) {
                         });
                     }
                 })
-                .register_action(|workspace, action: &ManageSkills, window, cx| {
->>>>>>> zed/main
+                .register_action(|workspace, _: &ManageSkills, window, cx| {
                     if let Some(panel) = workspace.panel::<AgentPanel>(cx) {
                         workspace.focus_panel::<AgentPanel>(window, cx);
                         panel.update(cx, |panel, cx| {
-                            panel.deploy_rules_library(action, window, cx)
+                            // PaddleBoard: ManageSkills is a unit action; our
+                            // deploy_rules_library still takes the richer
+                            // OpenRulesLibrary payload.
+                            panel.deploy_rules_library(
+                                &OpenRulesLibrary::default(),
+                                window,
+                                cx,
+                            )
                         });
                     }
                 })
@@ -6145,13 +6148,9 @@ impl AgentPanel {
                                 menu = menu.separator();
                             }
 
-<<<<<<< HEAD
-                            menu = menu.action("Profiles", Box::new(ManageProfiles::default()));
-=======
                             menu = menu
                                 .separator()
                                 .action("Profiles", Box::new(ManageProfiles::default()));
->>>>>>> zed/main
                         }
 
                         menu = menu

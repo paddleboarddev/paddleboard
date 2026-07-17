@@ -589,17 +589,13 @@ impl ContextServerStore {
     /// configuration, so it stays correct even when a custom server is disabled
     /// or has not been started yet (in which case it has no runtime state).
     pub fn is_extension_provided(&self, id: &ContextServerId, cx: &App) -> bool {
-<<<<<<< HEAD
-        match self.context_server_settings.get(&id.0) {
+        // PaddleBoard: SandboxedStdio is a PB-added transport.
+        match self.settings_for_server(id) {
             Some(
                 ContextServerSettings::Stdio { .. }
                 | ContextServerSettings::Http { .. }
                 | ContextServerSettings::SandboxedStdio { .. },
             ) => false,
-=======
-        match self.settings_for_server(id) {
-            Some(ContextServerSettings::Stdio { .. } | ContextServerSettings::Http { .. }) => false,
->>>>>>> zed/main
             Some(ContextServerSettings::Extension { .. }) => true,
             // No custom settings entry: the server can only originate from an
             // extension descriptor in the registry.

@@ -5,14 +5,7 @@ use client::{Client, UserStore};
 use collections::{HashMap, HashSet};
 use credentials_provider::CredentialsProvider;
 use gpui::{App, Context, Entity};
-<<<<<<< HEAD
-use language_model::{
-    ConfiguredModel, LanguageModelProviderId, LanguageModelProviderName, LanguageModelRegistry,
-    ZED_CLOUD_PROVIDER_ID,
-};
-=======
-use language_model::{LanguageModelProviderId, LanguageModelRegistry};
->>>>>>> zed/main
+use language_model::{LanguageModelProviderId, LanguageModelProviderName, LanguageModelRegistry};
 use provider::deepseek::DeepSeekLanguageModelProvider;
 
 pub mod extension;
