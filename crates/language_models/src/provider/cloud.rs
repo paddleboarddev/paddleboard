@@ -762,7 +762,7 @@ impl LanguageModel for CloudLanguageModel {
                     .as_ref()
                     .and_then(|effort| anthropic::Effort::from_str(effort).ok());
 
-                let mut request = into_anthropic(
+                let mut request = match into_anthropic(
                     request,
                     self.model.id.to_string(),
                     1.0,
@@ -775,7 +775,10 @@ impl LanguageModel for CloudLanguageModel {
                         AnthropicModelMode::Default
                     },
                     AnthropicPromptCacheMode::Automatic,
-                );
+                ) {
+                    Ok(request) => request,
+                    Err(error) => return async move { Err(error.into()) }.boxed(),
+                };
 
                 if enable_thinking && effort.is_some() {
                     request.thinking = Some(anthropic::Thinking::Adaptive {
@@ -883,7 +886,7 @@ impl LanguageModel for CloudLanguageModel {
             }
             cloud_llm_client::LanguageModelProvider::XAi => {
                 let client = self.client.clone();
-                let request = into_open_ai(
+                let request = match into_open_ai(
                     request,
                     &self.model.id.0,
                     self.model.supports_parallel_tool_calls,
@@ -892,7 +895,10 @@ impl LanguageModel for CloudLanguageModel {
                     crate::provider::open_ai::ChatCompletionMaxTokensParameter::MaxCompletionTokens,
                     None,
                     false,
-                );
+                ) {
+                    Ok(request) => request,
+                    Err(error) => return async move { Err(error.into()) }.boxed(),
+                };
                 let llm_api_token = self.llm_api_token.clone();
                 let organization_id = organization_id.clone();
                 let future = self.request_limiter.stream(async move {
@@ -927,7 +933,11 @@ impl LanguageModel for CloudLanguageModel {
             cloud_llm_client::LanguageModelProvider::Google => {
                 let client = self.client.clone();
                 let request =
-                    into_google(request, self.model.id.to_string(), GoogleModelMode::Default);
+                    match into_google(request, self.model.id.to_string(), GoogleModelMode::Default)
+                    {
+                        Ok(request) => request,
+                        Err(error) => return async move { Err(error.into()) }.boxed(),
+                    };
                 let llm_api_token = self.llm_api_token.clone();
                 let future = self.request_limiter.stream(async move {
                     let PerformLlmCompletionResponse {

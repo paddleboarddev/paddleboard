@@ -1,7 +1,7 @@
 use gpui::{App, Menu, MenuItem, OsAction};
 use release_channel::ReleaseChannel;
 use terminal_view::terminal_panel;
-use paddleboard_actions::{debug_panel, dev};
+use paddleboard_actions::{assistant, debug_panel, dev, git_panel};
 
 pub fn app_menus(cx: &mut App) -> Vec<Menu> {
     use paddleboard_actions::Quit;
@@ -41,8 +41,11 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
         MenuItem::separator(),
         MenuItem::action("Project Panel", paddleboard_actions::project_panel::ToggleFocus),
         MenuItem::action("Outline Panel", outline_panel::ToggleFocus),
-        MenuItem::action("Terminal Panel", terminal_panel::ToggleFocus),
+        // PaddleBoard: no Collab Panel; terminal action renamed upstream ToggleFocus -> Toggle.
+        MenuItem::action("Terminal Panel", terminal_panel::Toggle),
         MenuItem::action("Debugger Panel", debug_panel::ToggleFocus),
+        MenuItem::action("Agent Panel", assistant::ToggleFocus),
+        MenuItem::action("Git Panel", git_panel::ToggleFocus),
         MenuItem::separator(),
         MenuItem::action("Diagnostics", diagnostics::Deploy),
         MenuItem::separator(),

@@ -416,11 +416,16 @@ impl LanguageModel for VertexLanguageModel {
             LanguageModelCompletionError,
         >,
     > {
-        let request = into_google(
+        // PaddleBoard: into_google became fallible upstream; fail the stream
+        // early like the other providers do.
+        let request = match into_google(
             request,
             self.model.request_id().to_string(),
             self.model.mode(),
-        );
+        ) {
+            Ok(request) => request,
+            Err(error) => return async move { Err(error.into()) }.boxed(),
+        };
         let request = self.stream_completion(request, cx);
         let future = self.request_limiter.stream(async move {
             let response = request.await.map_err(LanguageModelCompletionError::from)?;
