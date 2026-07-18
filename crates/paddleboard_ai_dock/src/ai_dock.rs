@@ -172,7 +172,7 @@ impl AiDock {
             .child(
                 v_flex()
                     .gap_0p5()
-                    .child(Headline::new("AI Dock").size(HeadlineSize::Large))
+                    .child(Headline::new("AI Dock").size(HeadlineSize::Small))
                     .child(
                         Label::new(format!(
                             "{} agents · {} skills · {} personas · {} MCP servers",

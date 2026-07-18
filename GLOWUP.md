@@ -47,18 +47,18 @@ count, usage gauge, sailboat) — none hideable. Dock: 10 panels; PB's 4
 `hide_button_setting` pattern every upstream panel implements, and their
 activation priorities (8/9/9/10) push them past the entire upstream band (max 7).
 
-- [ ] Add `button`-style hide settings for all 4 PB panels (pattern:
+- [x] Add `button`-style hide settings for all 4 PB panels (pattern:
       `git_panel.rs:7474`) and wire `hide_button_setting`.
-- [ ] Add hide settings for the 4 PB status items (pattern:
+- [x] Add hide settings for the 4 PB status items (pattern:
       `StatusBarSettings`, `workspace_settings.rs:158-166`); currently all
       return `hide_setting → None` (`paddleboard_sandbox_prereqs_ui.rs:102`,
       `mcp_servers_ui.rs:1057`, `paddleboard_set_sail.rs:298`).
-- [ ] Contextualize the always-on trio: sailboat + shield could show only when
+- [x] Contextualize the always-on trio: sailboat + shield could show only when
       a project is open; MCP count already self-hides at zero.
-- [ ] Re-band activation priorities so PB panels interleave sensibly instead of
+- [x] Re-band activation priorities so PB panels interleave sensibly instead of
       clustering at the rail's end (proposal: Manifest near GitPanel=3+,
       LlmPicker/Orchestration near AgentPanel=0, Browser stays last).
-- [ ] **Fix the icon collision:** OrchestrationPanel and ManifestPanel both use
+- [x] **Fix the icon collision:** OrchestrationPanel and ManifestPanel both use
       `IconName::ListTree`. Manifest gets its own glyph (hand-drawn scroll/
       manifest icon, Sailboat-style precedent) — or Orchestration moves to a
       threads-ish glyph.
@@ -67,29 +67,29 @@ activation priorities (8/9/9/10) push them past the entire upstream band (max 7)
 
 From the styling audit (worst offenders → fix):
 
-- [ ] **Modal shell**: AI Dock (`ai_dock.rs:248`) and Sandbox Prereqs
+- [x] **Modal shell**: AI Dock (`ai_dock.rs:248`) and Sandbox Prereqs
       (`paddleboard_sandbox_prereqs_ui.rs:443`) hand-roll their shells — move
       both onto `ui::Modal`/`ModalHeader`/`ModalFooter`. Pick ONE modal-title
       treatment (ModalHeader's `Headline Small` default) — today it's
       Small/Medium/Large across three surfaces.
-- [ ] **Callout adoption**: every notice/warning/banner is bespoke. Convert:
+- [x] **Callout adoption**: every notice/warning/banner is bespoke. Convert:
       sandbox active-tier banner + coverage notes (`:404,308,318`), Set Sail
       warning (`:1037`), Usage disabled/empty notices (`usage_tab.rs:85,98`),
       Scion install prompt (`orchestration_panel.rs`).
-- [ ] **Extract `SelectableRow`** (the Icon(Check/Circle) radio-row hand-rolled
+- [x] **Extract `SelectableRow`** (the Icon(Check/Circle) radio-row hand-rolled
       identically in Set Sail `:988`, Scion persona `:232` + template `:308`,
       Sandbox `:280`) into the `ui` kit or a `paddleboard_ui` helper.
-- [ ] **One card style**: pick `p_3 gap_2 rounded_md border_1 border_variant`
+- [x] **One card style**: pick `p_3 gap_2 rounded_md border_1 border_variant`
       + `elevated_surface_background.opacity(0.5)` (AI Dock rows) and apply to
       Usage cards (`element_background` today) and MCP catalog rows (no bg).
-- [ ] **One row padding token** (today: 6 variants incl. raw `pl(px(8.0))` in
+- [x] **One row padding token** (today: 6 variants incl. raw `pl(px(8.0))` in
       `orchestration_panel.rs:641`).
-- [ ] **Button discipline**: `.label_size(Small)` + explicit style everywhere
+- [x] **Button discipline**: `.label_size(Small)` + explicit style everywhere
       (Git Login, Languages, Sandbox currently default-sized).
-- [ ] **Width scale for modals**: 28/34/48 rems (S/M/L) instead of today's
+- [x] **Width scale for modals**: 28/34/48 rems (S/M/L) instead of today's
       28/30/32/34/38 free-for-all.
-- [ ] Kill raw `FontWeight` on Labels (`sandbox:288,351`) — emphasis = Headline.
-- [ ] One loading affordance (shared spinner treatment) and one inline-link
+- [x] Kill raw `FontWeight` on Labels (`sandbox:288,351`) — emphasis = Headline.
+- [x] One loading affordance (shared spinner treatment) and one inline-link
       convention.
 
 ## Wave 3 — The PaddleBoard theme

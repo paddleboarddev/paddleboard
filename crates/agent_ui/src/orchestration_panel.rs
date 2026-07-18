@@ -360,8 +360,16 @@ impl Panel for OrchestrationPanel {
         px(260.0)
     }
 
-    fn icon(&self, _window: &Window, _cx: &App) -> Option<IconName> {
+    fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
+        // PaddleBoard: hideable like upstream panels (paddleboard_ui settings).
         Some(IconName::ListTree)
+            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).orchestration_button)
+    }
+
+    fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {
+        Some(workspace::HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().orchestration_button = Some(false);
+        }))
     }
 
     fn icon_tooltip(&self, _window: &Window, _cx: &App) -> Option<&'static str> {
@@ -508,22 +516,13 @@ impl OrchestrationPanel {
                     ),
             )
             .child(
-                v_flex()
-                    .px_2()
-                    .py_1()
-                    .gap_1()
-                    .child(
-                        Label::new("Scion is enabled, but the CLI isn't installed.")
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
-                    .child(
-                        Label::new("Requires the Go toolchain (go.dev/dl).")
-                            .size(LabelSize::XSmall)
-                            .color(Color::Muted),
-                    )
-                    .child(
-                        h_flex().child(
+                div().p_2().child(
+                    ui::Callout::new()
+                        .severity(ui::Severity::Info)
+                        .icon(IconName::Info)
+                        .title("Scion is enabled, but the CLI isn't installed.")
+                        .description("Requires the Go toolchain (go.dev/dl).")
+                        .actions_slot(
                             Button::new("scion-install-cli", "Install Scion in Terminal")
                                 .style(ButtonStyle::Filled)
                                 .label_size(LabelSize::Small)
@@ -567,7 +566,7 @@ impl OrchestrationPanel {
                                     });
                                 }),
                         ),
-                    ),
+                ),
             )
             .into_any_element()
     }
@@ -638,7 +637,7 @@ impl OrchestrationPanel {
             .id(SharedString::from(format!("scion-agent-{}", agent.name)))
             .w_full()
             .h_7()
-            .pl(px(8.0))
+            .pl_2()
             .pr_2()
             .gap_1p5()
             .items_center()

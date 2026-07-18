@@ -229,6 +229,7 @@ impl VsCodeSettings {
             paddleboard_personas: None,
             paddleboard_rag: None,
             paddleboard_scion: None,
+        paddleboard_ui: None,
             paddleboard_usage: None,
             feature_flags: None,
             instrumentation: None,

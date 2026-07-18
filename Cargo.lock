@@ -532,6 +532,7 @@ dependencies = [
  "paddleboard_scion",
  "paddleboard_scion_settings",
  "paddleboard_scion_ui",
+ "paddleboard_ui",
  "parking_lot",
  "paths",
  "picker",
@@ -2245,6 +2246,7 @@ dependencies = [
  "editor",
  "gpui",
  "log",
+ "paddleboard_ui",
  "theme",
  "ui",
  "urlencoding",
@@ -7224,6 +7226,7 @@ dependencies = [
  "paddleboard_actions",
  "paddleboard_credentials_provider",
  "paddleboard_git_login",
+ "paddleboard_ui",
  "panel",
  "picker",
  "pretty_assertions",
@@ -10287,6 +10290,7 @@ dependencies = [
  "gpui",
  "language_model",
  "paddleboard_actions",
+ "paddleboard_ui",
  "theme",
  "ui",
  "workspace",
@@ -12762,6 +12766,7 @@ dependencies = [
  "paddleboard_scion_settings",
  "paddleboard_scion_ui",
  "paddleboard_set_sail",
+ "paddleboard_ui",
  "paddleboard_usage",
  "parking_lot",
  "paths",
@@ -12886,6 +12891,7 @@ dependencies = [
  "menu",
  "paddleboard_actions",
  "paddleboard_personas",
+ "paddleboard_ui",
  "paddleboard_usage",
  "project",
  "remote_connection",
@@ -12971,6 +12977,7 @@ dependencies = [
  "language",
  "menu",
  "paddleboard_actions",
+ "paddleboard_ui",
  "project",
  "settings",
  "ui",
@@ -13007,6 +13014,7 @@ dependencies = [
  "git",
  "git_ui",
  "gpui",
+ "paddleboard_ui",
  "project",
  "theme",
  "ui",
@@ -13120,6 +13128,7 @@ dependencies = [
  "paddleboard_sandbox_prereqs",
  "paddleboard_sandbox_prereqs_state",
  "paddleboard_sandbox_settings",
+ "paddleboard_ui",
  "settings",
  "ui",
  "util",
@@ -13178,6 +13187,7 @@ dependencies = [
  "paddleboard_personas_settings",
  "paddleboard_scion",
  "paddleboard_scion_settings",
+ "paddleboard_ui",
  "project",
  "settings",
  "tokio",
@@ -13200,9 +13210,19 @@ dependencies = [
  "log",
  "menu",
  "paddleboard_actions",
+ "paddleboard_ui",
  "ui",
  "ui_input",
  "workspace",
+]
+
+[[package]]
+name = "paddleboard_ui"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "settings",
+ "ui",
 ]
 
 [[package]]

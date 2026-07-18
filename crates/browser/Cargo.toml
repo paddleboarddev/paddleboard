@@ -21,5 +21,6 @@ theme.workspace = true
 urlencoding.workspace = true
 util.workspace = true
 workspace.workspace = true
+paddleboard_ui.workspace = true
 ui.workspace = true
 wry.workspace = true

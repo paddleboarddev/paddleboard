@@ -16,6 +16,7 @@ mod paddleboard_personas;
 mod paddleboard_rag;
 // PaddleBoard: schema for the Scion integration (opt-in).
 mod paddleboard_scion;
+mod paddleboard_ui;
 // PaddleBoard: schema for the local LLM usage tracker.
 mod paddleboard_usage;
 mod project;
@@ -38,6 +39,7 @@ pub use paddleboard_otel::*;
 pub use paddleboard_personas::*;
 pub use paddleboard_rag::*;
 pub use paddleboard_scion::*;
+pub use paddleboard_ui::*;
 pub use paddleboard_sandbox::*;
 pub use paddleboard_usage::*;
 pub use project::*;
@@ -291,6 +293,8 @@ pub struct SettingsContent {
 
     // PaddleBoard: configuration for the Scion integration (opt-in, default off).
     pub paddleboard_scion: Option<PaddleboardScionContent>,
+    // PaddleBoard: visibility of PB-added dock buttons and status items.
+    pub paddleboard_ui: Option<PaddleboardUiContent>,
 
     // PaddleBoard: configuration for the local LLM usage tracker (opt-out).
     pub paddleboard_usage: Option<PaddleboardUsageContent>,

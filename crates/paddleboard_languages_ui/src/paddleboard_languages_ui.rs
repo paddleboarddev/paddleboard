@@ -7,7 +7,7 @@ use gpui::{
 use language::{LanguageName, LanguageServerName, language_settings::all_language_settings};
 use project::Project;
 use settings::update_settings_file;
-use ui::{Chip, Modal, ModalHeader, Tooltip, prelude::*};
+use ui::{Chip, CommonAnimationExt, Modal, ModalHeader, SectionHeader, Tooltip, prelude::*};
 use workspace::{ModalView, Workspace};
 
 /// How a language's support is installed.
@@ -265,11 +265,7 @@ impl ManageLanguagesModal {
     fn render_ready_section(&self) -> impl IntoElement {
         v_flex()
             .gap_1()
-            .child(
-                Label::new("Ready to use")
-                    .size(LabelSize::Small)
-                    .color(Color::Muted),
-            )
+            .child(SectionHeader::new("Ready to use"))
             .child(
                 h_flex()
                     .flex_wrap()
@@ -279,11 +275,9 @@ impl ManageLanguagesModal {
     }
 
     fn render_install_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut section = v_flex().gap_1().child(
-            Label::new("Install support")
-                .size(LabelSize::Small)
-                .color(Color::Muted),
-        );
+        let mut section = v_flex()
+            .gap_1()
+            .child(SectionHeader::new("Install support"));
         for language in INSTALL_TIER {
             section = section.child(self.render_install_row(language, cx));
         }
@@ -301,6 +295,8 @@ impl ManageLanguagesModal {
                 SharedString::from(format!("ext-{}", language.key)),
                 "View in Extensions",
             )
+            .style(ButtonStyle::Outlined)
+            .label_size(LabelSize::Small)
             .on_click(
                 cx.listener(move |this, _, window, cx| this.open_extension(extension_id, window, cx)),
             )
@@ -316,7 +312,8 @@ impl ManageLanguagesModal {
                     SharedString::from(format!("install-{}", language.key)),
                     "Install",
                 )
-                .style(ButtonStyle::Filled)
+                .style(ButtonStyle::Outlined)
+                .label_size(LabelSize::Small)
                 .on_click(cx.listener(move |this, _, _, cx| this.install(language, cx)))
                 .into_any_element(),
                 InstallState::Installing => h_flex()
@@ -324,7 +321,14 @@ impl ManageLanguagesModal {
                     .child(
                         Icon::new(IconName::ArrowCircle)
                             .size(IconSize::Small)
-                            .color(Color::Muted),
+                            .color(Color::Muted)
+                            // Keyed per language: several rows can be
+                            // installing at once, and the caller-location id
+                            // from `with_rotate_animation` would collide.
+                            .with_keyed_rotate_animation(
+                                SharedString::from(format!("installing-{}", language.key)),
+                                2,
+                            ),
                     )
                     .child(
                         Label::new("Installing…")
@@ -349,7 +353,8 @@ impl ManageLanguagesModal {
                     SharedString::from(format!("retry-{}", language.key)),
                     "Retry",
                 )
-                .style(ButtonStyle::Filled)
+                .style(ButtonStyle::Outlined)
+                .label_size(LabelSize::Small)
                 .tooltip(Tooltip::text(error.clone()))
                 .on_click(cx.listener(move |this, _, _, cx| this.install(language, cx)))
                 .into_any_element(),
@@ -360,7 +365,7 @@ impl ManageLanguagesModal {
             .justify_between()
             .gap_2()
             .px_2()
-            .py_1p5()
+            .py_1()
             .child(
                 v_flex()
                     .child(Label::new(language.display))
@@ -389,7 +394,7 @@ impl Render for ManageLanguagesModal {
         v_flex()
             .id("manage-languages-modal")
             .key_context("ManageLanguagesModal")
-            .w(rems(34.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
             .elevation_3(cx)
             .on_action(cx.listener(Self::cancel))
             .capture_any_mouse_down(cx.listener(|this, _, window, cx| {

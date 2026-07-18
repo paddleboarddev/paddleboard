@@ -7,6 +7,7 @@ use project::project_settings::ProjectSettings;
 use settings::{
     ContextServerCommand, ContextServerSettingsContent, Settings as _, update_settings_file,
 };
+use ui::CommonAnimationExt as _;
 use ui::prelude::*;
 
 use crate::ai_dock::AiDock;
@@ -44,9 +45,19 @@ pub(super) fn render(
             .items_center()
             .justify_center()
             .child(
-                Label::new("Loading MCP servers…")
-                    .color(Color::Muted)
-                    .size(LabelSize::Small),
+                h_flex()
+                    .gap_1p5()
+                    .child(
+                        Icon::new(IconName::ArrowCircle)
+                            .size(IconSize::Small)
+                            .color(Color::Muted)
+                            .with_rotate_animation(2),
+                    )
+                    .child(
+                        Label::new("Loading MCP servers…")
+                            .color(Color::Muted)
+                            .size(LabelSize::Small),
+                    ),
             )
             .into_any_element(),
     };
@@ -66,7 +77,7 @@ fn render_tab_header(modal: &AiDock, cx: &mut Context<AiDock>) -> AnyElement {
     h_flex()
         .w_full()
         .justify_between()
-        .p_3()
+        .p_4()
         .border_b_1()
         .border_color(cx.theme().colors().border_variant)
         .child(
@@ -106,7 +117,7 @@ fn render_catalog_section(
     }
 
     v_flex()
-        .p_3()
+        .p_4()
         .gap_1p5()
         .border_b_1()
         .border_color(cx.theme().colors().border_variant)
@@ -160,6 +171,9 @@ fn render_catalog_row(
         .gap_2p5()
         .items_center()
         .rounded_md()
+        .border_1()
+        .border_color(cx.theme().colors().border_variant)
+        .bg(cx.theme().colors().elevated_surface_background.opacity(0.5))
         .child(
             Icon::new(IconName::Server)
                 .size(IconSize::Small)

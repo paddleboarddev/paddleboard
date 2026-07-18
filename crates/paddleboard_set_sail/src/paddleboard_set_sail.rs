@@ -14,8 +14,8 @@ use http_client::{AsyncBody, HttpClientWithUrl};
 use std::path::PathBuf;
 use std::sync::Arc;
 use ui::{
-    Button, Checkbox, KeyBinding, Modal, ModalFooter, ModalHeader, ToggleButtonGroup,
-    ToggleButtonGroupStyle, ToggleButtonSimple, ToggleState, prelude::*,
+    Button, Callout, Checkbox, KeyBinding, Modal, ModalFooter, ModalHeader, Severity,
+    ToggleButtonGroup, ToggleButtonGroupStyle, ToggleButtonSimple, ToggleState, prelude::*,
 };
 use gpui::Action as _;
 use ui_input::InputField;
@@ -286,16 +286,35 @@ pub fn init(cx: &mut App) {
 
 /// Status-bar sailboat: one click opens the Set Sail modal, so the deploy
 /// path doesn't hide behind the command palette.
-pub struct SetSailStatusItem;
+pub struct SetSailStatusItem {
+    workspace: gpui::WeakEntity<Workspace>,
+}
 
 impl SetSailStatusItem {
-    pub fn new(_cx: &mut Context<Self>) -> Self {
-        Self
+    pub fn new(workspace: &Workspace, _cx: &mut Context<Self>) -> Self {
+        Self {
+            workspace: workspace.weak_handle(),
+        }
     }
 }
 
 impl Render for SetSailStatusItem {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // PaddleBoard Glowup: hideable, and only shown while a project is open —
+        // there is nothing to deploy without one.
+        let project_open = self.workspace.upgrade().is_some_and(|workspace| {
+            workspace
+                .read(cx)
+                .project()
+                .read(cx)
+                .visible_worktrees(cx)
+                .next()
+                .is_some()
+        });
+        if !paddleboard_ui::PaddleboardUiSettings::get(cx).set_sail_status || !project_open {
+            return gpui::Empty.into_any_element();
+        }
+
         IconButton::new("set-sail-status", IconName::Sailboat)
             .icon_size(IconSize::Small)
             .tooltip(ui::Tooltip::text("Set Sail: deploy this project"))
@@ -305,6 +324,7 @@ impl Render for SetSailStatusItem {
                     cx,
                 );
             })
+            .into_any_element()
     }
 }
 
@@ -318,7 +338,9 @@ impl StatusItemView for SetSailStatusItem {
     }
 
     fn hide_setting(&self, _cx: &App) -> Option<workspace::HideStatusItem> {
-        None
+        Some(workspace::HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().set_sail_status = Some(false);
+        }))
     }
 }
 
@@ -936,7 +958,7 @@ impl Render for SetSailModal {
         v_flex()
             .id("set-sail-modal")
             .key_context("SetSailModal")
-            .w(rems(34.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
             .elevation_3(cx)
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::cancel))
@@ -986,56 +1008,40 @@ impl Render for SetSailModal {
                                 .selected_index(selected_index),
                             )
                             .child(
-                                h_flex()
-                                    .id("set-sail-custom-target")
-                                    .gap_2()
-                                    .px_2()
-                                    .py_1()
-                                    .rounded_sm()
-                                    .cursor_pointer()
-                                    .when(custom, |el| {
-                                        el.bg(cx.theme().colors().element_selected)
-                                    })
-                                    .hover(|el| el.bg(cx.theme().colors().element_hover))
-                                    .on_click(cx.listener(|this, _, _window, cx| {
-                                        this.select_custom_target(cx);
-                                    }))
-                                    .child(
-                                        Icon::new(if custom {
-                                            IconName::Check
-                                        } else {
-                                            IconName::Circle
-                                        })
-                                        .size(IconSize::Small)
-                                        .color(if custom { Color::Accent } else { Color::Muted }),
-                                    )
-                                    .child(
-                                        v_flex()
-                                            .child(
-                                                Label::new("Custom target")
-                                                    .size(LabelSize::Small),
+                                paddleboard_ui::SelectableRow::new(
+                                    "set-sail-custom-target",
+                                    custom,
+                                )
+                                .child(
+                                    v_flex()
+                                        .child(
+                                            Label::new("Custom target").size(LabelSize::Small),
+                                        )
+                                        .child(
+                                            Label::new(
+                                                "Deploy anywhere — your own \
+                                                 Kubernetes/Knative, Fly.io, a VPS…",
                                             )
-                                            .child(
-                                                Label::new(
-                                                    "Deploy anywhere — your own \
-                                                     Kubernetes/Knative, Fly.io, a VPS…",
-                                                )
-                                                .size(LabelSize::XSmall)
-                                                .color(Color::Muted),
-                                            ),
-                                    ),
+                                            .size(LabelSize::XSmall)
+                                            .color(Color::Muted),
+                                        ),
+                                )
+                                .on_click(cx.listener(|this, _, _window, cx| {
+                                    this.select_custom_target(cx);
+                                })),
                             )
                             .when(custom, |this| this.child(self.target_input.clone()))
                             .when(pipeline_unavailable, |this| {
                                 this.child(
-                                    Label::new(format!(
-                                        "Pipeline rigging for {} is coming soon — available \
-                                         today for {}.",
-                                        platform.label(),
-                                        pipeline_ready_platforms()
-                                    ))
-                                    .size(LabelSize::Small)
-                                    .color(Color::Warning),
+                                    Callout::new()
+                                        .severity(Severity::Warning)
+                                        .icon(IconName::Warning)
+                                        .title(format!(
+                                            "Pipeline rigging for {} is coming soon — available \
+                                             today for {}.",
+                                            platform.label(),
+                                            pipeline_ready_platforms()
+                                        )),
                                 )
                             })
                             .child(self.service_input.clone())
@@ -1089,6 +1095,7 @@ impl Render for SetSailModal {
                                 .gap_1()
                                 .child(
                                     Button::new("cancel", "Cancel")
+                                        .label_size(LabelSize::Small)
                                         .key_binding(
                                             KeyBinding::for_action_in(
                                                 &menu::Cancel,
@@ -1104,6 +1111,7 @@ impl Render for SetSailModal {
                                 .child(
                                     Button::new("set-sail-confirm", confirm_label)
                                         .style(ButtonStyle::Filled)
+                                        .label_size(LabelSize::Small)
                                         .key_binding(
                                             KeyBinding::for_action_in(
                                                 &menu::Confirm,

@@ -66,8 +66,9 @@ impl UsageStatusItem {
 
 impl Render for UsageStatusItem {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let gauge = self
-            .active_usage(cx)
+        let gauge = Some(())
+            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).usage_status)
+            .and_then(|_| self.active_usage(cx))
             .filter(|usage| usage.used_tokens > 0)
             .map(|usage| {
                 let color = match usage.ratio() {
@@ -127,6 +128,8 @@ impl StatusItemView for UsageStatusItem {
     }
 
     fn hide_setting(&self, _cx: &App) -> Option<HideStatusItem> {
-        None
+        Some(HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().usage_status = Some(false);
+        }))
     }
 }

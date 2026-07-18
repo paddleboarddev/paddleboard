@@ -401,26 +401,39 @@ impl GitLoginModal {
                                 Headline::new(prompt.user_code.clone())
                                     .size(HeadlineSize::Small),
                             )
-                            .child(Button::new("oauth-copy", "Copy").on_click({
-                                let code = prompt.user_code.clone();
-                                move |_, _, cx| {
-                                    cx.write_to_clipboard(gpui::ClipboardItem::new_string(
-                                        code.to_string(),
-                                    ))
-                                }
-                            }))
-                            .child(Button::new("oauth-open", "Open browser").on_click({
-                                let uri = prompt.verification_uri.clone();
-                                move |_, _, cx| {
-                                    if !uri.is_empty() {
-                                        cx.open_url(&uri);
-                                    }
-                                }
-                            }))
                             .child(
-                                Button::new("oauth-cancel", "Cancel").on_click(
-                                    cx.listener(|this, _, _, cx| this.cancel_oauth(cx)),
-                                ),
+                                Button::new("oauth-copy", "Copy")
+                                    .style(ButtonStyle::Subtle)
+                                    .label_size(LabelSize::Small)
+                                    .on_click({
+                                let code = prompt.user_code.clone();
+                                        move |_, _, cx| {
+                                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(
+                                                code.to_string(),
+                                            ))
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("oauth-open", "Open browser")
+                                    .style(ButtonStyle::Outlined)
+                                    .label_size(LabelSize::Small)
+                                    .on_click({
+                                        let uri = prompt.verification_uri.clone();
+                                        move |_, _, cx| {
+                                            if !uri.is_empty() {
+                                                cx.open_url(&uri);
+                                            }
+                                        }
+                                    }),
+                            )
+                            .child(
+                                Button::new("oauth-cancel", "Cancel")
+                                    .style(ButtonStyle::Subtle)
+                                    .label_size(LabelSize::Small)
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.cancel_oauth(cx)),
+                                    ),
                             ),
                     )
                     .child(
@@ -436,6 +449,8 @@ impl GitLoginModal {
                     "oauth-start",
                     format!("Sign in with {} (browser)", oauth_provider.display_name),
                 )
+                .style(ButtonStyle::Outlined)
+                .label_size(LabelSize::Small)
                 .on_click(cx.listener(move |this, _, _, cx| this.start_oauth(oauth_provider, cx)))
                 .into_any_element()
             })
@@ -482,8 +497,8 @@ impl Render for GitLoginModal {
             h_flex()
                 .id(("git-login-row", ix))
                 .justify_between()
-                .px_1()
-                .py_0p5()
+                .px_2()
+                .py_1()
                 .rounded_sm()
                 .when(selected, |this| {
                     this.bg(cx.theme().colors().element_selected)
@@ -509,6 +524,7 @@ impl Render for GitLoginModal {
                 .when(signed_in && !from_env, |this| {
                     this.child(
                         Button::new(("git-login-remove", ix), "Remove")
+                            .style(ButtonStyle::Subtle)
                             .label_size(LabelSize::Small)
                             .on_click(cx.listener({
                                 let host = row.provider.url;
@@ -523,7 +539,7 @@ impl Render for GitLoginModal {
             .on_action(cx.listener(Self::save))
             .on_action(cx.listener(Self::cancel))
             .track_focus(&self.focus_handle)
-            .w(rems(34.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
             .elevation_3(cx)
             .child(
                 Modal::new("git-login", None)
@@ -542,6 +558,9 @@ impl Render for GitLoginModal {
                                         .gap_1()
                                         .child(
                                             Button::new("create-token", "Create a token →")
+                                                .style(ButtonStyle::Transparent)
+                                                .color(Color::Accent)
+                                                .label_size(LabelSize::Small)
                                                 .on_click({
                                                     let url = provider.token_url;
                                                     move |_, _, cx| cx.open_url(url)
@@ -563,17 +582,25 @@ impl Render for GitLoginModal {
                         ModalFooter::new()
                             .start_slot(
                                 Button::new("remove", "Remove")
+                                    .style(ButtonStyle::Subtle)
+                                    .label_size(LabelSize::Small)
                                     .on_click(cx.listener(|this, _, _, cx| this.remove(cx))),
                             )
                             .end_slot(
                                 h_flex()
                                     .gap_1()
-                                    .child(Button::new("cancel", "Cancel").on_click(cx.listener(
-                                        |_, _, _, cx| cx.emit(DismissEvent),
-                                    )))
+                                    .child(
+                                        Button::new("cancel", "Cancel")
+                                            .style(ButtonStyle::Subtle)
+                                            .label_size(LabelSize::Small)
+                                            .on_click(cx.listener(|_, _, _, cx| {
+                                                cx.emit(DismissEvent)
+                                            })),
+                                    )
                                     .child(
                                         Button::new("save", "Save")
                                             .style(ButtonStyle::Filled)
+                                            .label_size(LabelSize::Small)
                                             .on_click(cx.listener(|this, _, window, cx| {
                                                 this.save(&menu::Confirm, window, cx)
                                             })),

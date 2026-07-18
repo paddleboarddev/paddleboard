@@ -19,6 +19,7 @@ menu.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
 paddleboard_sandbox_settings.workspace = true
+paddleboard_ui.workspace = true
 settings.workspace = true
 ui.workspace = true
 util.workspace = true

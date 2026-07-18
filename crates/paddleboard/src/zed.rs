@@ -629,7 +629,7 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             cx.new(|_| go_to_line::cursor_position::CursorPosition::new(workspace));
         // PaddleBoard: surface sandbox prerequisites (Podman + gVisor) in the status bar.
         let sandbox_status_item =
-            cx.new(paddleboard_sandbox_prereqs_ui::SandboxStatusItem::new);
+            cx.new(|cx| paddleboard_sandbox_prereqs_ui::SandboxStatusItem::new(workspace, cx));
         // PaddleBoard: MCP server health indicator in status bar.
         let mcp_status_item =
             cx.new(|cx| agent_ui::McpStatusItem::new(workspace, cx));
@@ -638,7 +638,7 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             cx.new(|cx| agent_ui::UsageStatusItem::new(workspace, cx));
         // PaddleBoard: Set Sail one-click deploy entry point.
         let set_sail_status_item =
-            cx.new(paddleboard_set_sail::SetSailStatusItem::new);
+            cx.new(|cx| paddleboard_set_sail::SetSailStatusItem::new(workspace, cx));
         let line_ending_indicator =
             cx.new(|_| line_ending_selector::LineEndingIndicator::default());
         let git_blame_status = cx.new(|_| git_ui::GitBlameStatus::default());

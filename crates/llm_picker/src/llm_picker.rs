@@ -159,8 +159,16 @@ impl Panel for LlmPicker {
         px(280.0)
     }
 
-    fn icon(&self, _window: &Window, _cx: &App) -> Option<IconName> {
+    fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
+        // PaddleBoard: hideable like upstream panels (paddleboard_ui settings).
         Some(IconName::Sparkle)
+            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).llm_picker_button)
+    }
+
+    fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {
+        Some(workspace::HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().llm_picker_button = Some(false);
+        }))
     }
 
     fn icon_tooltip(&self, _window: &Window, _cx: &App) -> Option<&'static str> {
