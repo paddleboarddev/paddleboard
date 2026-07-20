@@ -95,19 +95,24 @@ From the styling audit (worst offenders → fix):
 ## Wave 3 — The PaddleBoard theme
 
 The pipeline is name/JSON-driven end to end; no loader changes needed.
+**SHIPPED 2026-07-18** — `load_bundled_themes` globs `themes/**/*.json`, so the
+new file auto-registers with zero loader changes (confirms the pure-JSON claim).
 
-- [ ] Author `assets/themes/paddleboard/paddleboard.json` — family
+- [x] Author `assets/themes/paddleboard/paddleboard.json` — family
       "PaddleBoard", themes "PaddleBoard Dark" + "PaddleBoard Light" from the
       brand palette (structural template: `assets/themes/one/one.json`).
-      Original palette → no license carry-over needed.
-- [ ] Defaults: `DEFAULT_LIGHT/DARK_THEME` (`settings_content/src/theme.rs:289`)
+      Original palette → no license carry-over needed. Chrome surfaces use the
+      site's own bg (`#181825`/`#1e1e2e`/`#2d3250`); accent = blue `#89b4fa`.
+- [x] Defaults: `DEFAULT_LIGHT/DARK_THEME` (`settings_content/src/theme.rs:289`)
       + `assets/settings/default.json:13-14` → PaddleBoard names.
-- [ ] Onboarding picker: widen the `[_; 3]` arrays in
-      `onboarding/src/basics_page.rs:21-27` to 4 families, PaddleBoard first +
-      preselected.
+- [x] Onboarding picker: widened the `[_; 3]` arrays in
+      `onboarding/src/basics_page.rs` to 4 families, PaddleBoard first +
+      preselected (selection follows the new default theme name).
 - [ ] ⏭ Optional: recolor the compiled-in fallback (`fallback_themes.rs:60-109`).
-- [ ] Syntax colors: derive from Catppuccin Mocha/Latte conventions (MIT;
-      attribute if copied rather than inspired).
+      Deliberately left "One Dark" — it's the emergency fallback + the JustBase
+      test anchor (`theme::DEFAULT_DARK_THEME`), separate from the JSON default.
+- [x] Syntax colors: Catppuccin Mocha (dark) / Latte (light) conventions —
+      inspired, not copied verbatim (MIT palette; no license file needed).
 
 ## Wave 4 — First launch
 
@@ -115,40 +120,63 @@ Today: onboarding (theme/keymap/AI-Dock-button/vim) → welcome page → the tou
 auto-opens as a RAW markdown buffer, 154 lines / 20 sections. No provider setup
 anywhere — a new user finishes onboarding unable to talk to any model.
 
-- [ ] **Add a provider step to onboarding** — the single worst gap. Reuse the
-      LlmPicker's provider list + the API-key configuration views; include
-      Local Models as the zero-key path.
-- [ ] **Render the tour** as a markdown *preview* (not a raw buffer).
-- [ ] **Slim the tour**: 20 sections → ~6 guided stops (Agent+provider, Manifest
-      /git, Sandbox, Set Sail, Personas, AI Dock) with "everything else" linking
-      to WELCOME.md/docs. The full feature list already lives in WELCOME/docs.
-- [ ] **Thread the narrative**: onboarding "Finish Setup" → welcome page card
-      pointing at the tour; tour closes pointing at the AI Dock.
-- [ ] Re-surface updated tours: content-hash in the `.tour_seen` marker + a
-      toast ("The tour has new sections") instead of silent rewrite.
-- [ ] Dedupe the tour-materialization logic (`main.rs:1607` vs
-      `workspace.rs:794`) into one helper.
+- [x] **Add a provider step to onboarding** — the single worst gap. **SHIPPED
+      2026-07-18** (PR 1, branch `glowup/wave4-provider-step`). Onboarding was
+      already a single scrolling page, so this is a new stateful *section*
+      (`onboarding/src/ai_provider_section.rs`, `AiProviderSection` view) not a
+      paginated step. Zero-key hero embeds `LocalModelsView` directly; BYO
+      providers render inline `ui_input::InputField` (masked) + Save →
+      `provider.set_api_key`, reusing `ui::ConfiguredApiCard` for the configured
+      state. Threaded into `render_basics_page` after the AI Dock section.
+**PR 2 (tour/welcome overhaul) SHIPPED 2026-07-18** — all five items below, on
+the same branch. New `crates/paddleboard/src/tour.rs` consolidates everything;
+registered via `tour::init` (per-workspace `observe_new`, mirroring
+`markdown_preview::init`). The old blocks in `main.rs` and `workspace.rs` are
+removed. ⚠️ **Behavior change:** first launch no longer *auto-opens* the tour —
+the Welcome page's "Take the Tour" card is the entry point now.
 
-## Wave 5 — Consolidation (decisions required)
+- [x] **Render the tour** as a markdown *preview* — `tour::open_tour` resolves the
+      tour file (outside any worktree) via `find_or_create_worktree(visible=false)`
+      then `MarkdownPreviewView::open_for_project_path`. Had to live in the
+      `paddleboard` crate: `markdown_preview` depends on `workspace`, so the old
+      `workspace.rs` handler couldn't reach it (cycle). Handler relocated; the
+      `OpenPaddleBoardTour` struct stays in `workspace`.
+- [x] **Slim the tour**: 20 `###` sections → 6 `##` curated stops, decoupled from
+      WELCOME.md, with intro + closing that point to WELCOME/docs for the rest.
+- [x] **Thread the narrative**: Welcome page gains a prominent "Take the Tour"
+      (Filled) button → `OpenPaddleBoardTour`; the tour's stop 6 hands off to the
+      AI Dock.
+- [x] Re-surface updated tours: `.tour_seen` now stores an FNV-1a fingerprint of
+      the shipped tour; on a later launch where it differs, a "tour has new
+      sections" toast (with an Open Tour button) fires instead of a silent rewrite.
+- [x] Dedupe the tour-materialization logic — one `tour.rs`; both duplicated
+      blocks deleted. Also updated the `/update-tour` skill + AI Dock skill for
+      the decoupled curated model (no longer mirrors WELCOME.md).
 
-The overlap map found real redundancy. Each needs a call (options ordered by
-recommendation):
+## Wave 5 — Consolidation (decisions RESOLVED 2026-07-18; BUILT 2026-07-18)
 
-1. **AI provider surfaces (3 today):** LlmPicker panel vs settings LLM page vs
-   AI Dock. → Recommend: keep the settings page as the deep config; make the
-   LlmPicker panel the quick *switcher* only (slim it); AI Dock stays
-   browse/install. ⏭ or fold LlmPicker into the AgentPanel header entirely.
-2. **Agent thread lists (3):** OrchestrationPanel vs AgentPanel list vs AI Dock
-   Agents tab. → Recommend: OrchestrationPanel is the canonical "what's
-   running" view (it owns Scion too); AI Dock Agents tab becomes
-   install/catalog only (drop its running-threads aspect).
-3. **Git surfaces (3):** GitPanel History tab vs Git Graph vs Manifest.
-   → Recommend: keep all three but sharpen roles — Manifest = overview
-   (its cap already says so), Graph = deep history, History tab ⏭ candidate to
-   become just a shortcut to the Graph.
-4. **Naming calls** (per-surface, during each wave): LlmPicker panel rename if
-   it survives as switcher ("Providers"? "Quiver"?); Orchestration panel
-   ("Agents"? "Fleet"?). Decide when restyling touches each surface.
+The overlap map found real redundancy. Jay ruled on all four (each took the
+recommended option); build status noted per item:
+
+1. **AI provider surfaces (3 → sharpened roles):** ✅ Keep the settings LLM page
+   as the deep config; slim the LlmPicker panel to a quick *switcher* only;
+   AI Dock stays browse/install. (Rejected: folding LlmPicker into the
+   AgentPanel header.) **BUILT** — `llm_picker.rs` slimmed: removed the
+   per-provider config section (`ProviderConfigView`, `configuration_view_for`,
+   the `configuration_view` field), keeping the provider list + a "Use as
+   Default" switcher footer. Deep config = settings LLM page.
+2. **Agent thread lists (3 → 2 roles):** ✅ OrchestrationPanel is the canonical
+   "what's running" view (it owns Scion too); AI Dock Agents tab becomes
+   install/catalog only. **NO-OP** — the AI Dock Agents tab was already
+   catalog/install-status only; it never had a running-threads aspect (that
+   lives solely in `agent_ui/orchestration_panel.rs`). Nothing to remove.
+3. **Git surfaces (3, all kept):** ✅ Keep all three, sharpen roles — Manifest =
+   overview, Graph = deep history, History tab stays as-is. (Rejected:
+   collapsing the History tab into a jump-to-Graph shortcut.) **DOCS-ONLY** —
+   positioning already reflected (tour stop 2, Manifest caption). No code.
+4. **Naming:** ✅ Deferred. Keep plain "Providers"/"Agents" for now; revisit
+   nautical renames (Quiver / Fleet) only when restyling actually touches each
+   surface.
 
 ## Sequencing & release
 

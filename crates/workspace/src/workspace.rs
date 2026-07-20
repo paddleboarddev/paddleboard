@@ -799,29 +799,10 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
                 cx,
             );
         })
-        .on_action(|_: &OpenPaddleBoardTour, cx: &mut App| {
-            let app_state = AppState::global(cx);
-            let config_dir = paths::config_dir();
-            let tour_path = config_dir.join("PaddleBoard_Tour.md");
-            let marker_path = config_dir.join(".tour_seen");
-            let embedded_tour = include_str!("tour.md");
-
-            // PaddleBoard: rewrite the on-disk tour whenever the embedded
-            // source has changed, so existing users see tour updates after
-            // upgrading without having to delete the file by hand.
-            let needs_write = std::fs::read_to_string(&tour_path)
-                .map(|existing| existing != embedded_tour)
-                .unwrap_or(true);
-            if needs_write {
-                std::fs::write(&tour_path, embedded_tour).log_err();
-            }
-            if !marker_path.exists() {
-                std::fs::write(&marker_path, "seen").log_err();
-            }
-
-            let task = open_paths(&[tour_path], app_state, OpenOptions::default(), cx);
-            task.detach_and_log_err(cx);
-        })
+        // PaddleBoard: the OpenPaddleBoardTour handler now lives in the
+        // `paddleboard` crate's `tour` module (it opens a rendered markdown
+        // preview, which needs `markdown_preview` — unreachable from here
+        // without a dependency cycle). The action struct stays defined here.
         .on_action(|_: &OpenFiles, cx: &mut App| {
             let directories = cx.can_select_mixed_files_and_dirs();
             let app_state = AppState::global(cx);

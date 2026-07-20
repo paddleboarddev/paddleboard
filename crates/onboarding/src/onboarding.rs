@@ -30,6 +30,7 @@ use workspace::{
 };
 use paddleboard_actions::OpenOnboarding;
 
+mod ai_provider_section; // PaddleBoard: inline AI-provider setup step.
 mod base_keymap_picker;
 mod basics_page;
 pub mod multibuffer_hint;
@@ -210,6 +211,9 @@ struct Onboarding {
     focus_handle: FocusHandle,
     user_store: Entity<UserStore>,
     scroll_handle: ScrollHandle,
+    // PaddleBoard: stateful inline AI-provider setup (holds key inputs + the
+    // local-models view, which must persist across renders).
+    ai_provider_section: Entity<ai_provider_section::AiProviderSection>,
     _settings_subscription: Subscription,
 }
 
@@ -254,6 +258,8 @@ impl Onboarding {
             agents_installed = agents_installed,
         );
 
+        let ai_provider_section = cx.new(ai_provider_section::AiProviderSection::new);
+
         cx.new(|cx| {
             cx.spawn(async move |this, cx| {
                 font_family_cache.prefetch(cx).await;
@@ -268,6 +274,7 @@ impl Onboarding {
                 focus_handle: cx.focus_handle(),
                 scroll_handle: ScrollHandle::new(),
                 user_store: workspace.user_store().clone(),
+                ai_provider_section,
                 _settings_subscription: cx
                     .observe_global::<SettingsStore>(move |_, cx| cx.notify()),
             }
@@ -298,7 +305,12 @@ impl Onboarding {
     }
 
     fn render_page(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        crate::basics_page::render_basics_page(&self.user_store, cx).into_any_element()
+        crate::basics_page::render_basics_page(
+            &self.user_store,
+            &self.ai_provider_section,
+            cx,
+        )
+        .into_any_element()
     }
 }
 
@@ -434,6 +446,7 @@ impl Item for Onboarding {
             user_store: self.user_store.clone(),
             scroll_handle: ScrollHandle::new(),
             focus_handle: cx.focus_handle(),
+            ai_provider_section: cx.new(ai_provider_section::AiProviderSection::new),
             _settings_subscription: cx.observe_global::<SettingsStore>(move |_, cx| cx.notify()),
         })))
     }

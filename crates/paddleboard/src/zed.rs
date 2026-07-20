@@ -5544,7 +5544,9 @@ mod tests {
         for theme_name in themes.list().into_iter().map(|meta| meta.name) {
             let theme = themes.get(&theme_name).unwrap();
             assert_eq!(theme.name, theme_name);
-            if theme.name.as_ref() == "One Dark" {
+            // Checks the compiled-in fallback theme (theme::DEFAULT_DARK_THEME),
+            // which is loaded under JustBase — not the bundled-JSON default.
+            if theme.name.as_ref() == theme::DEFAULT_DARK_THEME {
                 has_default_theme = true;
             }
         }
