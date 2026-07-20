@@ -153,21 +153,27 @@ the Welcome page's "Take the Tour" card is the entry point now.
       blocks deleted. Also updated the `/update-tour` skill + AI Dock skill for
       the decoupled curated model (no longer mirrors WELCOME.md).
 
-## Wave 5 — Consolidation (decisions RESOLVED 2026-07-18)
+## Wave 5 — Consolidation (decisions RESOLVED 2026-07-18; BUILT 2026-07-18)
 
 The overlap map found real redundancy. Jay ruled on all four (each took the
-recommended option):
+recommended option); build status noted per item:
 
 1. **AI provider surfaces (3 → sharpened roles):** ✅ Keep the settings LLM page
    as the deep config; slim the LlmPicker panel to a quick *switcher* only;
    AI Dock stays browse/install. (Rejected: folding LlmPicker into the
-   AgentPanel header.)
+   AgentPanel header.) **BUILT** — `llm_picker.rs` slimmed: removed the
+   per-provider config section (`ProviderConfigView`, `configuration_view_for`,
+   the `configuration_view` field), keeping the provider list + a "Use as
+   Default" switcher footer. Deep config = settings LLM page.
 2. **Agent thread lists (3 → 2 roles):** ✅ OrchestrationPanel is the canonical
    "what's running" view (it owns Scion too); AI Dock Agents tab becomes
-   install/catalog only — drop its running-threads aspect.
+   install/catalog only. **NO-OP** — the AI Dock Agents tab was already
+   catalog/install-status only; it never had a running-threads aspect (that
+   lives solely in `agent_ui/orchestration_panel.rs`). Nothing to remove.
 3. **Git surfaces (3, all kept):** ✅ Keep all three, sharpen roles — Manifest =
    overview, Graph = deep history, History tab stays as-is. (Rejected:
-   collapsing the History tab into a jump-to-Graph shortcut.)
+   collapsing the History tab into a jump-to-Graph shortcut.) **DOCS-ONLY** —
+   positioning already reflected (tour stop 2, Manifest caption). No code.
 4. **Naming:** ✅ Deferred. Keep plain "Providers"/"Agents" for now; revisit
    nautical renames (Quiver / Fleet) only when restyling actually touches each
    surface.
