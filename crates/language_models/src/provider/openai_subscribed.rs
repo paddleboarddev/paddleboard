@@ -195,9 +195,7 @@ impl LanguageModelProvider for OpenAiSubscribedProvider {
     }
 
     fn default_fast_model(&self, _cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        // No GPT-5.5 Mini exists yet; per the OpenAI Codex docs, gpt-5.4-mini
-        // is the recommended fast/cheap default alongside gpt-5.5.
-        Some(self.create_language_model(ChatGptModel::Gpt54Mini))
+        Some(self.create_language_model(ChatGptModel::Gpt56Luna))
     }
 
     fn provided_models(&self, _cx: &App) -> Vec<Arc<dyn LanguageModel>> {
@@ -314,6 +312,7 @@ impl LanguageModelProvider for OpenAiSubscribedProvider {
 enum ChatGptModel {
     Gpt56Sol,
     Gpt56Terra,
+    Gpt56Luna,
     Gpt55,
     Gpt54,
     Gpt54Mini,
@@ -324,6 +323,7 @@ impl ChatGptModel {
         vec![
             Self::Gpt56Sol,
             Self::Gpt56Terra,
+            Self::Gpt56Luna,
             Self::Gpt55,
             Self::Gpt54,
             Self::Gpt54Mini,
@@ -334,6 +334,7 @@ impl ChatGptModel {
         match self {
             Self::Gpt56Sol => "gpt-5.6-sol",
             Self::Gpt56Terra => "gpt-5.6-terra",
+            Self::Gpt56Luna => "gpt-5.6-luna",
             Self::Gpt55 => "gpt-5.5",
             Self::Gpt54 => "gpt-5.4",
             Self::Gpt54Mini => "gpt-5.4-mini",
@@ -344,6 +345,7 @@ impl ChatGptModel {
         match self {
             Self::Gpt56Sol => "GPT-5.6 Sol",
             Self::Gpt56Terra => "GPT-5.6 Terra",
+            Self::Gpt56Luna => "GPT-5.6 Luna",
             Self::Gpt55 => "GPT-5.5",
             Self::Gpt54 => "GPT-5.4",
             Self::Gpt54Mini => "GPT-5.4 Mini",
@@ -352,7 +354,7 @@ impl ChatGptModel {
 
     fn max_token_count(&self) -> u64 {
         match self {
-            Self::Gpt56Sol | Self::Gpt56Terra => 372_000,
+            Self::Gpt56Sol | Self::Gpt56Terra | Self::Gpt56Luna => 372_000,
             Self::Gpt55 | Self::Gpt54 | Self::Gpt54Mini => 272_000,
         }
     }
@@ -370,7 +372,7 @@ impl ChatGptModel {
     fn default_reasoning_effort(&self) -> Option<ReasoningEffort> {
         match self {
             Self::Gpt56Sol => Some(ReasoningEffort::Low),
-            Self::Gpt56Terra | Self::Gpt55 | Self::Gpt54 | Self::Gpt54Mini => {
+            Self::Gpt56Terra | Self::Gpt56Luna | Self::Gpt55 | Self::Gpt54 | Self::Gpt54Mini => {
                 Some(ReasoningEffort::Medium)
             }
         }
@@ -378,7 +380,7 @@ impl ChatGptModel {
 
     fn supported_reasoning_efforts(&self) -> &'static [ReasoningEffort] {
         match self {
-            Self::Gpt56Sol | Self::Gpt56Terra => &[
+            Self::Gpt56Sol | Self::Gpt56Terra | Self::Gpt56Luna => &[
                 ReasoningEffort::Low,
                 ReasoningEffort::Medium,
                 ReasoningEffort::High,
@@ -404,7 +406,7 @@ impl ChatGptModel {
 
     fn supports_priority(&self) -> bool {
         match self {
-            Self::Gpt56Sol | Self::Gpt56Terra | Self::Gpt55 | Self::Gpt54 => true,
+            Self::Gpt56Sol | Self::Gpt56Terra | Self::Gpt56Luna | Self::Gpt55 | Self::Gpt54 => true,
             Self::Gpt54Mini => false,
         }
     }
