@@ -40,6 +40,23 @@ jobs:
           upstream_sha=$(git rev-parse zed/main)
           merge_base=$(git merge-base HEAD zed/main)
           commits_ahead=$(git rev-list --count "${merge_base}..zed/main")
+
+          # A merge branch for today may already exist — e.g. when the week's
+          # conflicts needed judgment and were resolved by hand. Pushing over it
+          # fails non-fast-forward and mails out an "all jobs failed" alert, so
+          # detect it up front and skip cleanly instead.
+          if git ls-remote --exit-code --heads origin "refs/heads/${branch}" >/dev/null 2>&1; then
+            branch_exists=true
+          else
+            branch_exists=false
+          fi
+
+          if [ "${commits_ahead}" != "0" ] && [ "${branch_exists}" = "false" ]; then
+            should_run=true
+          else
+            should_run=false
+          fi
+
           {
             echo "branch=${branch}"
             echo "date_tag=${date_tag}"
@@ -47,6 +64,8 @@ jobs:
             echo "upstream_sha=${upstream_sha}"
             echo "merge_base=${merge_base}"
             echo "commits_ahead=${commits_ahead}"
+            echo "branch_exists=${branch_exists}"
+            echo "should_run=${should_run}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Skip if nothing new
@@ -55,14 +74,22 @@ jobs:
           echo "Upstream zed/main has no commits past merge-base. Nothing to do."
           exit 0
 
+      - name: Skip if a merge branch for today already exists
+        if: steps.meta.outputs.branch_exists == 'true'
+        run: |
+          echo "Branch ${{ steps.meta.outputs.branch }} already exists on origin."
+          echo "A merge for today was already prepared — likely resolved by hand."
+          echo "Nothing to do."
+          exit 0
+
       - name: Create merge branch
-        if: steps.meta.outputs.commits_ahead != '0'
+        if: steps.meta.outputs.should_run == 'true'
         env:
           BRANCH: ${{ steps.meta.outputs.branch }}
         run: git checkout -b "$BRANCH"
 
       - name: Attempt merge
-        if: steps.meta.outputs.commits_ahead != '0'
+        if: steps.meta.outputs.should_run == 'true'
         id: merge
         env:
           BRANCH: ${{ steps.meta.outputs.branch }}
@@ -98,7 +125,7 @@ jobs:
           fi
 
       - name: Build PR body
-        if: steps.meta.outputs.commits_ahead != '0'
+        if: steps.meta.outputs.should_run == 'true'
         id: body
         env:
           UPSTREAM_SHA: ${{ steps.meta.outputs.upstream_sha }}
@@ -153,13 +180,13 @@ jobs:
           echo "path=pr_body.md" >> "${GITHUB_OUTPUT}"
 
       - name: Push branch
-        if: steps.meta.outputs.commits_ahead != '0'
+        if: steps.meta.outputs.should_run == 'true'
         env:
           BRANCH: ${{ steps.meta.outputs.branch }}
         run: git push --set-upstream origin "$BRANCH"
 
       - name: Open PR
-        if: steps.meta.outputs.commits_ahead != '0'
+        if: steps.meta.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ steps.meta.outputs.branch }}
