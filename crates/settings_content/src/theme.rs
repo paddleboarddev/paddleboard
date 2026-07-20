@@ -286,8 +286,9 @@ pub enum ThemeSelection {
     },
 }
 
-pub const DEFAULT_LIGHT_THEME: &'static str = "One Light";
-pub const DEFAULT_DARK_THEME: &'static str = "One Dark";
+// PaddleBoard: ship the brand theme (assets/themes/paddleboard/) as the default.
+pub const DEFAULT_LIGHT_THEME: &'static str = "PaddleBoard Light";
+pub const DEFAULT_DARK_THEME: &'static str = "PaddleBoard Dark";
 
 impl Default for ThemeSelection {
     fn default() -> Self {
