@@ -24,9 +24,10 @@ const MAX_HANG_TRACES: usize = 3;
 
 // PaddleBoard: upstream moved hang detection into a `reliability/hang_detection`
 // module and added memory-usage logging. We keep our own `monitor_hangs` instead:
-// the new module lives under `crates/zed/src/`, a path our crate rename drops on
-// every upstream merge, and its telemetry arm reports events PB deliberately
-// disables. The signature tracks upstream so `main.rs` needs no fork-specific call.
+// the new module sits inside upstream's top-level app crate, whose directory this
+// fork renamed — so git silently drops those files on every upstream merge — and
+// its telemetry arm reports events PB deliberately disables. The signature tracks
+// upstream so `main.rs` needs no fork-specific call.
 pub fn init(client: Arc<Client>, _workspace_store: Entity<WorkspaceStore>, cx: &mut App) {
     if cfg!(debug_assertions) {
         log::info!("Debug assertions enabled, skipping hang monitoring");
