@@ -124,6 +124,24 @@ jobs:
             : > conflict_files.txt
           fi
 
+      - name: Check for dropped upstream files
+        if: steps.meta.outputs.should_run == 'true'
+        id: dropped
+        run: |
+          # Upstream files added under a directory PaddleBoard renamed
+          # (crates/zed -> crates/paddleboard, …) can vanish in a merge with no
+          # conflict and no compile error. Four hang_detection files were lost
+          # this way on 2026-07-20. The merge is already committed here, so the
+          # merge base is upstream's tip — exactly the tree we want to audit.
+          #
+          # Deliberately non-fatal: a dropped file should not stop the PR from
+          # opening, it should be loud in the PR body where a human sees it.
+          set +e
+          bash script/check-dropped-upstream-files --no-fetch > dropped_files.txt 2>&1
+          echo "status=$?" >> "${GITHUB_OUTPUT}"
+          set -e
+          cat dropped_files.txt
+
       - name: Build PR body
         if: steps.meta.outputs.should_run == 'true'
         id: body
@@ -133,6 +151,7 @@ jobs:
           COMMITS_AHEAD: ${{ steps.meta.outputs.commits_ahead }}
           BASE_SHA: ${{ steps.meta.outputs.base_sha }}
           CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          DROPPED_STATUS: ${{ steps.dropped.outputs.status }}
         run: |
           {
             echo "## Weekly upstream merge"
@@ -157,6 +176,16 @@ jobs:
               echo "### ✅ Clean merge"
               echo ""
               echo "No conflicts. Review the diff to confirm no fork-specific behavior was silently overwritten by upstream — especially in \`assets/settings/default.json\`, \`assets/keymaps/\`, and any file containing a \`// PaddleBoard\` marker."
+              echo ""
+            fi
+            if [ "${DROPPED_STATUS}" != "0" ]; then
+              echo "### ⚠️ Dropped upstream files"
+              echo ""
+              echo "Upstream files with no PaddleBoard counterpart — almost certainly eaten by this merge. These do not break the build, which is why they need review here."
+              echo ""
+              echo '```'
+              cat dropped_files.txt
+              echo '```'
               echo ""
             fi
             echo "### Fork-modified files also touched by this merge"
