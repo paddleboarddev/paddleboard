@@ -4,8 +4,18 @@
 #
 # Why it exists: `samples/demo` pins its Python dependencies deliberately so the
 # presenter script stays reproducible. Auto-discovery kept opening bump PRs
-# against those pins. Everything below mirrors what auto-discovery already
-# covered, minus that directory.
+# against those pins.
+#
+# Deliberately NOT tracked, because nothing in PaddleBoard runs them:
+#   /samples/demo                      pinned on purpose (see above)
+#   /crates/eval_cli/zed_eval          upstream Zed's eval tooling
+#   /script/update_top_ranking_issues  upstream Zed's issue-triage bot
+#
+# The two Zed tooling paths were listed here in the first version of this file,
+# which mirrored auto-discovery exactly. That faithfully preserved tracking for
+# tooling this fork inherited but never invokes, and the next Dependabot run
+# opened five bump PRs against them. Coverage should track what we actually
+# build and run, not what upstream left behind.
 version: 2
 
 updates:
@@ -23,10 +33,5 @@ updates:
     schedule:
       interval: weekly
 
-  # Upstream Zed's Python tooling. Note `/samples/demo` is deliberately absent.
-  - package-ecosystem: pip
-    directories:
-      - "/crates/eval_cli/zed_eval"
-      - "/script/update_top_ranking_issues"
-    schedule:
-      interval: weekly
+  # No pip/uv entry: every Python manifest in this repo is either a deliberate
+  # pin or upstream tooling we don't run. See the header before adding one.
