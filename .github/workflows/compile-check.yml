@@ -28,12 +28,18 @@ env:
 
 jobs:
   linux:
-    # Blacksmith for the same reason release.yml uses it: the stock GitHub
-    # runner's 7 GB OOM-killed a full build of this workspace. `check` skips
-    # codegen and linking so it's lighter than a release build, but 267 crates
-    # is still more than the stock runner handles comfortably.
+    # Stock runner, NOT Blacksmith. release.yml uses Blacksmith because the
+    # stock 7 GB runner OOM-killed the release LINK phase — but `cargo check`
+    # never links, so that justification doesn't carry over.
+    #
+    # This was also forced: on the first attempt this job used
+    # `blacksmith-8vcpu-ubuntu-2204` and sat QUEUED with runner=unassigned for
+    # 50 minutes while the macOS job passed repeatedly. release.yml's Blacksmith
+    # job is triggered by a TAG PUSH; this one runs on `pull_request`, and
+    # Blacksmith never picked it up. If a Blacksmith runner is wanted here
+    # later, verify it provisions for pull_request events first.
     name: Linux (full workspace)
-    runs-on: blacksmith-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Checkout
