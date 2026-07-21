@@ -1055,7 +1055,9 @@ impl workspace::StatusItemView for McpStatusItem {
     }
 
     fn hide_setting(&self, _cx: &App) -> Option<workspace::HideStatusItem> {
-        None
+        Some(workspace::HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().mcp_status = Some(false);
+        }))
     }
 }
 
@@ -1063,7 +1065,7 @@ impl Render for McpStatusItem {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (running, total, has_error) = self.counts(cx);
 
-        if total == 0 {
+        if total == 0 || !paddleboard_ui::PaddleboardUiSettings::get(cx).mcp_status {
             return div().into_any_element();
         }
 

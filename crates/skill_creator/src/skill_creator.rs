@@ -9,7 +9,7 @@ use fs::Fs;
 use futures::AsyncReadExt;
 use gpui::{
     App, Bounds, Entity, FocusHandle, Focusable, ScrollHandle, Subscription, Task, TextStyle,
-    Tiling, TitlebarOptions, WeakEntity, WindowBounds, WindowHandle, WindowOptions, actions, point,
+    TitlebarOptions, WeakEntity, WindowBounds, WindowHandle, WindowOptions, actions, point,
 };
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Request, StatusCode, Url};
 use language::{Buffer, LanguageRegistry, language_settings::SoftWrap};
@@ -1177,7 +1177,6 @@ impl Render for SkillCreator {
                 ),
             window,
             cx,
-            Tiling::default(),
         )
     }
 }

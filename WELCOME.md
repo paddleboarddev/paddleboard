@@ -6,6 +6,25 @@ PaddleBoard is a fork of the [Zed editor](https://zed.dev) purpose-built for AI-
 
 ## Features unique to PaddleBoard
 
+### First launch — theme, provider setup, and the tour
+
+PaddleBoard ships its own look and gets you to a working agent before you leave onboarding.
+
+**PaddleBoard Dark / Light.** The default theme is PaddleBoard's own, derived from the [paddleboard.dev](https://paddleboard.dev) palette — a deep navy base with lavender text and a blue accent, so the app and the brand read as one product. Syntax colors follow Catppuccin Mocha/Latte conventions. Both variants ship, and the onboarding theme picker lists **PaddleBoard** first and preselected. Prefer something else? Every bundled Zed theme (One, Ayu, Gruvbox) is still there, and an explicit `theme` in your settings always wins.
+
+**Connect a model during onboarding.** Onboarding includes an **AI Providers** section so you don't finish setup unable to talk to anything:
+
+- **Local Models — no API key needed.** The zero-key path: pick a model (Gemma 3 4B is the default suggestion) and PaddleBoard downloads and runs it locally.
+- **Bring your own key.** Expand any provider — OpenAI, Anthropic, Google, and the rest — paste a key, and **Save**. Keys go straight to your OS keychain. Providers you've already configured show as such.
+
+Deep per-provider configuration still lives on the settings LLM page; onboarding covers the common path.
+
+**A guided tour, rendered.** After **Finish Setup** the Welcome page offers **Take the Tour**, which opens as a *rendered* markdown preview — six curated stops covering the agent and providers, Manifest, sandboxing, Set Sail, personas, and the AI Dock. It's a short on-ramp, not an exhaustive list; this document and [docs.paddleboard.dev](https://docs.paddleboard.dev) are the full reference. When a release changes the tour, you'll get a *"the tour has new sections"* toast rather than a silent rewrite. Reopen it any time with `Cmd-Shift-P` → **`workspace: Open Paddle Board Tour`**.
+
+**Hide what you don't use.** Every PaddleBoard-added status bar item and dock panel can be hidden — right-click the status bar, or use the `paddleboard_ui` settings.
+
+---
+
 ### Embedded browser panel
 
 A native Chromium/WebKit browser lives inside the editor as a dockable panel.
@@ -262,7 +281,7 @@ The worktree picker integrates with the agent orchestration panel: every workspa
 
 ### LLM provider picker panel
 
-A dedicated panel for configuring and switching your active language model provider without opening settings. Dock it wherever is convenient and change providers as you work.
+A dedicated panel for **switching** your active language model provider without opening settings. Dock it wherever is convenient: it lists your providers with an at-a-glance authenticated check, marks the current default, and gives you a **Use as Default** button to promote the one you've selected. Deep per-provider configuration (API keys, endpoints, model lists) lives on the settings LLM page, and browsing or installing lives in the AI Dock — the panel stays a fast switcher.
 
 **ChatGPT Subscription auth.** Alongside the usual API-key providers, PaddleBoard includes a ChatGPT Subscription provider that authenticates via OAuth — sign in once with your ChatGPT Plus or Pro account and PB uses your subscription's OpenAI access, no API key needed. The OAuth flow opens in the embedded browser panel; tokens persist in PB's credential store.
 

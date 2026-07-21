@@ -149,7 +149,7 @@ impl Render for BuildMcpModal {
         v_flex()
             .id("build-mcp-modal")
             .key_context("BuildMcpModal")
-            .w(rems(34.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
             .elevation_3(cx)
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::cancel))

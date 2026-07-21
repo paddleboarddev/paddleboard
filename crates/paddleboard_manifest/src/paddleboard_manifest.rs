@@ -594,8 +594,17 @@ impl Panel for ManifestPanel {
         px(300.0)
     }
 
-    fn icon(&self, _window: &Window, _cx: &App) -> Option<IconName> {
-        Some(IconName::ListTree)
+    fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
+        // PaddleBoard: ListTodo (not ListTree) — the orchestration panel already
+        // uses ListTree, and two identical dock glyphs are indistinguishable.
+        Some(IconName::ListTodo)
+            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).manifest_button)
+    }
+
+    fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {
+        Some(workspace::HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().manifest_button = Some(false);
+        }))
     }
 
     fn icon_tooltip(&self, _window: &Window, _cx: &App) -> Option<&'static str> {
@@ -607,7 +616,9 @@ impl Panel for ManifestPanel {
     }
 
     fn activation_priority(&self) -> u32 {
-        9
+        // PaddleBoard: slot next to the Git panel (3) rather than the end of
+        // the rail — Manifest is a git surface.
+        4
     }
 }
 

@@ -2,7 +2,7 @@ use anyhow::{Context as _, Result};
 use client::{Client, telemetry::MINIDUMP_ENDPOINT};
 use feature_flags::FeatureFlagAppExt;
 use futures::{AsyncReadExt, TryStreamExt};
-use gpui::{App, AppContext as _, SerializedThreadTaskTimings, TaskExt};
+use gpui::{App, AppContext as _, Entity, SerializedThreadTaskTimings, TaskExt};
 use http_client::{self, AsyncBody, HttpClient, Request};
 use log::info;
 use project::Project;
@@ -16,12 +16,19 @@ use smol::stream::StreamExt;
 use std::{ffi::OsStr, fs, sync::Arc, thread::ThreadId, time::Duration};
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 use util::ResultExt;
+use workspace::WorkspaceStore;
 
 use crate::STARTUP_TIME;
 
 const MAX_HANG_TRACES: usize = 3;
 
-pub fn init(client: Arc<Client>, cx: &mut App) {
+// PaddleBoard: upstream moved hang detection into a `reliability/hang_detection`
+// module and added memory-usage logging. We keep our own `monitor_hangs` instead:
+// the new module sits inside upstream's top-level app crate, whose directory this
+// fork renamed — so git silently drops those files on every upstream merge — and
+// its telemetry arm reports events PB deliberately disables. The signature tracks
+// upstream so `main.rs` needs no fork-specific call.
+pub fn init(client: Arc<Client>, _workspace_store: Entity<WorkspaceStore>, cx: &mut App) {
     if cfg!(debug_assertions) {
         log::info!("Debug assertions enabled, skipping hang monitoring");
     } else {
@@ -297,6 +304,21 @@ async fn upload_minidump(
     }
     if let Some(minidump_error) = metadata.minidump_error.clone() {
         form = form.text("minidump_error", minidump_error);
+    }
+    if let Some(abort_message) = metadata.abort_message.as_ref() {
+        // Sentry tag values are limited to 200 characters on a single line, so
+        // put a searchable prefix in the tag (which grouping rules also match
+        // on) and the full message in a context.
+        let tag: String = abort_message
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .chars()
+            .take(200)
+            .collect();
+        form = form
+            .text("sentry[tags][abort_message]", tag)
+            .text("sentry[contexts][abort][message]", abort_message.clone());
     }
 
     if let Some(is_staff) = &metadata

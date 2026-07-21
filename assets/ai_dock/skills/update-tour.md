@@ -1,40 +1,26 @@
 ---
-description: Sync the in-app tour (crates/workspace/src/tour.md) with the canonical WELCOME.md after a user-facing feature lands
+description: Review the in-app tour (crates/workspace/src/tour.md) after a user-facing feature lands — a curated ~6-stop guide, NOT a mirror of WELCOME.md
 allowed-tools: ["Read", "Edit", "Write", "Bash"]
 ---
 
-# /update-tour — Sync the welcome tour with WELCOME.md
+# /update-tour — Review the curated welcome tour
 
-`WELCOME.md` is the canonical, long-form PaddleBoard welcome doc that lives at the repo root.
+`crates/workspace/src/tour.md` is a short, in-app **curated getting-started tour** compiled into the binary and shown on first launch. As of the Wave 4 Glowup it is **decoupled from `WELCOME.md`** — it is NOT a mirror. `WELCOME.md` (repo root) and [docs.paddleboard.dev](https://docs.paddleboard.dev) are the full feature reference; the tour is the ~6-stop on-ramp for a new user's first 15 minutes.
 
-`crates/workspace/src/tour.md` is a shorter, in-app tour that gets compiled into the binary and shown to users in the welcome tab. It mirrors `WELCOME.md` but in a more compact, command-palette-focused, emoji-friendly voice.
-
-This command reconciles them after a user-facing feature has been added (typically you also just edited `WELCOME.md`).
+The six stops: (1) Agent + provider, (2) Manifest/git, (3) Sandboxing, (4) Set Sail, (5) Personas, (6) AI Dock.
 
 ## Steps
 
-1. **Read both files** in parallel:
-   - `WELCOME.md`
-   - `crates/workspace/src/tour.md`
+1. **Read** `crates/workspace/src/tour.md` and check the branch diff (`git log main..HEAD --oneline`).
+2. **Decide whether the tour should change at all.** Most features do NOT earn a slot. Edit the tour only if the change materially affects one of the six stops, or is a genuine first-15-minutes headline capability that should *replace* a weaker stop (keep it at ~6 — add one, cut one). Otherwise the feature belongs in `WELCOME.md`/docs, and you should say so and stop.
+3. **If it qualifies**, edit the relevant `## N. …` stop in place. Preserve the tour's voice: one framing sentence + 2–4 skimmable, action-verb bullets; keep each stop under ~half a screen. Keep the intro ("six stops") and the closing (points to WELCOME/docs + how to reopen) intact; if the stop count changes, fix the intro wording.
+4. **Report** in 1–3 lines what changed and why it earned a tour edit (or why nothing did).
 
-2. **Diff the feature coverage.** For each feature/section in `WELCOME.md`, check whether it's represented in `tour.md`. Look especially for:
-   - New sections added recently to `WELCOME.md` but missing from `tour.md`.
-   - Sections present in both but materially out of date in `tour.md` (e.g. command names, settings keys, panel names that have changed).
-   - Sections in `tour.md` that no longer match `WELCOME.md` (renamed feature, removed flag, etc.).
+## Be careful
 
-3. **Update `tour.md`** to bring it in line:
-   - Preserve `tour.md`'s existing voice: shorter sentences, sparing emoji, lots of `**command palette name**` and keyboard shortcuts, fewer external links.
-   - Match the section ordering of `WELCOME.md` unless `tour.md`'s order is clearly intentional.
-   - Don't bloat `tour.md` — it's a tour, not a manual. Each feature gets 2–4 bullets at most.
-   - Keep the trailing closing/CTA section (it usually says something like "Happy paddling!" — preserve that flavor).
-
-4. **Report what changed.** After editing, give the user a one-paragraph summary of which sections you added, updated, or removed and why.
-
-## Things to be careful about
-
-- Do not invent features. Only sync what's already documented in `WELCOME.md`.
-- Do not turn `tour.md` into a copy of `WELCOME.md` — they have different jobs.
-- If `tour.md` and `WELCOME.md` disagree on a fact (e.g. an action name), prefer `WELCOME.md` but flag the discrepancy in your report so the user can double-check.
+- Do not auto-expand the tour to cover every feature — a longer tour is a worse tour.
+- Do not turn `tour.md` back into a copy of `WELCOME.md`; they have different jobs.
+- Don't touch the runtime copy at `~/.config/paddleboard/PaddleBoard_Tour.md` — `crates/paddleboard/src/tour.rs` re-materializes it on launch (content-hash based; users get a "tour has new sections" toast automatically).
 - If nothing has drifted, say so and don't make a cosmetic edit.
 
 User input (optional focus area): $ARGUMENTS

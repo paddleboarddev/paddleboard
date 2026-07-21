@@ -5,7 +5,7 @@ name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
-version = "0.1.19"
+version = "0.2.0"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -159,6 +159,7 @@ language_tools.workspace = true
 languages = { workspace = true, features = ["load-grammars"] }
 line_ending_selector.workspace = true
 log.workspace = true
+lsp_locations.workspace = true
 markdown.workspace = true
 markdown_preview.workspace = true
 menu.workspace = true
@@ -251,6 +252,7 @@ paddleboard_rag_settings.workspace = true
 paddleboard_scion_settings.workspace = true
 paddleboard_scion_ui.workspace = true
 paddleboard_set_sail.workspace = true
+paddleboard_ui.workspace = true
 paddleboard_usage.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 zlog.workspace = true

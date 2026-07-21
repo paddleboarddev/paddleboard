@@ -18,9 +18,16 @@ use crate::{
     theme_preview::{ThemePreviewStyle, ThemePreviewTile},
 };
 
-const LIGHT_THEMES: [&str; 3] = ["One Light", "Ayu Light", "Gruvbox Light"];
-const DARK_THEMES: [&str; 3] = ["One Dark", "Ayu Dark", "Gruvbox Dark"];
-const FAMILY_NAMES: [SharedString; 3] = [
+// PaddleBoard: brand theme listed first (and preselected via the default theme).
+const LIGHT_THEMES: [&str; 4] = [
+    "PaddleBoard Light",
+    "One Light",
+    "Ayu Light",
+    "Gruvbox Light",
+];
+const DARK_THEMES: [&str; 4] = ["PaddleBoard Dark", "One Dark", "Ayu Dark", "Gruvbox Dark"];
+const FAMILY_NAMES: [SharedString; 4] = [
+    SharedString::new_static("PaddleBoard"),
     SharedString::new_static("One"),
     SharedString::new_static("Ayu"),
     SharedString::new_static("Gruvbox"),
@@ -95,7 +102,7 @@ fn render_theme_section(tab_index: &mut isize, cx: &mut App) -> impl IntoElement
         tab_index: &mut isize,
         theme_selection: &ThemeSelection,
         cx: &mut App,
-    ) -> [impl IntoElement; 3] {
+    ) -> [impl IntoElement; 4] {
         let system_appearance = SystemAppearance::global(cx);
         let theme_registry = ThemeRegistry::global(cx);
 
@@ -120,7 +127,7 @@ fn render_theme_section(tab_index: &mut isize, cx: &mut App) -> impl IntoElement
 
         let themes = theme_names.map(|theme| theme_registry.get(theme).unwrap());
 
-        [0, 1, 2].map(|index| {
+        [0, 1, 2, 3].map(|index| {
             let theme = &themes[index];
             let is_selected = theme.name == current_theme_name;
             let name = theme.name.clone();
@@ -528,7 +535,11 @@ fn render_welcome_featured_strip(cx: &App) -> impl IntoElement {
         )
 }
 
-pub(crate) fn render_basics_page(user_store: &Entity<UserStore>, cx: &mut App) -> impl IntoElement {
+pub(crate) fn render_basics_page(
+    user_store: &Entity<UserStore>,
+    ai_provider_section: &Entity<crate::ai_provider_section::AiProviderSection>,
+    cx: &mut App,
+) -> impl IntoElement {
     let mut tab_index = 0;
 
     v_flex()
@@ -537,6 +548,8 @@ pub(crate) fn render_basics_page(user_store: &Entity<UserStore>, cx: &mut App) -
         .child(render_theme_section(&mut tab_index, cx))
         .child(render_base_keymap_section(&mut tab_index, cx))
         .child(render_ai_section(user_store, cx))
+        // PaddleBoard: inline AI-provider setup, right after the AI Dock entry.
+        .child(ai_provider_section.clone())
         .child(render_import_settings_section(&mut tab_index, cx))
         .child(render_vim_mode_switch(&mut tab_index, cx))
         .child(render_worktree_auto_trust_switch(&mut tab_index, cx))

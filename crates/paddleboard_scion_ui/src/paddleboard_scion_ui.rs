@@ -387,7 +387,8 @@ fn handle_start_agent(
 ) {
     if !store.read(cx).is_available() {
         workspace.show_error(anyhow::anyhow!(
-                "Scion is not installed. Install it with: \
+                "Scion is not installed. Use \"Install Scion in Terminal\" in the \
+                 orchestration panel's Scion Agents section, or run: \
                  go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest"
             ),
             cx,

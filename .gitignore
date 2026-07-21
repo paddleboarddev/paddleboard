@@ -67,3 +67,5 @@ aidock-*.png
 .scion/
 # NixOS integration test state
 .nixos-test-history
+
+.local*

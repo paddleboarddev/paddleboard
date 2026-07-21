@@ -74,7 +74,7 @@ impl Render for AddAgentModal {
         v_flex()
             .id("add-agent-modal")
             .key_context("AddAgentModal")
-            .w(rems(28.))
+            .w(rems(paddleboard_ui::modal_width::SMALL))
             .elevation_3(cx)
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::cancel))

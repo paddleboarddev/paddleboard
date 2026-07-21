@@ -502,16 +502,36 @@ impl Render for WelcomePage {
                         this.child(self.render_agent_card(agent_tab_index, cx))
                     })
                     .when(!self.fallback_to_recent_projects, |this| {
+                        // PaddleBoard: thread the narrative — the Welcome page is
+                        // the entry point to the (now rendered, curated) tour.
+                        let tour_tab_index = next_tab_index;
+                        let onboarding_tab_index = next_tab_index + 1;
                         this.child(
-                            v_flex().gap_4().child(Divider::horizontal()).child(
-                                Button::new("welcome-exit", "Return to Onboarding")
-                                    .tab_index(next_tab_index as isize)
-                                    .full_width()
-                                    .label_size(LabelSize::XSmall)
-                                    .on_click(|_, window, cx| {
-                                        window.dispatch_action(OpenOnboarding.boxed_clone(), cx);
-                                    }),
-                            ),
+                            v_flex()
+                                .gap_4()
+                                .child(
+                                    Button::new("welcome-take-tour", "Take the Tour")
+                                        .tab_index(tour_tab_index as isize)
+                                        .full_width()
+                                        .style(ButtonStyle::Filled)
+                                        .on_click(|_, window, cx| {
+                                            window.dispatch_action(
+                                                crate::OpenPaddleBoardTour.boxed_clone(),
+                                                cx,
+                                            );
+                                        }),
+                                )
+                                .child(Divider::horizontal())
+                                .child(
+                                    Button::new("welcome-exit", "Return to Onboarding")
+                                        .tab_index(onboarding_tab_index as isize)
+                                        .full_width()
+                                        .label_size(LabelSize::XSmall)
+                                        .on_click(|_, window, cx| {
+                                            window
+                                                .dispatch_action(OpenOnboarding.boxed_clone(), cx);
+                                        }),
+                                ),
                         )
                     }),
             )

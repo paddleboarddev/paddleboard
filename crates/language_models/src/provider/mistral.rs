@@ -343,7 +343,10 @@ impl LanguageModel for MistralLanguageModel {
         >,
     > {
         let (request, affinity) =
-            into_mistral(request, self.model.clone(), self.max_output_tokens());
+            match into_mistral(request, self.model.clone(), self.max_output_tokens()) {
+                Ok(request) => request,
+                Err(error) => return async move { Err(error.into()) }.boxed(),
+            };
         let stream = self.stream_completion(request, affinity, cx);
 
         async move {
@@ -359,7 +362,11 @@ pub fn into_mistral(
     request: LanguageModelRequest,
     model: mistral::Model,
     max_output_tokens: Option<u64>,
-) -> (mistral::Request, Option<String>) {
+) -> Result<(mistral::Request, Option<String>)> {
+    if request.contains_custom_tool_input() {
+        anyhow::bail!("Mistral does not support custom tools");
+    }
+
     let stream = true;
 
     let mut messages = Vec::new();
@@ -453,13 +460,15 @@ pub fn into_mistral(
                         MessageContent::Image(_) => {}
                         MessageContent::Compaction(_) => {}
                         MessageContent::ToolUse(tool_use) => {
+                            let input = tool_use.input.as_json().ok_or_else(|| {
+                                anyhow!("Mistral does not support custom tool calls")
+                            })?;
                             let tool_call = mistral::ToolCall {
                                 id: tool_use.id.to_string(),
                                 content: mistral::ToolCallContent::Function {
                                     function: mistral::FunctionContent {
                                         name: tool_use.name.to_string(),
-                                        arguments: serde_json::to_string(&tool_use.input)
-                                            .unwrap_or_default(),
+                                        arguments: serde_json::to_string(input).unwrap_or_default(),
                                     },
                                 },
                             };
@@ -517,7 +526,7 @@ pub fn into_mistral(
         }
     }
 
-    (
+    Ok((
         mistral::Request {
             model: model.id().to_string(),
             messages,
@@ -551,17 +560,28 @@ pub fn into_mistral(
             tools: request
                 .tools
                 .into_iter()
-                .map(|tool| mistral::ToolDefinition::Function {
-                    function: mistral::FunctionDefinition {
-                        name: tool.name,
-                        description: Some(tool.description),
-                        parameters: Some(tool.input_schema),
-                    },
+                .map(|tool| {
+                    let input_schema = match tool.input {
+                        language_model::LanguageModelRequestToolInput::Function {
+                            input_schema,
+                            ..
+                        } => input_schema,
+                        language_model::LanguageModelRequestToolInput::Custom { .. } => {
+                            return Err(anyhow::anyhow!("Mistral does not support custom tools"));
+                        }
+                    };
+                    Ok(mistral::ToolDefinition::Function {
+                        function: mistral::FunctionDefinition {
+                            name: tool.name,
+                            description: Some(tool.description),
+                            parameters: Some(input_schema),
+                        },
+                    })
                 })
-                .collect(),
+                .collect::<Result<_>>()?,
         },
         request.thread_id,
-    )
+    ))
 }
 
 pub struct MistralEventMapper {
@@ -665,7 +685,7 @@ impl MistralEventMapper {
                                 id: entry.id.clone().into(),
                                 name: entry.name.as_str().into(),
                                 is_input_complete: false,
-                                input,
+                                input: language_model::LanguageModelToolUseInput::Json(input),
                                 raw_input: entry.arguments.clone(),
                                 thought_signature: None,
                             },
@@ -722,7 +742,7 @@ impl MistralEventMapper {
                         id: tool_call.id.into(),
                         name: tool_call.name.into(),
                         is_input_complete: true,
-                        input,
+                        input: language_model::LanguageModelToolUseInput::Json(input),
                         raw_input: tool_call.arguments,
                         thought_signature: None,
                     },
@@ -814,7 +834,10 @@ mod tests {
 
         assert_eq!(tool_use.id.to_string(), "real_id_123");
         assert_eq!(tool_use.name.as_ref(), "read_file");
-        assert_eq!(tool_use.input, serde_json::json!({"path": "a.txt"}));
+        assert_eq!(
+            tool_use.input,
+            language_model::LanguageModelToolUseInput::Json(serde_json::json!({"path": "a.txt"}))
+        );
     }
 
     #[test]
@@ -855,7 +878,7 @@ mod tests {
         };
 
         let (mistral_request, affinity) =
-            into_mistral(request, mistral::Model::MistralSmallLatest, None);
+            into_mistral(request, mistral::Model::MistralSmallLatest, None).unwrap();
 
         assert_eq!(mistral_request.model, "mistral-small-latest");
         assert_eq!(mistral_request.temperature, Some(0.5));
@@ -891,7 +914,8 @@ mod tests {
             compact_at_tokens: None,
         };
 
-        let (mistral_request, _) = into_mistral(request, mistral::Model::MistralSmallLatest, None);
+        let (mistral_request, _) =
+            into_mistral(request, mistral::Model::MistralSmallLatest, None).unwrap();
 
         assert_eq!(mistral_request.messages.len(), 1);
         assert!(matches!(

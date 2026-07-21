@@ -29,6 +29,7 @@ settings.workspace = true
 project.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+paddleboard_ui.workspace = true
 ui.workspace = true
 ui_input.workspace = true
 workspace.workspace = true

@@ -16,6 +16,7 @@ mod paddleboard_personas;
 mod paddleboard_rag;
 // PaddleBoard: schema for the Scion integration (opt-in).
 mod paddleboard_scion;
+mod paddleboard_ui;
 // PaddleBoard: schema for the local LLM usage tracker.
 mod paddleboard_usage;
 mod project;
@@ -38,6 +39,7 @@ pub use paddleboard_otel::*;
 pub use paddleboard_personas::*;
 pub use paddleboard_rag::*;
 pub use paddleboard_scion::*;
+pub use paddleboard_ui::*;
 pub use paddleboard_sandbox::*;
 pub use paddleboard_usage::*;
 pub use project::*;
@@ -128,6 +130,33 @@ pub enum HideMouseMode {
     /// Hide on typing and on key bindings that resolve to an action
     #[default]
     OnTypingAndAction,
+}
+
+/// Determines whether to reduce non-essential motion in the UI, such as
+/// loading spinners and pulsating labels, by rendering them in a static state.
+///
+/// Default: off
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    MergeFrom,
+    strum::VariantArray,
+    strum::VariantNames,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ReduceMotionMode {
+    /// Always reduce motion
+    On,
+    /// Never reduce motion
+    #[default]
+    Off,
 }
 
 #[with_fallible_options]
@@ -235,6 +264,12 @@ pub struct SettingsContent {
 
     pub proxy: Option<String>,
 
+    /// Whether to reduce non-essential motion in the UI, such as loading
+    /// spinners and pulsating labels, by rendering them in a static state.
+    ///
+    /// Default: off
+    pub reduce_motion: Option<ReduceMotionMode>,
+
     /// The URL of the Zed server to connect to.
     pub server_url: Option<String>,
 
@@ -291,6 +326,8 @@ pub struct SettingsContent {
 
     // PaddleBoard: configuration for the Scion integration (opt-in, default off).
     pub paddleboard_scion: Option<PaddleboardScionContent>,
+    // PaddleBoard: visibility of PB-added dock buttons and status items.
+    pub paddleboard_ui: Option<PaddleboardUiContent>,
 
     // PaddleBoard: configuration for the local LLM usage tracker (opt-out).
     pub paddleboard_usage: Option<PaddleboardUsageContent>,
@@ -828,6 +865,7 @@ pub enum GitPanelGroupBy {
     None,
     #[default]
     Status,
+    Staging,
 }
 
 #[derive(

@@ -2,9 +2,9 @@
 
 An editor for AI-driven development. PaddleBoard is a fork of [Zed](https://github.com/zed-industries/zed) that keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: a persona system that lets you define *who* your agent should be, one-command serverless deploys, sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
 
-> Status: alpha (0.1.x). Signed, notarized macOS builds (Apple Silicon) are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
+> Status: alpha (0.2.x). Signed, notarized macOS builds (Apple Silicon) and a Linux x86_64 tarball are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
 
-> ✅ **Signed & notarized.** macOS downloads are code-signed with an Apple Developer ID and notarized by Apple, so they open without a Gatekeeper warning. Currently macOS Apple Silicon only; other platforms build from source.
+> ✅ **Signed & notarized.** macOS downloads are code-signed with an Apple Developer ID and notarized by Apple, so they open without a Gatekeeper warning. Linux ships as an x86_64 tarball; Windows builds from source.
 
 ---
 
@@ -43,6 +43,8 @@ Everything you rely on still works — and these additions are all reachable fro
 - **Tiered language support.** A *Ready to use* tier (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, Dockerfile, and more) attaches automatically and downloads on first use — Dockerfiles (and Podman `Containerfile`s) get syntax highlighting plus `docker-langserver` out of the box. Languages that need an external toolchain — Java, Kotlin, PHP (via jdtls/kotlin-language-server/intelephense), C#, C++, and Swift — are opt-in: run `Manage Languages` from the command palette to enable a server in one click, with its prerequisite (JDK 17+, Node, .NET, or the Swift toolchain) shown up front so it never fails silently when the runtime is missing. (Swift's SourceKit-LSP ships with the platform toolchain and is resolved from PATH rather than downloaded.) See [WELCOME.md](./WELCOME.md#built-in-language-servers) for the full breakdown.
 
 - **Offline prose checking.** Markdown files and git commit messages get spelling and grammar checking by default via [Harper](https://writewithharper.com) — privacy-first and fully local, so no text leaves your machine. Squiggles come with quick-fix suggestions; keep a deliberate word with `cmd-.` → Add to dictionary.
+
+- **A first launch that lands a working agent.** PaddleBoard ships its own **PaddleBoard Dark/Light** theme as the default — a deep navy palette derived from [paddleboard.dev](https://paddleboard.dev), so the app and the brand read as one product (every bundled Zed theme is still there). Onboarding includes an **AI Providers** step so you don't finish setup unable to talk to anything: run a model locally with **no API key** via managed Local Models, or paste your own key for OpenAI, Anthropic, Google, and the rest. **Finish Setup** hands off to a Welcome page with a **Take the Tour** button that opens a rendered, curated six-stop walkthrough. And every PaddleBoard-added status item and dock panel can be hidden if you want the chrome out of the way.
 
 See [WELCOME.md](./WELCOME.md) for the deep-dive on each feature, including a worked example of building and running a [Google ADK](https://google.github.io/adk-docs/) agent end-to-end inside the sandbox.
 

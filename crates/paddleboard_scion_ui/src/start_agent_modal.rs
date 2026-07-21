@@ -1,12 +1,10 @@
-use gpui::{
-    DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Render, Stateful, WeakEntity,
-};
+use gpui::{DismissEvent, Entity, EventEmitter, FocusHandle, Focusable, Render, WeakEntity};
 use paddleboard_personas::{Persona, build_overlay, prepend_overlay_to_task};
 use paddleboard_personas_settings::PersonasSettings;
 use paddleboard_scion::{StartAgentOptions, TemplateInfo};
 use settings::Settings as _;
 use ui::{
-    Button, Icon, IconName, KeyBinding, Label, LabelSize, Modal, ModalFooter, ModalHeader,
+    Button, KeyBinding, Label, LabelSize, Modal, ModalFooter, ModalHeader,
     prelude::*,
 };
 use ui_input::InputField;
@@ -199,7 +197,7 @@ impl StartAgentModal {
         &self,
         index: Option<usize>,
         cx: &mut Context<Self>,
-    ) -> Stateful<Div> {
+    ) -> impl IntoElement {
         let is_selected = self.selected_persona == index;
         let (label, description) = match index {
             Some(idx) => {
@@ -217,48 +215,28 @@ impl StartAgentModal {
             ),
         };
 
-        let icon = if is_selected {
-            IconName::Check
-        } else {
-            IconName::Circle
-        };
-
-        let icon_color = if is_selected {
-            Color::Accent
-        } else {
-            Color::Muted
-        };
-
-        h_flex()
-            .id(SharedString::from(format!(
+        paddleboard_ui::SelectableRow::new(
+            SharedString::from(format!(
                 "persona-{}",
                 index.map_or("none".to_string(), |i| i.to_string())
-            )))
-            .gap_2()
-            .px_2()
-            .py_1()
-            .rounded_sm()
-            .cursor_pointer()
-            .when(is_selected, |el| {
-                el.bg(cx.theme().colors().element_selected)
-            })
-            .hover(|el| el.bg(cx.theme().colors().element_hover))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.selected_persona = index;
-                cx.notify();
-            }))
-            .child(Icon::new(icon).size(ui::IconSize::Small).color(icon_color))
-            .child(
-                v_flex()
-                    .child(Label::new(label).size(LabelSize::Small))
-                    .when(!description.is_empty(), |el| {
-                        el.child(
-                            Label::new(description)
-                                .size(LabelSize::XSmall)
-                                .color(Color::Muted),
-                        )
-                    }),
-            )
+            )),
+            is_selected,
+        )
+        .on_click(cx.listener(move |this, _, _, cx| {
+            this.selected_persona = index;
+            cx.notify();
+        }))
+        .child(
+            v_flex()
+                .child(Label::new(label).size(LabelSize::Small))
+                .when(!description.is_empty(), |el| {
+                    el.child(
+                        Label::new(description)
+                            .size(LabelSize::XSmall)
+                            .color(Color::Muted),
+                    )
+                }),
+        )
     }
 
     fn render_template_selector(&self, cx: &mut Context<Self>) -> Div {
@@ -278,7 +256,7 @@ impl StartAgentModal {
         &self,
         index: Option<usize>,
         cx: &mut Context<Self>,
-    ) -> Stateful<Div> {
+    ) -> impl IntoElement {
         let is_selected = self.selected_template == index;
         let (label, description) = match index {
             Some(idx) => {
@@ -293,48 +271,28 @@ impl StartAgentModal {
             None => ("Default".into(), "Use Scion's default template".into()),
         };
 
-        let icon = if is_selected {
-            IconName::Check
-        } else {
-            IconName::Circle
-        };
-
-        let icon_color = if is_selected {
-            Color::Accent
-        } else {
-            Color::Muted
-        };
-
-        h_flex()
-            .id(SharedString::from(format!(
+        paddleboard_ui::SelectableRow::new(
+            SharedString::from(format!(
                 "template-{}",
                 index.map_or("default".to_string(), |i| i.to_string())
-            )))
-            .gap_2()
-            .px_2()
-            .py_1()
-            .rounded_sm()
-            .cursor_pointer()
-            .when(is_selected, |el| {
-                el.bg(cx.theme().colors().element_selected)
-            })
-            .hover(|el| el.bg(cx.theme().colors().element_hover))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.selected_template = index;
-                cx.notify();
-            }))
-            .child(Icon::new(icon).size(ui::IconSize::Small).color(icon_color))
-            .child(
-                v_flex()
-                    .child(Label::new(label).size(LabelSize::Small))
-                    .when(!description.is_empty(), |el| {
-                        el.child(
-                            Label::new(description)
-                                .size(LabelSize::XSmall)
-                                .color(Color::Muted),
-                        )
-                    }),
-            )
+            )),
+            is_selected,
+        )
+        .on_click(cx.listener(move |this, _, _, cx| {
+            this.selected_template = index;
+            cx.notify();
+        }))
+        .child(
+            v_flex()
+                .child(Label::new(label).size(LabelSize::Small))
+                .when(!description.is_empty(), |el| {
+                    el.child(
+                        Label::new(description)
+                            .size(LabelSize::XSmall)
+                            .color(Color::Muted),
+                    )
+                }),
+        )
     }
 }
 
@@ -355,7 +313,7 @@ impl Render for StartAgentModal {
         v_flex()
             .id("start-scion-agent-modal")
             .key_context("StartAgentModal")
-            .w(rems(30.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
             .elevation_3(cx)
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::cancel))

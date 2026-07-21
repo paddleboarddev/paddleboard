@@ -3,7 +3,7 @@ use collections::HashMap;
 use editor::{CurrentLineHighlight, Editor, EditorElement, EditorStyle, actions::Tab};
 use gpui::{
     App, Bounds, DEFAULT_ADDITIONAL_WINDOW_SIZE, Entity, EventEmitter, Focusable, Subscription,
-    Task, TextStyle, Tiling, TitlebarOptions, WindowBounds, WindowHandle, WindowOptions, point,
+    Task, TextStyle, TitlebarOptions, WindowBounds, WindowHandle, WindowOptions, point,
     size,
 };
 use language::{Buffer, LanguageRegistry, language_settings::SoftWrap};
@@ -447,10 +447,10 @@ impl PickerDelegate for RulePickerDelegate {
         editor: &Arc<dyn ErasedEditor>,
         _: &mut Window,
         cx: &mut Context<Picker<Self>>,
-    ) -> Div {
+    ) -> Option<Div> {
         let editor = editor.as_any().downcast_ref::<Entity<Editor>>().unwrap();
 
-        h_flex()
+        let search_bar = h_flex()
             .py_1()
             .px_1p5()
             .mx_1()
@@ -460,7 +460,9 @@ impl PickerDelegate for RulePickerDelegate {
             .border_1()
             .border_color(cx.theme().colors().border)
             .child(Icon::new(IconName::MagnifyingGlass).color(Color::Muted))
-            .child(editor.clone())
+            .child(editor.clone());
+
+        Some(search_bar)
     }
 }
 
@@ -918,7 +920,6 @@ impl Render for RulesLibrary {
                 ),
             window,
             cx,
-            Tiling::default(),
         )
     }
 }

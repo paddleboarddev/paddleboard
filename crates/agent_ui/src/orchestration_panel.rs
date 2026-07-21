@@ -16,6 +16,10 @@ use paddleboard_scion_ui::{
     ScionEvent, ScionEventKind, ScionStore, ScionStoreEvent, ScionStoreGlobal,
 };
 use settings::Settings;
+// PaddleBoard: terminal-handoff install task for the Scion CLI.
+use task::{
+    HideStrategy, RevealStrategy, RevealTarget, SaveStrategy, Shell, SpawnInTerminal, TaskId,
+};
 use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
 use workspace::{
     Toast, Workspace,
@@ -356,8 +360,16 @@ impl Panel for OrchestrationPanel {
         px(260.0)
     }
 
-    fn icon(&self, _window: &Window, _cx: &App) -> Option<IconName> {
+    fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
+        // PaddleBoard: hideable like upstream panels (paddleboard_ui settings).
         Some(IconName::ListTree)
+            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).orchestration_button)
+    }
+
+    fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {
+        Some(workspace::HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().orchestration_button = Some(false);
+        }))
     }
 
     fn icon_tooltip(&self, _window: &Window, _cx: &App) -> Option<&'static str> {
@@ -383,7 +395,10 @@ impl OrchestrationPanel {
         let store = self.scion_store.as_ref()?;
         let store_read = store.read(cx);
         if !store_read.is_available() {
-            return None;
+            // PaddleBoard: the user opted in via settings but the CLI is
+            // missing — show install guidance instead of silently hiding the
+            // section. The store's poll cycle picks the CLI up once installed.
+            return Some(self.render_scion_install_prompt(cx));
         }
 
         let agents = store_read.agents().to_vec();
@@ -477,6 +492,85 @@ impl OrchestrationPanel {
         Some(v_flex().children(elements).into_any_element())
     }
 
+    // PaddleBoard: Scion is enabled in settings but the `scion` binary isn't on
+    // PATH. Offer the install command as a visible terminal task — never run
+    // installs inside the app process.
+    fn render_scion_install_prompt(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+        const INSTALL_COMMAND: &str =
+            "go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest";
+
+        let workspace = self.workspace.clone();
+        v_flex()
+            .child(
+                h_flex()
+                    .h_7()
+                    .px_2()
+                    .mt_2()
+                    .border_b_1()
+                    .border_color(cx.theme().colors().border_variant)
+                    .items_center()
+                    .child(
+                        Label::new("Scion Agents")
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    ),
+            )
+            .child(
+                div().p_2().child(
+                    ui::Callout::new()
+                        .severity(ui::Severity::Info)
+                        .icon(IconName::Info)
+                        .title("Scion is enabled, but the CLI isn't installed.")
+                        .description("Requires the Go toolchain (go.dev/dl).")
+                        .actions_slot(
+                            Button::new("scion-install-cli", "Install Scion in Terminal")
+                                .style(ButtonStyle::Filled)
+                                .label_size(LabelSize::Small)
+                                .on_click(move |_, window, cx| {
+                                    let Some(workspace) = workspace.upgrade() else {
+                                        return;
+                                    };
+                                    workspace.update(cx, |workspace, cx| {
+                                        let mut parts = INSTALL_COMMAND.split_whitespace();
+                                        let Some(command) = parts.next() else {
+                                            return;
+                                        };
+                                        workspace
+                                            .spawn_in_terminal(
+                                                SpawnInTerminal {
+                                                    id: TaskId("scion-install".into()),
+                                                    full_label: format!(
+                                                        "Install Scion: {INSTALL_COMMAND}"
+                                                    ),
+                                                    label: "Install Scion".into(),
+                                                    command: Some(command.to_string()),
+                                                    args: parts.map(String::from).collect(),
+                                                    command_label: INSTALL_COMMAND.into(),
+                                                    cwd: None,
+                                                    env: Default::default(),
+                                                    use_new_terminal: true,
+                                                    allow_concurrent_runs: false,
+                                                    reveal: RevealStrategy::Always,
+                                                    reveal_target: RevealTarget::Dock,
+                                                    hide: HideStrategy::Never,
+                                                    shell: Shell::System,
+                                                    show_summary: true,
+                                                    show_command: true,
+                                                    show_rerun: true,
+                                                    save: SaveStrategy::None,
+                                                },
+                                                window,
+                                                cx,
+                                            )
+                                            .detach();
+                                    });
+                                }),
+                        ),
+                ),
+            )
+            .into_any_element()
+    }
+
     fn render_scion_agent_row(
         &self,
         agent: &AgentInfo,
@@ -543,7 +637,7 @@ impl OrchestrationPanel {
             .id(SharedString::from(format!("scion-agent-{}", agent.name)))
             .w_full()
             .h_7()
-            .pl(px(8.0))
+            .pl_2()
             .pr_2()
             .gap_1p5()
             .items_center()

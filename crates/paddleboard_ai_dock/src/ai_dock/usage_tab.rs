@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use gpui::ClickEvent;
 use paddleboard_usage::{ProviderModelTotals, TokenCounts, UsageSummary};
-use ui::{Tooltip, prelude::*};
+use ui::{Callout, Severity, Tooltip, prelude::*};
 
 use crate::ai_dock::AiDock;
 
@@ -83,26 +83,26 @@ fn reveal_directory(dir: &PathBuf, cx: &mut App) {
 }
 
 fn render_disabled_notice(_cx: &mut Context<AiDock>) -> impl IntoElement {
-    v_flex().gap_1().py_4().child(Label::new(
-        "Usage tracking is turned off.",
-    )).child(
-        Label::new(
-            "Set \"paddleboard_usage\": { \"enabled\": true } in your settings to record \
-             per-provider token usage locally.",
-        )
-        .size(LabelSize::Small)
-        .color(Color::Muted),
+    div().py_4().child(
+        Callout::new()
+            .severity(Severity::Info)
+            .title("Usage tracking is turned off.")
+            .description(
+                "Set \"paddleboard_usage\": { \"enabled\": true } in your settings to record \
+                 per-provider token usage locally.",
+            ),
     )
 }
 
 fn render_empty_notice(_cx: &mut Context<AiDock>) -> impl IntoElement {
-    v_flex().gap_1().py_4().child(Label::new("No usage recorded yet.")).child(
-        Label::new(
-            "Token usage will appear here after you run the agent. Everything stays on your \
-             machine.",
-        )
-        .size(LabelSize::Small)
-        .color(Color::Muted),
+    div().py_4().child(
+        Callout::new()
+            .severity(Severity::Info)
+            .title("No usage recorded yet.")
+            .description(
+                "Token usage will appear here after you run the agent. Everything stays on your \
+                 machine.",
+            ),
     )
 }
 
@@ -123,13 +123,13 @@ fn total_card(label: &str, counts: TokenCounts, cx: &mut Context<AiDock>) -> imp
         .rounded_md()
         .border_1()
         .border_color(cx.theme().colors().border_variant)
-        .bg(cx.theme().colors().element_background)
+        .bg(cx.theme().colors().elevated_surface_background.opacity(0.5))
         .child(
             Label::new(label.to_string())
                 .size(LabelSize::XSmall)
                 .color(Color::Muted),
         )
-        .child(Headline::new(format_tokens(counts.total())).size(HeadlineSize::Medium))
+        .child(Headline::new(format_tokens(counts.total())).size(HeadlineSize::Small))
         .child(
             Label::new(format!(
                 "{} in · {} out",
@@ -178,7 +178,7 @@ fn render_breakdown_row(
         .py_1p5()
         .px_2()
         .when(index % 2 == 1, |this| {
-            this.bg(cx.theme().colors().element_background)
+            this.bg(cx.theme().colors().elevated_surface_background.opacity(0.5))
         })
         .child(
             v_flex()

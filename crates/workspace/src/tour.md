@@ -1,154 +1,86 @@
-# Welcome to PaddleBoard! 🏄‍♂️
+# Welcome aboard PaddleBoard! 🏄‍♂️
 
-PaddleBoard is your new agentic, highly-performant IDE fork designed specifically for AI-driven software development. You can code natively, let the AI act on your workspace, browse the web, and run tests in secure sandboxes all from one window!
+PaddleBoard is an agentic, high-performance IDE built for AI-driven development —
+code natively, let the agent act on your workspace, browse the web, and run
+tests in secure sandboxes, all from one window.
 
-## 🚀 Key Features
-
-### 1. Embedded Browser Panel
-A native Chromium/WebKit browser lives inside the editor as a dockable panel.
-- Open it: `Cmd-Shift-P` → **`workspace: Open Browser`**.
-- Type a URL or search query in the address bar and press Enter.
-- Quick-access bookmarks (Google, GitHub, Hacker News) are one click away.
-- **Unsloth Studio**: `Cmd-Shift-P` → **`workspace: Open Unsloth`** spins up a containerised Jupyter server and points the browser at it once it's ready.
-
-### 2. Secure Agent Sandboxing — Pick Your Backend
-When the AI needs to run untrusted code, compile new binaries, or run tests, it uses the integrated **Sandbox Tool** — your project mounts in, permission prompts still gate every command, and the sandbox is discarded when done.
-- 🛡️ Click the **shield icon** in the status bar to open the **Sandbox Backend** picker and choose your tier:
-- 🪂 **Native** — zero-install: Apple's `container` tool on macOS 26+, the bundled **libkrun microVM** on older Apple silicon, or libkrun/**KVM** on Linux. The picker names the exact runtime for *your* machine.
-- 📦 **Podman** — Podman + gVisor (`runsc`), the strongest tier. Native on Linux, a Linux VM on macOS, WSL2 on Windows.
-- Each option has a **"Set up in Terminal"** button that stages the install command in a fresh Terminal — nothing runs inside the app.
-- ✅ **Your choice is honored:** Native stays Native even if Podman is installed; Podman is never silently swapped for Native when it's missing (it applies your `on_missing_runtime` policy instead). The shield reflects the tier that's actually active — and says when Native only covers one-shot commands.
-
-### 3. Forwarded Ports — Sandbox Services
-Long-lived processes (dev servers, demo apps, `adk web`) use the **Sandbox Service Tool**. Each running service appears in a **Forwarded Ports** row above the browser viewport.
-- Click the label (e.g. `http :54321`) → the browser panel navigates to `http://localhost:54321`.
-- Click the × → the service stops and the entry disappears.
-- Bindings stay on `127.0.0.1` only — never your LAN.
-- Non-container ports appear here too — `adk: Run Agent` registers port 8000 from the terminal so you get the same one-click navigation.
-- **ADK quick start**: `Cmd-Shift-P` → **`adk: Scaffold Agent`** to create a new Google ADK agent project, then **`adk: Run Agent`** to launch `adk web` — port 8000 appears in Forwarded Ports automatically. Open a folder with `agent.py` or `agent.yaml` and PaddleBoard shows a toast with a **Run Agent** button.
-- **More frameworks**, same Run/Stop pattern, each auto-detected with a toast: **LangGraph** (`langgraph dev`), **CrewAI** (`crewai run`), **AutoGen** (AutoGen Studio web UI), and **A2A** (`uv run .`, runs your local [A2A](https://a2a-protocol.org/) agent server). All appear in the AI Dock with a **Set Up** install button.
-
-### 4. Sandboxed MCP Servers
-PaddleBoard runs your **MCP servers** inside the same Podman + gVisor sandbox as the Sandbox Tool.
-- Manage them in the AI Dock: `Cmd-Shift-P` → **`paddleboard: Mcp Servers`** opens the dock on the MCP tab (filter All / Running / Stopped / Error, add servers, browse the catalog of common ones).
-- 🛠️ **Build an MCP** — no server for a service? Click **Build an MCP**, name it (e.g. Substack) + describe what you want, and an agent researches the API, writes the server, tests it in the sandbox, and installs it.
-- Or use `"source": "sandboxed_stdio"` in `settings.json` directly.
-- Forward only the host env vars you need by name — values stay out of the agent's context.
-- The worktree is mounted at `/workspace` so filesystem-touching servers (git, fs, etc.) still work.
-
-### 5. AI Dock
-One place to browse and install everything the agent talks to — the marina where every external collaborator ties up.
-- Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or hit **Open the AI Dock** on the Welcome screen. The Welcome screen also surfaces a **Featured** strip (Claude / Codex / Copilot / Cursor / Antigravity pills) so first-run users have recognizable names to click.
-- Five tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, Google ADK), **Skills** (slash commands), **Personas** (who the agent should be — see #6), **MCP Servers** (catalog + absorbed management UI), and **Usage** (local per-provider token stats — see #17).
-- Installed items show a green badge; missing ones get a one-click **Install / Sign In / Set Up / Learn More** that does the category-appropriate thing. CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command. Bundled skills (`/build`, `/update-tour`, `/clippy`, `/test`, `/check-drift`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory.
-- **Add Agent** (Agents tab header): opens a modal to register a custom agent server by its registry ID — for agents not in the catalog.
-- **Create Skill** (Skills tab header): opens a modal with a name field, prompt editor, and project/user scope toggle. Creates a new `.claude/commands/{name}.md` file.
-- The catalog is `assets/ai_dock/catalog.json` in-repo — adds are PRs, not fetches.
-
-### 6. Personas — Tell the Agent Who to Be
-A **persona** describes who the agent should mimic — a Senior Developer, an SRE, a QA Engineer. 🎭
-- Drop a `PERSONA.md` at your project root → new agent threads adopt it automatically. Plain prose works; frontmatter optional.
-- Keep a library as `.claude/personas/*.persona.md` files (project or `~/.claude/personas/` for user-wide), then switch per thread with the **persona picker** next to the profile selector in the agent panel.
-- Grab starter roles in **AI Dock → Personas** — Senior Developer, Site Reliability Engineer, QA Engineer — with one-click **Add to project / Add to user**.
-- Or just ask mid-conversation — "be my QA tester" — and the agent switches itself via its `adopt_persona` tool.
-- Compose with `extends:` (inherit a shared house base), and give **sub-agents** their own personas — a QA-persona reviewer genuinely thinks like a reviewer. Works for container-isolated **Scion agents** too (picker in the start modal, `persona` on the `spawn_scion_agent` tool).
-- Works identically with every LLM provider; the persona is saved with the thread. Opt out with `"paddleboard_personas": { "enabled": false }`.
-
-### 7. Set Sail — Deploy to Serverless
-Quick-deploy the current project to **Cloud Run, AWS Lambda, Vercel, Azure (Container Apps), Cloudflare (Workers), or Netlify**, no YAML safari. ⛵
-- Run it: `Cmd-Shift-P` → **`set sail: Deploy`** — pick a platform, service name, and public/private, then the agent takes the helm.
-- Powered by the open-source [s8sskills](https://s8sskills.com) catalog: PaddleBoard installs the platform's skill pack into `.agents/skills/` and the agent follows that playbook.
-- Interactive steps (`gcloud auth login`, `aws configure`, `vercel login`) are handed to you in the terminal — the agent never runs auth flows itself.
-- **Custom target**: host somewhere else? Describe it (Knative on your cluster, Fly.io, a VPS…) and the agent takes it from there.
-- **Rig the pipeline**: flip the modal's mode toggle and the agent sets up CI/CD groundwork instead — a least-privilege deploy identity, the resource, and the exact deploy command for *any* CI tool, with every secret left as a TODO placeholder for you. (Cloud Run, AWS Lambda, and Vercel today.)
-
-### 8. Step-Through Mode
-Approve every tool call before the agent executes it.
-- Click the **⏭** icon in the agent thread toolbar to enable (it turns accent-colored).
-- Each tool call pauses with **Step** (run it) or **Skip** (return empty and move on).
-- Only the root thread is gated — subagents run without interruption.
-
-### 9. Agent Orchestration Panel
-A live tree view of every active agent session, including subagents.
-- Open it: panel bar `ListTree` icon, or `Cmd-Shift-P` → **`orchestration_panel: Toggle Focus`**.
-- Subagents nest under the thread that spawned them.
-- Status dot shows generating vs. idle; click any row to jump to that thread.
-
-### 10. Scion — Container-Isolated Parallel Agents
-Run multiple deep agents in parallel, each in its own container and git worktree, via [Scion](https://github.com/GoogleCloudPlatform/scion).
-- **Opt-in:** enable with `"paddleboard_scion": { "enabled": true }` in settings (installing the CLI alone won't turn it on).
-- Install: `go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest`, then `scion init --machine` and `scion init` in your project.
-- Start an agent: `Cmd-Shift-P` → **`scion: Start Agent`** opens a modal where you set a task description, agent name, template — and optionally a **persona**, so the isolated agent adopts that identity.
-- The **Orchestration Panel** shows a **Scion Agents** section below native threads. Each row shows the agent's phase (provisioning → running → stopped) and activity (working, thinking, waiting, etc.).
-- Right-click any agent row for **View Logs** (opens a live-streaming log tab that tails output in real time), **Sync Changes** (pulls changes into your local copy and shows a toast), or **Stop Agent**.
-- **Agents can delegate to Scion themselves:** with the CLI installed, the agent gains a `spawn_scion_agent` tool — it hands a subtask to a container + worktree-isolated agent (instead of an in-process sub-agent that shares your workspace), waits for it, and returns the result.
-- Activity badges show what the agent is doing: "executing · Edit", "thinking", "waiting", etc.
-- Status colors: accent = running, warning = needs attention, error = errored, muted = stopped.
-- **OpenTelemetry tracing:** Enable `"paddleboard_otel": { "enabled": true }` in settings (or `PADDLEBOARD_OTEL_ENABLED=1`) to export agent lifecycle telemetry via OTLP. Poll cycles, CLI commands, and phase/activity transitions appear as spans and events in Jaeger, Tempo, or any OTEL-compatible collector.
-
-### 11. LLM Provider Picker Panel
-A dedicated panel for switching the active language model provider without opening settings.
-- Dock it wherever is convenient and change providers as you work.
-- **ChatGPT Subscription auth**: sign in with your ChatGPT Plus or Pro account via OAuth — no API key needed. The flow opens in the embedded browser panel; tokens persist in PB's credential store.
-- **Vertex AI (Gemini Enterprise)**: run Gemini through your own GCP project. Configure it right in the agent settings — fill in a Project ID and Save. Recommended auth stores no key (`gcloud auth login` + borrow short-lived tokens); a service-account key file or Vertex Express API key also work.
-
-### 12. Local Models — Run One On Your Machine
-Run a model entirely on your Mac — no Ollama, no install, no server to start. 🖥️
-- Open **Local Models** in the AI provider settings, flip on **"Run locally, managed by PaddleBoard"**, and pick **Gemma 3 4B** (recommended) or **Gemma 3 1B** (tiny).
-- **Download & Run** shows a live progress bar, then *downloading → starting → ready*; the model then appears in the agent's picker like any other.
-- PaddleBoard ships a signed `llama.cpp` server, binds it to `127.0.0.1` only, and owns the process. Metal-accelerated on Apple silicon. Power users can still point it at their own server.
-
-### 13. Multi-Workspace
-Keep multiple projects in one window, each as its own workspace with its own pane tree and its own agent threads.
-- Open the worktree picker: `Cmd-Shift-P` → **`git: Worktree`**.
-- **Switch** between existing worktrees, **create** a new worktree-backed workspace (accept the auto-generated branch name like `dusty-pelican` or supply your own), or **open in new window**.
-- The orchestration panel shows agent threads from every workspace at once — perfect for parallel agent sessions against different projects.
-
-### 14. Language Support — Two Tiers
-PaddleBoard keeps the default install lean and lets you add the rest with one click.
-- **Ready to use**: Rust, TypeScript, JavaScript, Python, Go, JSON, YAML, HTML/CSS, and **Dockerfile** attach automatically — open a file and the server downloads on first use. Dockerfiles get highlighting + `docker-langserver` out of the box.
-- **Install support** (run **`Manage Languages`**): **Java**, **Kotlin** (JDK 17+), **PHP** (Node), **C#** (.NET), **C++** (clangd), and **Swift** (SourceKit-LSP, PATH-resolved from your toolchain) ship a built-in server — click Install, prerequisite shown up front. **Ruby** and **Dart** come from extensions.
-- **Build tool context**: Java and Kotlin auto-detect Gradle/Maven projects and expose `JAVA_BUILD_TOOL` and `JAVA_PROJECT_ROOT` task variables.
-- **Prose checking**: Markdown and git commit messages get offline spelling + grammar squiggles via [Harper](https://writewithharper.com) — private, no text leaves your machine. Keep a deliberate word with `cmd-.` → **Add to dictionary**.
-
-### 15. Git Login
-Save your git host credentials once so HTTPS git operations stop prompting.
-- Run **`git login: Manage`** → pick GitHub, GitLab, BitBucket (or a custom host), paste a Personal Access Token. Stored in your **OS keychain**.
-- `clone`/`fetch`/`push` over HTTPS then authenticate silently; the prompt only returns if there's no saved login.
-- When the prompt does appear, tick **"Remember on this device"** as you submit — saved to the keychain, no prompt next time.
-- `GITHUB_TOKEN` / `GITLAB_TOKEN` / `BITBUCKET_TOKEN` work as a fallback; SSH is untouched.
-- On **GitHub and GitLab (gitlab.com)**, a one-click **browser OAuth sign-in** — the device page opens with the code pre-filled, you approve, done. Self-managed hosts/BitBucket stay PAT-based.
-
-### 16. Manifest — Your Git State at a Glance
-One dockable tree for the whole git picture — the ship's manifest. 🗂️ Open it with the tree icon in the dock or **`manifest: Toggle Focus`**.
-- **Repositories** (⛵ per repo — click to switch the active one), **Branches** (ahead/behind counts), **Commits** (click → full diff), **Stashes** (click → apply/pop/drop), **Contributors** (ranked by commit count).
-- Reads state PaddleBoard already tracks — instant, no git commands on the UI thread.
-- The Git Graph stays the deep-history view; Manifest is the overview.
-
-### 17. Search As You Type
-Project search runs as you type — results update a beat after you pause, no Enter needed. 🔍
-- Prefer the classic behavior? Set `"search": { "search_on_type": false }` in settings.
-
-### 18. Agent Context Gauge
-Watch the status bar while an agent thread runs — a percentage shows how much of the model's context window you've used. 🌊
-- Hover for the token breakdown (used / total, input vs. output); click to jump to the agent panel.
-- Goes yellow near the limit, red past it; hidden when no thread is active.
-- Purely local — reads counts the thread already tracks. Telemetry stays off.
-
-### 19. Local Usage Stats
-Mix multiple providers? PaddleBoard tracks **how your token usage splits across them** over time — all on your machine. 📊
-- Open the **AI Dock → Usage** tab: today / 7-day / all-time totals, then a per-provider, per-model breakdown.
-- Stored as a **text JSON file per day** (`<data_dir>/usage/`) — point `paddleboard_usage.directory` at your own private git repo to back it up; clean diffs guaranteed.
-- Counts every provider equally (Anthropic, OpenAI, Gemini, Vertex, Bedrock, Ollama, …) — recorded at the one spot every billed token flows through.
-- Opt-out via `"paddleboard_usage": { "enabled": false }`; optional `auto_commit` commits the files for you.
-
-### 20. Semantic Search — Find Code by Meaning
-Turn on `"paddleboard_rag": { "enabled": true }` and the agent gains a **`semantic_search`** tool that searches the project by *meaning*, not keywords — great when you don't know the term to grep for. 🧭
-- Fully local & private: embeddings run on the built-in **EmbeddingGemma** model (same managed `llama.cpp` stack as Local Models, `127.0.0.1` only). The ~0.33 GB model downloads once on first use.
-- Indexes on demand and incrementally — only changed files re-embed — into a small local SQLite database. No external vector store to run.
-- Just ask: *"use semantic_search to find where worktree files are enumerated"* → ranked hits with file, line, and excerpt.
-- **Bring your own store (optional):** point it at your own Postgres + **pgvector** database (`"store_backend": "pgvector"`) for a big or shared index — search runs server-side over an hnsw index. Embeddings stay on-device; local SQLite is the default.
+This is a short guided tour: **six stops** to get you productive. The full
+feature list lives in `WELCOME.md` and at [docs.paddleboard.dev](https://docs.paddleboard.dev).
 
 ---
 
-*You can always revisit this tour by opening the Command Palette (`Cmd-Shift-P`) and selecting **`workspace: Open Paddle Board Tour`**.*
+## 1. The Agent — and a model to run it 🤖
+
+The agent panel is where you talk to your AI. If you set up a provider during
+onboarding, you're ready; if not, no problem.
+
+- Open the agent panel from the right dock, then type a request.
+- **No model yet?** Onboarding's **AI Providers** section gets you connected —
+  run a model locally with **no API key** (Local Models), or paste your own key
+  for OpenAI, Anthropic, Google, and more.
+- Switch models any time from the **LLM Provider** picker without opening settings.
+
+## 2. Manifest — your git state at a glance 🗂️
+
+One dockable tree for the whole git picture — the ship's manifest.
+
+- Open it with the tree icon in the dock, or `Cmd-Shift-P` → **`manifest: Toggle Focus`**.
+- See **Repositories**, **Branches** (ahead/behind), **Commits** (click → diff),
+  **Stashes**, and **Contributors** — all read from state PaddleBoard already
+  tracks, so it's instant.
+- The **Git Graph** stays the deep-history view; Manifest is the overview.
+
+## 3. Secure Sandboxing — the agent runs code safely 🛡️
+
+When the agent runs untrusted code, compiles, or runs tests, it uses the
+integrated **Sandbox** — your project mounts in, permission prompts still gate
+every command, and the sandbox is discarded when done.
+
+- Click the **shield icon** in the status bar to pick your backend tier.
+- **Native** is zero-install (Apple `container`, bundled libkrun microVM, or
+  KVM on Linux); **Podman + gVisor** is the strongest tier.
+- Each option stages its install in a fresh Terminal — nothing runs inside the app.
+
+## 4. Set Sail — deploy to serverless ⛵
+
+Quick-deploy the current project to Cloud Run, AWS Lambda, Vercel, Azure,
+Cloudflare, or Netlify — no YAML safari.
+
+- Run it: `Cmd-Shift-P` → **`set sail: Deploy`**, pick a platform, and the agent
+  takes the helm using the open-source [s8sskills](https://s8sskills.com) playbook.
+- Interactive auth steps (`gcloud auth login`, `vercel login`) are handed to you
+  in the terminal — the agent never runs auth flows itself.
+- Flip to **Rig the Pipeline** mode to set up CI/CD groundwork instead.
+
+## 5. Personas — tell the agent who to be 🎭
+
+A **persona** describes who the agent should mimic — a Senior Developer, an SRE,
+a QA Engineer.
+
+- Drop a `PERSONA.md` at your project root and new threads adopt it automatically.
+- Grab starter roles in **AI Dock → Personas**, switch per-thread with the persona
+  picker, or just ask mid-conversation: *"be my QA tester."*
+- Works with every provider, and with container-isolated **Scion** agents too.
+
+## 6. The AI Dock — your next stop 🛟
+
+One place to browse and install everything the agent talks to — the marina where
+every external collaborator ties up.
+
+- Open it: `Cmd-Shift-P` → **`ai_dock: Open`**, or **Open the AI Dock** on the
+  Welcome screen.
+- Tabs for **Agents**, **Skills**, **Personas**, **MCP Servers**, and **Usage**.
+- Installed items show a green badge; missing ones get a one-click
+  **Install / Sign In / Set Up**.
+
+**Head to the AI Dock now** to add your first agent or skill — it's the best
+place to start exploring.
+
+---
+
+*There's much more — the embedded browser, sandboxed MCP servers, Scion parallel
+agents, local semantic search, Git Login, and more. See `WELCOME.md` or
+[docs.paddleboard.dev](https://docs.paddleboard.dev) for the full list.*
+
+*Reopen this tour any time: Command Palette (`Cmd-Shift-P`) →
+**`workspace: Open Paddle Board Tour`**.*

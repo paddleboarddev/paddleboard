@@ -15,8 +15,8 @@
 
 use fs::Fs;
 use gpui::{
-    Action, App, ClickEvent, ClipboardItem, DismissEvent, EventEmitter, FocusHandle, Focusable,
-    MouseDownEvent, Render, SharedString,
+    Action, App, ClipboardItem, DismissEvent, EventEmitter, FocusHandle, Focusable,
+    MouseDownEvent, Render, ScrollHandle, SharedString,
 };
 use paddleboard_sandbox_prereqs::{
     BackendAvailability, BackendOption, CommandKind, InstallStep, Os, PreferredBackend,
@@ -27,7 +27,9 @@ use paddleboard_sandbox_settings::{ActiveTier, ActiveTierKind, SandboxSettings, 
 use settings::{
     PaddleboardPreferredBackendContent, Settings, SettingsStore, update_settings_file,
 };
-use ui::{Tooltip, prelude::*};
+use ui::{
+    Callout, CommonAnimationExt, Modal, ModalFooter, ModalHeader, Section, Tooltip, prelude::*,
+};
 use workspace::{HideStatusItem, ModalView, StatusItemView, Workspace};
 
 /// Initialize the UI surface. Registers the `SandboxPrereqs` global, kicks
@@ -76,17 +78,21 @@ fn current_tier(cx: &App) -> ActiveTier {
     active_tier(SandboxPrereqs::status(cx), SandboxSettings::get_global(cx))
 }
 
-pub struct SandboxStatusItem;
+pub struct SandboxStatusItem {
+    workspace: gpui::WeakEntity<Workspace>,
+}
 
 impl SandboxStatusItem {
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    pub fn new(workspace: &Workspace, cx: &mut Context<Self>) -> Self {
         cx.observe_global::<SandboxPrereqs>(|_, cx| cx.notify())
             .detach();
         // The shield reflects the chosen backend, so a settings change (a new
         // preferred_backend) must repaint it too.
         cx.observe_global::<SettingsStore>(|_, cx| cx.notify())
             .detach();
-        Self
+        Self {
+            workspace: workspace.weak_handle(),
+        }
     }
 }
 
@@ -100,12 +106,29 @@ impl StatusItemView for SandboxStatusItem {
     }
 
     fn hide_setting(&self, _cx: &App) -> Option<HideStatusItem> {
-        None
+        Some(HideStatusItem::new(|settings| {
+            settings.paddleboard_ui.get_or_insert_default().sandbox_status = Some(false);
+        }))
     }
 }
 
 impl Render for SandboxStatusItem {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // PaddleBoard Glowup: hideable, and only shown while a project is open —
+        // the sandbox tier is meaningless without one.
+        let project_open = self.workspace.upgrade().is_some_and(|workspace| {
+            workspace
+                .read(cx)
+                .project()
+                .read(cx)
+                .visible_worktrees(cx)
+                .next()
+                .is_some()
+        });
+        if !paddleboard_ui::PaddleboardUiSettings::get(cx).sandbox_status || !project_open {
+            return gpui::Empty.into_any_element();
+        }
+
         let (color, tooltip_text) = shield_appearance(current_tier(cx));
 
         IconButton::new("sandbox-prereqs-status", IconName::Box)
@@ -117,11 +140,13 @@ impl Render for SandboxStatusItem {
             .on_click(|_, window, cx| {
                 window.dispatch_action(OpenSandboxPrereqs.boxed_clone(), cx);
             })
+            .into_any_element()
     }
 }
 
 pub struct SandboxPrereqsModal {
     focus_handle: FocusHandle,
+    scroll_handle: ScrollHandle,
 }
 
 impl SandboxPrereqsModal {
@@ -135,6 +160,7 @@ impl SandboxPrereqsModal {
                 .detach();
             SandboxPrereqsModal {
                 focus_handle: cx.focus_handle(),
+                scroll_handle: ScrollHandle::new(),
             }
         });
     }
@@ -285,7 +311,7 @@ impl SandboxPrereqsModal {
                 .size(IconSize::Small)
                 .color(if selected { Color::Accent } else { Color::Muted }),
             )
-            .child(Label::new(option.title).weight(gpui::FontWeight::BOLD))
+            .child(Headline::new(option.title).size(HeadlineSize::XSmall))
             .child(Label::new(option.runtime_label).color(Color::Muted))
             .child(div().flex_1())
             .child(
@@ -307,21 +333,19 @@ impl SandboxPrereqsModal {
 
         if let Some(note) = option.coverage_note {
             card = card.child(
-                h_flex()
-                    .gap_1()
-                    .items_start()
-                    .child(Icon::new(IconName::Info).size(IconSize::XSmall).color(Color::Muted))
-                    .child(Label::new(note).size(LabelSize::Small).color(Color::Muted)),
+                Callout::new()
+                    .severity(Severity::Info)
+                    .icon(IconName::Info)
+                    .title(note),
             );
         }
 
         if let BackendAvailability::Unsupported { reason } = &option.availability {
             card = card.child(
-                h_flex()
-                    .gap_1()
-                    .items_start()
-                    .child(Icon::new(IconName::Warning).size(IconSize::XSmall).color(Color::Warning))
-                    .child(Label::new(reason.clone()).size(LabelSize::Small).color(Color::Warning)),
+                Callout::new()
+                    .severity(Severity::Warning)
+                    .icon(IconName::Warning)
+                    .title(reason.clone()),
             );
         }
 
@@ -332,6 +356,8 @@ impl SandboxPrereqsModal {
                     SharedString::from(format!("sandbox-use-{key}")),
                     if selected { "Selected" } else { "Use this backend" },
                 )
+                .style(ButtonStyle::Filled)
+                .label_size(LabelSize::Small)
                 .disabled(selected)
                 .on_click(cx.listener(move |_, _, _window, cx| {
                     Self::select_backend(backend, cx);
@@ -348,7 +374,7 @@ impl SandboxPrereqsModal {
             card = card.child(
                 v_flex()
                     .gap_2()
-                    .child(Label::new(setup.title).size(LabelSize::Small).weight(gpui::FontWeight::MEDIUM))
+                    .child(Label::new(setup.title).size(LabelSize::Small))
                     .children(setup.steps.into_iter().enumerate().map(|(i, step)| {
                         Self::render_step(i, key, step, bg_color, host_os, cx)
                     }))
@@ -385,35 +411,20 @@ impl Render for SandboxPrereqsModal {
         let tier = current_tier(cx);
         let bg_color = cx.theme().colors().editor_background;
 
-        // Header row with title + close button.
-        let header = h_flex()
-            .w_full()
-            .justify_between()
-            .child(Headline::new("Sandbox Backend").size(HeadlineSize::Medium))
-            .child(
-                IconButton::new("sandbox-prereqs-close", IconName::Close).on_click(cx.listener(
-                    |_, _: &ClickEvent, _window, cx| {
-                        cx.emit(DismissEvent);
-                    },
-                )),
-            );
-
         // Active-tier banner: what will actually run right now, mirroring the
-        // shield so the two never disagree.
+        // shield so the two never disagree — severity is derived from the same
+        // shield color.
         let (banner_color, banner_text) = shield_appearance(tier);
-        let banner = h_flex()
-            .gap_2()
-            .items_center()
-            .child(Icon::new(IconName::Box).size(IconSize::Small).color(banner_color))
-            .child(Label::new(banner_text).size(LabelSize::Small));
-
-        let intro = Label::new(
-            "Choose how PaddleBoard sandboxes the tools that run untrusted code. \
-             Your choice is honored exactly — a machine set to Native uses the native \
-             tier even when Podman is installed, and vice versa.",
-        )
-        .size(LabelSize::Small)
-        .color(Color::Muted);
+        let banner_severity = match banner_color {
+            Color::Success => Severity::Success,
+            Color::Warning => Severity::Warning,
+            Color::Error => Severity::Error,
+            _ => Severity::Info,
+        };
+        let banner = Callout::new()
+            .severity(banner_severity)
+            .icon(IconName::Box)
+            .title(banner_text);
 
         // Build the picker cards. Until the first probe lands we show a
         // placeholder rather than guessing availability.
@@ -426,9 +437,19 @@ impl Render for SandboxPrereqsModal {
                 })
                 .collect(),
             None => vec![
-                Label::new("Probing this machine for available backends…")
-                    .size(LabelSize::Small)
-                    .color(Color::Muted)
+                h_flex()
+                    .gap_1()
+                    .child(
+                        Icon::new(IconName::ArrowCircle)
+                            .size(IconSize::Small)
+                            .color(Color::Muted)
+                            .with_rotate_animation(2),
+                    )
+                    .child(
+                        Label::new("Probing this machine for available backends…")
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
+                    )
                     .into_any_element(),
             ],
         };
@@ -437,13 +458,16 @@ impl Render for SandboxPrereqsModal {
             "sandbox-prereqs-refresh",
             if refreshing { "Checking…" } else { "Refresh" },
         )
+        .style(ButtonStyle::Outlined)
+        .label_size(LabelSize::Small)
         .disabled(refreshing)
         .on_click(|_, _window, cx| SandboxPrereqs::refresh(cx));
 
         v_flex()
             .id("sandbox-prereqs-modal")
             .key_context("SandboxPrereqsModal")
-            .w(rems(38.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
+            .max_h(rems(36.))
             .elevation_3(cx)
             .track_focus(&self.focus_handle(cx))
             .on_action(cx.listener(Self::cancel))
@@ -451,25 +475,22 @@ impl Render for SandboxPrereqsModal {
                 this.focus_handle.focus(window, cx);
             }))
             .child(
-                v_flex()
-                    .p_4()
-                    .gap_3()
-                    .child(header)
-                    .child(banner)
-                    .child(intro),
+                Modal::new("sandbox-prereqs", Some(self.scroll_handle.clone()))
+                    .header(
+                        ModalHeader::new()
+                            .headline("Sandbox Backend")
+                            .description(
+                                "Choose how PaddleBoard sandboxes the tools that run untrusted \
+                                 code. Your choice is honored exactly — a machine set to Native \
+                                 uses the native tier even when Podman is installed, and vice \
+                                 versa.",
+                            )
+                            .show_dismiss_button(true),
+                    )
+                    .section(Section::new().padded(false).child(banner))
+                    .section(Section::new().child(v_flex().gap_3().children(cards)))
+                    .footer(ModalFooter::new().end_slot(refresh_button)),
             )
-            .child(ui::Divider::horizontal())
-            .child(
-                v_flex()
-                    .id("sandbox-backend-cards")
-                    .p_4()
-                    .gap_3()
-                    .max_h(rems(30.))
-                    .overflow_y_scroll()
-                    .children(cards),
-            )
-            .child(ui::Divider::horizontal())
-            .child(h_flex().p_3().justify_end().child(refresh_button))
     }
 }
 

@@ -80,6 +80,7 @@ workspace.workspace = true
 paddleboard_actions.workspace = true
 paddleboard_credentials_provider.workspace = true
 paddleboard_git_login.workspace = true
+paddleboard_ui.workspace = true
 zeroize.workspace = true
 ztracing.workspace = true
 

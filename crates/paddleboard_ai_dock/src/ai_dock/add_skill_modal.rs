@@ -174,7 +174,7 @@ impl Render for AddSkillModal {
         v_flex()
             .id("add-skill-modal")
             .key_context("AddSkillModal")
-            .w(rems(32.))
+            .w(rems(paddleboard_ui::modal_width::MEDIUM))
             .elevation_3(cx)
             .on_action(cx.listener(Self::confirm))
             .on_action(cx.listener(Self::cancel))
