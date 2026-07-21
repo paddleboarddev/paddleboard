@@ -36,6 +36,7 @@ use crate::{
 mod askpass_modal;
 pub mod branch_diff;
 pub mod branch_picker;
+pub mod commit_context_menu;
 // PaddleBoard: pub so the visual test runner can open the modal directly.
 pub mod git_login_modal;
 mod commit_modal;

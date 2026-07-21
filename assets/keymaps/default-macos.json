@@ -164,12 +164,12 @@
       "cmd-shift-enter": "editor::NewlineAbove",
       "cmd-k z": "editor::ToggleSoftWrap",
       "cmd-f": "buffer_search::Deploy",
-      "cmd-alt-f": "buffer_search::DeployReplace",
       "cmd-alt-l": ["buffer_search::Deploy", { "selection_search_enabled": true }],
       "cmd-e": "buffer_search::UseSelectionForFind",
       "cmd->": "agent::AddSelectionToThread",
       "cmd-alt-e": "editor::SelectEnclosingSymbol",
       "alt-enter": "editor::OpenSelectionsInMultibuffer",
+      "alt-cmd-f": "text_finder::Toggle",
     },
   },
   {
@@ -460,9 +460,9 @@
       "cmd-shift-enter": "editor::ToggleFoldAll",
       "alt-enter": "search::SelectAllMatches",
       "cmd-f": "search::FocusSearch",
-      "cmd-alt-f": "search::ToggleReplace",
       "cmd-alt-l": "search::ToggleSelection",
       "cmd-shift-o": "outline::Toggle",
+      "alt-cmd-f": "text_finder::Toggle",
     },
   },
   {
@@ -569,7 +569,6 @@
       "alt-enter": "search::SelectAllMatches",
       "alt-cmd-c": "search::ToggleCaseSensitive",
       "alt-cmd-w": "search::ToggleWholeWord",
-      "alt-cmd-f": "project_search::ToggleFilters",
       "alt-cmd-x": "search::ToggleRegex",
       "cmd-k shift-enter": "pane::TogglePinTab",
     },
@@ -652,7 +651,7 @@
     "use_key_equivalents": true,
     "bindings": {
       "cmd-k v": "markdown::OpenPreviewToTheSide",
-      "cmd-shift-v": "markdown::OpenPreview"
+      "cmd-shift-v": "markdown::OpenPreview",
     },
   },
   {
@@ -1555,6 +1554,7 @@
       "cmd-shift-backspace": "branch_picker::DeleteBranch",
       "cmd-alt-shift-backspace": "branch_picker::ForceDeleteBranch",
       "cmd-shift-i": "branch_picker::CycleBranchFilter",
+      "cmd-k": "branch_picker::ToggleFilterMenu",
     },
   },
   {
@@ -1592,6 +1592,7 @@
     "bindings": {
       "cmd-shift-backspace": "worktree_picker::DeleteWorktree",
       "cmd-alt-shift-backspace": "worktree_picker::ForceDeleteWorktree",
+      "cmd-shift-c": "zed::OpenWorktreeSetupTasks",
     },
   },
   {
