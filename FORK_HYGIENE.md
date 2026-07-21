@@ -53,6 +53,34 @@ git diff <merge-base> HEAD -- assets/ docs/
 
 and verify every divergence is intentional. If you find one that isn't, revert it on the merge branch before marking the PR ready.
 
+## Watch for dropped files in renamed crates
+
+A second silent class, and a nastier one — it produces no diff to review, because the file simply isn't there.
+
+PaddleBoard renamed four upstream crate directories:
+
+| upstream | PaddleBoard |
+| --- | --- |
+| `crates/zed` | `crates/paddleboard` |
+| `crates/zed_actions` | `crates/paddleboard_actions` |
+| `crates/zed_credentials_provider` | `crates/paddleboard_credentials_provider` |
+| `crates/zed_env_vars` | `crates/paddleboard_env_vars` |
+
+When upstream **adds** a file inside one of these, git has no PaddleBoard-side counterpart to conflict against. The merge completes cleanly, the file is dropped (or resurrects a stray `crates/zed/` tree), and nothing fails to compile — our renamed crate never referenced it. On 2026-07-20 four `reliability/hang_detection` files vanished exactly this way, with no conflict and no error.
+
+`script/check-dropped-upstream-files` catches it:
+
+```bash
+./script/check-dropped-upstream-files            # exit 1 if anything was dropped
+./script/check-dropped-upstream-files --list     # show every mapping and its resolution
+```
+
+It compares the **merge base** — the newest upstream commit we've actually merged — against `HEAD`, so files upstream added but we haven't merged yet are correctly ignored. Deliberate non-ports go in `script/dropped-upstream-files-allowlist.txt` with a reason; entries that stop matching are reported as stale so the list can't rot.
+
+The weekly merge workflow runs this automatically and surfaces any hits in the PR body. It does **not** fail the job — a dropped file should be reviewed by a human, not silently block the merge PR from opening.
+
+**If you rename another upstream directory, add it to `RENAME_MAP` in the script.** Additions inside an unmapped directory are invisible to the check — which is the same blind spot the script exists to close.
+
 ## Merge cadence
 
 A scheduled workflow (`.github/workflows/merge_upstream_zed.yml`) runs every Monday at 16:00 UTC. It:

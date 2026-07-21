@@ -1,0 +1,26 @@
+# Upstream files we deliberately do NOT carry in PaddleBoard.
+#
+# One upstream path per line, as it appears in zed-industries/zed
+# (e.g. `crates/zed/src/foo.rs`, not the renamed PaddleBoard path).
+# Every entry needs a comment saying WHY — an unexplained line here is
+# indistinguishable from a merge accident, which is the exact failure
+# `script/check-dropped-upstream-files` exists to catch.
+#
+# Entries that stop matching a dropped file are reported as stale.
+# Delete them when that happens.
+
+# Upstream's hang-detection module. PaddleBoard keeps its own `monitor_hangs`
+# (crates/paddleboard/src/reliability.rs) instead — see the `// PaddleBoard:`
+# tag above `init` there for the full rationale. Two reasons in short: the
+# module lives in upstream's top-level app crate, whose directory this fork
+# renamed, and its telemetry arm reports events PB deliberately disables.
+# `init`'s signature tracks upstream, so main.rs needs no fork-specific call.
+# Decided during the 2026-07-20 merge (dd7398b82e).
+#
+# If upstream's version gains something we want — the memory-usage logging is
+# the obvious candidate — port it into `monitor_hangs` rather than dropping
+# these files in wholesale.
+crates/zed/src/reliability/hang_detection.rs
+crates/zed/src/reliability/hang_detection/logging.rs
+crates/zed/src/reliability/hang_detection/task_traces.rs
+crates/zed/src/reliability/hang_detection/telemetry.rs
