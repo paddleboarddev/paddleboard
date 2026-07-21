@@ -1,0 +1,114 @@
+name: Compile check
+
+# PaddleBoard: the compile gate. Until this existed, NO workflow in this repo
+# built Rust — the other PR checks cover embeds, zed-isms, llama pins, and
+# upstream drift, none of which touch the compiler. A dependency bump that broke
+# the build passed CI green, and the only real gate was someone remembering to
+# run `cargo check` locally. That went wrong quietly during the 2026-07-21
+# Dependabot triage, where every Rust bump had to be hand-verified.
+#
+# Deliberately `cargo check`, not `script/clippy`: that script runs
+# `--release --all-targets --all-features` across 267 crates, which is a release
+# build's worth of work and far too heavy for a per-PR gate. This catches "does
+# it compile", which is the failure mode that was actually escaping.
+#
+# `--all-targets` includes test and bench code. A dependency's API change often
+# surfaces in a test first, so omitting it would leave the common case unchecked.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  linux:
+    # Stock runner, NOT Blacksmith. release.yml uses Blacksmith because the
+    # stock 7 GB runner OOM-killed the release LINK phase — but `cargo check`
+    # never links, so that justification doesn't carry over.
+    #
+    # This was also forced: on the first attempt this job used
+    # `blacksmith-8vcpu-ubuntu-2204` and sat QUEUED with runner=unassigned for
+    # 50 minutes while the macOS job passed repeatedly. release.yml's Blacksmith
+    # job is triggered by a TAG PUSH; this one runs on `pull_request`, and
+    # Blacksmith never picked it up. If a Blacksmith runner is wanted here
+    # later, verify it provisions for pull_request events first.
+    name: Linux (full workspace)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Install webview (wry) system dependencies
+        # Same stack release.yml installs: the `browser` crate uses `wry`, whose
+        # Linux build needs GTK3 + WebKit2GTK. script/linux is Zed's dep set and
+        # omits these because upstream has no embedded browser. libssl-dev and
+        # pkg-config are needed by openssl-sys, pulled in on Linux only via
+        # native-tls behind paddleboard_rag's `pgvector` feature.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang libssl-dev pkg-config
+
+      - name: Set up Rust
+        # rust-toolchain.toml pins the channel, so this resolves to it.
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: compile-check-linux
+
+      - name: cargo check --workspace --all-targets
+        env:
+          CC: clang
+          CXX: clang++
+        run: cargo check --workspace --all-targets --locked
+
+  macos:
+    # Narrow by design. A Linux-only gate cannot see macOS-gated code — the
+    # `mach2` bump in #67 is exactly that shape, and would have sailed through.
+    # A full macOS workspace check bills at the 10x runner multiplier, so this
+    # checks only the workspace members that declare macOS-gated dependencies.
+    # Their dependency trees pull in a large share of the workspace anyway.
+    #
+    # If a new crate gains a `cfg(target_os = "macos")` dependency, add it here.
+    # Find them with:
+    #   grep -rln 'cfg(target_os = "macos")' crates/*/Cargo.toml
+    name: macOS (platform crates)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: compile-check-macos
+
+      - name: cargo check (macOS-gated crates)
+        run: |
+          cargo check --all-targets --locked \
+            -p cli \
+            -p client \
+            -p crashes \
+            -p fs \
+            -p gpui \
+            -p gpui_macos \
+            -p gpui_platform \
+            -p media \
+            -p sandbox \
+            -p time_format \
+            -p util
