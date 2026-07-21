@@ -1,0 +1,32 @@
+# PaddleBoard: this file replaces Dependabot's auto-discovery. Every ecosystem
+# and path we want covered must be listed here — if a new manifest appears in
+# the repo and isn't added below, Dependabot will silently stop tracking it.
+#
+# Why it exists: `samples/demo` pins its Python dependencies deliberately so the
+# presenter script stays reproducible. Auto-discovery kept opening bump PRs
+# against those pins. Everything below mirrors what auto-discovery already
+# covered, minus that directory.
+version: 2
+
+updates:
+  # The Rust workspace.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directories:
+      - "/PERSONAMD"
+      - "/crates/json_schema_store/src/schemas"
+      - "/script/danger"
+    schedule:
+      interval: weekly
+
+  # Upstream Zed's Python tooling. Note `/samples/demo` is deliberately absent.
+  - package-ecosystem: pip
+    directories:
+      - "/crates/eval_cli/zed_eval"
+      - "/script/update_top_ranking_issues"
+    schedule:
+      interval: weekly
