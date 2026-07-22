@@ -118,7 +118,17 @@ The job can be triggered on demand via the **Actions** tab → *Merge upstream Z
 
 ## Inherited Zed workflows
 
-`.github/workflows/` currently contains exactly one file: `merge_upstream_zed.yml` — PaddleBoard's own weekly upstream merge. Everything else has been pruned.
+`.github/workflows/` contains **only PaddleBoard-authored workflows — nothing inherited from Zed remains**. That invariant is the durable claim; the current set (as of 2026-07) is:
+
+| workflow | purpose |
+| --- | --- |
+| `merge_upstream_zed.yml` | weekly upstream merge (+ dropped-file and zombie reports in the PR body) |
+| `compile-check.yml` | compile gate: Linux full workspace + macOS platform-crate list |
+| `public-embeds.yml` | per-PR hygiene: embeds, zed-isms, llama pins, zombie files |
+| `upstream-drift.yml` | drift report, sticky PR comment + weekly |
+| `release.yml` | tag-triggered signed/notarized DMG + Linux tarball |
+| `watch-llama-cpp-advisories.yml` | llama.cpp security watcher |
+| `watch-scion-releases.yml` | Scion release watcher |
 
 The original ~40 inherited workflows were Zed-org-specific (collab deploys, community labelers, signing/notarization for Zed's release pipeline, Slack-bound stale-PR reminders, Factory.ai docs-suggestion bots, etc.) and either failed silently or did nothing useful in this fork. The cleanup happened in three passes: PR #13 (initial sweep of org-only assign-reviewers), PR #14 (Zed-org-specific workflows), PR #15 (`run_tests.yml`), PR #16 (the final batch of seven).
 
