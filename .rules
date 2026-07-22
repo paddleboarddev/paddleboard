@@ -134,6 +134,8 @@ Other entities can then register a callback to handle these events by doing `cx.
 ## Build guidelines
 
 - Use `./script/clippy` instead of `cargo clippy`
+- CI's compile gate (`compile-check.yml`) checks the full workspace on Linux, but its **macOS job covers a hand-maintained crate list, not the workspace**. If you add a `cfg(target_os = "macos")` dependency to a crate, add that crate to the macOS job or it will never be compile-checked. Find candidates with `grep -rln 'cfg(target_os = "macos")' crates/*/Cargo.toml`.
+- `cargo tree`'s default view has blind spots that make live dependencies look dead: `-e normal` hides **build-dep edges** (`prost-types` looked unused; it's `proto` → `prost-build` → `prost-types`), and the default host target hides **other-target deps** (`rand 0.7` looked absent; only `--target all` shows it). An empty inverse tree is not proof a dependency is unused — check the lockfile's dependent entries before concluding.
 
 # Fork hygiene
 
@@ -145,6 +147,13 @@ PaddleBoard is a fork of [zed-industries/zed](https://github.com/zed-industries/
 - **Don't enable behavior we deliberately disabled.** Telemetry (`Telemetry::report_event`), Zed Pro upsells in `agent_panel.rs`, and the default `TelemetrySettingsContent` are intentionally inert. If an upstream merge re-enables them, resolve in favor of the PaddleBoard version.
 - **Asset drift is silent.** `assets/settings/default.json`, `assets/keymaps/`, icons, license files don't fail compile when they diverge — they just break behavior in production. Diff `assets/` after every merge.
 - **Weekly upstream merges land via `.github/workflows/merge_upstream_zed.yml`.** Don't skip a clean one if it's sitting there — merge cost is roughly quadratic in time-since-last-merge.
+- **A "missing" upstream file may be a deliberate non-port — check for the tag before restoring it.** Intentional omissions are recorded as `// PaddleBoard:` comments at the replacement site (e.g. `crates/paddleboard/src/reliability.rs` for upstream's `hang_detection`), not in any manifest. Grep for the tag before treating a flagged file as merge-lost; an accidental drop and a deliberate resolution look identical from the guard's side.
+- **Renaming or deleting an upstream directory needs a guard entry, or coverage silently lapses.** Renamed dir → `RENAME_MAP` in `script/check-dropped-upstream-files` (upstream additions are otherwise silently LOST). Deleted dir → `DELETED_DIRS` in `script/check-zombie-upstream-files` (upstream additions otherwise silently RESURRECT). The two lists partition every upstream dir this fork lacks; a dir on neither list is unwatched.
+
+# Dependency updates
+
+- **Sort every version bump by where it must be written, before judging the version delta.** A **lockfile-only** bump (the manifest's range already permits the new version — check the root `Cargo.toml` pin first) costs nothing to merge and should be taken; most "outdated dependency" reports are stale lockfiles, not blocked constraints, and `cargo update -p <crate>` is the whole fix. A bump that requires **editing an upstream-shaped manifest** creates divergence that conflicts on every weekly merge until upstream catches up — leave those to upstream unless there's a security reason. (Validated across the 2026-07-21 triage: 5 of 5 bumps taken were stale lockfiles; all upstream-manifest bumps were closed.)
+- CI's compile gate runs `cargo check`, so a bump that breaks only clippy lints or runtime behavior still passes — for bumps touching widely-used crates, name the consumer crates in the PR and check them deliberately.
 
 # Pull request hygiene
 
