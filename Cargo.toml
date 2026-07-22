@@ -732,7 +732,6 @@ libloading = "0.8"
 libsqlite3-sys = { version = "0.30.1", features = ["bundled"] }
 linkify = "0.10.0"
 libwebrtc = "0.3.26"
-livekit = { version = "0.7.32", features = ["tokio", "rustls-tls-native-roots"] }
 log = { version = "0.4.16", features = ["kv_unstable_serde", "serde"] }
 lru = "0.16"
 lsp-types = { git = "https://github.com/zed-industries/lsp-types", rev = "f4dfa89a21ca35cd929b70354b1583fabae325f8" }
@@ -819,7 +818,6 @@ proptest-derive = "0.8.0"
 proxyvars = "0.2"
 prost = "0.9"
 prost-build = "0.9"
-prost-types = "0.9"
 pollster = "0.4.0"
 pulldown-cmark = { version = "0.13.0", default-features = false }
 quick-xml = "0.38"
@@ -1044,7 +1042,10 @@ async-process = { git = "https://github.com/zed-industries/async-process.git", r
 async-task = { git = "https://github.com/smol-rs/async-task.git", rev = "b4486cd71e4e94fbda54ce6302444de14f4d190e" }
 windows-capture = { git = "https://github.com/zed-industries/windows-capture.git", rev = "f0d6c1b6691db75461b732f6d5ff56eed002eeb9" }
 calloop = { git = "https://github.com/zed-industries/calloop" }
-livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev = "d0e27be0cdad89eadab3e36207cda0a2b6e359ee" }
+# PaddleBoard: no `livekit` patch entry — the call/collab/livekit crates are
+# deleted from this fork, so the livekit crate itself left the graph (its patch
+# only produced a "was not used" warning on every cargo update). libwebrtc and
+# webrtc-sys below are still LOAD-BEARING: crates/audio depends on libwebrtc.
 libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev = "d0e27be0cdad89eadab3e36207cda0a2b6e359ee" }
 notify = { git = "https://github.com/zed-industries/notify", rev = "faecbc33db4f59313e5225ef766bfd9e54a54cfd" }
 notify-types = { git = "https://github.com/zed-industries/notify", rev = "faecbc33db4f59313e5225ef766bfd9e54a54cfd" }
