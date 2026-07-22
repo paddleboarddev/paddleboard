@@ -142,6 +142,20 @@ jobs:
           set -e
           cat dropped_files.txt
 
+      - name: Check for zombie files in deleted upstream dirs
+        if: steps.meta.outputs.should_run == 'true'
+        id: zombies
+        run: |
+          # Inverse of the dropped-files check above: upstream files ADDED
+          # inside directories the fork deleted merge in cleanly and resurrect.
+          # Non-fatal here for the same reason — surface loudly in the PR body,
+          # let the human run --fix on the merge branch.
+          set +e
+          bash script/check-zombie-upstream-files > zombie_files.txt 2>&1
+          echo "status=$?" >> "${GITHUB_OUTPUT}"
+          set -e
+          cat zombie_files.txt
+
       - name: Build PR body
         if: steps.meta.outputs.should_run == 'true'
         id: body
@@ -152,6 +166,7 @@ jobs:
           BASE_SHA: ${{ steps.meta.outputs.base_sha }}
           CONFLICTS: ${{ steps.merge.outputs.conflicts }}
           DROPPED_STATUS: ${{ steps.dropped.outputs.status }}
+          ZOMBIE_STATUS: ${{ steps.zombies.outputs.status }}
         run: |
           {
             echo "## Weekly upstream merge"
@@ -185,6 +200,16 @@ jobs:
               echo ""
               echo '```'
               cat dropped_files.txt
+              echo '```'
+              echo ""
+            fi
+            if [ "${ZOMBIE_STATUS}" != "0" ]; then
+              echo "### ⚠️ Zombie files resurrected in deleted directories"
+              echo ""
+              echo "This merge re-added upstream files inside directories the fork deleted. They never compile, so nothing else flags them. Fix on the merge branch with \`./script/check-zombie-upstream-files --fix\`."
+              echo ""
+              echo '```'
+              cat zombie_files.txt
               echo '```'
               echo ""
             fi
