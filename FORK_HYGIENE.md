@@ -81,6 +81,25 @@ The weekly merge workflow runs this automatically and surfaces any hits in the P
 
 **If you rename another upstream directory, add it to `RENAME_MAP` in the script.** Additions inside an unmapped directory are invisible to the check — which is the same blind spot the script exists to close.
 
+## Watch for zombie files in deleted crates
+
+The same git behavior runs in the other direction. PaddleBoard **deleted** five upstream directories outright:
+
+`crates/call` · `crates/collab` · `crates/collab_ui` · `crates/livekit_api` · `crates/livekit_client`
+
+When upstream *modifies* a file we deleted, the merge raises a modify/delete conflict and a human sees it. When upstream *adds a new file* there, nothing opposes the add — it merges cleanly and the file **resurrects** in a directory we killed. It never compiles (the crate isn't a workspace member), so nothing goes red. By July 2026, 30 such files had quietly accumulated; they were removed in #89.
+
+`script/check-zombie-upstream-files` guards this:
+
+```bash
+./script/check-zombie-upstream-files          # exit 1 if zombies exist
+./script/check-zombie-upstream-files --fix    # git rm them (staged; you commit)
+```
+
+It's just `git ls-files` over the deleted directories — no upstream fetch — so it runs on **every PR** via `public-embeds.yml`, which also covers hand-resolved merges. The weekly merge workflow additionally surfaces zombies in the PR body.
+
+Two maintenance rules: if the fork deletes another upstream directory, add it to `DELETED_DIRS` in the script. And if you ever want to *adopt* a file upstream added in one of these directories, that's a decision to un-delete the directory — remove it from `DELETED_DIRS` and restore it properly; there's deliberately no per-file allowlist.
+
 ## Merge cadence
 
 A scheduled workflow (`.github/workflows/merge_upstream_zed.yml`) runs every Monday at 16:00 UTC. It:

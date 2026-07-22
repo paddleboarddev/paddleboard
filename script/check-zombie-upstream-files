@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+#
+# script/check-zombie-upstream-files
+#
+# Catches upstream files that RESURRECT inside directories PaddleBoard
+# deliberately deleted.
+#
+# The inverse of script/check-dropped-upstream-files. That guard covers
+# directories the fork RENAMED, where upstream additions are silently
+# lost. This one covers directories the fork DELETED (call/collab/
+# livekit), where upstream additions silently come back: when upstream
+# MODIFIES a file we deleted, git raises a modify/delete conflict and a
+# human sees it — but when upstream ADDS a new file there, nothing
+# opposes the add, it merges cleanly, and the file materializes in a
+# directory we killed. It never compiles (the crate is not a workspace
+# member), so nothing goes red.
+#
+# By 2026-07-21, 30 such files had accumulated across five directories —
+# room.rs, a 2025-12 migration, channel_modal.rs — each quietly re-added
+# by a weekly merge after the original deletion. Removed in #89; this
+# script keeps them from coming back.
+#
+# The check is deliberately trivial: `git ls-files` over the deleted
+# directories. Any tracked file there is a zombie. It needs no upstream
+# remote and no fetch, so unlike the dropped-files guard it is cheap
+# enough to run on EVERY PR — which also covers hand-resolved merges
+# that skip the weekly merge workflow.
+#
+# If the fork ever deliberately ADOPTS a file inside one of these
+# directories, that's a decision to un-delete the directory: remove it
+# from DELETED_DIRS and make it a real workspace path again. There is no
+# per-file allowlist on purpose — a "kept file in a deleted crate" is a
+# confusing in-between state this fork doesn't want.
+#
+#   ./script/check-zombie-upstream-files          # exit 1 if zombies exist
+#   ./script/check-zombie-upstream-files --fix    # git rm them, then re-check
+
+set -euo pipefail
+
+# Directories PaddleBoard deliberately deleted that upstream still has.
+# Keep in sync with the deletions recorded in Cargo.toml's members
+# comment ("call/collab/livekit crates are deleted from the workspace").
+# If the fork deletes another upstream directory, add it here — otherwise
+# upstream additions inside it will re-accumulate unseen.
+DELETED_DIRS=(
+    "crates/call"
+    "crates/collab"
+    "crates/collab_ui"
+    "crates/livekit_api"
+    "crates/livekit_client"
+)
+
+DO_FIX=0
+for arg in "$@"; do
+    case "$arg" in
+        --fix) DO_FIX=1 ;;
+        -h|--help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "unknown argument: $arg" >&2
+            exit 2
+            ;;
+    esac
+done
+
+zombies="$(git ls-files -- "${DELETED_DIRS[@]}")"
+
+if [ -z "$zombies" ]; then
+    echo "No zombie upstream files (${#DELETED_DIRS[@]} deleted directories clean)."
+    exit 0
+fi
+
+count=$(printf '%s\n' "$zombies" | wc -l | tr -d ' ')
+
+if [ "$DO_FIX" = 1 ]; then
+    # -f: a zombie is removable by definition, even if staged or locally
+    # modified — the guard's whole claim is that the file must not exist.
+    printf '%s\n' "$zombies" | while IFS= read -r f; do
+        git rm -f --quiet -- "$f"
+    done
+    echo "Removed $count zombie file(s) (staged; commit the deletions):"
+    printf '%s\n' "$zombies" | sed 's/^/  /'
+    exit 0
+fi
+
+echo "Zombie upstream files: $count"
+echo
+echo "These files are tracked inside directories PaddleBoard deliberately"
+echo "deleted. A weekly merge re-added them: upstream created them AFTER the"
+echo "deletion, so git had nothing to conflict with and the add applied"
+echo "cleanly. They never compile, so nothing else will flag them."
+echo
+printf '%s\n' "$zombies" | sed 's/^/  /'
+echo
+echo "Remove them with: ./script/check-zombie-upstream-files --fix"
+echo "Or, to deliberately adopt one, un-delete its directory: remove it from"
+echo "DELETED_DIRS in this script and restore it as a real workspace path."
+exit 1
