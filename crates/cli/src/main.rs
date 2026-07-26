@@ -134,6 +134,9 @@ struct Args {
     /// configuration is found in the project directory.
     #[arg(long)]
     dev_container: bool,
+    /// Open in Placid mode: hide the docks and center the editor
+    #[arg(long, visible_alias = "simple")]
+    placid: bool,
     /// Pairs of file paths to diff. Can be specified multiple times.
     /// When directories are provided, recurses into them and shows all changed files in a single multi-diff view.
     #[arg(long, action = clap::ArgAction::Append, num_args = 2, value_names = ["OLD_PATH", "NEW_PATH"], value_hint = clap::ValueHint::AnyPath)]
@@ -728,6 +731,7 @@ fn run() -> Result<()> {
                     env,
                     user_data_dir: user_data_dir_for_thread,
                     dev_container: args.dev_container,
+                    placid: args.placid,
                     cwd: env::current_dir().ok(),
                 };
 

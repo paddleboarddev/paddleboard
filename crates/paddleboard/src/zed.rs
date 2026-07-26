@@ -624,6 +624,15 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             }
         });
 
+        // PaddleBoard: Placid mode toggle, shared by the status bar button, the
+        // command palette, and the `--placid` CLI flag.
+        workspace.register_action(
+            |_workspace, _: &paddleboard_actions::placid::TogglePlacidMode, window, cx| {
+                let handle = cx.entity();
+                paddleboard_placid::toggle(&handle, window, cx);
+            },
+        );
+
         let cursor_position =
             cx.new(|_| go_to_line::cursor_position::CursorPosition::new(workspace));
         // PaddleBoard: surface sandbox prerequisites (Podman + gVisor) in the status bar.
@@ -638,6 +647,11 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         // PaddleBoard: Set Sail one-click deploy entry point.
         let set_sail_status_item =
             cx.new(|cx| paddleboard_set_sail::SetSailStatusItem::new(workspace, cx));
+        // PaddleBoard: Placid mode toggle. Lives in the status bar specifically
+        // because Placid leaves the status bar visible — so this stays reachable
+        // as the way back out.
+        let placid_status_item =
+            cx.new(|cx| paddleboard_placid::PlacidStatusItem::new(workspace, cx));
         let line_ending_indicator =
             cx.new(|_| line_ending_selector::LineEndingIndicator::default());
         let git_blame_status = cx.new(|_| git_ui::GitBlameStatus::default());
@@ -667,6 +681,8 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             status_bar.add_right_item(usage_status_item, window, cx);
             // PaddleBoard: Set Sail deploy button.
             status_bar.add_right_item(set_sail_status_item, window, cx);
+            // PaddleBoard: Placid mode toggle.
+            status_bar.add_right_item(placid_status_item, window, cx);
         });
 
         let panels_task = initialize_panels(window, cx);

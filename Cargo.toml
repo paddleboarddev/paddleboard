@@ -252,6 +252,7 @@ members = [
     "crates/paddleboard_ai_dock",
     "crates/paddleboard_languages_ui",
     "crates/paddleboard_vertex",
+    "crates/paddleboard_placid",
     "crates/paddleboard_personas",
     "crates/paddleboard_personas_settings",
     "crates/paddleboard_scion",
@@ -541,6 +542,7 @@ paddleboard_agent_frameworks = { path = "crates/paddleboard_agent_frameworks" }
 paddleboard_ai_dock = { path = "crates/paddleboard_ai_dock" }
 paddleboard_languages_ui = { path = "crates/paddleboard_languages_ui" }
 paddleboard_vertex = { path = "crates/paddleboard_vertex" }
+paddleboard_placid = { path = "crates/paddleboard_placid" }
 paddleboard_personas = { path = "crates/paddleboard_personas" }
 paddleboard_personas_settings = { path = "crates/paddleboard_personas_settings" }
 paddleboard_scion = { path = "crates/paddleboard_scion" }

@@ -37,6 +37,8 @@ pub struct OpenRequest {
     pub diff_paths: Vec<[String; 2]>,
     pub diff_all: bool,
     pub dev_container: bool,
+    // PaddleBoard: open the resulting window in Placid mode (--placid).
+    pub placid: bool,
     pub remote_connection: Option<RemoteConnectionOptions>,
     pub open_behavior: Option<cli::OpenBehavior>,
 }
@@ -131,6 +133,7 @@ impl OpenRequest {
         this.diff_paths = request.diff_paths;
         this.diff_all = request.diff_all;
         this.dev_container = request.dev_container;
+        this.placid = request.placid;
         this.open_behavior = request.open_behavior;
         if let Some(wsl) = request.wsl {
             let (user, distro_name) = if let Some((user, distro)) = wsl.split_once('@') {
@@ -370,6 +373,8 @@ pub struct RawOpenRequest {
     pub diff_paths: Vec<[String; 2]>,
     pub diff_all: bool,
     pub dev_container: bool,
+    // PaddleBoard: see OpenRequest::placid.
+    pub placid: bool,
     pub wsl: Option<String>,
     pub open_behavior: Option<cli::OpenBehavior>,
 }
@@ -578,6 +583,7 @@ pub async fn handle_cli_connection(
                 env,
                 user_data_dir: _,
                 dev_container,
+                placid,
                 cwd,
             } => {
                 if !urls.is_empty() {
@@ -588,6 +594,7 @@ pub async fn handle_cli_connection(
                                 diff_paths,
                                 diff_all,
                                 dev_container,
+                                placid,
                                 wsl,
                                 open_behavior: Some(open_behavior),
                             },
@@ -2417,6 +2424,7 @@ mod tests {
             env: None,
             user_data_dir: None,
             dev_container: false,
+            placid: false,
             cwd: None,
         }
     }
@@ -2436,6 +2444,7 @@ mod tests {
             env: None,
             user_data_dir: None,
             dev_container: false,
+            placid: false,
             cwd: None,
         }
     }

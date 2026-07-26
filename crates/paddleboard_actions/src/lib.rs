@@ -1013,6 +1013,19 @@ pub mod set_sail {
     );
 }
 
+pub mod placid {
+    use gpui::actions;
+
+    actions!(
+        placid,
+        [
+            /// Toggles Placid mode: hides the docks and centers the editor for
+            /// distraction-free editing, restoring the previous layout on exit.
+            TogglePlacidMode,
+        ]
+    );
+}
+
 pub mod scion {
     use gpui::actions;
 
