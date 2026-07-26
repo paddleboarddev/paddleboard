@@ -952,6 +952,7 @@ fn main() {
                 wsl,
                 diff_all: diff_all_mode,
                 dev_container: args.dev_container,
+                placid: args.placid,
                 ..Default::default()
             })
         }
@@ -1783,6 +1784,12 @@ struct Args {
     #[cfg(target_os = "windows")]
     #[arg(long, value_name = "USER@DISTRO")]
     wsl: Option<String>,
+
+    /// PaddleBoard: open the window in Placid mode (docks hidden, editor
+    /// centered). Mirrors the CLI's `--placid`, so the flag also works when the
+    /// binary is invoked directly or via `open -na ... --args`.
+    #[arg(long, visible_alias = "simple")]
+    placid: bool,
 
     /// Open the project in a dev container.
     ///
