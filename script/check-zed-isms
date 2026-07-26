@@ -66,6 +66,13 @@ mapfile -t hits < <(
     grep -rnE '(--package|-p) zed([^-_a-zA-Z0-9]|$)|get-crate-version zed([^-_a-zA-Z0-9]|$)' script/ .github/ 2>/dev/null \
       | grep -v 'sentry-cli' || true
     grep -rnE '\bZED_[A-Z_]+' script/ 2>/dev/null || true
+    # App-bundle binary paths. PB's binary is `paddleboard`, so a literal
+    # "Contents/MacOS/zed" resolves to a file that does not exist — and because
+    # it's a runtime path join, nothing fails to compile. This shipped broken:
+    # `paddleboard --foreground` was dead on macOS in every release until
+    # 2026-07-26 (crates/cli/src/main.rs). String literals were the gap in this
+    # gate's original patterns, which only covered crates/zed/ and -p zed.
+    grep -rnE 'MacOS/zed([^-_a-zA-Z0-9]|$)' script/ .github/ crates/ assets/ 2>/dev/null || true
   } | sort -u
 )
 

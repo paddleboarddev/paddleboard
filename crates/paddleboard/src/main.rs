@@ -387,7 +387,8 @@ fn main() {
         }
     };
     if failed_single_instance_check {
-        println!("zed is already running");
+        // PaddleBoard: user-facing message — must not say "zed".
+        println!("paddleboard is already running");
         return;
     }
 
