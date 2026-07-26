@@ -1430,7 +1430,11 @@ mod mac_os {
             user_data_dir: Option<&str>,
         ) -> io::Result<ExitStatus> {
             let path = match self {
-                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/zed"),
+                // PaddleBoard: the bundled binary is `paddleboard`, not `zed`.
+                // Upstream's literal resolves to a nonexistent file here, and
+                // because it's a runtime path join nothing fails to compile —
+                // `--foreground` just died with ENOENT. Keep the fork's name.
+                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/paddleboard"),
                 Bundle::LocalPath { executable, .. } => executable.clone(),
             };
 
@@ -1444,7 +1448,8 @@ mod mac_os {
 
         fn path(&self) -> PathBuf {
             match self {
-                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/zed"),
+                // PaddleBoard: same rename as in `run_foreground` above.
+                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/paddleboard"),
                 Bundle::LocalPath { executable, .. } => executable.clone(),
             }
         }
