@@ -23,6 +23,7 @@ pub struct PaddleboardUiSettings {
     pub mcp_status: bool,
     pub usage_status: bool,
     pub set_sail_status: bool,
+    pub placid_status: bool,
 }
 
 impl Default for PaddleboardUiSettings {
@@ -36,6 +37,7 @@ impl Default for PaddleboardUiSettings {
             mcp_status: true,
             usage_status: true,
             set_sail_status: true,
+            placid_status: true,
         }
     }
 }
@@ -67,6 +69,7 @@ impl Settings for PaddleboardUiSettings {
             mcp_status: content.mcp_status.unwrap_or(defaults.mcp_status),
             usage_status: content.usage_status.unwrap_or(defaults.usage_status),
             set_sail_status: content.set_sail_status.unwrap_or(defaults.set_sail_status),
+            placid_status: content.placid_status.unwrap_or(defaults.placid_status),
         }
     }
 }

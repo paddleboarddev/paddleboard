@@ -12870,6 +12870,7 @@ dependencies = [
  "paddleboard_otel",
  "paddleboard_otel_settings",
  "paddleboard_personas_settings",
+ "paddleboard_placid",
  "paddleboard_rag",
  "paddleboard_rag_settings",
  "paddleboard_sandbox_prereqs",
@@ -13176,6 +13177,18 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "settings",
+]
+
+[[package]]
+name = "paddleboard_placid"
+version = "0.1.0"
+dependencies = [
+ "collections",
+ "gpui",
+ "paddleboard_actions",
+ "paddleboard_ui",
+ "ui",
+ "workspace",
 ]
 
 [[package]]

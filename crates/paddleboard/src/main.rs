@@ -775,6 +775,8 @@ fn main() {
         llm_picker::init(cx);
         paddleboard_manifest::init(cx);
         paddleboard_ui::init(cx);
+        // PaddleBoard: Placid mode per-window state (see paddleboard_placid).
+        paddleboard_placid::init(cx);
         ui_prompt::init(cx);
 
         go_to_line::init(cx);
@@ -950,6 +952,7 @@ fn main() {
                 wsl,
                 diff_all: diff_all_mode,
                 dev_container: args.dev_container,
+                placid: args.placid,
                 ..Default::default()
             })
         }
@@ -1352,6 +1355,10 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
 
     let mut task = None;
     let dev_container = request.dev_container;
+    // PaddleBoard: `--placid` opens the window with the docks hidden and the
+    // editor centered. Applied AFTER the window exists rather than through
+    // OpenOptions, because Placid is per-window state, not an open-time option.
+    let placid = request.placid;
     if !request.open_paths.is_empty() || !request.diff_paths.is_empty() {
         let app_state = app_state.clone();
         let base_open_options = zed::open_options_for_request(
@@ -1362,7 +1369,7 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
         task = Some(cx.spawn(async move |cx| {
             let paths_with_position =
                 derive_paths_with_position(app_state.fs.as_ref(), request.open_paths).await;
-            let (_window, results) = open_paths_with_positions(
+            let (window_handle, results) = open_paths_with_positions(
                 &paths_with_position,
                 &request.diff_paths,
                 request.diff_all,
@@ -1374,6 +1381,14 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut 
                 cx,
             )
             .await?;
+            if placid {
+                window_handle
+                    .update(cx, |multi_workspace, window, cx| {
+                        let workspace = multi_workspace.workspace().clone();
+                        paddleboard_placid::set_placid(&workspace, true, window, cx);
+                    })
+                    .ok();
+            }
             for result in results.into_iter().flatten() {
                 if let Err(err) = result {
                     log::error!("Error opening path: {err:#}");
@@ -1769,6 +1784,12 @@ struct Args {
     #[cfg(target_os = "windows")]
     #[arg(long, value_name = "USER@DISTRO")]
     wsl: Option<String>,
+
+    /// PaddleBoard: open the window in Placid mode (docks hidden, editor
+    /// centered). Mirrors the CLI's `--placid`, so the flag also works when the
+    /// binary is invoked directly or via `open -na ... --args`.
+    #[arg(long, visible_alias = "simple")]
+    placid: bool,
 
     /// Open the project in a dev container.
     ///
