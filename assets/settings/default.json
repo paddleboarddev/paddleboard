@@ -1,7 +1,7 @@
 {
   // PaddleBoard: comments rebranded from Zed; setting values, globs, and
   // the training-data notice are untouched.
-  "$schema": "zed://schemas/settings",
+  "$schema": "paddleboard://schemas/settings",
   // The name of the PaddleBoard theme to use for the UI.
   //
   // `mode` is one of:

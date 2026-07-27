@@ -1937,7 +1937,12 @@ impl ProtoClient for Client {
 }
 
 /// prefix for the paddleboard:// url scheme
-pub const PADDLEBOARD_URL_SCHEME: &str = "zed";
+// PaddleBoard: this was still "zed", despite the constant's name. It feeds
+// `register_url_scheme`, so installing the CLI registered PaddleBoard as a
+// handler for `zed://` — claiming Zed's scheme rather than its own — and
+// `parse_zed_link` only recognised `zed://` links. The app's Info.plist has
+// always declared `paddleboard`, so this was the odd one out.
+pub const PADDLEBOARD_URL_SCHEME: &str = "paddleboard";
 
 /// A parsed Zed link that can be handled internally by the application.
 #[derive(Debug, Clone, PartialEq, Eq)]
