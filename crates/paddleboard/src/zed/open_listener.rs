@@ -1503,7 +1503,15 @@ mod tests {
         let result = cx.update(|cx| {
             OpenRequest::parse(
                 RawOpenRequest {
-                    urls: vec!["zed://skill?data=!!!notbase64".into()],
+                    // Built from the const rather than hardcoded: this test
+                    // previously used a literal "zed://…", which no longer matched
+                    // the parser, so it passed for the wrong reason — the malformed
+                    // base64 was never reached. Tracking the const keeps it honest
+                    // whichever scheme the share links use.
+                    urls: vec![format!(
+                        "{}?data=!!!notbase64",
+                        agent_skills::SKILL_SHARE_LINK_PREFIX
+                    )],
                     ..Default::default()
                 },
                 cx,
@@ -1557,7 +1565,7 @@ mod tests {
         let request = cx.update(|cx| {
             OpenRequest::parse(
                 RawOpenRequest {
-                    urls: vec!["zed://agent/?prompt=hello".into()],
+                    urls: vec!["paddleboard://agent/?prompt=hello".into()],
                     ..Default::default()
                 },
                 cx,
@@ -1584,7 +1592,7 @@ mod tests {
     fn test_parse_focus_app_url(cx: &mut TestAppContext) {
         let _app_state = init_test(cx);
 
-        for url in ["zed://", "zed://open", "zed://open/"] {
+        for url in ["paddleboard://", "paddleboard://open", "paddleboard://open/"] {
             let request = cx.update(|cx| {
                 OpenRequest::parse(
                     RawOpenRequest {
