@@ -58,7 +58,7 @@ pub enum OpenRequestKind {
         external_source_prompt: Option<ExternalSourcePrompt>,
     },
     InstallSkill {
-        /// Full `SKILL.md` contents embedded in a `zed://skill` share link.
+        /// Full `SKILL.md` contents embedded in a `paddleboard://skill` share link.
         content: String,
     },
     DockMenuAction {
@@ -221,7 +221,7 @@ impl OpenRequest {
     }
 
     fn parse_skill_install_url(&mut self, url: &str) -> Result<()> {
-        // Format: zed://skill?data=<base64url of SKILL.md contents>
+        // Format: paddleboard://skill?data=<base64url of SKILL.md contents>
         let content = agent_skills::decode_skill_share_link(url)?;
         self.kind = Some(OpenRequestKind::InstallSkill { content });
         Ok(())
