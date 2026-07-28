@@ -5414,6 +5414,28 @@ mod tests {
         });
     }
 
+    // PaddleBoard: `DEFAULT_KEYMAP_PATH` is cfg-selected, so every other test
+    // here only ever loads the HOST platform's keymap — nothing checks the other
+    // two. That blind spot shipped a real bug: removing the collab crates left
+    // dangling `collab_panel::` and `channel_modal::` bindings in the Linux and
+    // Windows keymaps, and since `load_asset` fails wholesale on a single
+    // unknown action, both platforms silently lost their ENTIRE default keymap.
+    #[gpui::test]
+    async fn test_all_bundled_keymaps_load(cx: &mut gpui::TestAppContext) {
+        init_keymap_test(cx);
+        cx.update(|cx| {
+            for path in [
+                "keymaps/default-macos.json",
+                "keymaps/default-linux.json",
+                "keymaps/default-windows.json",
+            ] {
+                if let Err(error) = KeymapFile::load_asset(path, None, cx) {
+                    panic!("bundled keymap {path} failed to load: {error}");
+                }
+            }
+        });
+    }
+
     /// Checks that action namespaces are the expected set. The purpose of this is to prevent typos
     /// and let you know when introducing a new namespace.
     #[gpui::test]

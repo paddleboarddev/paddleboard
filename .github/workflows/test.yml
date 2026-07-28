@@ -113,4 +113,7 @@ jobs:
             | sed 's/^/-p /' | tr '\n' ' ')
           echo "Selected: $PACKAGES"
           test -n "$PACKAGES" || { echo "No paddleboard packages matched"; exit 1; }
-          cargo nextest run --locked $PACKAGES
+          # --no-fail-fast: nextest stops at the first failure by default, which
+          # reported "47/249 tests run" and hid whatever else was broken. A gate
+          # should report the whole picture in one run, not one failure per push.
+          cargo nextest run --locked --no-fail-fast $PACKAGES
