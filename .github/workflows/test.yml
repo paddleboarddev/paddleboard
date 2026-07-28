@@ -25,6 +25,12 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   RUST_BACKTRACE: "1"
+  # Debug info is the bulk of a debug-profile target dir, and this workspace is
+  # large enough that keeping it fills an ubuntu-latest runner's disk outright
+  # (the first run of this job died with "No space left on device" — with no logs,
+  # because the runner could not write those either). The test profile inherits
+  # from dev. Backtraces keep function names, they just lose line numbers.
+  CARGO_PROFILE_DEV_DEBUG: "0"
 
 jobs:
   linux:
@@ -40,6 +46,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Free disk space
+        # ubuntu-latest ships ~25-30 GB of preinstalled toolchains this build
+        # never touches. Unlike compile-check.yml, this job links real test
+        # binaries for the whole dependency graph, and without this it runs the
+        # runner out of disk. Plain rm rather than a third-party action to keep
+        # the trusted-action surface small.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost /usr/local/share/powershell /usr/share/swift
+          df -h /
 
       - name: Install Linux build dependencies
         run: ./script/linux
