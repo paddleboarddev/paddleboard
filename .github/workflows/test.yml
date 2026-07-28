@@ -42,7 +42,10 @@ jobs:
     # regression ever escapes.
     name: Linux (PaddleBoard crates)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 90, not 45: a private-repo standard runner is 2 cores, and the first run
+    # after a cache miss has to codegen and link the app's whole dependency
+    # graph. Warm runs should be a small fraction of this.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -81,18 +84,33 @@ jobs:
           # Distinct from compile-check's key on purpose: `cargo check` emits
           # .rmeta only, so its cache cannot serve a test build's codegen.
           key: test-linux
+          # Without this a failed run saves nothing, so the next run starts cold
+          # and is equally likely to time out — the job could never warm up. The
+          # first two runs of this job died that way.
+          cache-on-failure: true
 
       - name: cargo nextest run (paddleboard crates)
         env:
           CC: clang
           CXX: clang++
-        # `--workspace` is REQUIRED, not decorative. The root manifest sets
-        # `default-members = ["crates/paddleboard"]`, so without it the package
-        # filter silently resolves to 1 crate of 30 — a green check covering
-        # almost nothing.
+        # Select packages with -p, NOT with `--workspace -E 'package(...)'`.
+        # That form looks equivalent and is not: `-E` filters which tests RUN,
+        # while `--workspace` still BUILDS all 268 crates first. The third run of
+        # this job hit the 45-minute timeout still compiling xtask,
+        # docs_preprocessor, project_benchmarks and the tree-sitter extensions —
+        # none of which any paddleboard crate depends on.
         #
-        # The `package(/^paddleboard/)` regex is deliberately used instead of an
-        # explicit -p list: a hand-maintained list means a new paddleboard_*
-        # crate is untested until someone remembers to add it, which is exactly
-        # the failure mode compile-check.yml's macOS crate list already carries.
-        run: cargo nextest run --workspace --locked -E 'package(/^paddleboard/)'
+        # The list is derived from cargo metadata rather than hardcoded, so a new
+        # paddleboard_* crate is picked up automatically. A hand-maintained list
+        # is the rot compile-check.yml's macOS crate list already carries.
+        #
+        # `default-members = ["crates/paddleboard"]` in the root manifest is why
+        # package selection has to be explicit at all: a bare `cargo nextest run`
+        # here tests one crate of 30 and exits green.
+        run: |
+          PACKAGES=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[].name | select(startswith("paddleboard"))' \
+            | sed 's/^/-p /' | tr '\n' ' ')
+          echo "Selected: $PACKAGES"
+          test -n "$PACKAGES" || { echo "No paddleboard packages matched"; exit 1; }
+          cargo nextest run --locked $PACKAGES
