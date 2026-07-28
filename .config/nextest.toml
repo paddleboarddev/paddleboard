@@ -14,9 +14,10 @@ test-group = 'sequential-db-tests'
 filter = 'package(worktree) and test(test_random_worktree_changes)'
 priority = 100
 
-[[profile.default.overrides]]
-filter = 'package(collab) and (test(random_project_collaboration_tests) or test(random_channel_buffer_tests) or test(test_contact_requests) or test(test_basic_following))'
-priority = 99
+# PaddleBoard: upstream's `package(collab)` override is dropped — this fork
+# deleted the collab crate, and nextest treats a filter matching no package as a
+# hard config error, so the stale override made `cargo nextest` refuse to start
+# repo-wide rather than just skipping the rule.
 
 [[profile.default.overrides]]
 filter = 'package(extension_host) and test(test_extension_store_with_test_extension)'

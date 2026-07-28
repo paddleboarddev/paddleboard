@@ -1,0 +1,81 @@
+name: Tests
+
+# PaddleBoard: the test gate. `compile-check.yml` builds test targets
+# (`--all-targets`) but never RUNS them, so a failing test suite was invisible to
+# CI. That is how 20 broken `open_listener` tests sat on main unnoticed until a
+# Placid-mode session tripped over them — the fourth silent-failure mode found in
+# July 2026, after dropped files, zombie files, and the stuck release badge.
+#
+# Scope is PaddleBoard's own crates, NOT the workspace. Upstream's ~238 crates
+# churn on every weekly merge; a red gate caused by upstream test drift is one
+# nobody here can fix, and a permanently red gate is worth less than no gate.
+# Upstream compile breakage is still caught — `compile-check.yml` covers the full
+# workspace.
+#
+# Deliberately a separate workflow rather than a job in compile-check.yml: a red
+# "Tests" check should mean tests failed, not that something failed to build.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  linux:
+    # Linux-only, and that IS a gap: the macOS-gated paths in
+    # paddleboard_sandbox_prereqs, paddleboard_llama_manager and
+    # paddleboard_container_engine are compiled by compile-check.yml's macOS job
+    # but never executed anywhere. Running tests on macos-15 bills at the 10x
+    # multiplier, so this starts Linux-only by choice. Revisit if a macOS-only
+    # regression ever escapes.
+    name: Linux (PaddleBoard crates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Install webview (wry) system dependencies
+        # Same stack compile-check.yml and release.yml install. The `paddleboard`
+        # bin pulls the `browser` crate (wry → GTK3 + WebKit2GTK), so its test
+        # binary will not link without these.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang libssl-dev pkg-config
+
+      - name: Set up Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Distinct from compile-check's key on purpose: `cargo check` emits
+          # .rmeta only, so its cache cannot serve a test build's codegen.
+          key: test-linux
+
+      - name: cargo nextest run (paddleboard crates)
+        env:
+          CC: clang
+          CXX: clang++
+        # `--workspace` is REQUIRED, not decorative. The root manifest sets
+        # `default-members = ["crates/paddleboard"]`, so without it the package
+        # filter silently resolves to 1 crate of 30 — a green check covering
+        # almost nothing.
+        #
+        # The `package(/^paddleboard/)` regex is deliberately used instead of an
+        # explicit -p list: a hand-maintained list means a new paddleboard_*
+        # crate is untested until someone remembers to add it, which is exactly
+        # the failure mode compile-check.yml's macOS crate list already carries.
+        run: cargo nextest run --workspace --locked -E 'package(/^paddleboard/)'
