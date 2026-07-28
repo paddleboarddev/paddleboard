@@ -820,19 +820,6 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
         let orchestration_panel = OrchestrationPanel::load(workspace_handle.clone(), cx.clone());
         let manifest_panel = ManifestPanel::load(workspace_handle.clone(), cx.clone());
 
-        workspace_handle
-            .update_in(cx, |_workspace, window, cx| {
-                window.dispatch_action(
-                    workspace::OpenTerminal {
-                        working_directory: std::path::PathBuf::new(),
-                        local: false,
-                    }
-                    .boxed_clone(),
-                    cx,
-                );
-            })
-            .log_err();
-
         async fn add_panel_when_ready(
             panel_task: impl Future<Output = anyhow::Result<Entity<impl workspace::Panel>>> + 'static,
             workspace_handle: WeakEntity<Workspace>,
@@ -5424,6 +5411,28 @@ mod tests {
         cx.update(|cx| {
             // Make sure it doesn't panic.
             KeymapFile::generate_json_schema_for_registered_actions(cx);
+        });
+    }
+
+    // PaddleBoard: `DEFAULT_KEYMAP_PATH` is cfg-selected, so every other test
+    // here only ever loads the HOST platform's keymap — nothing checks the other
+    // two. That blind spot shipped a real bug: removing the collab crates left
+    // dangling `collab_panel::` and `channel_modal::` bindings in the Linux and
+    // Windows keymaps, and since `load_asset` fails wholesale on a single
+    // unknown action, both platforms silently lost their ENTIRE default keymap.
+    #[gpui::test]
+    async fn test_all_bundled_keymaps_load(cx: &mut gpui::TestAppContext) {
+        init_keymap_test(cx);
+        cx.update(|cx| {
+            for path in [
+                "keymaps/default-macos.json",
+                "keymaps/default-linux.json",
+                "keymaps/default-windows.json",
+            ] {
+                if let Err(error) = KeymapFile::load_asset(path, None, cx) {
+                    panic!("bundled keymap {path} failed to load: {error}");
+                }
+            }
         });
     }
 

@@ -1,0 +1,119 @@
+name: Tests
+
+# PaddleBoard: the test gate. `compile-check.yml` builds test targets
+# (`--all-targets`) but never RUNS them, so a failing test suite was invisible to
+# CI. That is how 20 broken `open_listener` tests sat on main unnoticed until a
+# Placid-mode session tripped over them — the fourth silent-failure mode found in
+# July 2026, after dropped files, zombie files, and the stuck release badge.
+#
+# Scope is PaddleBoard's own crates, NOT the workspace. Upstream's ~238 crates
+# churn on every weekly merge; a red gate caused by upstream test drift is one
+# nobody here can fix, and a permanently red gate is worth less than no gate.
+# Upstream compile breakage is still caught — `compile-check.yml` covers the full
+# workspace.
+#
+# Deliberately a separate workflow rather than a job in compile-check.yml: a red
+# "Tests" check should mean tests failed, not that something failed to build.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  # Debug info is the bulk of a debug-profile target dir, and this workspace is
+  # large enough that keeping it fills an ubuntu-latest runner's disk outright
+  # (the first run of this job died with "No space left on device" — with no logs,
+  # because the runner could not write those either). The test profile inherits
+  # from dev. Backtraces keep function names, they just lose line numbers.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+
+jobs:
+  linux:
+    # Linux-only, and that IS a gap: the macOS-gated paths in
+    # paddleboard_sandbox_prereqs, paddleboard_llama_manager and
+    # paddleboard_container_engine are compiled by compile-check.yml's macOS job
+    # but never executed anywhere. Running tests on macos-15 bills at the 10x
+    # multiplier, so this starts Linux-only by choice. Revisit if a macOS-only
+    # regression ever escapes.
+    name: Linux (PaddleBoard crates)
+    runs-on: ubuntu-latest
+    # 90, not 45: a private-repo standard runner is 2 cores, and the first run
+    # after a cache miss has to codegen and link the app's whole dependency
+    # graph. Warm runs should be a small fraction of this.
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Free disk space
+        # ubuntu-latest ships ~25-30 GB of preinstalled toolchains this build
+        # never touches. Unlike compile-check.yml, this job links real test
+        # binaries for the whole dependency graph, and without this it runs the
+        # runner out of disk. Plain rm rather than a third-party action to keep
+        # the trusted-action surface small.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost /usr/local/share/powershell /usr/share/swift
+          df -h /
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Install webview (wry) system dependencies
+        # Same stack compile-check.yml and release.yml install. The `paddleboard`
+        # bin pulls the `browser` crate (wry → GTK3 + WebKit2GTK), so its test
+        # binary will not link without these.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang libssl-dev pkg-config
+
+      - name: Set up Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Distinct from compile-check's key on purpose: `cargo check` emits
+          # .rmeta only, so its cache cannot serve a test build's codegen.
+          key: test-linux
+          # Without this a failed run saves nothing, so the next run starts cold
+          # and is equally likely to time out — the job could never warm up. The
+          # first two runs of this job died that way.
+          cache-on-failure: true
+
+      - name: cargo nextest run (paddleboard crates)
+        env:
+          CC: clang
+          CXX: clang++
+        # Select packages with -p, NOT with `--workspace -E 'package(...)'`.
+        # That form looks equivalent and is not: `-E` filters which tests RUN,
+        # while `--workspace` still BUILDS all 268 crates first. The third run of
+        # this job hit the 45-minute timeout still compiling xtask,
+        # docs_preprocessor, project_benchmarks and the tree-sitter extensions —
+        # none of which any paddleboard crate depends on.
+        #
+        # The list is derived from cargo metadata rather than hardcoded, so a new
+        # paddleboard_* crate is picked up automatically. A hand-maintained list
+        # is the rot compile-check.yml's macOS crate list already carries.
+        #
+        # `default-members = ["crates/paddleboard"]` in the root manifest is why
+        # package selection has to be explicit at all: a bare `cargo nextest run`
+        # here tests one crate of 30 and exits green.
+        run: |
+          PACKAGES=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[].name | select(startswith("paddleboard"))' \
+            | sed 's/^/-p /' | tr '\n' ' ')
+          echo "Selected: $PACKAGES"
+          test -n "$PACKAGES" || { echo "No paddleboard packages matched"; exit 1; }
+          # --no-fail-fast: nextest stops at the first failure by default, which
+          # reported "47/249 tests run" and hid whatever else was broken. A gate
+          # should report the whole picture in one run, not one failure per push.
+          cargo nextest run --locked --no-fail-fast $PACKAGES
