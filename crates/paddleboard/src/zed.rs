@@ -820,19 +820,6 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
         let orchestration_panel = OrchestrationPanel::load(workspace_handle.clone(), cx.clone());
         let manifest_panel = ManifestPanel::load(workspace_handle.clone(), cx.clone());
 
-        workspace_handle
-            .update_in(cx, |_workspace, window, cx| {
-                window.dispatch_action(
-                    workspace::OpenTerminal {
-                        working_directory: std::path::PathBuf::new(),
-                        local: false,
-                    }
-                    .boxed_clone(),
-                    cx,
-                );
-            })
-            .log_err();
-
         async fn add_panel_when_ready(
             panel_task: impl Future<Output = anyhow::Result<Entity<impl workspace::Panel>>> + 'static,
             workspace_handle: WeakEntity<Workspace>,
