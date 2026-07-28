@@ -123,7 +123,7 @@ The job can be triggered on demand via the **Actions** tab → *Merge upstream Z
 | workflow | purpose |
 | --- | --- |
 | `merge_upstream_zed.yml` | weekly upstream merge (+ dropped-file and zombie reports in the PR body) |
-| `compile-check.yml` | compile gate: Linux full workspace + macOS platform-crate list |
+| `compile-check.yml` | compile gate: Linux full workspace every PR; macOS platform-crate list on `main` pushes only (10x cost) |
 | `test.yml` | test gate: runs the `paddleboard*` crates' tests on Linux |
 | `public-embeds.yml` | per-PR hygiene: embeds, zed-isms, llama pins, zombie files |
 | `upstream-drift.yml` | drift report, sticky PR comment + weekly |

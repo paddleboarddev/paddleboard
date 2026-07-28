@@ -83,8 +83,20 @@ jobs:
     # If a new crate gains a `cfg(target_os = "macos")` dependency, add it here.
     # Find them with:
     #   grep -rln 'cfg(target_os = "macos")' crates/*/Cargo.toml
+    #
+    # MAIN-ONLY since 2026-07-28, for cost. At the 10x multiplier this job bills
+    # roughly ten times its ~2-3 min wall clock on every run, and it was the
+    # single largest line in this repo's CI spend. Personal-account repos cannot
+    # use WarpBuild, so there is no cheaper runner to move it to — the only lever
+    # left is running it less often.
+    #
+    # THE TRADEOFF IS REAL: macOS-gated breakage is no longer caught before
+    # merge, only after it lands on main. If a macOS-only regression does escape,
+    # a red main is the intended signal — fix forward, don't assume the gate is
+    # broken. Revert to running on pull_request if that happens more than rarely.
     name: macOS (platform crates)
     runs-on: macos-15
+    if: github.event_name == 'push'
     timeout-minutes: 45
     steps:
       - name: Checkout
