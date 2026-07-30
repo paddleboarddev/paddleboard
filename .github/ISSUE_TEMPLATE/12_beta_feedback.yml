@@ -1,0 +1,79 @@
+# PaddleBoard: net-new, for the v0.3.0 beta. There is no upstream counterpart.
+#
+# Deliberately carries no `labels:` key — the public repo has only GitHub's default
+# label set, and a `beta-feedback` label has to exist there before it can be applied.
+# Add it here once `gh label create beta-feedback --repo paddleboarddev/paddleboard`
+# has been run.
+name: Beta feedback
+description: Tell us how the beta went — what worked, what didn't, what's missing.
+title: "[beta] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PaddleBoard is in beta, and **PaddleBoard collects no telemetry** — no usage data, no crash pings, nothing. Which means we genuinely do not know how the beta is going unless you tell us.
+
+        This form is for impressions, friction, and gaps. A bug with clear reproduction steps is better filed as a [bug report](https://github.com/paddleboarddev/paddleboard/issues/new?template=10_bug_report.yml); a question is better asked in [Discussions](https://github.com/paddleboarddev/paddleboard/discussions).
+
+        Partial answers are fine. One honest paragraph beats a blank form.
+  - type: textarea
+    attributes:
+      label: What were you trying to do?
+      description: The actual task you brought to PaddleBoard, not a synthetic one. This is the context everything else depends on.
+      placeholder: |
+        Porting a Python service to a new API version — mostly agent-driven edits, with local models for the cheap passes.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: What got in your way?
+      description: Confusing UI, a step you couldn't find, something that needed a doc you didn't have, a moment you nearly gave up. Rough edges are the point of a beta.
+      placeholder: |
+        Couldn't tell whether the sandbox was actually on. The status-bar shield was green but I never saw a container start.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: What worked well enough to keep?
+      description: Just as useful as the complaints — it tells us what not to break.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: What's missing?
+      description: The thing you expected to be there and wasn't.
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: How are you running models?
+      multiple: true
+      options:
+        - Managed local models (the built-in llama.cpp ones)
+        - My own local endpoint (Ollama, LM Studio, llama.cpp, vLLM, …)
+        - Anthropic API key
+        - OpenAI API key
+        - Google AI or Vertex
+        - GitHub Copilot
+        - Another openai_compatible endpoint
+        - Haven't set up a model yet
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: Would you keep using it?
+      multiple: false
+      options:
+        - Already have — it's my main editor
+        - Using it alongside my main editor
+        - Not yet, but I want to
+        - Probably not, and the reason is above
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: PaddleBoard version
+      description: Command palette → **`copy system specs into clipboard`**, or just the release tag.
+      placeholder: v0.3.0
+    validations:
+      required: false
