@@ -1,57 +1,85 @@
+# PaddleBoard: rewritten from Zed's bug report form, which described the product
+# as Zed, linked to zed-industries/zed for duplicate search, and sent reporters to
+# Zed's Discord. PB-owned — resolve merge conflicts in favor of ours.
 name: Report a bug
-description: Report a problem with Zed.
-type: Bug
-labels: "state:needs triage"
+description: Something in PaddleBoard doesn't work the way it should.
+labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Is this bug already reported? Upvote to get it noticed faster. [Here’s the search](https://github.com/zed-industries/zed/issues). Upvote means giving it a :+1: reaction.
+        Thanks for reporting. Two things make a bug fixable fast:
 
-        Feature request? Please open in [discussions](https://github.com/zed-industries/zed/discussions/new/choose) instead.
+        1. **Check it isn't already filed** — [search open issues](https://github.com/paddleboarddev/paddleboard/issues?q=is%3Aissue). A 👍 on an existing report is more useful than a duplicate.
+        2. **Include the version and the log.** The fields below give you the exact commands.
 
-        Just have a question or need support? Welcome to [Discord Support Forums](https://discord.com/invite/zedindustries).
+        Not sure it's a bug, or it's a feature you'd like? Those belong in [Discussions](https://github.com/paddleboarddev/paddleboard/discussions) instead.
+
+        ⚠️ PaddleBoard sends no telemetry, so a bug report is the *only* way a problem reaches us. That also means logs and settings are yours to share — **please redact API keys and tokens before pasting.**
   - type: textarea
     attributes:
       label: Reproduction steps
-      description: A step-by-step description of how to reproduce the bug from a **clean Zed install**. The more context you provide, the easier it is to find and fix the problem fast.
+      description: How to get from a fresh PaddleBoard install to the problem. The more precise this is, the faster it gets fixed.
       placeholder: |
-        1. Start Zed
-        2. Click X
+        1. Open a project
+        2. Open the AI Dock
+        3. Click Install on a skill
+        4. Nothing happens
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Current vs. Expected behavior
-      description: |
-        Current behavior (screenshots, videos, etc. are appreciated), vs. what you expected the behavior to be.
-
+      label: Current vs. expected behavior
+      description: What happens, and what you expected instead. Screenshots and screen recordings are very welcome.
       placeholder: |
-        Current behavior: <screenshot with an arrow> The icon is blue. Expected behavior: The icon should be red because this is what the setting is documented to do.
+        Current: the Install button spins forever and no skill appears in `.agents/skills/`.
+        Expected: the skill is installed and shows as Installed.
     validations:
       required: true
+  - type: dropdown
+    attributes:
+      label: Which part of PaddleBoard?
+      description: A best guess is fine — it just speeds up triage. Pick "Editor / core" for anything inherited from Zed (editing, LSP, git, terminal, debugger).
+      multiple: false
+      options:
+        - Editor / core (editing, LSP, git, terminal, debugger)
+        - Agent panel / threads
+        - AI Dock (agents, skills, MCP, personas, usage)
+        - Personas / PERSONA.md
+        - Local models (managed llama.cpp)
+        - Model providers / API keys
+        - Sandbox (microVM, or Podman + gVisor)
+        - MCP servers
+        - Semantic search / RAG
+        - Set Sail (deploys)
+        - Manifest panel / Git Login
+        - Onboarding, tour, or themes
+        - Install, launch, or update
+        - Something else
+    validations:
+      required: false
   - type: textarea
     id: environment
     attributes:
-      label: Zed version and system specs
+      label: PaddleBoard version and system specs
       description: |
-        Open the command palette in Zed, then type “zed: copy system specs into clipboard”.
+        Open the command palette (`cmd-shift-p` / `ctrl-shift-p`) and run **`copy system specs into clipboard`**, then paste the result here.
       placeholder: |
-        Zed: v0.215.0 (Zed Nightly bfe141ea79aa4984028934067ba75c48d99136ae)
-        OS: macOS 15.1
+        PaddleBoard: v0.2.0 (0123456789abcdef0123456789abcdef01234567)
+        OS: macOS 15.5
         Memory: 36 GiB
         Architecture: aarch64
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Attach Zed log file
+      label: Log file
       description: |
-        Open the command palette in Zed, then type `zed: open log` to see the last 1000 lines. Or type `zed: reveal log in file manager` in the command palette to reveal the log file itself.
+        Command palette → **`open log`** shows the last 1000 lines. **`reveal log in file manager`** opens the file itself.
 
-        ⚠️ **Please review your log file for secrets (API keys, tokens, etc.) and partially or fully redact them before posting.**
+        ⚠️ **Review the log for secrets (API keys, tokens, project paths you'd rather not share) and redact them before posting.**
       value: |
-        <details><summary>Zed.log</summary>
+        <details><summary>PaddleBoard.log</summary>
 
         <!-- Paste your log inside the code block. -->
         ```log
@@ -63,11 +91,11 @@ body:
       required: false
   - type: textarea
     attributes:
-      label: Relevant Zed settings
+      label: Relevant settings
       description: |
-        Open the command palette in Zed, then type “zed: open settings file” and copy/paste any relevant (e.g., LSP-specific) settings.
+        Command palette → **`open settings file`**. Paste anything related — `paddleboard_sandbox`, `paddleboard_scion`, language server config, and so on.
 
-        ⚠️ **Please review your settings file for secrets (API keys, tokens, etc.) and partially or fully redact them before posting.**
+        ⚠️ **Redact API keys and tokens.**
       value: |
         <details><summary>settings.json</summary>
 
@@ -81,13 +109,12 @@ body:
       required: false
   - type: textarea
     attributes:
-      label: Relevant Keymap
-      description: |
-        Open the command palette in Zed, then type “zed: open keymap file” and copy/paste the file’s contents.
+      label: Relevant keybindings
+      description: Command palette → **`open keymap file`**. Only needed if the bug involves a shortcut.
       value: |
         <details><summary>keymap.json</summary>
 
-        <!-- Paste your keymap file inside the code block. -->
+        <!-- Paste your keymap inside the code block. -->
         ```json
 
         ```
@@ -97,23 +124,12 @@ body:
       required: false
   - type: textarea
     attributes:
-      label: (for AI issues) Model provider details
+      label: For AI or agent issues — model and provider
+      description: Which model, which provider, and where you were running it. For a local-model problem, say which GGUF.
       placeholder: |
-        - Provider: (Anthropic via ZedPro, Anthropic via API key, Copilot Chat, Mistral, OpenAI, etc.)
-        - Model Name: (Claude Sonnet 4.5, Gemini 3.1 Pro, GPT-5)
-        - Mode: (Agent Panel, Inline Assistant, or Terminal Assistant)
-        - Other details (ACPs, MCPs, other settings, etc.):
+        - Provider: (Anthropic API key, OpenAI, Google, Vertex, Copilot, an openai_compatible endpoint, managed local models, …)
+        - Model: (Claude Sonnet 4.5, gemma-3n-e4b, gpt-5, …)
+        - Where: (agent panel, inline assistant, terminal assistant, a subagent, Scion)
+        - Persona in use, MCP servers connected, sandbox on or off:
     validations:
       required: false
-  - type: dropdown
-    attributes:
-      label: If you are using WSL on Windows, what flavor of Linux are you using?
-      multiple: false
-      options:
-        - Arch Linux
-        - Ubuntu
-        - Fedora
-        - Mint
-        - Pop!_OS
-        - NixOS
-        - Other

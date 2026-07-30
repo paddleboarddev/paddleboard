@@ -1,6 +1,29 @@
-# PaddleBoard
+<div align="center">
 
-An editor for AI-driven development. PaddleBoard is a fork of [Zed](https://github.com/zed-industries/zed) that keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: a persona system that lets you define *who* your agent should be, one-command serverless deploys, sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
+<img src="assets/branding/social-preview.png" alt="PaddleBoard — the open-source AI IDE you actually own" width="840">
+
+### The open-source AI IDE you actually own
+
+A local-first harness for coding agents, built on [Zed](https://github.com/zed-industries/zed).
+Bring your own model keys — or run the models on your own machine. No telemetry, no hosted plan.
+
+**[Download](https://github.com/paddleboarddev/paddleboard/releases/latest)** ·
+[Documentation](https://docs.paddleboard.dev) ·
+[paddleboard.dev](https://paddleboard.dev) ·
+[Discussions](https://github.com/paddleboarddev/paddleboard/discussions)
+
+<!-- sort=semver, not the default "latest release": this pipeline creates every
+     release as a prerelease and promotes it afterwards, and GitHub's Latest flag
+     does not move on promotion (see PR #82). A default badge silently sticks on
+     an old version. -->
+[![Release](https://img.shields.io/github/v/release/paddleboarddev/paddleboard?sort=semver&display_name=tag&label=release&color=89b4fa&labelColor=1e1e2e)](https://github.com/paddleboarddev/paddleboard/releases/latest)
+[![Platforms](https://img.shields.io/badge/macOS%20·%20Linux-signed%20%26%20notarized-a6e3a1?labelColor=1e1e2e)](#building)
+[![Telemetry](https://img.shields.io/badge/telemetry-none-fab387?labelColor=1e1e2e)](#whats-inherited-from-zed)
+[![License](https://img.shields.io/badge/license-GPL--3.0-cba6f7?labelColor=1e1e2e)](LICENSE-GPL)
+
+</div>
+
+PaddleBoard keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: a persona system that lets you define *who* your agent should be, one-command serverless deploys, sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
 
 > Status: alpha (0.2.x). Signed, notarized macOS builds (Apple Silicon) and a Linux x86_64 tarball are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
 
