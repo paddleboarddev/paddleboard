@@ -229,6 +229,7 @@ impl VsCodeSettings {
             modeline_lines: None,
             // PaddleBoard: sandbox enforcement policy has no VS Code analogue;
             // leave as None so PaddleBoard's defaults apply.
+            paddleboard_auto_update: None,
             paddleboard_sandbox: None,
             paddleboard_otel: None,
             paddleboard_personas: None,

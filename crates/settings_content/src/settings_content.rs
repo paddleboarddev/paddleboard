@@ -6,6 +6,8 @@ mod fallible_options;
 mod language;
 mod language_model;
 pub mod merge_from;
+// PaddleBoard: schema for in-app update behaviour.
+mod paddleboard_auto_update;
 // PaddleBoard: schema for the sandbox enforcement layer.
 mod paddleboard_sandbox;
 // PaddleBoard: schema for OpenTelemetry trace export.
@@ -35,6 +37,7 @@ pub use language::*;
 pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
 // PaddleBoard: re-export sandbox and OTEL content types alongside the rest.
+pub use paddleboard_auto_update::*;
 pub use paddleboard_otel::*;
 pub use paddleboard_personas::*;
 pub use paddleboard_rag::*;
@@ -310,6 +313,10 @@ pub struct SettingsContent {
     ///
     /// Default: 5
     pub modeline_lines: Option<usize>,
+
+    // PaddleBoard: configuration for in-app updates (whether prerelease builds
+    // are eligible). The on/off toggle is upstream's `auto_update` above.
+    pub paddleboard_auto_update: Option<PaddleboardAutoUpdateContent>,
 
     // PaddleBoard: configuration for the sandbox enforcement layer (policy
     // when Podman/gVisor prereqs are missing at tool-launch time).
