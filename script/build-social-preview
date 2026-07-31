@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# Render assets/branding/social-preview.png — the repo's social preview card,
+# also used as the README hero. 1280x640 is GitHub's recommended size.
+#
+# The design follows paddleboard.dev: the Catppuccin-Mocha-derived palette, the
+# line-number gutter rail as the signature device, and the app's own two
+# typefaces, so the card reads as the editor rather than as generic marketing.
+#
+# PaddleBoard: this uses ImageMagick with explicit -font paths rather than SVG +
+# rsvg-convert, and that is deliberate. Lilex and IBM Plex Sans are BUNDLED in
+# assets/fonts, not installed system-wide, and pango on macOS resolves fonts
+# through CoreText — it ignores FONTCONFIG_FILE entirely. So rsvg-convert renders
+# every font-family it cannot find in CoreText as Helvetica, silently and with no
+# warning: the card still looks plausible, just in the wrong typeface. ImageMagick
+# reads a .ttf straight off disk, which is the only way to get the real faces
+# without touching the user's ~/Library/Fonts.
+#
+# The render is byte-reproducible (-strip drops ImageMagick's date chunks), so
+# re-running this without changing anything leaves the committed PNG untouched
+# rather than producing a diff made entirely of timestamps.
+#
+# Uploading the result as the repo's social preview is manual — Settings ->
+# General -> Social preview. GitHub exposes no API for it.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+MONO="assets/fonts/lilex/Lilex-Regular.ttf"
+MONO_BOLD="assets/fonts/lilex/Lilex-Bold.ttf"
+SANS="assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf"
+ICON="crates/paddleboard/resources/app-icon@2x.png"
+OUT="assets/branding/social-preview.png"
+
+for f in "$MONO" "$MONO_BOLD" "$SANS" "$ICON"; do
+  [ -f "$f" ] || { echo "missing input: $f" >&2; exit 1; }
+done
+command -v magick >/dev/null || { echo "needs ImageMagick (brew install imagemagick)" >&2; exit 1; }
+
+BG="#181825"       # site background
+RAIL_BG="#1e1e2e"  # editor background
+BORDER="#2a2b3d"
+RAIL_FG="#33344a"  # line numbers
+TEXT="#cdd6f4"
+MUTED="#a6adc8"
+FAINT="#6c7086"
+DIM="#45475a"
+KW="#cba6f7"       # syntax tokens, matching PaddleBoard Dark
+STR="#a6e3a1"
+TY="#f9e2af"
+FN="#89b4fa"
+NUM="#fab387"
+
+mkdir -p "$(dirname "$OUT")"
+
+# Line numbers down the rail, right-aligned at x=70. Lilex is monospaced at
+# ~0.6em, so a two-digit number needs one glyph width of extra left offset.
+# Stop well short of 640 — a number straddling the bottom edge reads as a
+# rendering bug rather than as a continuing gutter.
+rail_args=()
+y=48
+n=1
+while [ "$y" -lt 605 ]; do
+  x=60
+  [ "$n" -ge 10 ] && x=50
+  rail_args+=(-annotate "+${x}+${y}" "$n")
+  y=$((y + 29))
+  n=$((n + 1))
+done
+
+# The two token rows are laid out on a character grid rather than by eyeballed
+# pixel offsets: Lilex is monospaced (measured 15.1px advance at 25pt), so
+# T[i] is the x of the i-th character of the row. Colouring a row by segment
+# then costs no manual measuring, and a reworded token cannot silently collide
+# with its neighbour.
+TOKEN_X0=152
+TOKEN_ADVANCE=151   # tenths of a px per glyph at pointsize 25
+T=()
+for i in $(seq 0 47); do
+  T+=( $(( TOKEN_X0 + (i * TOKEN_ADVANCE + 5) / 10 )) )
+done
+
+magick -size 1280x640 "xc:${BG}" \
+  -fill "$RAIL_BG" -draw "rectangle 0,0 91,640" \
+  -fill "$BORDER"  -draw "rectangle 92,0 93,640" \
+  -gravity NorthWest -font "$MONO" -pointsize 17 -fill "$RAIL_FG" "${rail_args[@]}" \
+  \( "$ICON" -resize 132x132 \) -geometry +150+86 -composite \
+  -font "$MONO_BOLD" -pointsize 82 -fill "$TEXT" -annotate +308+118 "PaddleBoard" \
+  -font "$SANS" -pointsize 37 -fill "$MUTED" -annotate +152+272 "The open-source AI IDE you actually own." \
+  -font "$SANS" -pointsize 24 -fill "$FAINT" -annotate +152+332 "A local-first harness for coding agents. Bring your own keys." \
+  -font "$MONO" -pointsize 25 \
+  -fill "$KW"  -annotate "+${T[0]}+424" "personas" \
+  -fill "$DIM" -annotate "+${T[9]}+424" "·" \
+  -fill "$STR" -annotate "+${T[11]}+424" "local models" \
+  -fill "$DIM" -annotate "+${T[24]}+424" "·" \
+  -fill "$TY"  -annotate "+${T[26]}+424" "sandbox" \
+  -fill "$FN"  -annotate "+${T[0]}+468" "agents" \
+  -fill "$DIM" -annotate "+${T[7]}+468" "·" \
+  -fill "$FN"  -annotate "+${T[9]}+468" "skills" \
+  -fill "$DIM" -annotate "+${T[16]}+468" "·" \
+  -fill "$FN"  -annotate "+${T[18]}+468" "MCP" \
+  -fill "$DIM" -annotate "+${T[22]}+468" "·" \
+  -fill "$NUM" -annotate "+${T[24]}+468" "no telemetry" \
+  -fill "$BORDER" -draw "rectangle 152,548 1216,549" \
+  -font "$MONO" -pointsize 24 -fill "$FN" -annotate +152+572 "paddleboard.dev" \
+  -gravity NorthEast -font "$SANS" -pointsize 21 -fill "$FAINT" -annotate +64+575 "Built on Zed · GPL-3.0" \
+  -strip -define png:exclude-chunk=date,tIME \
+  "$OUT"
+
+echo "wrote $OUT ($(magick identify -format '%wx%h, %b' "$OUT"))"

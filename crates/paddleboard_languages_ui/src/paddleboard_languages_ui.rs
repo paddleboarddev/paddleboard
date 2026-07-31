@@ -6,6 +6,7 @@ use gpui::{
 };
 use language::{LanguageName, LanguageServerName, language_settings::all_language_settings};
 use project::Project;
+use language::language_settings::ConfiguredLanguageServer;
 use settings::update_settings_file;
 use ui::{Chip, CommonAnimationExt, Modal, ModalHeader, SectionHeader, Tooltip, prelude::*};
 use workspace::{ModalView, Workspace};
@@ -155,7 +156,7 @@ impl ManageLanguagesModal {
                 .language(None, Some(&language_name), cx)
                 .language_servers
                 .iter()
-                .any(|server| server == adapter);
+                .any(|server| server.name.as_ref() == *adapter && !server.disabled);
             states.insert(
                 language.key,
                 if enabled {
@@ -189,7 +190,13 @@ impl ManageLanguagesModal {
         cx.notify();
 
         let fs = self.project.read(cx).fs().clone();
-        let servers: Vec<String> = enabled_servers.iter().map(|s| s.to_string()).collect();
+        // Upstream replaced the plain server-name list with ConfiguredLanguageServer.
+        // Convert via From<&str> rather than ::new so the `!name` disable prefix these
+        // lists use keeps its meaning instead of becoming part of the name.
+        let servers: Vec<ConfiguredLanguageServer> = enabled_servers
+            .iter()
+            .map(|server| ConfiguredLanguageServer::from(*server))
+            .collect();
         update_settings_file(fs, cx, move |settings, _| {
             settings
                 .project

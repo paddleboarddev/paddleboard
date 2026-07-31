@@ -30,12 +30,18 @@ impl SandboxPrereqs {
         Self::refresh(cx);
     }
 
+    // `try_global` rather than `global`: these are read from render paths (the
+    // status bar item, the agent's sandbox tools), and `global` PANICS when the
+    // Global has not been set. `init` runs from `paddleboard_sandbox_prereqs_ui`,
+    // so any context that renders before — or without — that init would take down
+    // the app. Degrading to "no status yet" is the correct answer there, and it is
+    // what the callers already handle. This was masking 18 test failures.
     pub fn status(cx: &App) -> Option<&SandboxStatus> {
-        cx.global::<SandboxPrereqs>().status.as_ref()
+        cx.try_global::<SandboxPrereqs>()?.status.as_ref()
     }
 
     pub fn is_refreshing(cx: &App) -> bool {
-        cx.global::<SandboxPrereqs>().refreshing
+        cx.try_global::<SandboxPrereqs>().is_some_and(|prereqs| prereqs.refreshing)
     }
 
     /// Run a fresh probe in the background and update the cached status. Any

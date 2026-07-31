@@ -66,6 +66,10 @@ pub enum CliRequest {
         env: Option<HashMap<String, String>>,
         user_data_dir: Option<String>,
         dev_container: bool,
+        // PaddleBoard: open the resulting window in Placid mode. `serde(default)`
+        // keeps old-CLI/new-app and new-CLI/old-app combinations compatible.
+        #[serde(default)]
+        placid: bool,
         #[serde(default)]
         cwd: Option<PathBuf>,
     },

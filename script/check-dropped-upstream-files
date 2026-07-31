@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+#
+# script/check-dropped-upstream-files
+#
+# Catches upstream files that vanish from PaddleBoard during a merge
+# without git ever raising a conflict.
+#
+# PaddleBoard renamed several upstream crate directories (`crates/zed`
+# -> `crates/paddleboard`, etc.). When upstream ADDS a file inside one
+# of those directories, git has no PaddleBoard-side counterpart to
+# conflict with: the merge either drops the file or re-creates the old
+# `crates/zed/` tree, and in both cases it completes cleanly. Nothing
+# fails to compile, because the dropped file was never referenced by
+# our renamed crate. The loss is silent.
+#
+# This bit us on 2026-07-20, when four `reliability/hang_detection`
+# files disappeared in the weekly merge with no conflict and no error.
+#
+# The check compares the MERGE BASE (the newest upstream commit we have
+# actually merged) against HEAD. Using the merge base rather than
+# upstream's tip is what keeps this quiet: files upstream added but we
+# haven't merged yet are legitimately absent and are not reported.
+#
+# Paths are mapped through RENAME_MAP below. A file is considered
+# present if either the directory-mapped path exists, or the path with
+# a `zed`-prefixed BASENAME rewritten to `paddleboard` exists (crate lib
+# roots such as `src/zed_env_vars.rs` -> `src/paddleboard_env_vars.rs`).
+#
+# Deliberate non-ports go in the allowlist, one upstream path per line:
+#
+#   script/dropped-upstream-files-allowlist.txt
+#
+# Allowlist entries that no longer match a dropped file are reported as
+# stale, so the list can't quietly rot.
+#
+#   ./script/check-dropped-upstream-files              # report, exit 1 on drops
+#   ./script/check-dropped-upstream-files --no-fetch   # skip the `git fetch`
+#   ./script/check-dropped-upstream-files --list       # show every mapping, exit 0
+#   UPSTREAM_REF=zed/main ./script/check-dropped-upstream-files
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ALLOWLIST_FILE="$SCRIPT_DIR/dropped-upstream-files-allowlist.txt"
+
+UPSTREAM_REMOTE="${UPSTREAM_REMOTE:-zed}"
+UPSTREAM_REPO="${UPSTREAM_REPO:-https://github.com/zed-industries/zed.git}"
+UPSTREAM_REF="${UPSTREAM_REF:-${UPSTREAM_REMOTE}/main}"
+
+# Upstream directory -> PaddleBoard directory. Add a row here whenever a
+# new upstream-shaped directory gets renamed in the fork, otherwise
+# additions inside it are invisible to this check.
+RENAME_MAP=(
+    "crates/zed:crates/paddleboard"
+    "crates/zed_actions:crates/paddleboard_actions"
+    "crates/zed_credentials_provider:crates/paddleboard_credentials_provider"
+    "crates/zed_env_vars:crates/paddleboard_env_vars"
+)
+
+DO_FETCH=1
+DO_LIST=0
+for arg in "$@"; do
+    case "$arg" in
+        --no-fetch) DO_FETCH=0 ;;
+        --list) DO_LIST=1 ;;
+        -h|--help)
+            sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "unknown argument: $arg" >&2
+            exit 2
+            ;;
+    esac
+done
+
+if ! git remote get-url "$UPSTREAM_REMOTE" >/dev/null 2>&1; then
+    git remote add "$UPSTREAM_REMOTE" "$UPSTREAM_REPO"
+fi
+
+if [ "$DO_FETCH" = 1 ]; then
+    git fetch --quiet "$UPSTREAM_REMOTE" main --no-tags
+fi
+
+if ! merge_base=$(git merge-base HEAD "$UPSTREAM_REF" 2>/dev/null); then
+    echo "error: no merge base between HEAD and $UPSTREAM_REF" >&2
+    echo "       the upstream remote may be unfetched or shallow" >&2
+    exit 2
+fi
+
+TMPDIR_WORK=$(mktemp -d)
+trap 'rm -rf "$TMPDIR_WORK"' EXIT
+
+head_files="$TMPDIR_WORK/head_files"
+candidates="$TMPDIR_WORK/candidates"
+dropped="$TMPDIR_WORK/dropped"
+allowed="$TMPDIR_WORK/allowed"
+
+git ls-tree -r --name-only HEAD | LC_ALL=C sort >"$head_files"
+
+# For each merge-base file under a renamed directory, emit
+#   <upstream path>\t<dir-mapped path>\t<basename-rewritten path>
+: >"$candidates"
+for pair in "${RENAME_MAP[@]}"; do
+    upstream_dir="${pair%%:*}"
+    pb_dir="${pair##*:}"
+    git ls-tree -r --name-only "$merge_base" -- "$upstream_dir/" |
+        while IFS= read -r upstream_path; do
+            relative="${upstream_path#"$upstream_dir"/}"
+            mapped="$pb_dir/$relative"
+            base="${relative##*/}"
+            prefix="${relative%"$base"}"
+            renamed="$pb_dir/$prefix${base/#zed/paddleboard}"
+            printf '%s\t%s\t%s\n' "$upstream_path" "$mapped" "$renamed"
+        done >>"$candidates"
+done
+
+if [ "$DO_LIST" = 1 ]; then
+    awk -F'\t' 'NR==FNR { have[$0]=1; next }
+        { print ($2 in have || $3 in have ? "ok      " : "MISSING ") $1 }' \
+        "$head_files" "$candidates"
+    exit 0
+fi
+
+awk -F'\t' 'NR==FNR { have[$0]=1; next }
+    !($2 in have) && !($3 in have) { print $1 }' \
+    "$head_files" "$candidates" | LC_ALL=C sort >"$dropped"
+
+if [ -f "$ALLOWLIST_FILE" ]; then
+    sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$ALLOWLIST_FILE" |
+        grep -v '^$' | LC_ALL=C sort >"$allowed" || : >"$allowed"
+else
+    : >"$allowed"
+fi
+
+unexpected=$(LC_ALL=C comm -23 "$dropped" "$allowed")
+stale=$(LC_ALL=C comm -13 "$dropped" "$allowed")
+
+status=0
+
+if [ -n "$unexpected" ]; then
+    status=1
+    count=$(printf '%s\n' "$unexpected" | wc -l | tr -d ' ')
+    echo "Dropped upstream files: $count"
+    echo
+    echo "These paths exist upstream at the merge base ($(git rev-parse --short "$merge_base"))"
+    echo "but have no PaddleBoard counterpart. A merge almost certainly ate them."
+    echo
+    printf '%s\n' "$unexpected" | sed 's/^/  /'
+    echo
+    echo "Restore each file under its renamed directory, or, if the omission is"
+    echo "deliberate, add it to $ALLOWLIST_FILE with a reason."
+fi
+
+if [ -n "$stale" ]; then
+    echo
+    echo "Stale allowlist entries (no longer dropped — the file is present, or"
+    echo "upstream removed it). Delete these from $ALLOWLIST_FILE:"
+    echo
+    printf '%s\n' "$stale" | sed 's/^/  /'
+fi
+
+if [ "$status" = 0 ] && [ -z "$stale" ]; then
+    tracked=$(wc -l <"$candidates" | tr -d ' ')
+    echo "No dropped upstream files ($tracked tracked across ${#RENAME_MAP[@]} renamed directories)."
+fi
+
+exit "$status"

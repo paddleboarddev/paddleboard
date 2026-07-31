@@ -775,6 +775,7 @@ impl LanguageModel for CloudLanguageModel {
                         AnthropicModelMode::Default
                     },
                     AnthropicPromptCacheMode::Automatic,
+                    &PADDLEBOARD_CLOUD_PROVIDER_ID,
                 ) {
                     Ok(request) => request,
                     Err(error) => return async move { Err(error.into()) }.boxed(),
@@ -814,7 +815,8 @@ impl LanguageModel for CloudLanguageModel {
                         Err(err) => anyhow!(err),
                     })?;
 
-                    let mut mapper = AnthropicEventMapper::new(provider_name.clone());
+                    let mut mapper =
+                        AnthropicEventMapper::new(provider_name.clone(), PADDLEBOARD_CLOUD_PROVIDER_ID);
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,
@@ -838,7 +840,9 @@ impl LanguageModel for CloudLanguageModel {
                             .is_ok_and(|effort| effort == open_ai::ReasoningEffort::None)
                     });
 
-                let mut request = into_open_ai_response(
+                // PaddleBoard: streams proxied through Cloud are produced by Cloud's
+                // infrastructure, so it owns any compaction state they emit.
+                let mut request = match into_open_ai_response(
                     request,
                     &self.model.id.0,
                     self.model.supports_parallel_tool_calls,
@@ -846,7 +850,11 @@ impl LanguageModel for CloudLanguageModel {
                     None,
                     None,
                     supports_none_reasoning_effort,
-                );
+                    &PADDLEBOARD_CLOUD_PROVIDER_ID,
+                ) {
+                    Ok(request) => request,
+                    Err(error) => return async move { Err(error.into()) }.boxed(),
+                };
 
                 if enable_thinking && let Some(effort) = effort {
                     request.reasoning = Some(open_ai::responses::ReasoningConfig {
@@ -875,7 +883,8 @@ impl LanguageModel for CloudLanguageModel {
                     )
                     .await?;
 
-                    let mut mapper = OpenAiResponseEventMapper::new();
+                    let mut mapper =
+                        OpenAiResponseEventMapper::new(PADDLEBOARD_CLOUD_PROVIDER_ID);
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,

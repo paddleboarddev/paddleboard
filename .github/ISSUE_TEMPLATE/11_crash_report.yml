@@ -1,0 +1,95 @@
+# PaddleBoard: rewritten from Zed's crash report form (product named as Zed,
+# Zed-prefixed command names). PB-owned — resolve merge conflicts in favor of ours.
+name: Report a crash
+description: PaddleBoard crashed, froze, or hung.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A crash report with a version and a log is almost always enough to find the cause. Thank you for taking the time.
+
+        ⚠️ **Redact API keys and tokens** from anything you paste — crash logs can include command lines and environment values.
+  - type: textarea
+    attributes:
+      label: Reproduction steps
+      description: How to get from a fresh PaddleBoard install to the crash. If it isn't reproducible, say what you were doing when it happened — that's still useful.
+      placeholder: |
+        1. Open a project
+        2. Start an agent thread with the sandbox enabled
+        3. Approve a terminal tool call
+        4. PaddleBoard quits
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: What kind of failure?
+      multiple: false
+      options:
+        - Quit unexpectedly (crash)
+        - Froze or became unresponsive (hang)
+        - Window went blank or stopped drawing
+        - Failed to launch at all
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: PaddleBoard version and system specs
+      description: |
+        Open the command palette (`cmd-shift-p` / `ctrl-shift-p`) and run **`copy system specs into clipboard`**.
+
+        If PaddleBoard won't launch, the version from the download or the release tag is fine, plus your OS and architecture.
+      placeholder: |
+        PaddleBoard: v0.2.0 (0123456789abcdef0123456789abcdef01234567)
+        OS: macOS 15.5
+        Memory: 36 GiB
+        Architecture: aarch64
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Log file
+      description: |
+        Command palette → **`open log`**, or **`reveal log in file manager`** for the file itself. After a crash the interesting lines are at the very end.
+
+        On macOS, `~/Library/Logs/PaddleBoard/PaddleBoard.log` is readable even when the app won't start.
+
+        ⚠️ **Redact any secrets before posting.**
+      value: |
+        <details><summary>PaddleBoard.log</summary>
+
+        <!-- Paste your log inside the code block. -->
+        ```log
+
+        ```
+
+        </details>
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: macOS crash report
+      description: |
+        Optional, and the single most useful attachment for a hard crash. Open **Console.app → Crash Reports** and find the newest `PaddleBoard-….ips`, or look in `~/Library/Logs/DiagnosticReports/`.
+      value: |
+        <details><summary>PaddleBoard.ips</summary>
+
+        <!-- Paste the crash report inside the code block. -->
+        ```
+
+        ```
+
+        </details>
+    validations:
+      required: false
+  - type: checkboxes
+    attributes:
+      label: Was any of this involved?
+      description: These subsystems start external processes, so they're worth ruling in or out early.
+      options:
+        - label: The sandbox (microVM, or Podman + gVisor)
+        - label: Managed local models (llama.cpp)
+        - label: MCP servers
+        - label: Semantic search / RAG indexing
+        - label: Set Sail (a deploy)
+        - label: Scion

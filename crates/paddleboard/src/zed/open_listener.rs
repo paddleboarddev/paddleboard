@@ -37,6 +37,8 @@ pub struct OpenRequest {
     pub diff_paths: Vec<[String; 2]>,
     pub diff_all: bool,
     pub dev_container: bool,
+    // PaddleBoard: open the resulting window in Placid mode (--placid).
+    pub placid: bool,
     pub remote_connection: Option<RemoteConnectionOptions>,
     pub open_behavior: Option<cli::OpenBehavior>,
 }
@@ -56,7 +58,7 @@ pub enum OpenRequestKind {
         external_source_prompt: Option<ExternalSourcePrompt>,
     },
     InstallSkill {
-        /// Full `SKILL.md` contents embedded in a `zed://skill` share link.
+        /// Full `SKILL.md` contents embedded in a `paddleboard://skill` share link.
         content: String,
     },
     DockMenuAction {
@@ -131,6 +133,7 @@ impl OpenRequest {
         this.diff_paths = request.diff_paths;
         this.diff_all = request.diff_all;
         this.dev_container = request.dev_container;
+        this.placid = request.placid;
         this.open_behavior = request.open_behavior;
         if let Some(wsl) = request.wsl {
             let (user, distro_name) = if let Some((user, distro)) = wsl.split_once('@') {
@@ -218,7 +221,7 @@ impl OpenRequest {
     }
 
     fn parse_skill_install_url(&mut self, url: &str) -> Result<()> {
-        // Format: zed://skill?data=<base64url of SKILL.md contents>
+        // Format: paddleboard://skill?data=<base64url of SKILL.md contents>
         let content = agent_skills::decode_skill_share_link(url)?;
         self.kind = Some(OpenRequestKind::InstallSkill { content });
         Ok(())
@@ -370,6 +373,8 @@ pub struct RawOpenRequest {
     pub diff_paths: Vec<[String; 2]>,
     pub diff_all: bool,
     pub dev_container: bool,
+    // PaddleBoard: see OpenRequest::placid.
+    pub placid: bool,
     pub wsl: Option<String>,
     pub open_behavior: Option<cli::OpenBehavior>,
 }
@@ -578,6 +583,7 @@ pub async fn handle_cli_connection(
                 env,
                 user_data_dir: _,
                 dev_container,
+                placid,
                 cwd,
             } => {
                 if !urls.is_empty() {
@@ -588,6 +594,7 @@ pub async fn handle_cli_connection(
                                 diff_paths,
                                 diff_all,
                                 dev_container,
+                                placid,
                                 wsl,
                                 open_behavior: Some(open_behavior),
                             },
@@ -1496,7 +1503,15 @@ mod tests {
         let result = cx.update(|cx| {
             OpenRequest::parse(
                 RawOpenRequest {
-                    urls: vec!["zed://skill?data=!!!notbase64".into()],
+                    // Built from the const rather than hardcoded: this test
+                    // previously used a literal "zed://…", which no longer matched
+                    // the parser, so it passed for the wrong reason — the malformed
+                    // base64 was never reached. Tracking the const keeps it honest
+                    // whichever scheme the share links use.
+                    urls: vec![format!(
+                        "{}?data=!!!notbase64",
+                        agent_skills::SKILL_SHARE_LINK_PREFIX
+                    )],
                     ..Default::default()
                 },
                 cx,
@@ -1550,7 +1565,7 @@ mod tests {
         let request = cx.update(|cx| {
             OpenRequest::parse(
                 RawOpenRequest {
-                    urls: vec!["zed://agent/?prompt=hello".into()],
+                    urls: vec!["paddleboard://agent/?prompt=hello".into()],
                     ..Default::default()
                 },
                 cx,
@@ -1577,7 +1592,7 @@ mod tests {
     fn test_parse_focus_app_url(cx: &mut TestAppContext) {
         let _app_state = init_test(cx);
 
-        for url in ["zed://", "zed://open", "zed://open/"] {
+        for url in ["paddleboard://", "paddleboard://open", "paddleboard://open/"] {
             let request = cx.update(|cx| {
                 OpenRequest::parse(
                     RawOpenRequest {
@@ -2417,6 +2432,7 @@ mod tests {
             env: None,
             user_data_dir: None,
             dev_container: false,
+            placid: false,
             cwd: None,
         }
     }
@@ -2436,6 +2452,7 @@ mod tests {
             env: None,
             user_data_dir: None,
             dev_container: false,
+            placid: false,
             cwd: None,
         }
     }

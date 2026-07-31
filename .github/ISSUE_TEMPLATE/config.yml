@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-issue-config.json
+#
+# PaddleBoard: rewritten from Zed's version, which routed reporters to
+# zed-industries' discussions and Discord. This whole directory is PB-owned —
+# resolve upstream merge conflicts in favor of ours. It also has to be listed in
+# PUBLIC_GITHUB_FILES in script/publish-public.sh, or it never reaches the public
+# repo where users actually file issues.
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/paddleboarddev/paddleboard/discussions/new?category=q-a
+    about: Not sure it's a bug? Ask in Q&A — that's the fastest way to get an answer.
+  - name: Feature request
+    url: https://github.com/paddleboarddev/paddleboard/discussions/new?category=ideas
+    about: Propose a feature or an idea. Discussing it first keeps the issue tracker for defects.
+  - name: Show and tell
+    url: https://github.com/paddleboarddev/paddleboard/discussions/new?category=show-and-tell
+    about: Built something with PaddleBoard — a persona, a skill pack, a workflow? Show it off.
+  - name: Documentation
+    url: https://docs.paddleboard.dev
+    about: Setup, model providers, local models, the sandbox, and the AI Dock are documented here.

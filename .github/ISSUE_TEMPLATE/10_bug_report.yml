@@ -1,0 +1,135 @@
+# PaddleBoard: rewritten from Zed's bug report form, which described the product
+# as Zed, linked to zed-industries/zed for duplicate search, and sent reporters to
+# Zed's Discord. PB-owned — resolve merge conflicts in favor of ours.
+name: Report a bug
+description: Something in PaddleBoard doesn't work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Two things make a bug fixable fast:
+
+        1. **Check it isn't already filed** — [search open issues](https://github.com/paddleboarddev/paddleboard/issues?q=is%3Aissue). A 👍 on an existing report is more useful than a duplicate.
+        2. **Include the version and the log.** The fields below give you the exact commands.
+
+        Not sure it's a bug, or it's a feature you'd like? Those belong in [Discussions](https://github.com/paddleboarddev/paddleboard/discussions) instead.
+
+        ⚠️ PaddleBoard sends no telemetry, so a bug report is the *only* way a problem reaches us. That also means logs and settings are yours to share — **please redact API keys and tokens before pasting.**
+  - type: textarea
+    attributes:
+      label: Reproduction steps
+      description: How to get from a fresh PaddleBoard install to the problem. The more precise this is, the faster it gets fixed.
+      placeholder: |
+        1. Open a project
+        2. Open the AI Dock
+        3. Click Install on a skill
+        4. Nothing happens
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Current vs. expected behavior
+      description: What happens, and what you expected instead. Screenshots and screen recordings are very welcome.
+      placeholder: |
+        Current: the Install button spins forever and no skill appears in `.agents/skills/`.
+        Expected: the skill is installed and shows as Installed.
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which part of PaddleBoard?
+      description: A best guess is fine — it just speeds up triage. Pick "Editor / core" for anything inherited from Zed (editing, LSP, git, terminal, debugger).
+      multiple: false
+      options:
+        - Editor / core (editing, LSP, git, terminal, debugger)
+        - Agent panel / threads
+        - AI Dock (agents, skills, MCP, personas, usage)
+        - Personas / PERSONA.md
+        - Local models (managed llama.cpp)
+        - Model providers / API keys
+        - Sandbox (microVM, or Podman + gVisor)
+        - MCP servers
+        - Semantic search / RAG
+        - Set Sail (deploys)
+        - Manifest panel / Git Login
+        - Onboarding, tour, or themes
+        - Install, launch, or update
+        - Something else
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: PaddleBoard version and system specs
+      description: |
+        Open the command palette (`cmd-shift-p` / `ctrl-shift-p`) and run **`copy system specs into clipboard`**, then paste the result here.
+      placeholder: |
+        PaddleBoard: v0.2.0 (0123456789abcdef0123456789abcdef01234567)
+        OS: macOS 15.5
+        Memory: 36 GiB
+        Architecture: aarch64
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Log file
+      description: |
+        Command palette → **`open log`** shows the last 1000 lines. **`reveal log in file manager`** opens the file itself.
+
+        ⚠️ **Review the log for secrets (API keys, tokens, project paths you'd rather not share) and redact them before posting.**
+      value: |
+        <details><summary>PaddleBoard.log</summary>
+
+        <!-- Paste your log inside the code block. -->
+        ```log
+
+        ```
+
+        </details>
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Relevant settings
+      description: |
+        Command palette → **`open settings file`**. Paste anything related — `paddleboard_sandbox`, `paddleboard_scion`, language server config, and so on.
+
+        ⚠️ **Redact API keys and tokens.**
+      value: |
+        <details><summary>settings.json</summary>
+
+        <!-- Paste your settings inside the code block. -->
+        ```json
+
+        ```
+
+        </details>
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Relevant keybindings
+      description: Command palette → **`open keymap file`**. Only needed if the bug involves a shortcut.
+      value: |
+        <details><summary>keymap.json</summary>
+
+        <!-- Paste your keymap inside the code block. -->
+        ```json
+
+        ```
+
+        </details>
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: For AI or agent issues — model and provider
+      description: Which model, which provider, and where you were running it. For a local-model problem, say which GGUF.
+      placeholder: |
+        - Provider: (Anthropic API key, OpenAI, Google, Vertex, Copilot, an openai_compatible endpoint, managed local models, …)
+        - Model: (Claude Sonnet 4.5, gemma-3n-e4b, gpt-5, …)
+        - Where: (agent panel, inline assistant, terminal assistant, a subagent, Scion)
+        - Persona in use, MCP servers connected, sandbox on or off:
+    validations:
+      required: false

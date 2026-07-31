@@ -39,10 +39,16 @@ ALLOWLIST=(
   "script/kube-shell"                # Zed collab kube tooling
   "script/setup-dev-driver.ps1"      # Zed Windows dev tooling
   "script/check-zed-isms"            # this gate (patterns appear in its own text)
+  "script/check-dropped-upstream-files"          # maps upstream paths -> renamed ones; must name both
+  "script/dropped-upstream-files-allowlist.txt"  # entries ARE upstream paths, by design
   ".github/CODEOWNERS.hold"          # parked upstream file, inert
   "docs/"                            # inherited upstream docs (carry redirect banners instead)
   "crates/paddleboard/resources/flatpak/"  # inert flatpak manifests (not shipped)
   "crates/git_hosting_providers/"    # permalink tests use fictional crates/zed paths as fixtures
+  # --- zed:// URL scheme: files where the OLD scheme is deliberately present ---
+  "crates/terminal/src/alacritty/hyperlinks.rs"  # linkifies many external schemes; recognising Zed's is correct
+  "crates/acp_thread/src/mention.rs"             # legacy zed:// mentions are re-emitted as paddleboard://; tests pin that
+  "crates/agent_skills/agent_skills.rs"          # asserts the pre-fix zed:// share scheme STAYS rejected
 )
 
 allowlisted() {
@@ -64,6 +70,20 @@ mapfile -t hits < <(
     grep -rnE '(--package|-p) zed([^-_a-zA-Z0-9]|$)|get-crate-version zed([^-_a-zA-Z0-9]|$)' script/ .github/ 2>/dev/null \
       | grep -v 'sentry-cli' || true
     grep -rnE '\bZED_[A-Z_]+' script/ 2>/dev/null || true
+    # App-bundle binary paths. PB's binary is `paddleboard`, so a literal
+    # "Contents/MacOS/zed" resolves to a file that does not exist — and because
+    # it's a runtime path join, nothing fails to compile. This shipped broken:
+    # `paddleboard --foreground` was dead on macOS in every release until
+    # 2026-07-26 (crates/cli/src/main.rs). String literals were the gap in this
+    # gate's original patterns, which only covered crates/zed/ and -p zed.
+    grep -rnE 'MacOS/zed([^-_a-zA-Z0-9]|$)' script/ .github/ crates/ assets/ 2>/dev/null || true
+    # The `zed://` URL scheme. PaddleBoard registers `paddleboard://` (see the
+    # app's CFBundleURLSchemes), so a zed:// URL in shipped code is unroutable —
+    # it either fails or opens Zed. This shipped twice: skill share links, and
+    # `$schema` in assets/settings/default.json. Comment lines are skipped, since
+    # docs legitimately describe the old scheme when explaining the rename.
+    grep -rnE 'zed://' script/ .github/ crates/ assets/ 2>/dev/null \
+      | grep -vE ':[0-9]+:[[:space:]]*(//|#|\*)' || true
   } | sort -u
 )
 

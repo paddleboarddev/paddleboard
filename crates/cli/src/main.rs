@@ -134,6 +134,9 @@ struct Args {
     /// configuration is found in the project directory.
     #[arg(long)]
     dev_container: bool,
+    /// Open in Placid mode: hide the docks and center the editor
+    #[arg(long, visible_alias = "simple")]
+    placid: bool,
     /// Pairs of file paths to diff. Can be specified multiple times.
     /// When directories are provided, recurses into them and shows all changed files in a single multi-diff view.
     #[arg(long, action = clap::ArgAction::Append, num_args = 2, value_names = ["OLD_PATH", "NEW_PATH"], value_hint = clap::ValueHint::AnyPath)]
@@ -728,6 +731,7 @@ fn run() -> Result<()> {
                     env,
                     user_data_dir: user_data_dir_for_thread,
                     dev_container: args.dev_container,
+                    placid: args.placid,
                     cwd: env::current_dir().ok(),
                 };
 
@@ -1430,7 +1434,11 @@ mod mac_os {
             user_data_dir: Option<&str>,
         ) -> io::Result<ExitStatus> {
             let path = match self {
-                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/zed"),
+                // PaddleBoard: the bundled binary is `paddleboard`, not `zed`.
+                // Upstream's literal resolves to a nonexistent file here, and
+                // because it's a runtime path join nothing fails to compile —
+                // `--foreground` just died with ENOENT. Keep the fork's name.
+                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/paddleboard"),
                 Bundle::LocalPath { executable, .. } => executable.clone(),
             };
 
@@ -1444,7 +1452,8 @@ mod mac_os {
 
         fn path(&self) -> PathBuf {
             match self {
-                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/zed"),
+                // PaddleBoard: same rename as in `run_foreground` above.
+                Bundle::App { app_bundle, .. } => app_bundle.join("Contents/MacOS/paddleboard"),
                 Bundle::LocalPath { executable, .. } => executable.clone(),
             }
         }

@@ -18,7 +18,15 @@ name: Release
 # The git tag must match the paddleboard crate version, i.e. `v<version>`
 # (currently v0.1.14). publish-public.sh owns the Release shell (notes, tag, site
 # bump) and creates it as a prerelease; this workflow builds the signed DMG and
-# ATTACHES it to that Release, then a human drops the prerelease flag after review.
+# ATTACHES it to that Release, then a human promotes it after review with:
+#
+#   gh release edit vX.Y.Z --prerelease=false --latest
+#
+# BOTH flags are required. Dropping `--prerelease` alone does NOT move GitHub's
+# "Latest" badge — `make_latest` is a separate field that GitHub only computes
+# when a non-prerelease release is created, and every release here is CREATED as
+# a prerelease. Omitting `--latest` leaves the badge pointing at an old build:
+# it sat on v0.1.17 across three releases until someone noticed in July 2026.
 
 on:
   push:

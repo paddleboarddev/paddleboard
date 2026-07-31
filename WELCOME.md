@@ -389,6 +389,16 @@ A status-bar meter shows how much of the model's context window the active agent
 - Appears only while a thread has token usage; otherwise it stays out of your way.
 - **Purely local.** It reads the counts the agent thread already tracks on your machine — PaddleBoard's telemetry stays hard-disabled, and nothing is reported anywhere.
 
+### Staying up to date
+
+PaddleBoard checks [its GitHub Releases](https://github.com/paddleboarddev/paddleboard/releases) once an hour, downloads a newer build in the background, and applies it when you restart. There's no update server and no account — and because PaddleBoard reports no telemetry, the check carries no install identifier with it.
+
+- **What you get offered** is the highest released version with a build for your platform: macOS on Apple silicon, or Linux on x86_64. Anywhere else — Intel Macs, ARM Linux, Windows — you're building from source, and PaddleBoard says so instead of failing quietly.
+- **Check now** rather than waiting for the poll: `Cmd-Shift-P` → **`auto update: Check`**. It runs even if you've turned automatic updates off.
+- **Turn it off** with `"auto_update": false`. It takes effect immediately, no restart.
+- **Beta builds** are skipped by default. To ride them as they're cut, set `"paddleboard_auto_update": { "include_prereleases": true }`.
+- A build you compiled yourself never polls, and will never replace itself with a release build.
+
 ---
 
 ## What PaddleBoard inherits from Zed
@@ -411,6 +421,7 @@ Everything else: multi-buffer editor, LSP, DAP debugger, git panel, terminal, Vi
 | Run an ADK agent | `Cmd-Shift-P` → `adk: Run Agent` |
 | Start a Scion agent | `Cmd-Shift-P` → `scion: Start Agent` |
 | Enable OTEL tracing | Set `PADDLEBOARD_OTEL_ENABLED=1` or add `"paddleboard_otel": { "enabled": true }` to settings |
+| Check for an update now | `Cmd-Shift-P` → `auto update: Check` |
 | Switch / create a worktree | `Cmd-Shift-P` → `git: Worktree` |
 | Search the project by meaning | Enable `"paddleboard_rag": { "enabled": true }`, then ask the agent to `semantic_search` for a concept |
 | Run code in a sandbox | Ask the agent to run a command — it uses the Sandbox Tool automatically |

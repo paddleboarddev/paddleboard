@@ -37,6 +37,11 @@ which.workspace = true
 [dev-dependencies]
 ctor.workspace = true
 clock= { workspace = true, "features" = ["test-support"] }
+# PaddleBoard: the update flow records "show the update notification" in the kvp
+# store on success. That line is only reached now that updates actually complete,
+# and without test-support `KeyValueStore::global` panics instead of falling back
+# to the temp test database.
+db = { workspace = true, features = ["test-support"] }
 futures.workspace = true
 gpui = { workspace = true, "features" = ["test-support"] }
 parking_lot.workspace = true

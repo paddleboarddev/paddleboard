@@ -888,15 +888,8 @@
   // Custom bindings
   {
     "bindings": {
-      "ctrl-alt-shift-f": "workspace::FollowNextCollaborator",
       // Only available in debug builds: opens an element inspector for development.
       "ctrl-alt-i": "dev::ToggleInspector",
-    },
-  },
-  {
-    "context": "!Terminal",
-    "bindings": {
-      "ctrl-shift-c": "collab_panel::ToggleFocus",
     },
   },
   {
@@ -1012,7 +1005,7 @@
     },
   },
   {
-    "context": "GitPanel && ChangesList && !GitBranchSelector",
+    "context": "GitPanel && ChangesList && !GitBranchSelector && !GitRepositorySelector",
     "bindings": {
       "left": "git_panel::CollapseSelectedEntry",
       "right": "git_panel::ExpandSelectedEntry",
@@ -1146,34 +1139,6 @@
     },
   },
   {
-    "context": "CollabPanel && not_editing",
-    "bindings": {
-      "ctrl-backspace": "collab_panel::Remove",
-      "space": "menu::Confirm",
-    },
-  },
-  {
-    "context": "CollabPanel",
-    "bindings": {
-      "alt-up": "collab_panel::MoveChannelUp",
-      "alt-down": "collab_panel::MoveChannelDown",
-      "alt-enter": "collab_panel::OpenSelectedChannelNotes",
-      "shift-enter": "collab_panel::ToggleSelectedChannelFavorite",
-    },
-  },
-  {
-    "context": "(CollabPanel && editing) > Editor",
-    "bindings": {
-      "space": "collab_panel::InsertSpace",
-    },
-  },
-  {
-    "context": "ChannelModal",
-    "bindings": {
-      "tab": "channel_modal::ToggleMode",
-    },
-  },
-  {
     "context": "Picker > Editor",
     "bindings": {
       "escape": "menu::Cancel",
@@ -1185,12 +1150,6 @@
       // ToggleActionsMenu) live in keymaps/specific-overrides.json, which is
       // loaded after the base keymap so they win over conflicting base-keymap
       // Editor bindings.
-    },
-  },
-  {
-    "context": "ChannelModal > Picker > Editor",
-    "bindings": {
-      "tab": "channel_modal::ToggleMode",
     },
   },
   {
@@ -1211,6 +1170,7 @@
     "context": "RecentProjects || (RecentProjects > Picker > Editor)",
     "bindings": {
       "ctrl-k": "recent_projects::ToggleActionsMenu",
+      "ctrl-k ctrl-o": "workspace::Open",
       "ctrl-shift-a": "workspace::AddFolderToProject",
       "shift-backspace": "recent_projects::RemoveSelected",
       "ctrl-shift-enter": "recent_projects::AddToWorkspace",

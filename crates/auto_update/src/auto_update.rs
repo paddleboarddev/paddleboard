@@ -1,3 +1,8 @@
+// PaddleBoard: release discovery against GitHub Releases, replacing upstream's
+// zed.dev release endpoint. Kept in its own module so upstream merges cannot
+// conflict with the selection rule.
+mod paddleboard_releases;
+
 use anyhow::{Context as _, Result};
 use client::Client;
 use db::kvp::KeyValueStore;
@@ -11,7 +16,7 @@ use paths::remote_servers_dir;
 use release_channel::{AppCommitSha, ReleaseChannel};
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use settings::{RegisterSetting, Settings};
+use settings::{RegisterSetting, Settings, SettingsStore};
 use smol::fs::File;
 use smol::{
     fs,
@@ -241,11 +246,8 @@ async fn unmount_disk_image(mount_path: &Path) {
     }
 }
 
-// PaddleBoard: the setting is now vestigial — auto-update polling is unconditionally disabled in
-// `init`, so this value isn't read at runtime. Kept registered for upstream-merge stability and
-// because the test below exercises its `Settings` impl.
 #[derive(Clone, Copy, Debug, RegisterSetting)]
-struct AutoUpdateSetting(#[allow(dead_code)] bool);
+struct AutoUpdateSetting(bool);
 
 /// Whether or not to automatically check for updates.
 ///
@@ -253,6 +255,25 @@ struct AutoUpdateSetting(#[allow(dead_code)] bool);
 impl Settings for AutoUpdateSetting {
     fn from_settings(content: &settings::SettingsContent) -> Self {
         Self(content.auto_update.unwrap())
+    }
+}
+
+// PaddleBoard: whether prerelease builds are eligible. Separate from the toggle
+// above because it answers a different question — not "should I update" but
+// "which releases count" — and because upstream has no equivalent, so keeping it
+// in its own setting leaves `AutoUpdateSetting` merge-clean.
+#[derive(Clone, Copy, Debug, RegisterSetting)]
+struct IncludePrereleasesSetting(bool);
+
+impl Settings for IncludePrereleasesSetting {
+    fn from_settings(content: &settings::SettingsContent) -> Self {
+        Self(
+            content
+                .paddleboard_auto_update
+                .as_ref()
+                .and_then(|content| content.include_prereleases)
+                .unwrap_or(false),
+        )
     }
 }
 
@@ -271,12 +292,41 @@ pub fn init(client: Arc<Client>, cx: &mut App) {
     })
     .detach();
 
-    // PaddleBoard: skip polling for updates. The upstream poll loop hits zed.dev, which is
-    // not a PaddleBoard surface. The bare AutoUpdater is still created so that
-    // `AutoUpdater::download_remote_server_release` (SSH-remote binary fetch) keeps working,
-    // and so existing `AutoUpdater::get(cx)` call sites in the title bar see a stable Idle status.
+    // PaddleBoard: polling is live again, against GitHub Releases rather than zed.dev
+    // (see `paddleboard_releases`). The structure here is upstream's — including the
+    // settings observer, so toggling `auto_update` starts and stops the loop without a
+    // restart. `poll_for_updates()` excludes the Dev channel, which is what keeps
+    // `cargo run` builds from trying to replace themselves with a release DMG.
     let version = release_channel::AppVersion::global(cx);
-    let auto_updater = cx.new(|cx| AutoUpdater::new(version, client, cx));
+    let auto_updater = cx.new(|cx| {
+        let updater = AutoUpdater::new(version, client, cx);
+
+        let poll_for_updates = ReleaseChannel::try_global(cx)
+            .map(|channel| channel.poll_for_updates())
+            .unwrap_or(false);
+
+        if option_env!("PADDLEBOARD_UPDATE_EXPLANATION").is_none()
+            && env::var("PADDLEBOARD_UPDATE_EXPLANATION").is_err()
+            && poll_for_updates
+        {
+            let mut update_subscription = AutoUpdateSetting::get_global(cx)
+                .0
+                .then(|| updater.start_polling(cx));
+
+            cx.observe_global::<SettingsStore>(move |updater: &mut AutoUpdater, cx| {
+                if AutoUpdateSetting::get_global(cx).0 {
+                    if update_subscription.is_none() {
+                        update_subscription = Some(updater.start_polling(cx))
+                    }
+                } else {
+                    update_subscription.take();
+                }
+            })
+            .detach();
+        }
+
+        updater
+    });
     cx.set_global(GlobalAutoUpdate(Some(auto_updater)));
 }
 
@@ -295,15 +345,38 @@ pub fn check(_: &Check, window: &mut Window, cx: &mut App) {
         return;
     }
 
-    // PaddleBoard: do not poll for updates. The upstream path hits zed.dev; PaddleBoard releases
-    // are tracked on GitHub. Point users at the releases page instead of running the poll.
-    drop(window.prompt(
-        gpui::PromptLevel::Info,
-        "Auto-updates are disabled in PaddleBoard",
-        Some("Track new releases at https://github.com/paddleboarddev/paddleboard/releases."),
-        &["Ok"],
-        cx,
-    ));
+    // PaddleBoard: a manual check runs even when the `auto_update` setting is off —
+    // the user just asked for it. The Dev-channel bail below is not a setting: a
+    // locally built app has no release to correspond to, so say so rather than
+    // offering to overwrite it.
+    if !ReleaseChannel::try_global(cx)
+        .map(|channel| channel.poll_for_updates())
+        .unwrap_or(false)
+    {
+        drop(window.prompt(
+            gpui::PromptLevel::Info,
+            "This is a development build",
+            Some(
+                "Updates apply to released builds. \
+                 Downloads live at https://github.com/paddleboarddev/paddleboard/releases.",
+            ),
+            &["Ok"],
+            cx,
+        ));
+        return;
+    }
+
+    if let Some(updater) = AutoUpdater::get(cx) {
+        updater.update(cx, |updater, cx| updater.poll(UpdateCheckType::Manual, cx));
+    } else {
+        drop(window.prompt(
+            gpui::PromptLevel::Info,
+            "Could not check for updates",
+            Some("Auto-updates are disabled for non-bundled app."),
+            &["Ok"],
+            cx,
+        ));
+    }
 }
 
 pub fn release_notes_url(_cx: &mut App) -> Option<String> {
@@ -621,6 +694,8 @@ impl AutoUpdater {
         }
     }
 
+    // PaddleBoard: args appear unused because the body returns before the upstream code is reached.
+    #[allow(unused_variables)]
     async fn get_release_asset(
         this: &Entity<Self>,
         release_channel: ReleaseChannel,
@@ -630,6 +705,24 @@ impl AutoUpdater {
         arch: &str,
         cx: &mut AsyncApp,
     ) -> Result<ReleaseAsset> {
+        // PaddleBoard: releases are GitHub Releases on paddleboarddev/paddleboard, not
+        // objects served by zed.dev, so the upstream body below is unreachable. Returning
+        // before it is the same override pattern used by `get_remote_server_release_url`.
+        //
+        // This also drops the upstream query's telemetry identifiers (system_id,
+        // metrics_id, is_staff) — PaddleBoard reports no telemetry, and an update check
+        // that carries an install identifier would be exactly that.
+        let (http, include_prereleases) = this.read_with(cx, |this, cx| {
+            (
+                this.client.http_client(),
+                IncludePrereleasesSetting::get_global(cx).0,
+            )
+        });
+        return paddleboard_releases::fetch_latest_release(http, include_prereleases, os, arch)
+            .await;
+
+        #[allow(unreachable_code, unused_variables)]
+        {
         let client = this.read_with(cx, |this, _| this.client.clone());
 
         let (system_id, metrics_id, is_staff) = if client.telemetry().metrics_enabled() {
@@ -682,6 +775,7 @@ impl AutoUpdater {
                 String::from_utf8_lossy(&body),
             )
         })
+        }
     }
 
     async fn update(this: Entity<Self>, cx: &mut AsyncApp) -> Result<()> {
@@ -866,7 +960,10 @@ impl AutoUpdater {
     async fn target_path(installer_dir: &InstallerDir) -> Result<PathBuf> {
         let filename = match OS {
             "macos" => anyhow::Ok("PaddleBoard.dmg"),
-            "linux" => Ok("zed.tar.gz"),
+            // PaddleBoard: was `zed.tar.gz`. This is the filename the downloaded
+            // archive is written to before `install_release_linux` unpacks it, so a
+            // stale name here is not cosmetic once Linux updates are live.
+            "linux" => Ok("paddleboard.tar.gz"),
             "windows" => Ok("PaddleBoard.exe"),
             unsupported_os => anyhow::bail!("not supported: {unsupported_os}"),
         }?;
@@ -1341,6 +1438,38 @@ mod tests {
         });
     }
 
+    // PaddleBoard: the prerelease opt-in is only reachable through the settings
+    // pipeline — a typo in the `paddleboard_auto_update` key or a missing re-export
+    // would leave it silently stuck at its default, with nothing failing to compile.
+    #[gpui::test]
+    fn test_include_prereleases_defaults_off_and_is_settable(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            let mut store = SettingsStore::new(cx, &settings::default_settings());
+            store
+                .set_default_settings(&default_settings(), cx)
+                .expect("Unable to set default settings");
+            store
+                .set_user_settings("{}", cx)
+                .expect("Unable to set user settings");
+            cx.set_global(store);
+            assert!(
+                !IncludePrereleasesSetting::get_global(cx).0,
+                "prereleases must be opt-in"
+            );
+
+            use gpui::BorrowAppContext as _;
+            cx.update_global::<SettingsStore, _>(|store, cx| {
+                store
+                    .set_user_settings(
+                        r#"{ "paddleboard_auto_update": { "include_prereleases": true } }"#,
+                        cx,
+                    )
+                    .expect("Unable to set user settings");
+            });
+            assert!(IncludePrereleasesSetting::get_global(cx).0);
+        });
+    }
+
     #[gpui::test]
     async fn test_auto_update_downloads(cx: &mut TestAppContext) {
         cx.background_executor.allow_parking();
@@ -1362,16 +1491,27 @@ mod tests {
                 let release_available = release_available.load(atomic::Ordering::Relaxed);
                 let dmg_rx = dmg_rx.clone();
                 async move {
-                if req.uri().path() == "/releases/stable/latest/asset" {
-                    if release_available {
-                        return Ok(Response::builder().status(200).body(
-                            r#"{"version":"0.100.1","url":"https://test.example/new-download"}"#.into()
-                        ).unwrap());
+                // PaddleBoard: the fake now speaks the GitHub Releases API, because that
+                // is what the updater asks for. Each release carries BOTH platform assets
+                // pointing at the same URL — the updater picks by host platform, so a
+                // single-asset fixture would pass on macOS and fail on CI's Linux.
+                if req.uri().path() == "/repos/paddleboarddev/paddleboard/releases" {
+                    let release = |tag: &str, url: &str| format!(
+                        r#"{{"tag_name":"{tag}","draft":false,"prerelease":false,"assets":[
+                             {{"name":"PaddleBoard-aarch64.dmg","browser_download_url":"{url}"}},
+                             {{"name":"paddleboard-linux-x86_64.tar.gz","browser_download_url":"{url}"}}
+                           ]}}"#
+                    );
+                    let body = if release_available {
+                        format!(
+                            "[{},{}]",
+                            release("v0.100.1", "https://test.example/new-download"),
+                            release("v0.100.0", "https://test.example/old-download"),
+                        )
                     } else {
-                        return Ok(Response::builder().status(200).body(
-                            r#"{"version":"0.100.0","url":"https://test.example/old-download"}"#.into()
-                        ).unwrap());
-                    }
+                        format!("[{}]", release("v0.100.0", "https://test.example/old-download"))
+                    };
+                    return Ok(Response::builder().status(200).body(body.into()).unwrap());
                 } else if req.uri().path() == "/new-download" {
                     return Ok(Response::builder().status(200).body({
                         let dmg_rx = dmg_rx.lock().take().unwrap();

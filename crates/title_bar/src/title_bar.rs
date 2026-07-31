@@ -339,8 +339,6 @@ impl Render for TitleBar {
         let status = self.client.status();
         let status = &*status.borrow();
         let user = self.user_store.read(cx).current_user();
-
-        let signed_in = user.is_some();
         let is_signing_in = user.is_none()
             && matches!(
                 status,
@@ -356,13 +354,7 @@ impl Render for TitleBar {
 
         children.push(
             h_flex()
-                .map(|this| {
-                    if signed_in {
-                        this.pr_1p5()
-                    } else {
-                        this.pr_1()
-                    }
-                })
+                .pr_1()
                 .gap_1()
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .children(self.render_connection_status(status, cx))
@@ -973,7 +965,7 @@ impl TitleBar {
             worktree_label
         };
 
-        let worktree_button = {
+        let worktree_button = settings.show_worktree_name.then(|| {
             let project = self.project.clone();
             let workspace_handle = workspace.downgrade();
             PopoverMenu::new("worktree-picker-menu")
@@ -1007,7 +999,7 @@ impl TitleBar {
                     },
                 )
                 .anchor(gpui::Anchor::TopLeft)
-        };
+        });
 
         let branch_picker = branch_name.and_then(|branch_name| {
             settings.show_branch_name.then(|| {
@@ -1069,19 +1061,25 @@ impl TitleBar {
             })
         });
 
+        if worktree_button.is_none() && branch_picker.is_none() {
+            return None;
+        }
+
+        let show_separator = worktree_button.is_some() && branch_picker.is_some();
+
         Some(
             h_flex()
                 .gap_px()
-                .child(worktree_button)
-                .when_some(branch_picker, |this, branch_picker| {
+                .children(worktree_button)
+                .when(show_separator, |this| {
                     this.child(
                         Label::new("/")
                             .size(LabelSize::Small)
                             .color(Color::Muted)
                             .alpha(0.25),
                     )
-                    .child(branch_picker)
                 })
+                .children(branch_picker)
                 .into_any_element(),
         )
     }

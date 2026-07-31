@@ -6,6 +6,8 @@ mod fallible_options;
 mod language;
 mod language_model;
 pub mod merge_from;
+// PaddleBoard: schema for in-app update behaviour.
+mod paddleboard_auto_update;
 // PaddleBoard: schema for the sandbox enforcement layer.
 mod paddleboard_sandbox;
 // PaddleBoard: schema for OpenTelemetry trace export.
@@ -35,6 +37,7 @@ pub use language::*;
 pub use language_model::*;
 pub use merge_from::MergeFrom as MergeFromTrait;
 // PaddleBoard: re-export sandbox and OTEL content types alongside the rest.
+pub use paddleboard_auto_update::*;
 pub use paddleboard_otel::*;
 pub use paddleboard_personas::*;
 pub use paddleboard_rag::*;
@@ -53,7 +56,7 @@ pub use theme::*;
 pub use title_bar::*;
 pub use workspace::*;
 
-use collections::{HashMap, IndexMap};
+use collections::{HashMap, IndexMap, IndexSet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use settings_macros::{MergeFrom, with_fallible_options};
@@ -311,6 +314,10 @@ pub struct SettingsContent {
     /// Default: 5
     pub modeline_lines: Option<usize>,
 
+    // PaddleBoard: configuration for in-app updates (whether prerelease builds
+    // are eligible). The on/off toggle is upstream's `auto_update` above.
+    pub paddleboard_auto_update: Option<PaddleboardAutoUpdateContent>,
+
     // PaddleBoard: configuration for the sandbox enforcement layer (policy
     // when Podman/gVisor prereqs are missing at tool-launch time).
     pub paddleboard_sandbox: Option<PaddleboardSandboxContent>,
@@ -501,7 +508,7 @@ pub struct ExtensionsSettingsContent {
 
 /// Base key bindings scheme. Base keymaps can be overridden with user keymaps.
 ///
-/// Default: VSCode
+/// Default: Zed
 #[derive(
     Copy,
     Clone,
@@ -517,6 +524,7 @@ pub struct ExtensionsSettingsContent {
 )]
 pub enum BaseKeymapContent {
     #[default]
+    Zed,
     VSCode,
     JetBrains,
     SublimeText,
@@ -529,6 +537,7 @@ pub enum BaseKeymapContent {
 
 impl strum::VariantNames for BaseKeymapContent {
     const VARIANTS: &'static [&'static str] = &[
+        "Zed",
         "VSCode",
         "JetBrains",
         "Sublime Text",
@@ -1439,6 +1448,27 @@ impl<T> From<Vec<T>> for ExtendingVec<T> {
 impl<T: Clone> merge_from::MergeFrom for ExtendingVec<T> {
     fn merge_from(&mut self, other: &Self) {
         self.0.extend_from_slice(other.0.as_slice());
+    }
+}
+
+// An ExtendingSet in the settings can only accumulate new values, and ignores
+// values that are already present, so merging the same source more than once
+// (e.g. re-importing VS Code settings) is idempotent.
+//
+// Insertion order is preserved, so it round-trips through the user's settings
+// file without reordering their entries.
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExtendingSet<T: std::hash::Hash + Eq>(pub IndexSet<T>);
+
+impl<T: std::hash::Hash + Eq> From<Vec<T>> for ExtendingSet<T> {
+    fn from(vec: Vec<T>) -> Self {
+        ExtendingSet(vec.into_iter().collect())
+    }
+}
+
+impl<T: Clone + std::hash::Hash + Eq> merge_from::MergeFrom for ExtendingSet<T> {
+    fn merge_from(&mut self, other: &Self) {
+        self.0.extend(other.0.iter().cloned());
     }
 }
 

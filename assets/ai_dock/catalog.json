@@ -2,14 +2,6 @@
   "$schema_note": "PaddleBoard AI Dock catalog. Edit via PR. See crates/paddleboard_ai_dock/src/catalog.rs for the schema.",
   "agents": [
     {
-      "id": "zed-agent",
-      "name": "Zed Agent",
-      "description": "First-party agent backed by Anthropic, OpenAI, and Google models. Sign in to use.",
-      "homepage": "https://zed.dev/agent",
-      "featured": true,
-      "builtin_zed": true
-    },
-    {
       "id": "claude-acp",
       "name": "Claude",
       "description": "Anthropic's Claude agent over ACP. Streaming tool use, persistent threads, multi-modal.",
@@ -44,6 +36,14 @@
       "homepage": "https://github.com/google-antigravity/antigravity-cli",
       "featured": true,
       "install_command": "curl -fsSL https://antigravity.google/cli/install.sh | bash"
+    },
+    {
+      "id": "zed-agent",
+      "name": "Zed Agent",
+      "description": "Zed's own agent, backed by Anthropic, OpenAI, and Google models. Sign in with a Zed account.",
+      "homepage": "https://zed.dev/agent",
+      "featured": true,
+      "builtin_zed": true
     },
     {
       "id": "google-adk",

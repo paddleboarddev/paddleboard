@@ -42,4 +42,8 @@ pub struct PaddleboardUiContent {
     ///
     /// Default: true
     pub set_sail_status: Option<bool>,
+    /// Whether to show the Placid mode toggle in the status bar.
+    ///
+    /// Default: true
+    pub placid_status: Option<bool>,
 }

@@ -19,7 +19,7 @@ use util::paths::{PathStyle, UrlExt};
 
 use crate::Range;
 
-const URL_REGEX: &str = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file://|git://|ssh:|ftp://|zed://)[^\u{0000}-\u{001F}\u{007F}-\u{009F}<>"\s{-}\^⟨⟩`']+"#;
+const URL_REGEX: &str = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file://|git://|ssh:|ftp://|zed://|paddleboard://)[^\u{0000}-\u{001F}\u{007F}-\u{009F}<>"\s{-}\^⟨⟩`']+"#;
 const WIDE_CHAR_SPACERS: Flags =
     Flags::from_bits(Flags::LEADING_WIDE_CHAR_SPACER.bits() | Flags::WIDE_CHAR_SPACER.bits())
         .unwrap();
@@ -522,6 +522,17 @@ mod tests {
             URL_REGEX,
             "open zed://channel/the-channel and zed://settings/theme now",
             vec!["zed://channel/the-channel", "zed://settings/theme"],
+        );
+        // PaddleBoard: our own deep links must linkify too. The inherited regex
+        // knew only `zed://`, so PaddleBoard's own URLs were not clickable in
+        // PaddleBoard's own terminal.
+        re_test(
+            URL_REGEX,
+            "open paddleboard://skill?data=aGk and paddleboard://settings/theme now",
+            vec![
+                "paddleboard://skill?data=aGk",
+                "paddleboard://settings/theme",
+            ],
         );
     }
 

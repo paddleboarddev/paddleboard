@@ -30,7 +30,7 @@ use gpui::{App, AsyncApp, Entity, Global, Task, TaskExt, WeakEntity, actions};
 use http_client::{HttpClient, HttpClientWithUrl, http, read_proxy_from_env};
 use parking_lot::{Mutex, RwLock};
 use postage::watch;
-use proxy::connect_proxy_stream;
+use proxy::{connect_proxy_stream, excluded_from_proxy};
 use rand::prelude::*;
 use release_channel::{AppVersion, ReleaseChannel};
 use rpc::proto::{AnyTypedEnvelope, EnvelopedMessage, PeerId, RequestMessage};
@@ -1362,8 +1362,10 @@ impl Client {
                         .zip(rpc_url.port_or_known_default())
                         .context("missing host in rpc url")?;
                     Ok(match proxy {
-                        Some(proxy) => connect_proxy_stream(&proxy, rpc_host).await?,
-                        None => Box::new(TcpStream::connect(rpc_host).await?),
+                        Some(proxy) if !excluded_from_proxy(rpc_host.0) => {
+                            connect_proxy_stream(&proxy, rpc_host).await?
+                        }
+                        _ => Box::new(TcpStream::connect(rpc_host).await?),
                     })
                 }
             })
@@ -1937,7 +1939,12 @@ impl ProtoClient for Client {
 }
 
 /// prefix for the paddleboard:// url scheme
-pub const PADDLEBOARD_URL_SCHEME: &str = "zed";
+// PaddleBoard: this was still "zed", despite the constant's name. It feeds
+// `register_url_scheme`, so installing the CLI registered PaddleBoard as a
+// handler for `zed://` — claiming Zed's scheme rather than its own — and
+// `parse_zed_link` only recognised `zed://` links. The app's Info.plist has
+// always declared `paddleboard`, so this was the odd one out.
+pub const PADDLEBOARD_URL_SCHEME: &str = "paddleboard";
 
 /// A parsed Zed link that can be handled internally by the application.
 #[derive(Debug, Clone, PartialEq, Eq)]
