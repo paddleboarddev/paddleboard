@@ -362,7 +362,14 @@ impl Panel for OrchestrationPanel {
 
     fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
         // PaddleBoard: hideable like upstream panels (paddleboard_ui settings).
-        Some(IconName::ListTree)
+        //
+        // Deliberately NOT `ListTree` — that is the Outline Panel's icon, and two
+        // panels sharing one glyph in the same status bar is indistinguishable at
+        // 16px. `Thread` is what the rest of the app already uses to mean "an agent
+        // thread" (mention URIs, the completion provider, the thread view), so this
+        // matches the panel's own name and the existing vocabulary. Changing ours
+        // rather than the Outline Panel's keeps the divergence on PaddleBoard's side.
+        Some(IconName::Thread)
             .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).orchestration_button)
     }
 
