@@ -64,7 +64,14 @@ impl OrchestrationPanel {
 
         let mut panel = Self {
             focus_handle,
-            position: DockPosition::Right,
+            // PaddleBoard: left, to sit beside the Agent Panel (`agent.dock` also
+            // defaults to left). Dock side determines which end of the status bar
+            // the button lands on — see `Workspace::new`, where the left dock's
+            // buttons become a left status item and the right and bottom docks'
+            // become right ones. On the right this button was stranded among the
+            // editor-structure panels (Outline, Git, Project) rather than with the
+            // other agent surface it belongs to.
+            position: DockPosition::Left,
             workspace: workspace.clone(),
             agent_panel: None,
             thread_subscriptions: HashMap::default(),
