@@ -64,7 +64,14 @@ impl OrchestrationPanel {
 
         let mut panel = Self {
             focus_handle,
-            position: DockPosition::Right,
+            // PaddleBoard: left, to sit beside the Agent Panel (`agent.dock` also
+            // defaults to left). Dock side determines which end of the status bar
+            // the button lands on — see `Workspace::new`, where the left dock's
+            // buttons become a left status item and the right and bottom docks'
+            // become right ones. On the right this button was stranded among the
+            // editor-structure panels (Outline, Git, Project) rather than with the
+            // other agent surface it belongs to.
+            position: DockPosition::Left,
             workspace: workspace.clone(),
             agent_panel: None,
             thread_subscriptions: HashMap::default(),
@@ -362,7 +369,14 @@ impl Panel for OrchestrationPanel {
 
     fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
         // PaddleBoard: hideable like upstream panels (paddleboard_ui settings).
-        Some(IconName::ListTree)
+        //
+        // Deliberately NOT `ListTree` — that is the Outline Panel's icon, and two
+        // panels sharing one glyph in the same status bar is indistinguishable at
+        // 16px. `Thread` is what the rest of the app already uses to mean "an agent
+        // thread" (mention URIs, the completion provider, the thread view), so this
+        // matches the panel's own name and the existing vocabulary. Changing ours
+        // rather than the Outline Panel's keeps the divergence on PaddleBoard's side.
+        Some(IconName::Thread)
             .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).orchestration_button)
     }
 
