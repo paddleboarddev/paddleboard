@@ -37,7 +37,7 @@ their licenses travel with every download:
 
 | Project | Used for | Author | License |
 |---------|----------|--------|---------|
-| [Catppuccin](https://github.com/catppuccin/catppuccin) | The **PaddleBoard Dark / Light** themes are derived from Catppuccin Mocha and Latte — the palette and syntax-token conventions carry through to the app, the website, and the docs | Catppuccin contributors | MIT |
+| [Catppuccin](https://github.com/catppuccin/catppuccin) | The **PaddleBoard Dark / Light** themes are derived from Catppuccin Mocha and Latte — the palette and syntax-token conventions carry through to the app, the website, and the docs | Catppuccin contributors | MIT — full text at [`assets/themes/paddleboard/LICENSE-catppuccin`](assets/themes/paddleboard/LICENSE-catppuccin), and the derivation is recorded in the theme's own `author` field |
 
 ## Models (downloaded on request)
 
