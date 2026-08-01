@@ -28,22 +28,23 @@ actions!(
 );
 
 pub fn init(cx: &mut App) {
-    // PaddleBoard: skip `notify_if_app_was_updated`. Upstream surfaces a "you updated to vX" toast
-    // driven by a KV-store flag set during the install step; we never install through this path,
-    // and we don't want a stale or externally-set flag to surface a phantom toast.
-    cx.observe_new(|workspace: &mut Workspace, _window, cx| {
+    // PaddleBoard: this used to skip `notify_if_app_was_updated` on the grounds that
+    // "we never install through this path" — true while auto-update was disabled, and
+    // false since it was re-enabled against GitHub Releases. Without it an update
+    // completes and restarts with no acknowledgement that anything changed.
+    notify_if_app_was_updated(cx);
+
+    cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
         workspace.register_action(|workspace, _: &ViewReleaseNotesLocally, window, cx| {
             view_release_notes_locally(workspace, window, cx);
         });
 
-        if matches!(
-            ReleaseChannel::global(cx),
-            ReleaseChannel::Nightly | ReleaseChannel::Dev
-        ) {
-            workspace.register_action(|_workspace, _: &ShowUpdateNotification, _window, cx| {
-                show_update_notification(cx);
-            });
-        }
+        // PaddleBoard: registered on every channel. Upstream gated this to
+        // Nightly/Dev, which left the action unavailable on Stable — the only
+        // channel PaddleBoard actually ships.
+        workspace.register_action(|_workspace, _: &ShowUpdateNotification, _window, cx| {
+            show_update_notification(cx);
+        });
     })
     .detach();
 }

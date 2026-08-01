@@ -254,6 +254,7 @@ paddleboard_scion_ui.workspace = true
 paddleboard_placid.workspace = true
 paddleboard_set_sail.workspace = true
 paddleboard_ui.workspace = true
+paddleboard_update_status.workspace = true
 paddleboard_usage.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 zlog.workspace = true

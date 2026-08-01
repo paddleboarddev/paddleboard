@@ -46,4 +46,10 @@ pub struct PaddleboardUiContent {
     ///
     /// Default: true
     pub placid_status: Option<bool>,
+    /// Whether to show the in-app update indicator in the status bar.
+    /// It appears only while an update is downloading or installing, and
+    /// afterwards as a "Restart to update" button until you restart.
+    ///
+    /// Default: true
+    pub update_status: Option<bool>,
 }
