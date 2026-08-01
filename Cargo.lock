@@ -12741,7 +12741,7 @@ checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
 name = "paddleboard"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "acp_thread",
  "acp_tools",
@@ -12862,6 +12862,7 @@ dependencies = [
  "paddleboard_scion_ui",
  "paddleboard_set_sail",
  "paddleboard_ui",
+ "paddleboard_update_status",
  "paddleboard_usage",
  "parking_lot",
  "paths",
@@ -13330,6 +13331,18 @@ dependencies = [
  "gpui",
  "settings",
  "ui",
+]
+
+[[package]]
+name = "paddleboard_update_status"
+version = "0.1.0"
+dependencies = [
+ "auto_update",
+ "gpui",
+ "paddleboard_ui",
+ "settings",
+ "ui",
+ "workspace",
 ]
 
 [[package]]

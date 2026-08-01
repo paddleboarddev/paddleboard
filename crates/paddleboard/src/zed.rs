@@ -652,6 +652,12 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         // as the way back out.
         let placid_status_item =
             cx.new(|cx| paddleboard_placid::PlacidStatusItem::new(workspace, cx));
+        // PaddleBoard: in-app update progress. Upstream's only indicator lives in
+        // the title bar behind a Zed Cloud connection state PaddleBoard never
+        // reaches, so without this an update downloads, installs, and waits for a
+        // restart with nothing shown anywhere.
+        let update_status_item =
+            cx.new(paddleboard_update_status::UpdateStatusItem::new);
         let line_ending_indicator =
             cx.new(|_| line_ending_selector::LineEndingIndicator::default());
         let git_blame_status = cx.new(|_| git_ui::GitBlameStatus::default());
@@ -683,6 +689,10 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             status_bar.add_right_item(set_sail_status_item, window, cx);
             // PaddleBoard: Placid mode toggle.
             status_bar.add_right_item(placid_status_item, window, cx);
+            // PaddleBoard: last on the right, so that when it does appear — which
+            // is rarely — it reads as transient rather than displacing the items
+            // people navigate by position.
+            status_bar.add_right_item(update_status_item, window, cx);
         });
 
         let panels_task = initialize_panels(window, cx);
