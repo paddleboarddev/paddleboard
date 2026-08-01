@@ -264,6 +264,7 @@ members = [
     "crates/paddleboard_manifest",
     "crates/paddleboard_rag",
     "crates/paddleboard_ui",
+    "crates/paddleboard_update_status",
     "crates/paddleboard_rag_settings",
     "crates/windows_resources",
     "crates/zeta_prompt",
@@ -554,6 +555,7 @@ paddleboard_llama_manager = { path = "crates/paddleboard_llama_manager" }
 paddleboard_manifest = { path = "crates/paddleboard_manifest" }
 paddleboard_rag = { path = "crates/paddleboard_rag" }
 paddleboard_ui = { path = "crates/paddleboard_ui" }
+paddleboard_update_status = { path = "crates/paddleboard_update_status" }
 paddleboard_rag_settings = { path = "crates/paddleboard_rag_settings" }
 # PaddleBoard: feature-gated (paddleboard_rag `pgvector`) bring-your-own vector store.
 # Sync `postgres` client + native-tls so it drops into the existing blocking

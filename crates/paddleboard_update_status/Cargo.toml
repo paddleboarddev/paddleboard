@@ -1,0 +1,20 @@
+[package]
+name = "paddleboard_update_status"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_update_status.rs"
+
+[dependencies]
+auto_update.workspace = true
+gpui.workspace = true
+paddleboard_ui.workspace = true
+settings.workspace = true
+ui.workspace = true
+workspace.workspace = true
