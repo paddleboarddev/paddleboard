@@ -2346,6 +2346,14 @@ mod tests {
 
         assert!(!errored);
 
+        // The flag is consumed by `suggest_on_worktree_updated`, which runs on the
+        // worktree's first `UpdatedEntries` event. That used to land inside the
+        // await above; since the 2026-08-03 upstream merge it lands one pump
+        // later, so the scan has to be driven explicitly. The behaviour is
+        // unchanged — without this the worktree never emits and the flag is still
+        // set when the assertion runs.
+        cx.run_until_parked();
+
         let multi_workspace = cx.update(|cx| cx.windows()[0].downcast::<MultiWorkspace>().unwrap());
         multi_workspace
             .update(cx, |multi_workspace, _, cx| {
