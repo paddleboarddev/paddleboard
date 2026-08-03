@@ -282,13 +282,11 @@ impl CopilotCodeVerification {
             .gap_2p5()
             .items_center()
             .text_center()
-<<<<<<< HEAD
-            // PaddleBoard: user-visible copy rebranded from Zed.
-            .child(Headline::new("Use GitHub Copilot in PaddleBoard").size(HeadlineSize::Large))
-=======
->>>>>>> zed/main
+            // PaddleBoard: user-visible copy rebranded from Zed. Upstream
+            // narrowed this headline to "Edit Predictions" in the same merge —
+            // keeping both sides would have rendered two headlines.
             .child(
-                Headline::new("Use GitHub Copilot Edit Predictions in Zed")
+                Headline::new("Use GitHub Copilot Edit Predictions in PaddleBoard")
                     .size(HeadlineSize::Large),
             )
             .child(
@@ -1001,13 +999,10 @@ impl ConfigurationView {
     }
 
     fn render_for_chat(&self) -> impl IntoElement {
-<<<<<<< HEAD
-        let start_label = "To use PaddleBoard's agent with GitHub Copilot, you need to be logged in to GitHub. Note that your GitHub account must have an active Copilot Chat subscription.";
-        let no_status_label = "Copilot Chat requires an active GitHub Copilot subscription. Please ensure Copilot is configured and try again, or use a different LLM provider.";
-=======
-        let start_label = "To use Zed's agent with GitHub Copilot Chat, you need to be logged in to GitHub. Note that your GitHub account must have an active Copilot Chat subscription.";
+        // PaddleBoard: user-visible copy rebranded from Zed, on top of upstream's
+        // reworded "Copilot Chat" phrasing from this merge.
+        let start_label = "To use PaddleBoard's agent with GitHub Copilot Chat, you need to be logged in to GitHub. Note that your GitHub account must have an active Copilot Chat subscription.";
         let no_status_label = "Copilot Chat requires an active GitHub Copilot subscription. Please ensure Copilot Chat is configured and try again, or use a different LLM provider.";
->>>>>>> zed/main
 
         let (label, button) = if let Some(msg) = self.loading_message() {
             (

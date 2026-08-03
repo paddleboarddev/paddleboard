@@ -9,13 +9,13 @@ use ui::{IconButtonShape, Tooltip, prelude::*};
 use util::paths::PathMatcher;
 use workspace::notifications::NotificationId;
 use workspace::{Toast, Workspace};
-<<<<<<< HEAD
-pub use paddleboard_actions::search::ToggleIncludeIgnored;
-=======
-pub use zed_actions::search::{
+// PaddleBoard: `paddleboard_actions`, not upstream's `zed_actions`. Upstream
+// moved these four out of this crate's own `actions!` block in the same merge,
+// so re-exporting all five here is what keeps `crate::SelectNextMatch` and
+// friends resolving for `buffer_search` — they are no longer defined locally.
+pub use paddleboard_actions::search::{
     FocusSearch, SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive, ToggleIncludeIgnored,
 };
->>>>>>> zed/main
 
 pub use search_status_button::SEARCH_ICON;
 

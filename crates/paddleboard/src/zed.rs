@@ -5821,11 +5821,8 @@ mod tests {
                 "console",
                 "context_server",
                 "copilot",
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-                "crewai",
-=======
                 "copilot_edit_predictions",
->>>>>>> zed/main:crates/zed/src/zed.rs
+                "crewai",
                 "csv",
                 "debug_panel",
                 "debugger",

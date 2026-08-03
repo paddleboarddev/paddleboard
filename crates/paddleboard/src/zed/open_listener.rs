@@ -11,14 +11,9 @@ use futures::channel::{mpsc, oneshot};
 use futures::future;
 
 use futures::{FutureExt, StreamExt};
-<<<<<<< HEAD:crates/paddleboard/src/zed/open_listener.rs
-use git_ui::{file_diff_view::FileDiffView, multi_diff_view::MultiDiffView};
-use gpui::{App, AppContext as _, AsyncApp, Global, TaskExt, WindowHandle};
-=======
 use git_ui::multi_diff_view::MultiDiffView;
 use git_ui_core::file_diff_view::FileDiffView;
-use gpui::{App, AsyncApp, Global, TaskExt, WindowHandle};
->>>>>>> zed/main:crates/zed/src/zed/open_listener.rs
+use gpui::{App, AppContext as _, AsyncApp, Global, TaskExt, WindowHandle};
 use onboarding::FIRST_OPEN;
 use onboarding::show_onboarding_view;
 use recent_projects::{RemoteSettings, navigate_to_positions, open_remote_project};

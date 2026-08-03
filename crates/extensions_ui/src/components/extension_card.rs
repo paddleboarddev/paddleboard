@@ -354,9 +354,12 @@ impl ExtensionCard {
                         button.tooltip({
                             let version = extension.manifest.version.clone();
                             move |_, cx| {
+                                // PaddleBoard: user-visible copy rebranded from Zed.
+                                // Followed here from `extensions_ui.rs`, where
+                                // upstream deleted the card renderer this merge.
                                 Tooltip::simple(
                                     format!(
-                                        "v{version} is not compatible with this version of Zed."
+                                        "v{version} is not compatible with this version of PaddleBoard."
                                     ),
                                     cx,
                                 )

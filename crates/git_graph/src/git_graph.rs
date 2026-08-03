@@ -43,14 +43,16 @@ use project::{
         RepositoryEvent, RepositoryId,
     },
 };
-<<<<<<< HEAD:crates/git_graph/src/git_graph.rs
 use project_panel::ProjectPanel;
+// PaddleBoard: these come from `search` here, not from upstream's `zed_actions`
+// crate, which this fork replaced with `paddleboard_actions`. Upstream's
+// `use zed_actions::{...}` for the same three names arrived with this merge and
+// was dropped — keeping it would have been both a missing crate and a duplicate
+// import of names already in scope.
 use search::{
     SearchOption, SearchOptions, SearchSource, SelectNextMatch, SelectPreviousMatch,
     ToggleCaseSensitive, buffer_search,
 };
-=======
->>>>>>> zed/main:crates/git_ui/src/git_graph.rs
 use smallvec::{SmallVec, smallvec};
 use std::{
     cell::Cell,
@@ -58,10 +60,6 @@ use std::{
     rc::Rc,
     sync::{Arc, OnceLock},
     time::{Duration, Instant},
-};
-use zed_actions::{
-    buffer_search,
-    search::{SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive},
 };
 
 use theme::AccentColors;

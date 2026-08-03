@@ -73,16 +73,12 @@ ui_input.workspace = true
 util.workspace = true
 watch.workspace = true
 workspace.workspace = true
-<<<<<<< HEAD
+git_ui_core.workspace = true
 paddleboard_actions.workspace = true
 paddleboard_credentials_provider.workspace = true
 paddleboard_git_login.workspace = true
 paddleboard_ui.workspace = true
 zeroize.workspace = true
-=======
-git_ui_core.workspace = true
-zed_actions.workspace = true
->>>>>>> zed/main
 ztracing.workspace = true
 
 [target.'cfg(windows)'.dependencies]

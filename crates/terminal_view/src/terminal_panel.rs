@@ -1374,21 +1374,9 @@ impl Render for TerminalPanel {
             .unwrap_or_else(div);
         self.workspace
             .update(cx, |workspace, cx| {
-<<<<<<< HEAD
-                registrar.size_full().child(self.center.render(
-                    workspace.zoomed_item(),
-                    None,
-                    &workspace::PaneRenderContext {
-                        follower_states: &HashMap::default(),
-                        active_pane: &self.active_pane,
-                        app_state: workspace.app_state(),
-                        project: workspace.project(),
-                        workspace: &workspace.weak_handle(),
-                    },
-                    window,
-                    cx,
-                ))
-=======
+                // PaddleBoard: upstream's `track_focus` is taken; its
+                // `active_call` field is not — `PaneRenderContext` has no such
+                // field in this fork, which removed collaboration.
                 registrar
                     .track_focus(&self.focus_handle)
                     .size_full()
@@ -1397,7 +1385,6 @@ impl Render for TerminalPanel {
                         None,
                         &workspace::PaneRenderContext {
                             follower_states: &HashMap::default(),
-                            active_call: workspace.active_call(),
                             active_pane: &self.active_pane,
                             app_state: workspace.app_state(),
                             project: workspace.project(),
@@ -1406,7 +1393,6 @@ impl Render for TerminalPanel {
                         window,
                         cx,
                     ))
->>>>>>> zed/main
             })
             .ok()
             .map(|div| {

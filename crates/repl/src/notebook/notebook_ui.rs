@@ -41,19 +41,13 @@ use crate::repl_store::ReplStore;
 use picker::Picker;
 use runtimelib::{ExecuteRequest, JupyterMessage, JupyterMessageContent};
 use ui::PopoverMenuHandle;
-<<<<<<< HEAD
+// PaddleBoard: `paddleboard_actions`, not upstream's `zed_actions`. `DeleteCell`
+// is upstream's addition in this merge and is used below, so it joins the list.
 use paddleboard_actions::editor::{MoveDown, MoveUp};
 use paddleboard_actions::notebook::{
-    AddCodeBlock, AddMarkdownBlock, ClearOutputs, EnterCommandMode, EnterEditMode, InterruptKernel,
-    MoveCellDown, MoveCellUp, NotebookMoveDown, NotebookMoveUp, OpenNotebook, RestartKernel, Run,
-    RunAll, RunAndAdvance,
-=======
-use zed_actions::editor::{MoveDown, MoveUp};
-use zed_actions::notebook::{
     AddCodeBlock, AddMarkdownBlock, ClearOutputs, DeleteCell, EnterCommandMode, EnterEditMode,
     InterruptKernel, MoveCellDown, MoveCellUp, NotebookMoveDown, NotebookMoveUp, OpenNotebook,
     RestartKernel, Run, RunAll, RunAndAdvance,
->>>>>>> zed/main
 };
 
 /// Whether the notebook is in command mode (navigating cells) or edit mode (editing a cell).

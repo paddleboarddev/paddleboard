@@ -69,15 +69,11 @@ use workspace::{
     notifications::NotificationId, sidebar_side_context_menu,
 };
 
-<<<<<<< HEAD
-use git_ui::worktree_service::{RemoteBranchName, worktree_create_targets};
+// PaddleBoard: upstream's `git_ui_core` path for worktree_service (it moved there
+// in this merge), with `paddleboard_actions` in place of `zed_actions`.
+use git_ui_core::worktree_service::{RemoteBranchName, worktree_create_targets};
 use paddleboard_actions::editor::{MoveDown, MoveUp};
 use paddleboard_actions::{CreateWorktree, NewWorktreeBranchTarget, OpenRecent};
-=======
-use git_ui_core::worktree_service::{RemoteBranchName, worktree_create_targets};
-use zed_actions::editor::{MoveDown, MoveUp};
-use zed_actions::{CreateWorktree, NewWorktreeBranchTarget, OpenRecent};
->>>>>>> zed/main
 
 use paddleboard_actions::agents_sidebar::{FocusSidebarFilter, ToggleThreadSwitcher};
 

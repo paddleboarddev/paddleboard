@@ -543,43 +543,16 @@ pub fn init(cx: &mut App) {
             }
         });
 
-<<<<<<< HEAD
         // PaddleBoard: `git::FileHistory` is handled by PaddleBoard's own
         // `git_graph` crate (via its action renderer), not upstream's
         // `git_ui::git_graph` module, which PaddleBoard does not adopt.
-=======
-        // Forwards `git::FileHistory` to the file history opener installed by
-        // `git_ui` when the project panel is the focused source of selection.
-        // Lives here (and not in `git_ui`) so that `git_ui` does not need to
-        // depend on `project_panel`, which would create a dependency cycle.
-        workspace.register_action_renderer(|div, workspace, window, cx| {
-            let Some(panel) = workspace.panel::<ProjectPanel>(cx) else {
-                return div;
-            };
-            if !panel.read(cx).focus_handle(cx).contains_focused(window, cx) {
-                return div;
-            }
-            if panel.read(cx).selected_entry_project_path(cx).is_none() {
-                return div;
-            }
-            let workspace = workspace.weak_handle();
-            div.capture_action(move |_: &git::FileHistory, window, cx| {
-                workspace
-                    .update(cx, |workspace, cx| {
-                        let Some(panel) = workspace.panel::<ProjectPanel>(cx) else {
-                            return;
-                        };
-                        let Some(project_path) = panel.read(cx).selected_entry_project_path(cx)
-                        else {
-                            return;
-                        };
-                        git_ui_core::open_file_history(workspace, &project_path, window, cx);
-                    })
-                    .log_err();
-                cx.stop_propagation();
-            })
-        });
->>>>>>> zed/main
+        //
+        // Upstream's forwarding block was dropped here rather than merged. It
+        // routes through `git_ui_core::open_file_history`, whose opener upstream
+        // installs from `git_ui` — impossible in this fork, where `git_graph` is
+        // a crate that *depends on* `git_ui`, so the reverse edge would be a
+        // cycle. PaddleBoard's renderer already handles the project panel, which
+        // is why `git_graph` depends on `project_panel` directly.
     })
     .detach();
 }

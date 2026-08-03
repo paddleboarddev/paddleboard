@@ -3010,7 +3010,6 @@ impl AgentPanel {
         let draft = self.ensure_draft(source, window, cx);
         if let BaseView::AgentThread { conversation_view } = &self.base_view {
             if conversation_view.entity_id() == draft.entity_id() {
-<<<<<<< HEAD
                 // PaddleBoard: if we're already viewing the draft as the base
                 // view but an overlay (e.g. Settings) is covering it, clear the
                 // overlay so the user actually sees the draft they asked for.
@@ -3020,11 +3019,10 @@ impl AgentPanel {
                 if self.overlay_view.is_some() {
                     self.clear_overlay(focus, window, cx);
                 } else if focus {
-                    self.focus_handle(cx).focus(window, cx);
-=======
-                if focus {
+                    // Upstream renamed this call in the same merge; the
+                    // surface-aware dispatch now lives in
+                    // `activation_focus_handle`, so behaviour is unchanged.
                     self.activation_focus_handle(cx).focus(window, cx);
->>>>>>> zed/main
                 }
                 return;
             }
@@ -5325,25 +5323,13 @@ impl agent::SiblingThreadHost for AgentPanelSiblingHost {
 }
 
 impl Focusable for AgentPanel {
-<<<<<<< HEAD
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
-        match self.visible_surface() {
-            VisibleSurface::Uninitialized => self.focus_handle.clone(),
-            VisibleSurface::AgentThread(conversation_view) => conversation_view.focus_handle(cx),
-            VisibleSurface::Terminal(terminal_view) => terminal_view.focus_handle(cx),
-            VisibleSurface::Configuration(configuration) => {
-                if let Some(configuration) = configuration {
-                    configuration.focus_handle(cx)
-                } else {
-                    self.focus_handle.clone()
-                }
-            }
-            VisibleSurface::History(view) => view.focus_handle(cx),
-        }
-=======
+    // PaddleBoard: upstream's simple version is taken. The surface dispatch that
+    // used to live here moved to `Panel::activation_focus_handle` in this merge,
+    // extended there with this fork's `Configuration` and `History` surfaces —
+    // so nothing is lost, and the two methods no longer disagree about which
+    // handle the panel reports.
     fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
->>>>>>> zed/main
     }
 }
 
@@ -5378,6 +5364,18 @@ impl Panel for AgentPanel {
                 conversation_view.read(cx).activation_focus_handle(cx)
             }
             VisibleSurface::Terminal(terminal_view) => terminal_view.focus_handle(cx),
+            // PaddleBoard: `Configuration` and `History` are this fork's surfaces,
+            // so upstream's match doesn't cover them. Their dispatch used to live
+            // in `Focusable::focus_handle`; upstream moved surface-awareness here
+            // in this merge, which is where it now belongs.
+            VisibleSurface::Configuration(configuration) => {
+                if let Some(configuration) = configuration {
+                    configuration.focus_handle(cx)
+                } else {
+                    self.focus_handle.clone()
+                }
+            }
+            VisibleSurface::History(view) => view.focus_handle(cx),
         }
     }
 

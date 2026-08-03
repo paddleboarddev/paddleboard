@@ -121,7 +121,7 @@ util.workspace = true
 uuid.workspace = true
 watch.workspace = true
 workspace.workspace = true
-<<<<<<< HEAD
+git_ui_core.workspace = true
 paddleboard_actions.workspace = true
 # PaddleBoard: persona system (picker + root PERSONA.md auto-adopt)
 paddleboard_personas.workspace = true
@@ -132,10 +132,6 @@ paddleboard_sandbox_prereqs_state.workspace = true
 paddleboard_scion.workspace = true
 paddleboard_scion_settings.workspace = true
 paddleboard_scion_ui.workspace = true
-=======
-git_ui_core.workspace = true
-zed_actions.workspace = true
->>>>>>> zed/main
 image.workspace = true
 reqwest_client = { workspace = true, optional = true }
 

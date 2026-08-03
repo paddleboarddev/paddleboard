@@ -535,7 +535,7 @@ pub struct CopilotChat {
 }
 
 pub fn init(client: Arc<dyn HttpClient>, configuration: CopilotChatConfiguration, cx: &mut App) {
-    let credentials_provider = zed_credentials_provider::global(cx);
+    let credentials_provider = paddleboard_credentials_provider::global(cx);
     let copilot_chat =
         cx.new(|cx| CopilotChat::new(client, credentials_provider, configuration, cx));
     cx.set_global(GlobalCopilotChat(copilot_chat));

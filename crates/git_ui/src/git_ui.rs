@@ -43,11 +43,10 @@ pub mod commit_tooltip;
 pub mod commit_view;
 mod conflict_view;
 mod diff_multibuffer;
-<<<<<<< HEAD
-pub mod file_diff_view;
-=======
-pub mod git_graph;
->>>>>>> zed/main
+// PaddleBoard: neither side's module belongs here now. Upstream moved
+// `file_diff_view` into the new `git_ui_core` crate, and its `git_graph` module
+// is a standalone `git_graph` crate in this fork — declaring either would name a
+// file that isn't in `crates/git_ui/src`.
 pub mod git_panel;
 mod git_panel_settings;
 pub mod git_picker;
@@ -108,24 +107,11 @@ pub fn init(cx: &mut App) {
         cx,
     );
 
-    git_ui_core::set_file_history_opener(
-        |workspace, project_path, window, cx| {
-            let Some((repo_id, log_source)) =
-                git_graph::resolve_file_history_target_from_project_path(
-                    workspace,
-                    project_path,
-                    cx,
-                )
-            else {
-                return;
-            };
-            let git_store = workspace.project().read(cx).git_store().clone();
-            git_graph::open_or_reuse_graph(
-                workspace, repo_id, git_store, log_source, None, window, cx,
-            );
-        },
-        cx,
-    );
+    // PaddleBoard: upstream installs a file-history opener here, calling into its
+    // `git_ui::git_graph` module. In this fork `git_graph` is a crate that
+    // depends on `git_ui`, so `git_ui` cannot name it — the edge would be a
+    // cycle. `git_graph` registers its own `git::FileHistory` action renderer
+    // instead, which is the path that was already live before this merge.
 
     cx.observe_new(|editor: &mut Editor, _, cx| {
         conflict_view::register_editor(editor, editor.buffer().clone(), cx);
@@ -144,27 +130,20 @@ pub fn init(cx: &mut App) {
         git_login_modal::register(workspace);
 
         workspace.register_action(
-<<<<<<< HEAD
+            // PaddleBoard: `paddleboard_actions`, not upstream's `zed_actions`.
+            // The module path is upstream's — `worktree_service` moved into the
+            // new `git_ui_core` crate with this merge.
             |workspace, action: &paddleboard_actions::CreateWorktree, window, cx| {
-                worktree_service::handle_create_worktree(workspace, action, window, None, cx);
-            },
-        );
-        workspace.register_action(
-            |workspace, action: &paddleboard_actions::SwitchWorktree, window, cx| {
-                worktree_service::handle_switch_worktree(workspace, action, window, None, cx);
-=======
-            |workspace, action: &zed_actions::CreateWorktree, window, cx| {
                 git_ui_core::worktree_service::handle_create_worktree(
                     workspace, action, window, None, cx,
                 );
             },
         );
         workspace.register_action(
-            |workspace, action: &zed_actions::SwitchWorktree, window, cx| {
+            |workspace, action: &paddleboard_actions::SwitchWorktree, window, cx| {
                 git_ui_core::worktree_service::handle_switch_worktree(
                     workspace, action, window, None, cx,
                 );
->>>>>>> zed/main
             },
         );
 

@@ -12,16 +12,11 @@ const ZED_DOCS_URL: &str = "https://zed.dev/docs";
 /// stable | dev | nightly | preview
 pub static RELEASE_CHANNEL_NAME: LazyLock<String> = LazyLock::new(|| {
     if cfg!(debug_assertions) {
-<<<<<<< HEAD
+        // PaddleBoard: PADDLEBOARD_RELEASE_CHANNEL, not ZED_RELEASE_CHANNEL.
         env::var("PADDLEBOARD_RELEASE_CHANNEL")
-            .unwrap_or_else(|_| include_str!("../../paddleboard/RELEASE_CHANNEL").trim().to_string())
-    } else {
-        include_str!("../../paddleboard/RELEASE_CHANNEL").trim().to_string()
-=======
-        env::var("ZED_RELEASE_CHANNEL").unwrap_or_else(|_| compile_time_release_channel_name())
+            .unwrap_or_else(|_| compile_time_release_channel_name())
     } else {
         compile_time_release_channel_name()
->>>>>>> zed/main
     }
 });
 
@@ -37,7 +32,13 @@ fn compile_time_release_channel_name() -> String {
 
 #[cfg(not(__do_not_set_zed_release_channel))]
 fn compile_time_release_channel_name() -> String {
-    include_str!("../../zed/RELEASE_CHANNEL").trim().to_string()
+    // PaddleBoard: `crates/zed` does not exist in this fork — the channel file
+    // lives at `crates/paddleboard/RELEASE_CHANNEL`. This arm compiles in every
+    // normal build, so upstream's path is a hard compile error here, not a
+    // dormant one.
+    include_str!("../../paddleboard/RELEASE_CHANNEL")
+        .trim()
+        .to_string()
 }
 
 #[doc(hidden)]
