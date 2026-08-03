@@ -49,10 +49,9 @@ use project_panel::ProjectPanel;
 // `use zed_actions::{...}` for the same three names arrived with this merge and
 // was dropped — keeping it would have been both a missing crate and a duplicate
 // import of names already in scope.
-use search::{
-    SearchOption, SearchOptions, SearchSource, SelectNextMatch, SelectPreviousMatch,
-    ToggleCaseSensitive, buffer_search,
-};
+// `SearchOption`, `SearchOptions` and `SearchSource` were dropped from this list:
+// upstream's rework of the search bar in this merge removed their last uses here.
+use search::{SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive, buffer_search};
 use smallvec::{SmallVec, smallvec};
 use std::{
     cell::Cell,
