@@ -3,6 +3,11 @@
 // conflict with the selection rule.
 mod paddleboard_releases;
 
+// PaddleBoard: the manual "Check for Updates" flow — report first, download only
+// with consent. Kept out of this file so an upstream merge sees one changed line
+// in `check` rather than a rewritten function.
+mod paddleboard_update_prompt;
+
 use anyhow::{Context as _, Result};
 use client::Client;
 use db::kvp::KeyValueStore;
@@ -367,7 +372,9 @@ pub fn check(_: &Check, window: &mut Window, cx: &mut App) {
     }
 
     if let Some(updater) = AutoUpdater::get(cx) {
-        updater.update(cx, |updater, cx| updater.poll(UpdateCheckType::Manual, cx));
+        // PaddleBoard: upstream started the download here. A manual check now
+        // reports what it found and asks before spending the bandwidth.
+        paddleboard_update_prompt::check_and_prompt(updater, window.window_handle(), cx);
     } else {
         drop(window.prompt(
             gpui::PromptLevel::Info,
