@@ -52,12 +52,7 @@ pub fn is_placid(workspace: &Entity<Workspace>, cx: &App) -> bool {
 
 /// Turn Placid mode on or off for one workspace. Idempotent, so the CLI can call
 /// it on a freshly-opened window without checking the current state first.
-pub fn set_placid(
-    workspace: &Entity<Workspace>,
-    enabled: bool,
-    window: &mut Window,
-    cx: &mut App,
-) {
+pub fn set_placid(workspace: &Entity<Workspace>, enabled: bool, window: &mut Window, cx: &mut App) {
     let id = workspace.entity_id();
     let currently_on = is_placid(workspace, cx);
     if enabled == currently_on {
@@ -162,8 +157,17 @@ impl Render for PlacidStatusItem {
             .upgrade()
             .is_some_and(|workspace| is_placid(&workspace, cx));
 
-        IconButton::new("placid-status", IconName::Sailboat)
+        // The icon is deliberately NOT the sailboat: Set Sail sits immediately
+        // to the left wearing that exact icon, and two identical sailboats read
+        // as one button — the Set Sail entry point effectively disappeared.
+        // Compact/Maximize also says what the click does, which "sailboat" never
+        // did. The accent colour is what marks this as a mode you can be *in*,
+        // rather than another passive readout like the encoding or line number.
+        IconButton::new("placid-status", IconName::Compact)
+            .selected_icon(IconName::Maximize)
             .icon_size(IconSize::Small)
+            .icon_color(Color::Accent)
+            .selected_icon_color(Color::Accent)
             .toggle_state(active)
             .tooltip(Tooltip::text(if active {
                 "Placid mode on — click to restore the full layout"
