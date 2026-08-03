@@ -32,7 +32,6 @@ component.workspace = true
 db.workspace = true
 editor.workspace = true
 file_icons.workspace = true
-fs.workspace = true
 futures-lite.workspace = true
 futures.workspace = true
 fuzzy.workspace = true
@@ -51,13 +50,10 @@ panel.workspace = true
 picker.workspace = true
 project.workspace = true
 prompt_store.workspace = true
-proto.workspace = true
 rand.workspace = true
 release_channel.workspace = true
-remote.workspace = true
 remote_connection.workspace = true
 schemars.workspace = true
-search.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 settings.workspace = true
@@ -77,6 +73,7 @@ ui_input.workspace = true
 util.workspace = true
 watch.workspace = true
 workspace.workspace = true
+git_ui_core.workspace = true
 paddleboard_actions.workspace = true
 paddleboard_credentials_provider.workspace = true
 paddleboard_git_login.workspace = true
@@ -99,6 +96,7 @@ pretty_assertions.workspace = true
 project = { workspace = true, features = ["test-support"] }
 rand.workspace = true
 remote_connection = { workspace = true, features = ["test-support"] }
+search.workspace = true
 settings = { workspace = true, features = ["test-support"] }
 task.workspace = true
 unindent.workspace = true
@@ -106,4 +104,4 @@ workspace = { workspace = true, features = ["test-support"] }
 zlog.workspace = true
 
 [package.metadata.cargo-machete]
-ignored = ["tracing"]
+ignored = ["remote_connection", "tracing"]
