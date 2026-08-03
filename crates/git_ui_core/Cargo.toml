@@ -43,6 +43,10 @@ util.workspace = true
 watch.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true
+# PaddleBoard: `askpass_modal` moved here from `git_ui` with this merge, and it
+# carries the fork's Git-Login integration — so these come with it.
+paddleboard_credentials_provider.workspace = true
+paddleboard_git_login.workspace = true
 zeroize.workspace = true
 ztracing.workspace = true
 

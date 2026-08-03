@@ -3064,7 +3064,7 @@ mod tests {
                     }));
                 });
                 window.dispatch_action(
-                    Box::new(zed_actions::OpenRemote {
+                    Box::new(paddleboard_actions::OpenRemote {
                         from_existing_connection: true,
                         create_new_window: Some(false),
                     }),

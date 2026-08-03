@@ -386,6 +386,8 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: false,
+            // PaddleBoard: persona system field, absent from upstream's new test.
+            persona_overlay: None,
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();

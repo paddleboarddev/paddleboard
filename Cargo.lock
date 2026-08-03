@@ -7299,6 +7299,8 @@ dependencies = [
  "menu",
  "notifications",
  "paddleboard_actions",
+ "paddleboard_credentials_provider",
+ "paddleboard_git_login",
  "picker",
  "project",
  "proto",

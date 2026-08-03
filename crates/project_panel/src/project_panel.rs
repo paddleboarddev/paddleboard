@@ -3848,7 +3848,7 @@ impl ProjectPanel {
                     None => {
                         // File at root, open search with empty filter
                         window.dispatch_action(
-                            Box::new(zed_actions::search::NewSearchInDirectory::default()),
+                            Box::new(paddleboard_actions::search::NewSearchInDirectory::default()),
                             cx,
                         );
                         return;
@@ -3867,7 +3867,7 @@ impl ProjectPanel {
                 .display(self.project.read(cx).path_style(cx))
                 .into_owned();
             window.dispatch_action(
-                Box::new(zed_actions::search::NewSearchInDirectory { directory }),
+                Box::new(paddleboard_actions::search::NewSearchInDirectory { directory }),
                 cx,
             );
         }
