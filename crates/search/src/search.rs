@@ -9,7 +9,13 @@ use ui::{IconButtonShape, Tooltip, prelude::*};
 use util::paths::PathMatcher;
 use workspace::notifications::NotificationId;
 use workspace::{Toast, Workspace};
+<<<<<<< HEAD
 pub use paddleboard_actions::search::ToggleIncludeIgnored;
+=======
+pub use zed_actions::search::{
+    FocusSearch, SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive, ToggleIncludeIgnored,
+};
+>>>>>>> zed/main
 
 pub use search_status_button::SEARCH_ICON;
 
@@ -31,22 +37,14 @@ pub fn init(cx: &mut App) {
 actions!(
     search,
     [
-        /// Focuses on the search input field.
-        FocusSearch,
         /// Toggles whole word matching.
         ToggleWholeWord,
-        /// Toggles case-sensitive search.
-        ToggleCaseSensitive,
         /// Toggles regular expression mode.
         ToggleRegex,
         /// Toggles the replace interface.
         ToggleReplace,
         /// Toggles searching within selection only.
         ToggleSelection,
-        /// Selects the next search match.
-        SelectNextMatch,
-        /// Selects the previous search match.
-        SelectPreviousMatch,
         /// Selects all search matches.
         SelectAllMatches,
         /// Cycles through search modes.

@@ -24,8 +24,8 @@ use picker::{Picker, PickerDelegate};
 use project::{
     PathMatchCandidateSet, Project, ProjectPath, WorktreeId, worktree_store::WorktreeStore,
 };
-use project_panel::project_panel_settings::ProjectPanelSettings;
-use settings::Settings;
+
+use settings::{Settings, SettingsStore};
 use std::{
     borrow::Cow,
     cmp, mem,
@@ -778,7 +778,14 @@ fn should_hide_root_in_entry_path(worktree_store: &Entity<WorktreeStore>, cx: &A
         .filter(|worktree| !worktree.read(cx).is_single_file())
         .nth(1)
         .is_some();
-    ProjectPanelSettings::get_global(cx).hide_root && !multiple_worktrees
+    let hide_root = cx
+        .global::<SettingsStore>()
+        .merged_settings()
+        .project_panel
+        .as_ref()
+        .and_then(|project_panel| project_panel.hide_root)
+        .unwrap_or(false);
+    hide_root && !multiple_worktrees
 }
 
 fn worktree_names_for_history_matching(
@@ -1092,14 +1099,23 @@ impl FileFinderDelegate {
     ) {
         if search_id >= self.latest_search_id {
             self.latest_search_id = search_id;
-            let query_changed = Some(query.path_query())
+            let path_query_changed = Some(query.path_query())
                 != self
                     .latest_search_query
                     .as_ref()
                     .map(|query| query.path_query());
-            let extend_old_matches = self.latest_search_did_cancel && !query_changed;
+            let extend_old_matches = self.latest_search_did_cancel && !path_query_changed;
 
-            let selected_match = if query_changed {
+            // The line/column suffix doesn't affect which files match, but it
+            // does change the user's intent ("go inside this file" vs. "pick a
+            // file"). Drop the preserved selection when it appears or changes
+            // so the new intent can be honored by `calculate_selected_index`.
+            let position_changed = self
+                .latest_search_query
+                .as_ref()
+                .and_then(|q| q.path_position.row)
+                != query.path_position.row;
+            let selected_match = if path_query_changed || position_changed {
                 None
             } else {
                 self.matches.get(self.selected_index).cloned()
@@ -1117,7 +1133,73 @@ impl FileFinderDelegate {
                 path_style,
             );
 
+<<<<<<< HEAD
             let query_path = query.raw_query.as_str();
+=======
+            // Add channel matches
+            if let Some(channel_store) = &self.channel_store {
+                let channel_store = channel_store.read(cx);
+                let channels: Vec<_> = channel_store.channels().cloned().collect();
+                if !channels.is_empty() {
+                    let candidates = channels
+                        .iter()
+                        .enumerate()
+                        .map(|(id, channel)| StringMatchCandidate::new(id, &channel.name));
+                    let channel_query = query.path_query();
+                    let query_lower = channel_query.to_lowercase();
+                    let mut channel_matches = Vec::new();
+                    for candidate in candidates {
+                        let channel_name = candidate.string;
+                        let name_lower = channel_name.to_lowercase();
+
+                        let mut positions = Vec::new();
+                        let mut query_idx = 0;
+                        for (name_idx, name_char) in name_lower.char_indices() {
+                            if query_idx < query_lower.len() {
+                                let query_char =
+                                    query_lower[query_idx..].chars().next().unwrap_or_default();
+                                if name_char == query_char {
+                                    positions.push(name_idx);
+                                    query_idx += query_char.len_utf8();
+                                }
+                            }
+                        }
+
+                        if query_idx == query_lower.len() {
+                            let channel = &channels[candidate.id];
+                            let score = if name_lower == query_lower {
+                                1.0
+                            } else if name_lower.starts_with(&query_lower) {
+                                0.8
+                            } else {
+                                0.5 * (query_lower.len() as f64 / name_lower.len() as f64)
+                            };
+                            channel_matches.push(Match::Channel {
+                                channel_id: channel.id,
+                                channel_name: channel.name.clone(),
+                                string_match: StringMatch {
+                                    candidate_id: candidate.id,
+                                    score,
+                                    positions,
+                                    string: channel_name,
+                                },
+                            });
+                        }
+                    }
+                    for channel_match in channel_matches {
+                        match self
+                            .matches
+                            .position(&channel_match, self.currently_opened_path.as_ref())
+                        {
+                            Ok(_duplicate) => {}
+                            Err(ix) => self.matches.matches.insert(ix, channel_match),
+                        }
+                    }
+                }
+            }
+
+            let query_path = query.path_query();
+>>>>>>> zed/main
             if let Ok(mut query_path) = RelPath::new(Path::new(query_path), path_style) {
                 let available_worktree = self
                     .project
@@ -1152,8 +1234,8 @@ impl FileFinderDelegate {
                 if let Some(worktree) = expect_worktree {
                     let worktree = worktree.read(cx);
                     if worktree.entry_for_path(&query_path).is_none()
-                        && !query.raw_query.ends_with("/")
-                        && !(path_style.is_windows() && query.raw_query.ends_with("\\"))
+                        && !query.path_query().ends_with('/')
+                        && !(path_style.is_windows() && query.path_query().ends_with('\\'))
                     {
                         self.matches.matches.push(Match::CreateNew(ProjectPath {
                             worktree_id: worktree.id(),
@@ -1168,8 +1250,9 @@ impl FileFinderDelegate {
             self.selected_index = if !self.selected_matches.is_empty() {
                 0
             } else {
+                let query_has_position = query.path_position.row.is_some();
                 selected_match.map_or_else(
-                    || self.calculate_selected_index(cx),
+                    || self.calculate_selected_index(query_has_position, cx),
                     |m| {
                         self.matches
                             .position(&m, self.currently_opened_path.as_ref())
@@ -1426,8 +1509,17 @@ impl FileFinderDelegate {
     }
 
     /// Skips first history match (that is displayed topmost) if it's currently opened.
-    fn calculate_selected_index(&self, cx: &mut Context<Picker<Self>>) -> usize {
-        if FileFinderSettings::get_global(cx).skip_focus_for_active_in_search
+    ///
+    /// When the query carries a row (e.g. `foo.rs:42`), the user is asking to
+    /// navigate inside a specific file, so we never skip past the active match
+    /// even if the setting is enabled.
+    fn calculate_selected_index(
+        &self,
+        query_has_position: bool,
+        cx: &mut Context<Picker<Self>>,
+    ) -> usize {
+        if !query_has_position
+            && FileFinderSettings::get_global(cx).skip_focus_for_active_in_search
             && let Some(Match::History { path, .. }) = self.matches.get(0)
             && Some(path) == self.currently_opened_path.as_ref()
         {
