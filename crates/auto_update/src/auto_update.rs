@@ -833,27 +833,53 @@ impl AutoUpdater {
             .await
             .context("Failed to create installer dir")?;
         let target_path = Self::target_path(&installer_dir).await?;
-        let progress_entity = this.clone();
-        let mut progress_cx = cx.clone();
-        download_release(
-            &target_path,
-            fetched_release_data,
-            client,
-            move |progress| {
-                progress_entity.update(&mut progress_cx, |this, cx| {
-                    if let AutoUpdateStatus::Downloading {
-                        progress: current_progress,
-                        ..
-                    } = &mut this.status
-                    {
-                        *current_progress = progress;
-                        cx.notify();
+        // PaddleBoard: the download runs on a BACKGROUND task. Upstream awaited it
+        // directly inside this `cx.spawn`, which is the foreground (UI) executor —
+        // so a release download (161 MB, ~20k 8KiB read/write awaits) saturated the
+        // main thread and the window froze for the duration, unresponsive to
+        // dragging. `install_release` below was already background-spawned; the
+        // download simply wasn't, and that asymmetry was the bug.
+        //
+        // Progress can't ride along directly: the callback used to update a GPUI
+        // entity through an `AsyncApp`, which holds an `Rc<RefCell<App>>` and is
+        // therefore not `Send`. So the background task publishes progress over a
+        // channel and the foreground drains it, keeping every entity touch on the
+        // thread that owns it.
+        let (progress_tx, progress_rx) = smol::channel::unbounded::<Option<f32>>();
+        let download_target = target_path.clone();
+        let download = cx.background_spawn(async move {
+            download_release(
+                &download_target,
+                fetched_release_data,
+                client,
+                move |progress| {
+                    // A send only fails once the receiver is gone, which means the
+                    // foreground has stopped drawing progress. Dropping the update
+                    // is correct then, and must not fail the download.
+                    if progress_tx.try_send(progress).is_err() {
+                        // Nothing to do — see above.
                     }
-                });
-            },
-        )
-        .await
-        .with_context(|| format!("Failed to download update to {}", target_path.display()))?;
+                },
+            )
+            .await
+        });
+
+        while let Ok(progress) = progress_rx.recv().await {
+            this.update(cx, |this, cx| {
+                if let AutoUpdateStatus::Downloading {
+                    progress: current_progress,
+                    ..
+                } = &mut this.status
+                {
+                    *current_progress = progress;
+                    cx.notify();
+                }
+            });
+        }
+
+        download
+            .await
+            .with_context(|| format!("Failed to download update to {}", target_path.display()))?;
 
         this.update(cx, |this, cx| {
             this.status = AutoUpdateStatus::Installing {
