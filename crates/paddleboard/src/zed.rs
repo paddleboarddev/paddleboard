@@ -636,9 +636,11 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         // PaddleBoard: Placid mode toggle, shared by the status bar button, the
         // command palette, and the `--placid` CLI flag.
         workspace.register_action(
-            |_workspace, _: &paddleboard_actions::placid::TogglePlacidMode, window, cx| {
-                let handle = cx.entity();
-                paddleboard_placid::toggle(&handle, window, cx);
+            |workspace, _: &paddleboard_actions::placid::TogglePlacidMode, window, cx| {
+                // Must use the in-workspace variant: this handler already runs
+                // inside the workspace's update, so re-entering the entity here
+                // panics. See `paddleboard_placid::set_placid_in_workspace`.
+                paddleboard_placid::toggle_in_workspace(workspace, window, cx);
             },
         );
 
@@ -6062,6 +6064,62 @@ mod tests {
                 .unwrap();
         }
         cx.run_until_parked();
+    }
+
+    /// PaddleBoard regression test: toggling Placid mode must not re-enter the
+    /// workspace entity.
+    ///
+    /// The status-bar button and the command palette both dispatch
+    /// `TogglePlacidMode`, and a `register_action` handler runs *inside* the
+    /// workspace's own update. `set_placid` then took an `Entity<Workspace>` and
+    /// called `read_with`/`update` on it, which is a second borrow of an entity
+    /// already mutably borrowed — a gpui panic, so clicking the button killed
+    /// the app. This drives the exact path the handler takes.
+    #[gpui::test]
+    async fn test_toggle_placid_mode_does_not_reenter_the_workspace(cx: &mut TestAppContext) {
+        let app_state = init_test(cx);
+        cx.update(|cx| paddleboard_placid::init(cx));
+        app_state
+            .fs
+            .as_fake()
+            .insert_tree(path!("/root"), json!({ "file1": "" }))
+            .await;
+
+        let project = Project::test(app_state.fs.clone(), [path!("/root").as_ref()], cx).await;
+        let window = cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = window
+            .read_with(cx, |multi_workspace, _| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+
+        // Verbatim what the registered `TogglePlacidMode` handler does: the
+        // workspace is already being updated when the toggle runs.
+        window
+            .update(cx, |_, window, cx| {
+                workspace.update(cx, |workspace, cx| {
+                    paddleboard_placid::toggle_in_workspace(workspace, window, cx);
+                });
+            })
+            .unwrap();
+
+        assert!(
+            cx.update(|cx| paddleboard_placid::is_placid(&workspace, cx)),
+            "toggling from inside the workspace update should enter Placid mode"
+        );
+
+        // And the CLI's `--placid` shape, which acts from outside a workspace
+        // update, must keep working — it drives the same code by a different route.
+        window
+            .update(cx, |_, window, cx| {
+                paddleboard_placid::set_placid(&workspace, false, window, cx);
+            })
+            .unwrap();
+
+        assert!(
+            !cx.update(|cx| paddleboard_placid::is_placid(&workspace, cx)),
+            "setting from outside the workspace update should leave Placid mode"
+        );
     }
 
     pub(crate) fn init_test(cx: &mut TestAppContext) -> Arc<AppState> {
