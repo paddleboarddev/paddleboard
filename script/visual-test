@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# Runs the visual regression suite: 24 screenshots of real PaddleBoard windows,
+# compared against the committed baselines in
+# crates/paddleboard/test_fixtures/visual_tests/.
+#
+# LOCAL ONLY, on purpose. The runner captures through the Metal renderer, so it
+# needs macOS — and a macOS GitHub-hosted runner bills at the 10x multiplier while
+# this job LINKS the whole app binary rather than just checking it. One cold CI run
+# was estimated at 450-750 billable minutes, more than this repo's entire CI spend
+# across 2026-08-03/04 combined. The same suite takes ~45 seconds here, so the
+# cheap place to run it is the machine that already has a warm target/ directory.
+#
+# Usage:
+#   script/visual-test              compare against baselines (exits nonzero on drift)
+#   script/visual-test --update     re-record baselines after an INTENTIONAL UI change
+#
+# On failure the runner writes target/visual_tests/<test>_diff.png, painting
+# matching pixels green and differing ones red — read that before assuming a
+# regression, since it distinguishes "the button moved" from "one pixel shifted".
+
+set -euo pipefail
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "script/visual-test: macOS only — the runner captures via the Metal renderer." >&2
+    exit 1
+fi
+
+update_baseline=0
+for arg in "$@"; do
+    case "$arg" in
+        --update) update_baseline=1 ;;
+        -h|--help) sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) echo "script/visual-test: unknown argument '$arg'" >&2; exit 1 ;;
+    esac
+done
+
+cd "$(dirname "$0")/.."
+
+"${CARGO:-cargo}" build -p paddleboard --bin zed_visual_test_runner --features visual-tests
+
+if [[ "$update_baseline" == "1" ]]; then
+    # Re-record rather than compare. Review the resulting PNG diff in git before
+    # committing: an updated baseline silently ratifies whatever it captured,
+    # including a regression you meant to catch.
+    UPDATE_BASELINE=1 exec "${CARGO:-cargo}" run -p paddleboard \
+        --bin zed_visual_test_runner --features visual-tests
+fi
+
+exec "${CARGO:-cargo}" run -p paddleboard --bin zed_visual_test_runner --features visual-tests

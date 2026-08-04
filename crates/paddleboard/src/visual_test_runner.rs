@@ -3258,6 +3258,21 @@ fn run_thread_item_branch_name_visual_tests(
 
     cx.run_until_parked();
 
+    // PaddleBoard: pin the pointer outside the window before capturing. Every
+    // ThreadItem row carries a `.hover()` background, and nothing here had put the
+    // mouse anywhere, so the row under the *physical* cursor could render hovered
+    // depending on whether the platform delivered a move event before the capture.
+    // That made this test fail roughly 1 run in 8 at 96.42% — reproduced exactly by
+    // hovering the fourth row on purpose. A negative position is outside every
+    // element, so the hover state is pinned off rather than left to a race.
+    cx.simulate_mouse_move(
+        window.into(),
+        point(px(-10.0), px(-10.0)),
+        None,
+        Modifiers::default(),
+    );
+    cx.run_until_parked();
+
     let test_result = run_visual_test(
         "thread_item_branch_names",
         window.into(),
