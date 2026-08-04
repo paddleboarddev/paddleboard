@@ -45,6 +45,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # Reclaim disk before building. On 2026-08-03 this job began failing with
+      # `System.IO.IOException: No space left on device` — the runner died while
+      # writing its OWN diagnostic log, so the error names a runner path and not
+      # anything of ours, which makes it read like infrastructure noise rather
+      # than a workspace that outgrew the disk. It hit three PRs and `main` in
+      # one afternoon, and re-running never cleared it.
+      #
+      # The cause is size, not luck: `cargo check --all-targets` over the full
+      # workspace grew past what a stock ubuntu-latest runner has spare once the
+      # 2026-08-03 upstream merge landed. These preinstalled toolchains are worth
+      # ~15 GB and nothing here uses them — this job needs apt packages and
+      # rustup, both untouched below. `/opt/hostedtoolcache` is deliberately NOT
+      # removed: `actions/*` steps resolve tools from it.
+      #
+      # The `df -h` bookends are for the next person: if this fails again, the
+      # log says how much was actually free rather than leaving them to guess.
+      - name: Free runner disk space
+        run: |
+          echo "Before:"
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+                      /usr/local/share/boost /usr/share/swift
+          echo "After:"
+          df -h /
+
       - name: Install Linux build dependencies
         run: ./script/linux
 
