@@ -18,8 +18,34 @@ name: Tests
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+    # Docs-only changes cannot break a Rust test. Of the 80 workflow runs across
+    # 2026-08-03/04, 20 were on two docs-only branches (docs/dependency-triage-0803,
+    # docs/release-policy) — each one compiling and running 32 crates to verify
+    # Markdown. Safe because `main` has no branch protection and no required
+    # checks: a skipped check here cannot leave a PR unmergeable.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - "LICENSE*"
+
+# PaddleBoard: `push: [main]` was DROPPED on 2026-08-04. It re-ran this whole
+# suite on the merge commit of a PR whose checks had just passed — 27 of those 80
+# runs were push-on-main duplicates, and this is the more expensive of the two
+# Linux jobs (351 billable minutes over two days, 44% of all CI spend).
+#
+# THE TRADEOFF IS REAL, and it is the same one compile-check.yml's macOS job
+# already takes: breakage introduced by the MERGE itself — a PR that was green
+# against an older base — is no longer caught. Nothing else runs these tests, so
+# it would surface on the next PR instead. Restore the trigger if that happens
+# more than rarely.
+
+concurrency:
+  # Nothing cancelled superseded runs before this. docs/dependency-triage-0803
+  # ran 12 times across 3 pushes, every earlier run continuing to completion long
+  # after its result stopped mattering.
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
