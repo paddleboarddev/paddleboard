@@ -22,7 +22,12 @@ use paddleboard_sandbox_prereqs::{
     BackendAvailability, BackendOption, CommandKind, InstallStep, Os, PreferredBackend,
     backend_options,
 };
-use paddleboard_sandbox_prereqs_state::{OpenSandboxPrereqs, SandboxPrereqs};
+use paddleboard_sandbox_prereqs_state::SandboxPrereqs;
+
+// The action this crate exists to handle. Re-exported (rather than plainly
+// imported) so callers can dispatch it without also depending on the state
+// crate.
+pub use paddleboard_sandbox_prereqs_state::OpenSandboxPrereqs;
 use paddleboard_sandbox_settings::{ActiveTier, ActiveTierKind, SandboxSettings, active_tier};
 use settings::{
     PaddleboardPreferredBackendContent, Settings, SettingsStore, update_settings_file,
