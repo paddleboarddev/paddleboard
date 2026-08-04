@@ -3522,22 +3522,17 @@ impl Pane {
     // workspace's top-left pane, there is no title bar, the window is not
     // fullscreen, and no open left sidebar is reserving the traffic-light space.
     fn should_reserve_traffic_light_space(&self, window: &Window, cx: &Context<Pane>) -> bool {
-        if !cfg!(target_os = "macos") || window.is_fullscreen() {
-            return false;
-        }
         let Some(workspace) = self.workspace.upgrade() else {
             return false;
         };
         let workspace = workspace.read(cx);
-        workspace.titlebar_item().is_none()
+        workspace.should_reserve_traffic_light_space(window, cx)
             && workspace.top_left_pane() == cx.entity()
-            && workspace
-                .multi_workspace()
-                .and_then(|multi_workspace| multi_workspace.upgrade())
-                .is_none_or(|multi_workspace| {
-                    let state = multi_workspace.read(cx).sidebar_render_state(cx);
-                    !(state.open && state.side == crate::SidebarSide::Left)
-                })
+            // PaddleBoard: an open left dock already reaches the corner and
+            // reserves the strip itself (see `Workspace::render_dock`). Without
+            // this the tab bar also inset, leaving a stray 78px gap beside a
+            // panel that had already moved the content clear.
+            && !workspace.left_dock().read(cx).is_open()
     }
 
     fn configure_tab_bar_start(
