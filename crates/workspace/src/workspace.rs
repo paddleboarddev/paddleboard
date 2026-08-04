@@ -3099,6 +3099,30 @@ impl Workspace {
         self.titlebar_item.clone()
     }
 
+    /// PaddleBoard: whether this workspace must leave room at the window's
+    /// top-left for the macOS traffic lights.
+    ///
+    /// PaddleBoard renders no per-workspace title bar (`title_bar::init` runs
+    /// only in the visual test runner), so nothing reserves that corner by
+    /// default and whichever surface reaches it draws underneath the window
+    /// buttons. Exactly one surface should reserve the space, so this answers
+    /// "is the corner still uncovered?" — the left dock consults it in
+    /// `render_dock`, and `Pane` in `should_reserve_traffic_light_space`, which
+    /// additionally requires that it *is* the top-left pane and that no left
+    /// dock is open.
+    pub fn should_reserve_traffic_light_space(&self, window: &Window, cx: &App) -> bool {
+        cfg!(target_os = "macos")
+            && !window.is_fullscreen()
+            && self.titlebar_item().is_none()
+            && self
+                .multi_workspace()
+                .and_then(|multi_workspace| multi_workspace.upgrade())
+                .is_none_or(|multi_workspace| {
+                    let state = multi_workspace.read(cx).sidebar_render_state(cx);
+                    !(state.open && state.side == SidebarSide::Left)
+                })
+    }
+
     /// Call the given callback with a workspace whose project is local or remote via WSL (allowing host access).
     ///
     /// If the given workspace has a local project, then it will be passed
@@ -7325,6 +7349,17 @@ impl Workspace {
         let dock_is_open = dock.read(cx).is_open();
         let a11y_active = window.is_a11y_active();
 
+        // PaddleBoard: with no per-workspace title bar, an open left dock reaches
+        // the window's top-left corner and its first row renders under the macOS
+        // traffic lights — the Manifest panel's "Repositories" header sat behind
+        // the red and yellow buttons. Reserve a strip so the panel starts below
+        // them. `Pane` does the same for its tab bar via
+        // `should_reserve_traffic_light_space`, which defers to whoever else
+        // already covers that corner.
+        let reserve_traffic_light_strip = position == DockPosition::Left
+            && dock_is_open
+            && self.should_reserve_traffic_light_space(window, cx);
+
         let mut container = div()
             .id(dock_element_id)
             .when(dock_is_open, |this| {
@@ -7333,6 +7368,9 @@ impl Workspace {
                     .when(a11y_active, |this| {
                         this.track_focus(self.region_focus_handles.dock(position))
                     })
+            })
+            .when(reserve_traffic_light_strip, |this| {
+                this.pt(px(ui::utils::TRAFFIC_LIGHT_STRIP_HEIGHT))
             })
             .flex()
             .overflow_hidden()
