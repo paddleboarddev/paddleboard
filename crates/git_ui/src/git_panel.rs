@@ -171,11 +171,16 @@ actions!(
     ]
 );
 
-// PaddleBoard: actions for the Git Graph history view (lives in the `git_graph`
-// crate). Defined here in git_panel so the crate can reference
-// `git_ui::git_panel::{Open, OpenAtCommit}` — this is the v0.1.4 layout. Do NOT
-// also adopt upstream's `git_ui::git_graph` module: it re-registers the same
-// `git_graph::*` action names and newer gpui panics on duplicates.
+// PaddleBoard: actions for the Git Graph history view (which lives in the
+// `paddleboard_git_graph` crate). Defined here in git_panel so that crate can
+// reference `git_ui::git_panel::{Open, OpenAtCommit}` — this is the v0.1.4
+// layout. Do NOT also adopt upstream's `git_ui::git_graph` module: it
+// re-registers the same action names and newer gpui panics on duplicates.
+//
+// The `git_graph` namespace below is the USER-FACING action name (`git_graph::Open`
+// in keymaps and the command palette). It deliberately did not change when the
+// crate was renamed to `paddleboard_git_graph` — renaming it would break every
+// existing keymap binding.
 actions!(
     git_graph,
     [

@@ -6066,6 +6066,64 @@ mod tests {
         cx.run_until_parked();
     }
 
+    /// PaddleBoard smoke test: clicking a PaddleBoard status-bar button must not
+    /// kill the app.
+    ///
+    /// Each of these buttons does nothing but dispatch an action, so a panicking
+    /// handler takes the whole app down on a single click. That has now shipped
+    /// twice — Set Sail's modal constructor double-leasing the workspace, and
+    /// Placid mode's handler re-entering it, which crashed on every click from
+    /// v0.2.5 until it was found by hand. Neither was visible to the compile
+    /// gate or to any existing test, because nothing automated had ever clicked
+    /// the buttons.
+    ///
+    /// This dispatches the real actions through the real registrations, so a new
+    /// button is covered by adding one line here.
+    #[gpui::test]
+    async fn test_paddleboard_status_bar_actions_survive_a_click(cx: &mut TestAppContext) {
+        let app_state = init_test(cx);
+        // `initialize_workspace` registers Placid's handler, but Set Sail and the
+        // sandbox prereqs register from `main`, which tests do not run.
+        cx.update(|cx| {
+            paddleboard_placid::init(cx);
+            paddleboard_set_sail::init(cx);
+        });
+        app_state
+            .fs
+            .as_fake()
+            .insert_tree(path!("/root"), json!({ "file1": "" }))
+            .await;
+
+        let project = Project::test(app_state.fs.clone(), [path!("/root").as_ref()], cx).await;
+        let window = cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+
+        // Placid mode — the one that shipped broken.
+        cx.dispatch_action(window.into(), paddleboard_actions::placid::TogglePlacidMode);
+        cx.run_until_parked();
+        // Toggle back, so the "leave Placid" branch is exercised too.
+        cx.dispatch_action(window.into(), paddleboard_actions::placid::TogglePlacidMode);
+        cx.run_until_parked();
+
+        // Set Sail — opens a modal, the surface whose constructor previously
+        // double-leased the workspace.
+        cx.dispatch_action(window.into(), paddleboard_actions::set_sail::Deploy);
+        cx.run_until_parked();
+
+        // NOT covered: the sandbox-prereqs button. `SandboxPrereqs::init` starts
+        // real background probing for Podman and gVisor on a tokio runtime, and
+        // gpui's deterministic test scheduler fails the test the moment that
+        // thread does anything ("Your test is not deterministic"). Covering it
+        // needs the probe to be stubbable, which is a change to that crate
+        // rather than to this test — so that entry point is still unguarded.
+
+        // Reaching here without a panic is the assertion. Confirm the window is
+        // still alive rather than silently leaked.
+        assert!(
+            window.read_with(cx, |_, _| true).unwrap_or(false),
+            "the window should still be open after clicking every status-bar button"
+        );
+    }
+
     /// PaddleBoard regression test: toggling Placid mode must not re-enter the
     /// workspace entity.
     ///
@@ -6165,7 +6223,7 @@ mod tests {
             );
             language_models::init(app_state.user_store.clone(), app_state.client.clone(), cx);
             web_search::init(cx);
-            git_graph::init(cx);
+            paddleboard_git_graph::init(cx);
             web_search_providers::init(app_state.client.clone(), app_state.user_store.clone(), cx);
             let prompt_builder = PromptBuilder::load(app_state.fs.clone(), false, cx);
             project::AgentRegistryStore::init_global(

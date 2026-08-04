@@ -808,7 +808,7 @@ fn main() {
         language_tools::init(cx);
         // PaddleBoard: call::init removed — collaborative calls are not supported
         git_ui::init(cx);
-        git_graph::init(cx);
+        paddleboard_git_graph::init(cx);
         feedback::init(cx);
         markdown_preview::init(cx);
         tour::init(cx); // PaddleBoard: registers the tour action + first-launch check.

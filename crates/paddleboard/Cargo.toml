@@ -119,7 +119,7 @@ file_finder.workspace = true
 fs.workspace = true
 futures.workspace = true
 git.workspace = true
-git_graph.workspace = true
+paddleboard_git_graph.workspace = true
 git_hosting_providers.workspace = true
 # PaddleBoard: no `call` feature — git_ui deliberately doesn't declare one, since
 # the collab `call` crate is deleted in this fork.
