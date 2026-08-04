@@ -401,12 +401,20 @@ pub fn build_window_options(display_uuid: Option<Uuid>, cx: &mut App) -> WindowO
         show: false,
         kind: WindowKind::Normal,
         is_movable: true,
-        // Zed draws its own titlebar and moves the window via [`Window::start_window_move`],
-        // so on macOS AppKit should not own titlebar dragging. This avoids the titlebar
-        // click delay from AppKit's drag disambiguation (first observed on macOS 27) while
-        // keeping the window movable and the Window-menu tiling items enabled. No-op on
-        // other platforms.
-        app_owns_titlebar_drag: true,
+        // PaddleBoard: MUST stay false, unlike upstream Zed.
+        //
+        // Upstream sets this to `true` because Zed draws its own titlebar and moves the
+        // window from it via [`Window::start_window_move`] — the flag stops AppKit from
+        // also owning titlebar dragging, avoiding a click delay from AppKit's drag
+        // disambiguation (first observed on macOS 27).
+        //
+        // PaddleBoard has no such titlebar. `title_bar::init` runs only in the visual
+        // test runner, so `workspace.titlebar_item` is always `None` in the shipped app,
+        // and the only `WindowControlArea::Drag` region and the only `start_window_move`
+        // call both live inside `PlatformTitleBar`, which the main window never renders.
+        // Setting this `true` therefore switched AppKit's dragging off and replaced it
+        // with nothing, leaving the window impossible to move by its title area.
+        app_owns_titlebar_drag: false,
         display_id: display.map(|display| display.id()),
         window_background: cx.theme().window_background_appearance(),
         app_id: Some(app_id.to_owned()),
