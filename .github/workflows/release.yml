@@ -51,6 +51,11 @@ jobs:
     # (rust::Slice iterator not treated as a contiguous_iterator). Local builds
     # on a newer Xcode compile it fine, so match the runner toolchain to that.
     runs-on: macos-15
+    # RELEASING.md observes 110-190 min for this build, so 240 is headroom rather
+    # than a target. It exists because the DEFAULT is 360: a job wedged on a
+    # notarization that never returns would bill 3,600 minutes at the macOS 10x
+    # multiplier — more than this account spent in the whole of 2026-08-01..04.
+    timeout-minutes: 240
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -128,6 +133,10 @@ jobs:
     # If this OOMs or fills the disk anyway, the tarball is the only casualty (the
     # DMG job is independent) — revert this job to blacksmith-8vcpu-ubuntu-2204.
     runs-on: ubuntu-22.04
+    # Was unbounded (360 default). Free on the public repo, but an unbounded job
+    # is what makes a wedged build expensive if this workflow is ever run from the
+    # private repo, as the 2026-07-07 v0.0.0-linuxtest tags did.
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v5
