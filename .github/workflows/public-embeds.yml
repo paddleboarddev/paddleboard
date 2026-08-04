@@ -16,6 +16,12 @@ on:
   push:
     branches: [main]
 
+# Cheap (seconds, no compile), so it keeps both triggers — only the two heavy
+# Rust jobs were trimmed. This just stops superseded runs on a re-pushed branch.
+concurrency:
+  group: public-embeds-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest

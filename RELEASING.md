@@ -66,8 +66,15 @@ case. "Finished" and "released" are deliberately decoupled.
 ## Cutting a release
 
 1. Land the changes on private `main` (merge upstream and/or your own work).
-2. Bump `crates/paddleboard/Cargo.toml` `version` to the next number; commit on `main`.
-3. Publish the source snapshot to the public repo (note: **no** `FIRST_PUBLISH` — this
+2. Run the visual regression suite — `script/visual-test` (macOS only, ~45s). This is
+   **not** in CI and nothing else will run it for you: a macOS GitHub runner bills at
+   the 10x multiplier for a job that links the whole app, which costs more per run than
+   a typical week of CI. Local is both free and roughly forty times faster. On drift,
+   read `target/visual_tests/<test>_diff.png` before deciding it's a regression; if the
+   UI changed on purpose, re-record with `script/visual-test --update` and review the
+   image diff in the commit.
+3. Bump `crates/paddleboard/Cargo.toml` `version` to the next number; commit on `main`.
+4. Publish the source snapshot to the public repo (note: **no** `FIRST_PUBLISH` — this
    *appends* a new commit onto the public history rather than replacing it):
 
    ```bash
@@ -83,11 +90,11 @@ case. "Finished" and "released" are deliberately decoupled.
    previous tag. For richer notes: `RELEASE_NOTES_FILE=notes.md bash script/publish-public.sh …`
    — build them from `UNRELEASED.md`. To push source + tag only (no Release):
    `SKIP_RELEASE=1 …`.
-4. The tag triggers `release.yml`, which builds, signs, notarizes and attaches the DMG and
+5. The tag triggers `release.yml`, which builds, signs, notarizes and attaches the DMG and
    Linux tarball to that same Release (see [The binary](#the-binary)).
-5. **Promote it.** Releases are created as prereleases; until promoted, the updater skips
+6. **Promote it.** Releases are created as prereleases; until promoted, the updater skips
    them and users are offered nothing. Verify afterwards that `isPrerelease` is `false`.
-6. Reset `UNRELEASED.md` to an empty `## Next` section for the following cycle.
+7. Reset `UNRELEASED.md` to an empty `## Next` section for the following cycle.
 
 **Run the publish from `main`, with a clean checkout.** `publish-public.sh` snapshots
 `git archive HEAD` — whatever branch is checked out, not `origin/main`. On both v0.2.4 and

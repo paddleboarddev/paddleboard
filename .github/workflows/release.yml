@@ -33,6 +33,14 @@ on:
     tags:
       - "v*"
 
+# Serialize per tag, but NEVER cancel: `cancel-in-progress: true` here could kill
+# a run midway through `notarytool submit`, leaving a submission Apple has
+# accepted with no local ticket to staple. Every other workflow in this repo
+# cancels superseded runs; this one deliberately does not.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

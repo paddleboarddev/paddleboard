@@ -18,8 +18,20 @@ name: Compile check
 on:
   pull_request:
     branches: [main]
+    paths-ignore: &docs_only
+      - "**.md"
+      - "docs/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - "LICENSE*"
+  # The push trigger is KEPT here, unlike test.yml, but only the macOS job still
+  # uses it — see the `if:` on each job below.
   push:
     branches: [main]
+    paths-ignore: *docs_only
+
+concurrency:
+  group: compile-check-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -40,6 +52,13 @@ jobs:
     # later, verify it provisions for pull_request events first.
     name: Linux (full workspace)
     runs-on: ubuntu-latest
+    # PaddleBoard: PR-only since 2026-08-04. This job ran on both `pull_request`
+    # and `push: main`, so every merged PR paid for it twice — 256 billable
+    # minutes over 2026-08-03/04, second only to test.yml. The workflow keeps its
+    # push trigger solely so the macOS job below (which is push-ONLY, and cheap at
+    # ~23s a run) still fires; without this guard, removing the trigger outright
+    # would have silently disabled macOS coverage entirely.
+    if: github.event_name == 'pull_request'
     timeout-minutes: 45
     steps:
       - name: Checkout
