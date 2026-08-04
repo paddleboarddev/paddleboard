@@ -49,6 +49,9 @@ permissions:
 jobs:
   report:
     runs-on: ubuntu-latest
+    # PaddleBoard: bounded 2026-08-04. Was unset, so GitHub's 360-minute
+    # default applied to every run. Observed at ~1 min. 20 is pure runaway protection.
+    timeout-minutes: 20
     steps:
       - name: Check out
         uses: actions/checkout@v5

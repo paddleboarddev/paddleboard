@@ -14,6 +14,11 @@ permissions:
 jobs:
   merge:
     runs-on: ubuntu-latest
+    # PaddleBoard: bounded 2026-08-04. Was unset, so GitHub's 360-minute
+    # default applied to every run. A full upstream merge plus a workspace-wide conflict scan. Generous, because
+    # a long merge is normal after a quiet week; the point is only that a job
+    # wedged on a git prompt or a network stall dies instead of billing 6 hours.
+    timeout-minutes: 60
     steps:
       - name: Check out main
         uses: actions/checkout@v5
