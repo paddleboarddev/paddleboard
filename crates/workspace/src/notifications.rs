@@ -1299,7 +1299,12 @@ pub mod simple_message_notification {
                     "Linux desktop portal initialization failed.".into()
                 }
                 fn secondary_message(&self) -> Option<SharedString> {
-                    Some("Zed needs an xdg-desktop-portal implementation to open files.".into())
+                    // PaddleBoard: user-visible product name, and the docs link
+                    // below points at our own platform page rather than upstream's.
+                    Some(
+                        "PaddleBoard needs an xdg-desktop-portal implementation to open files."
+                            .into(),
+                    )
                 }
                 fn severity(&self) -> ErrorSeverity {
                     ErrorSeverity::Critical
@@ -1307,7 +1312,7 @@ pub mod simple_message_notification {
                 fn primary_action(&self) -> ErrorAction {
                     ErrorAction::link(
                         "See Docs",
-                        "https://zed.dev/docs/linux#i-cant-open-any-files",
+                        "https://docs.paddleboard.dev/linux.html#i-cant-open-any-files",
                     )
                 }
             }

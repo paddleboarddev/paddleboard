@@ -196,9 +196,11 @@ impl WorkspaceError for PortalError {
     }
 
     fn primary_action(&self) -> ErrorAction {
+        // PaddleBoard: our own platform docs. The anchor matches upstream's, so
+        // this behaves identically — see docs/src/linux.md.
         ErrorAction::link(
             "See docs",
-            "https://zed.dev/docs/linux#i-cant-open-any-files",
+            "https://docs.paddleboard.dev/linux.html#i-cant-open-any-files",
         )
     }
 }
