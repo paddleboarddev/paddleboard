@@ -3587,12 +3587,13 @@ async fn load_keybind_context_language(
                 .languages()
                 .language_for_name("Zed Keybind Context")
         })
-        .context("Failed to load Zed Keybind Context language")
+        // PaddleBoard: product name in user-visible text.
+        .context("Failed to load PaddleBoard Keybind Context language")
         .log_err();
     let language = match language_task {
         Some(task) => task
             .await
-            .context("Failed to load Zed Keybind Context language")
+            .context("Failed to load PaddleBoard Keybind Context language")
             .log_err(),
         None => None,
     };

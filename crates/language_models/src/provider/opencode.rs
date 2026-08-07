@@ -315,7 +315,8 @@ impl LanguageModelProvider for OpenCodeLanguageModelProvider {
                     .into()
             })
             .description(InlineDescription::Text(
-                "To use OpenCode models in Zed, you need an API key.".into(),
+                // PaddleBoard: product name in user-visible text.
+                "To use OpenCode models in PaddleBoard, you need an API key.".into(),
             )),
         ))
     }

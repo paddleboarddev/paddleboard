@@ -9,6 +9,17 @@ pub const MACOS_SDK_26_OR_LATER: bool = cfg!(macos_sdk_26_or_later);
 // the 1px border around the window on macOS apps.
 pub const TRAFFIC_LIGHT_PADDING: f32 = if MACOS_SDK_26_OR_LATER { 78. } else { 71. };
 
+/// PaddleBoard: vertical space to reserve above content that reaches the
+/// window's top-left corner, so it clears the traffic lights rather than
+/// rendering underneath them.
+///
+/// The horizontal `TRAFFIC_LIGHT_PADDING` above is the right answer for a
+/// horizontal strip like a tab bar, which can simply start further right. A
+/// left-docked panel cannot — indenting a whole tree by 78px would look broken
+/// — so it reserves height instead. Static for the same reason: the buttons
+/// are a fixed size and do not scale with the UI.
+pub const TRAFFIC_LIGHT_STRIP_HEIGHT: f32 = 36.;
+
 /// Returns the platform-appropriate title bar height.
 ///
 /// On Windows, this returns a fixed height of 32px.

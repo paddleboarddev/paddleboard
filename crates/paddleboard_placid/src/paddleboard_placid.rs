@@ -50,47 +50,81 @@ pub fn is_placid(workspace: &Entity<Workspace>, cx: &App) -> bool {
         .is_some_and(|state| state.active.contains_key(&workspace.entity_id()))
 }
 
-/// Turn Placid mode on or off for one workspace. Idempotent, so the CLI can call
-/// it on a freshly-opened window without checking the current state first.
-pub fn set_placid(workspace: &Entity<Workspace>, enabled: bool, window: &mut Window, cx: &mut App) {
-    let id = workspace.entity_id();
-    let currently_on = is_placid(workspace, cx);
+/// Turn Placid mode on or off for a workspace the caller is **already
+/// updating** — the shape an action handler needs.
+///
+/// `workspace.register_action` runs its handler inside the workspace's own
+/// update, so the entity is already mutably borrowed. Taking an
+/// `Entity<Workspace>` there and calling `read_with`/`update` on it is a second
+/// borrow, which gpui panics on ("cannot read Workspace while it is already
+/// being updated") — that panic killed the app on every click of the Placid
+/// status-bar button. Everything here touches the workspace through the `&mut`
+/// the caller already holds; the docks are separate entities, so updating those
+/// from in here is fine.
+pub fn set_placid_in_workspace(
+    workspace: &mut Workspace,
+    enabled: bool,
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+) {
+    let id = cx.entity_id();
+    let currently_on = cx
+        .try_global::<PlacidState>()
+        .is_some_and(|state| state.active.contains_key(&id));
     if enabled == currently_on {
         return;
     }
 
     if enabled {
-        let snapshot = workspace.read_with(cx, |workspace, cx| Snapshot {
+        let snapshot = Snapshot {
             left_dock_open: workspace.left_dock().read(cx).is_open(),
             bottom_dock_open: workspace.bottom_dock().read(cx).is_open(),
             right_dock_open: workspace.right_dock().read(cx).is_open(),
             centered_layout: workspace.centered_layout,
-        });
+        };
 
-        workspace.update(cx, |workspace, cx| {
-            set_docks(workspace, false, false, false, window, cx);
-            set_centered_layout(workspace, true, cx);
-        });
+        set_docks(workspace, false, false, false, window, cx);
+        set_centered_layout(workspace, true, cx);
 
         cx.global_mut::<PlacidState>().active.insert(id, snapshot);
     } else {
         let Some(snapshot) = cx.global_mut::<PlacidState>().active.remove(&id) else {
             return;
         };
-        workspace.update(cx, |workspace, cx| {
-            set_docks(
-                workspace,
-                snapshot.left_dock_open,
-                snapshot.bottom_dock_open,
-                snapshot.right_dock_open,
-                window,
-                cx,
-            );
-            set_centered_layout(workspace, snapshot.centered_layout, cx);
-        });
+        set_docks(
+            workspace,
+            snapshot.left_dock_open,
+            snapshot.bottom_dock_open,
+            snapshot.right_dock_open,
+            window,
+            cx,
+        );
+        set_centered_layout(workspace, snapshot.centered_layout, cx);
     }
 }
 
+/// Turn Placid mode on or off from **outside** a workspace update — the CLI's
+/// `--placid` flag, which acts on a freshly-opened window. Idempotent, so the
+/// caller doesn't have to check the current state first.
+pub fn set_placid(workspace: &Entity<Workspace>, enabled: bool, window: &mut Window, cx: &mut App) {
+    workspace.update(cx, |workspace, cx| {
+        set_placid_in_workspace(workspace, enabled, window, cx);
+    });
+}
+
+/// Toggle from inside a workspace update. See [`set_placid_in_workspace`].
+pub fn toggle_in_workspace(
+    workspace: &mut Workspace,
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+) {
+    let enabled = !cx
+        .try_global::<PlacidState>()
+        .is_some_and(|state| state.active.contains_key(&cx.entity_id()));
+    set_placid_in_workspace(workspace, enabled, window, cx);
+}
+
+/// Toggle from outside a workspace update.
 pub fn toggle(workspace: &Entity<Workspace>, window: &mut Window, cx: &mut App) {
     let enabled = !is_placid(workspace, cx);
     set_placid(workspace, enabled, window, cx);

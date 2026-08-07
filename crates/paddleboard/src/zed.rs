@@ -401,12 +401,20 @@ pub fn build_window_options(display_uuid: Option<Uuid>, cx: &mut App) -> WindowO
         show: false,
         kind: WindowKind::Normal,
         is_movable: true,
-        // Zed draws its own titlebar and moves the window via [`Window::start_window_move`],
-        // so on macOS AppKit should not own titlebar dragging. This avoids the titlebar
-        // click delay from AppKit's drag disambiguation (first observed on macOS 27) while
-        // keeping the window movable and the Window-menu tiling items enabled. No-op on
-        // other platforms.
-        app_owns_titlebar_drag: true,
+        // PaddleBoard: MUST stay false, unlike upstream Zed.
+        //
+        // Upstream sets this to `true` because Zed draws its own titlebar and moves the
+        // window from it via [`Window::start_window_move`] — the flag stops AppKit from
+        // also owning titlebar dragging, avoiding a click delay from AppKit's drag
+        // disambiguation (first observed on macOS 27).
+        //
+        // PaddleBoard has no such titlebar. `title_bar::init` runs only in the visual
+        // test runner, so `workspace.titlebar_item` is always `None` in the shipped app,
+        // and the only `WindowControlArea::Drag` region and the only `start_window_move`
+        // call both live inside `PlatformTitleBar`, which the main window never renders.
+        // Setting this `true` therefore switched AppKit's dragging off and replaced it
+        // with nothing, leaving the window impossible to move by its title area.
+        app_owns_titlebar_drag: false,
         display_id: display.map(|display| display.id()),
         window_background: cx.theme().window_background_appearance(),
         app_id: Some(app_id.to_owned()),
@@ -436,6 +444,7 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
     .detach();
 
     init_cursor_hide_mode(cx);
+    init_app_appearance(cx);
     init_reduce_motion(cx);
 
     cx.observe_new(|_multi_workspace: &mut MultiWorkspace, window, cx| {
@@ -627,9 +636,11 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         // PaddleBoard: Placid mode toggle, shared by the status bar button, the
         // command palette, and the `--placid` CLI flag.
         workspace.register_action(
-            |_workspace, _: &paddleboard_actions::placid::TogglePlacidMode, window, cx| {
-                let handle = cx.entity();
-                paddleboard_placid::toggle(&handle, window, cx);
+            |workspace, _: &paddleboard_actions::placid::TogglePlacidMode, window, cx| {
+                // Must use the in-workspace variant: this handler already runs
+                // inside the workspace's update, so re-entering the entity here
+                // panics. See `paddleboard_placid::set_placid_in_workspace`.
+                paddleboard_placid::toggle_in_workspace(workspace, window, cx);
             },
         );
 
@@ -714,7 +725,7 @@ fn initialize_file_watcher(window: &mut Window, cx: &mut Context<Workspace>) {
             db::indoc! {r#"
             inotify_init returned {}
 
-            This may be due to system-wide limits on inotify instances. For troubleshooting see: https://zed.dev/docs/linux
+            This may be due to system-wide limits on inotify instances. For troubleshooting see: https://docs.paddleboard.dev/linux.html
             "#},
             e
         );
@@ -728,7 +739,7 @@ fn initialize_file_watcher(window: &mut Window, cx: &mut Context<Workspace>) {
         cx.spawn(async move |_, cx| {
             if prompt.await == Ok(0) {
                 cx.update(|cx| {
-                    cx.open_url("https://zed.dev/docs/linux#could-not-start-inotify");
+                    cx.open_url("https://docs.paddleboard.dev/linux.html#could-not-start-inotify");
                     cx.quit();
                 });
             }
@@ -745,7 +756,7 @@ fn initialize_file_watcher(window: &mut Window, cx: &mut Context<Workspace>) {
             db::indoc! {r#"
             ReadDirectoryChangesW initialization failed: {}
 
-            This may occur on network filesystems and WSL paths. For troubleshooting see: https://zed.dev/docs/windows
+            This may occur on network filesystems and WSL paths. For troubleshooting see: https://docs.paddleboard.dev/windows.html
             "#},
             e
         );
@@ -759,7 +770,9 @@ fn initialize_file_watcher(window: &mut Window, cx: &mut Context<Workspace>) {
         cx.spawn(async move |_, cx| {
             if prompt.await == Ok(0) {
                 cx.update(|cx| {
-                    cx.open_url("https://zed.dev/docs/windows");
+                    cx.open_url(
+                        "https://docs.paddleboard.dev/windows.html#could-not-start-readdirectorychangesw",
+                    );
                     cx.quit()
                 });
             }
@@ -777,14 +790,14 @@ fn show_software_emulation_warning_if_needed(
         let (graphics_api, docs_url, open_url) = if cfg!(target_os = "windows") {
             (
                 "DirectX",
-                "https://zed.dev/docs/windows",
-                "https://zed.dev/docs/windows",
+                "https://docs.paddleboard.dev/windows.html",
+                "https://docs.paddleboard.dev/windows.html#software-emulated-graphics",
             )
         } else {
             (
                 "Vulkan",
-                "https://zed.dev/docs/linux",
-                "https://zed.dev/docs/linux#zed-fails-to-open-windows",
+                "https://docs.paddleboard.dev/linux.html",
+                "https://docs.paddleboard.dev/linux.html#paddleboard-fails-to-open-windows",
             )
         };
         let message = format!(
@@ -1184,6 +1197,12 @@ fn register_actions(
             if workspace.project().read(cx).is_local() {
                 return;
             }
+            let create_new_window = action.create_new_window.unwrap_or_else(|| {
+                matches!(
+                    WorkspaceSettings::get_global(cx).default_open_behavior,
+                    DefaultOpenBehavior::NewWindow
+                )
+            });
             telemetry::event!("Project Opened");
             let paths = workspace.prompt_for_open_path(
                 PathPromptOptions {
@@ -1202,7 +1221,13 @@ fn register_actions(
                 };
                 if let Some(task) = this
                     .update_in(cx, |this, window, cx| {
-                        open_new_ssh_project_from_project(this, paths, window, cx)
+                        open_new_ssh_project_from_project(
+                            this,
+                            paths,
+                            create_new_window,
+                            window,
+                            cx,
+                        )
                     })
                     .log_err()
                 {
@@ -2064,6 +2089,24 @@ fn init_cursor_hide_mode(cx: &mut App) {
     cx.observe_global::<SettingsStore>(apply).detach();
 }
 
+fn init_app_appearance(cx: &mut App) {
+    // Force the native window chrome (border + titlebar) to match the selected theme.
+    // `System` follows the OS (no override); any other theme forces its appearance, so a
+    // dark theme doesn't render a light window border when the system is in light mode.
+    let apply = |cx: &mut App| {
+        let appearance = match ThemeSettings::get_global(cx).theme.mode() {
+            Some(theme_settings::ThemeAppearanceMode::System) => None,
+            _ => Some(match cx.theme().appearance() {
+                theme::Appearance::Light => gpui::WindowAppearance::Light,
+                theme::Appearance::Dark => gpui::WindowAppearance::Dark,
+            }),
+        };
+        cx.set_window_appearance(appearance);
+    };
+    apply(cx);
+    cx.observe_global::<SettingsStore>(apply).detach();
+}
+
 #[derive(Copy, Clone, Debug, settings::RegisterSetting)]
 struct ReduceMotionSetting(settings::ReduceMotionMode);
 
@@ -2411,6 +2454,7 @@ fn filter_disabled_ai_bindings(bindings: Vec<KeyBinding>, cx: &App) -> Vec<KeyBi
 pub fn open_new_ssh_project_from_project(
     workspace: &mut Workspace,
     paths: Vec<PathBuf>,
+    create_new_window: bool,
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) -> Task<anyhow::Result<()>> {
@@ -2419,6 +2463,11 @@ pub fn open_new_ssh_project_from_project(
         return Task::ready(Err(anyhow::anyhow!("Not an ssh project")));
     };
     let connection_options = ssh_client.read(cx).connection_options();
+    let requesting_window = if create_new_window {
+        None
+    } else {
+        window.window_handle().downcast::<MultiWorkspace>()
+    };
     cx.spawn_in(window, async move |_, cx| {
         open_remote_project(
             connection_options,
@@ -2426,6 +2475,7 @@ pub fn open_new_ssh_project_from_project(
             app_state,
             workspace::OpenOptions {
                 workspace_matching: workspace::WorkspaceMatching::None,
+                requesting_window,
                 ..Default::default()
             },
             cx,
@@ -2839,15 +2889,21 @@ mod tests {
     use editor::{
         DisplayPoint, Editor, MultiBufferOffset, SelectionEffects, display_map::DisplayRow,
     };
+    use extension::ExtensionHostProxy;
+    use fs::FakeFs;
     use gpui::{
         Action, AnyWindowHandle, App, AssetSource, BorrowAppContext, Modifiers, TestAppContext,
         UpdateGlobal, VisualTestContext, WindowHandle, actions, point, px,
     };
+    use http_client::BlockedHttpClient;
     use language::LanguageRegistry;
     use languages::{markdown_lang, rust_lang};
+    use node_runtime::NodeRuntime;
     use pretty_assertions::{assert_eq, assert_ne};
     use project::{Project, ProjectPath};
     use prompt_store::PromptBuilder;
+    use remote::RemoteClient;
+    use remote_server::{HeadlessAppState, HeadlessProject};
     use semver::Version;
     use serde_json::json;
     use settings::{SaturatingBool, SettingsStore, watch_config_file};
@@ -2927,6 +2983,116 @@ mod tests {
                 });
             })
             .unwrap();
+    }
+
+    #[gpui::test]
+    async fn test_open_remote_from_existing_connection_reuses_window(
+        cx: &mut TestAppContext,
+        server_cx: &mut TestAppContext,
+    ) {
+        let app_state = init_test(cx);
+        let executor = cx.executor();
+
+        server_cx.update(|cx| {
+            release_channel::init(Version::new(0, 0, 0), cx);
+        });
+
+        let (connection_options, server_session, connect_guard) =
+            RemoteClient::fake_server(cx, server_cx);
+        let remote_fs = FakeFs::new(server_cx.executor());
+        remote_fs
+            .insert_tree(
+                path!("/"),
+                json!({
+                    "project": {},
+                    "other-project": {},
+                }),
+            )
+            .await;
+
+        server_cx.update(HeadlessProject::init);
+        let http_client = Arc::new(BlockedHttpClient);
+        let node_runtime = NodeRuntime::unavailable();
+        let languages = Arc::new(LanguageRegistry::new(server_cx.executor()));
+        let extension_host_proxy = Arc::new(ExtensionHostProxy::new());
+        let _headless = server_cx.new(|cx| {
+            HeadlessProject::new(
+                HeadlessAppState {
+                    session: server_session,
+                    fs: remote_fs,
+                    http_client,
+                    node_runtime,
+                    languages,
+                    extension_host_proxy,
+                    startup_time: std::time::Instant::now(),
+                },
+                false,
+                cx,
+            )
+        });
+        drop(connect_guard);
+
+        let mut async_cx = cx.to_async();
+        open_remote_project(
+            connection_options,
+            vec![PathBuf::from(path!("/project"))],
+            app_state,
+            OpenOptions::default(),
+            &mut async_cx,
+        )
+        .await
+        .expect("opening the initial remote project should succeed");
+        executor.run_until_parked();
+
+        assert_eq!(cx.update(|cx| cx.windows().len()), 1);
+        let window = cx.update(|cx| cx.windows()[0].downcast::<MultiWorkspace>().unwrap());
+
+        window
+            .update(cx, |multi_workspace, _, cx| {
+                let workspace = multi_workspace.workspace().clone();
+                workspace.update(cx, |workspace, cx| {
+                    let remote_client = workspace
+                        .project()
+                        .read(cx)
+                        .remote_client()
+                        .expect("initial project should have a remote client");
+                    remote_client.update(cx, |remote_client, cx| {
+                        remote_client.force_server_not_running(cx);
+                    });
+                });
+            })
+            .unwrap();
+        executor.run_until_parked();
+
+        window
+            .update(cx, |multi_workspace, window, cx| {
+                multi_workspace.workspace().update(cx, |workspace, _cx| {
+                    workspace.set_prompt_for_open_path(Box::new(|_, _, _, _| {
+                        let (sender, receiver) = futures::channel::oneshot::channel();
+                        sender
+                            .send(Some(vec![PathBuf::from(path!("/other-project"))]))
+                            .expect("path prompt receiver should be open");
+                        receiver
+                    }));
+                });
+                window.dispatch_action(
+                    Box::new(paddleboard_actions::OpenRemote {
+                        from_existing_connection: true,
+                        create_new_window: Some(false),
+                    }),
+                    cx,
+                );
+            })
+            .unwrap();
+        executor.run_until_parked();
+
+        assert_eq!(
+            cx.update(|cx| cx.windows().len()),
+            1,
+            "create_new_window: false should reuse the current window"
+        );
+        cx.simulate_prompt_answer("Cancel");
+        executor.run_until_parked();
     }
 
     #[gpui::test]
@@ -5667,6 +5833,7 @@ mod tests {
                 "console",
                 "context_server",
                 "copilot",
+                "copilot_edit_predictions",
                 "crewai",
                 "csv",
                 "debug_panel",
@@ -5901,6 +6068,120 @@ mod tests {
         cx.run_until_parked();
     }
 
+    /// PaddleBoard smoke test: clicking a PaddleBoard status-bar button must not
+    /// kill the app.
+    ///
+    /// Each of these buttons does nothing but dispatch an action, so a panicking
+    /// handler takes the whole app down on a single click. That has now shipped
+    /// twice — Set Sail's modal constructor double-leasing the workspace, and
+    /// Placid mode's handler re-entering it, which crashed on every click from
+    /// v0.2.5 until it was found by hand. Neither was visible to the compile
+    /// gate or to any existing test, because nothing automated had ever clicked
+    /// the buttons.
+    ///
+    /// This dispatches the real actions through the real registrations, so a new
+    /// button is covered by adding one line here.
+    #[gpui::test]
+    async fn test_paddleboard_status_bar_actions_survive_a_click(cx: &mut TestAppContext) {
+        let app_state = init_test(cx);
+        // `initialize_workspace` registers Placid's handler, but Set Sail and the
+        // sandbox prereqs register from `main`, which tests do not run.
+        cx.update(|cx| {
+            paddleboard_placid::init(cx);
+            paddleboard_set_sail::init(cx);
+        });
+        app_state
+            .fs
+            .as_fake()
+            .insert_tree(path!("/root"), json!({ "file1": "" }))
+            .await;
+
+        let project = Project::test(app_state.fs.clone(), [path!("/root").as_ref()], cx).await;
+        let window = cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+
+        // Placid mode — the one that shipped broken.
+        cx.dispatch_action(window.into(), paddleboard_actions::placid::TogglePlacidMode);
+        cx.run_until_parked();
+        // Toggle back, so the "leave Placid" branch is exercised too.
+        cx.dispatch_action(window.into(), paddleboard_actions::placid::TogglePlacidMode);
+        cx.run_until_parked();
+
+        // Set Sail — opens a modal, the surface whose constructor previously
+        // double-leased the workspace.
+        cx.dispatch_action(window.into(), paddleboard_actions::set_sail::Deploy);
+        cx.run_until_parked();
+
+        // NOT covered: the sandbox-prereqs button. `SandboxPrereqs::init` starts
+        // real background probing for Podman and gVisor on a tokio runtime, and
+        // gpui's deterministic test scheduler fails the test the moment that
+        // thread does anything ("Your test is not deterministic"). Covering it
+        // needs the probe to be stubbable, which is a change to that crate
+        // rather than to this test — so that entry point is still unguarded.
+
+        // Reaching here without a panic is the assertion. Confirm the window is
+        // still alive rather than silently leaked.
+        assert!(
+            window.read_with(cx, |_, _| true).unwrap_or(false),
+            "the window should still be open after clicking every status-bar button"
+        );
+    }
+
+    /// PaddleBoard regression test: toggling Placid mode must not re-enter the
+    /// workspace entity.
+    ///
+    /// The status-bar button and the command palette both dispatch
+    /// `TogglePlacidMode`, and a `register_action` handler runs *inside* the
+    /// workspace's own update. `set_placid` then took an `Entity<Workspace>` and
+    /// called `read_with`/`update` on it, which is a second borrow of an entity
+    /// already mutably borrowed — a gpui panic, so clicking the button killed
+    /// the app. This drives the exact path the handler takes.
+    #[gpui::test]
+    async fn test_toggle_placid_mode_does_not_reenter_the_workspace(cx: &mut TestAppContext) {
+        let app_state = init_test(cx);
+        cx.update(|cx| paddleboard_placid::init(cx));
+        app_state
+            .fs
+            .as_fake()
+            .insert_tree(path!("/root"), json!({ "file1": "" }))
+            .await;
+
+        let project = Project::test(app_state.fs.clone(), [path!("/root").as_ref()], cx).await;
+        let window = cx.add_window(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = window
+            .read_with(cx, |multi_workspace, _| {
+                multi_workspace.workspace().clone()
+            })
+            .unwrap();
+
+        // Verbatim what the registered `TogglePlacidMode` handler does: the
+        // workspace is already being updated when the toggle runs.
+        window
+            .update(cx, |_, window, cx| {
+                workspace.update(cx, |workspace, cx| {
+                    paddleboard_placid::toggle_in_workspace(workspace, window, cx);
+                });
+            })
+            .unwrap();
+
+        assert!(
+            cx.update(|cx| paddleboard_placid::is_placid(&workspace, cx)),
+            "toggling from inside the workspace update should enter Placid mode"
+        );
+
+        // And the CLI's `--placid` shape, which acts from outside a workspace
+        // update, must keep working — it drives the same code by a different route.
+        window
+            .update(cx, |_, window, cx| {
+                paddleboard_placid::set_placid(&workspace, false, window, cx);
+            })
+            .unwrap();
+
+        assert!(
+            !cx.update(|cx| paddleboard_placid::is_placid(&workspace, cx)),
+            "setting from outside the workspace update should leave Placid mode"
+        );
+    }
+
     pub(crate) fn init_test(cx: &mut TestAppContext) -> Arc<AppState> {
         init_test_with_state(cx, cx.update(AppState::test))
     }
@@ -5931,7 +6212,6 @@ mod tests {
             outline_panel::init(cx);
             terminal_view::init(cx);
             copilot_chat::init(
-                app_state.fs.clone(),
                 app_state.client.http_client(),
                 copilot_chat::CopilotChatConfiguration::default(),
                 cx,
@@ -5945,7 +6225,7 @@ mod tests {
             );
             language_models::init(app_state.user_store.clone(), app_state.client.clone(), cx);
             web_search::init(cx);
-            git_graph::init(cx);
+            paddleboard_git_graph::init(cx);
             web_search_providers::init(app_state.client.clone(), app_state.user_store.clone(), cx);
             let prompt_builder = PromptBuilder::load(app_state.fs.clone(), false, cx);
             project::AgentRegistryStore::init_global(

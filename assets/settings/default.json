@@ -231,10 +231,12 @@
   //
   // Default: true
   "zoomed_padding": true,
-  // What draws PaddleBoard's window decorations (titlebar):
-  // 1. Client application (PaddleBoard) draws its own window decorations
+  // On Linux, what draws PaddleBoard's window decorations (titlebar).
+  // This setting has no effect on other platforms:
+  // 1. Client application (PaddleBoard) draws its own window decorations.
   //    "client"
-  // 2. Display server draws the window decorations. Not supported by GNOME Wayland.
+  // 2. The window manager or compositor draws the window decorations.
+  //    Not supported by GNOME Wayland.
   //    "server"
   //
   // This requires restarting PaddleBoard for changes to take effect.
@@ -695,6 +697,9 @@
     "folds": true,
     // Minimum number of characters to reserve space for in the gutter.
     "min_line_number_digits": 4,
+    // The width, in pixels, of the git diff hunk indicators in the gutter.
+    // When set to null, the width scales with the buffer font size.
+    "git_gutter_width": null,
   },
   "indent_guides": {
     // Whether to show indent guides in the editor.
@@ -1088,14 +1093,21 @@
     // Content will be centered within the panel.
     "max_content_width": 850,
     // The default model to use when creating new threads.
-    "default_model": {
-      // The provider to use.
-      "provider": "zed.dev",
-      // The model to use.
-      "model": "claude-sonnet-4",
-      // Whether thinking is enabled.
-      "enable_thinking": false,
-    },
+    //
+    // PaddleBoard: deliberately UNSET, where upstream ships "zed.dev". Zed's hosted
+    // models are one option among many here -- alongside Anthropic, Google, OpenAI,
+    // local models, and any OpenAI-compatible endpoint -- and shipping it as the
+    // default would make a fresh install's first request prompt for a Zed sign-in.
+    // That is a requirement in everything but name. With no default, onboarding walks
+    // you to a provider and your choice stands.
+    //
+    // Set it yourself with the shape below:
+    //
+    //   "default_model": {
+    //     "provider": "anthropic",
+    //     "model": "claude-sonnet-4",
+    //     "enable_thinking": false,
+    //   },
     // Additional parameters for language model requests. When making a request to a model, parameters will be taken
     // from the last entry in this list that matches the model's provider and name. In each entry, both provider
     // and model are optional, so that you can specify parameters for either one.
@@ -1739,6 +1751,8 @@
     // 2. Show unstaged hunks hollow and staged hunks filled:
     //    "hunk_style": "unstaged_hollow"
     "hunk_style": "staged_hollow",
+    // Whether git features diff against HEAD ("head") or the default branch ("default_branch").
+    "diff_base": "head",
     // Should the name or path be displayed first in the git view.
     // "path_style": "file_name_first" or "file_path_first"
     "path_style": "file_name_first",

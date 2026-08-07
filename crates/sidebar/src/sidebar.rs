@@ -69,7 +69,9 @@ use workspace::{
     notifications::NotificationId, sidebar_side_context_menu,
 };
 
-use git_ui::worktree_service::{RemoteBranchName, worktree_create_targets};
+// PaddleBoard: upstream's `git_ui_core` path for worktree_service (it moved there
+// in this merge), with `paddleboard_actions` in place of `zed_actions`.
+use git_ui_core::worktree_service::{RemoteBranchName, worktree_create_targets};
 use paddleboard_actions::editor::{MoveDown, MoveUp};
 use paddleboard_actions::{CreateWorktree, NewWorktreeBranchTarget, OpenRecent};
 
@@ -748,7 +750,7 @@ fn create_worktree_in_workspace(
 ) {
     workspace.update(cx, |workspace, cx| {
         let focused_dock = workspace.focused_dock_position(window, cx);
-        git_ui::worktree_service::handle_create_worktree(
+        git_ui_core::worktree_service::handle_create_worktree(
             workspace,
             &CreateWorktree {
                 worktree_name: None,
@@ -7478,8 +7480,10 @@ impl Sidebar {
 
         h_flex()
             .h(header_height)
-            .mt_px()
-            .pb_px()
+            .map(|header| match window.window_decorations() {
+                Decorations::Client { .. } => header.mt(px(-1.)),
+                Decorations::Server => header.mt_px().pb_px(),
+            })
             .when(left_window_controls, |this| {
                 this.children(Self::render_left_window_controls(window, cx))
             })

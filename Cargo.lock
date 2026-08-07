@@ -503,7 +503,7 @@ dependencies = [
  "futures 0.3.32",
  "fuzzy",
  "git",
- "git_ui",
+ "git_ui_core",
  "gpui",
  "gpui_tokio",
  "heapless",
@@ -3572,19 +3572,17 @@ version = "0.1.0"
 dependencies = [
  "anthropic",
  "anyhow",
- "collections",
+ "credentials_provider",
  "dirs",
- "fs",
  "futures 0.3.32",
  "gpui",
  "http_client",
  "log",
+ "paddleboard_credentials_provider",
  "paths",
  "serde",
  "serde_json",
  "settings",
- "sqlez",
- "tempfile",
 ]
 
 [[package]]
@@ -3593,6 +3591,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "copilot",
+ "copilot_chat",
  "gpui",
  "language",
  "log",
@@ -6076,6 +6075,7 @@ dependencies = [
  "cloud_api_types",
  "collections",
  "command_palette_hooks",
+ "component",
  "db",
  "editor",
  "extension",
@@ -6094,7 +6094,6 @@ dependencies = [
  "semver",
  "serde",
  "settings",
- "smallvec",
  "strum 0.27.2",
  "telemetry",
  "theme_settings",
@@ -6774,8 +6773,9 @@ name = "fuzzy"
 version = "0.1.0"
 dependencies = [
  "gpui",
+ "gpui_util",
  "log",
- "util",
+ "path",
 ]
 
 [[package]]
@@ -6785,8 +6785,9 @@ dependencies = [
  "criterion",
  "fuzzy",
  "gpui",
+ "gpui_util",
  "nucleo",
- "util",
+ "path",
 ]
 
 [[package]]
@@ -7145,44 +7146,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "git_graph"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-channel 2.5.0",
- "collections",
- "db",
- "editor",
- "file_icons",
- "fs",
- "git",
- "git_ui",
- "gpui",
- "language",
- "language_model",
- "log",
- "markdown",
- "menu",
- "picker",
- "project",
- "project_panel",
- "rand 0.9.4",
- "release_channel",
- "remote_connection",
- "search",
- "serde_json",
- "settings",
- "smallvec",
- "task",
- "theme",
- "theme_settings",
- "time",
- "ui",
- "util",
- "workspace",
-]
-
-[[package]]
 name = "git_hosting_providers"
 version = "0.1.0"
 dependencies = [
@@ -7227,6 +7190,7 @@ dependencies = [
  "fuzzy",
  "fuzzy_nucleo",
  "git",
+ "git_ui_core",
  "gpui",
  "indoc",
  "itertools 0.14.0",
@@ -7246,10 +7210,8 @@ dependencies = [
  "pretty_assertions",
  "project",
  "prompt_store",
- "proto",
  "rand 0.9.4",
  "release_channel",
- "remote",
  "remote_connection",
  "schemars 1.0.4",
  "search",
@@ -7273,6 +7235,51 @@ dependencies = [
  "util",
  "watch",
  "windows 0.61.3",
+ "workspace",
+ "zeroize",
+ "zlog",
+ "ztracing",
+]
+
+[[package]]
+name = "git_ui_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "askpass",
+ "buffer_diff",
+ "collections",
+ "db",
+ "editor",
+ "fs",
+ "futures 0.3.32",
+ "fuzzy",
+ "git",
+ "gpui",
+ "language",
+ "log",
+ "menu",
+ "notifications",
+ "paddleboard_actions",
+ "paddleboard_credentials_provider",
+ "paddleboard_git_login",
+ "picker",
+ "project",
+ "proto",
+ "rand 0.9.4",
+ "remote",
+ "remote_connection",
+ "serde",
+ "serde_json",
+ "settings",
+ "task",
+ "terminal",
+ "theme",
+ "theme_settings",
+ "ui",
+ "unindent",
+ "util",
+ "watch",
  "workspace",
  "zeroize",
  "zlog",
@@ -7903,7 +7910,6 @@ dependencies = [
  "log",
  "parking_lot",
  "raw-window-handle 0.6.2",
- "smallvec",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -8909,6 +8915,7 @@ dependencies = [
  "db",
  "editor",
  "file_icons",
+ "fs",
  "gpui",
  "language",
  "log",
@@ -8916,6 +8923,7 @@ dependencies = [
  "project",
  "serde",
  "settings",
+ "theme",
  "theme_settings",
  "ui",
  "util",
@@ -9846,7 +9854,6 @@ dependencies = [
  "collections",
  "component",
  "convert_case 0.11.0",
- "copilot",
  "copilot_chat",
  "copilot_ui",
  "credentials_provider",
@@ -9869,10 +9876,10 @@ dependencies = [
  "log",
  "menu",
  "mistral",
- "oauth_callback_server",
  "ollama",
  "open_ai",
  "open_router",
+ "openai_subscribed",
  "opencode",
  "paddleboard_llama_manager",
  "paddleboard_vertex",
@@ -9885,14 +9892,12 @@ dependencies = [
  "serde",
  "serde_json",
  "settings",
- "sha2 0.10.9",
  "smol",
  "strum 0.27.2",
  "thiserror 2.0.17",
  "tokio",
  "ui",
  "ui_input",
- "url",
  "util",
  "x_ai",
 ]
@@ -12468,7 +12473,6 @@ dependencies = [
  "gpui",
  "picker",
  "project",
- "project_panel",
  "schemars 1.0.4",
  "serde",
  "serde_json",
@@ -12494,6 +12498,30 @@ dependencies = [
  "settings",
  "strum 0.27.2",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "openai_subscribed"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "credentials_provider",
+ "futures 0.3.32",
+ "gpui",
+ "http_client",
+ "language_model",
+ "log",
+ "oauth_callback_server",
+ "open_ai",
+ "parking_lot",
+ "rand 0.9.4",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "smol",
+ "url",
+ "util",
 ]
 
 [[package]]
@@ -12801,9 +12829,9 @@ dependencies = [
  "fs",
  "futures 0.3.32",
  "git",
- "git_graph",
  "git_hosting_providers",
  "git_ui",
+ "git_ui_core",
  "go_to_line",
  "gpui",
  "gpui_platform",
@@ -12847,6 +12875,7 @@ dependencies = [
  "paddleboard_ai_dock",
  "paddleboard_credentials_provider",
  "paddleboard_env_vars",
+ "paddleboard_git_graph",
  "paddleboard_languages_ui",
  "paddleboard_manifest",
  "paddleboard_otel",
@@ -12879,6 +12908,7 @@ dependencies = [
  "recent_projects",
  "release_channel",
  "remote",
+ "remote_server",
  "repl",
  "reqwest_client",
  "rope",
@@ -13040,6 +13070,44 @@ name = "paddleboard_env_vars"
 version = "0.1.0"
 dependencies = [
  "env_var",
+]
+
+[[package]]
+name = "paddleboard_git_graph"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-channel 2.5.0",
+ "collections",
+ "db",
+ "editor",
+ "file_icons",
+ "fs",
+ "git",
+ "git_ui",
+ "gpui",
+ "language",
+ "language_model",
+ "log",
+ "markdown",
+ "menu",
+ "picker",
+ "project",
+ "project_panel",
+ "rand 0.9.4",
+ "release_channel",
+ "remote_connection",
+ "search",
+ "serde_json",
+ "settings",
+ "smallvec",
+ "task",
+ "theme",
+ "theme_settings",
+ "time",
+ "ui",
+ "util",
+ "workspace",
 ]
 
 [[package]]
@@ -15089,10 +15157,12 @@ dependencies = [
  "futures 0.3.32",
  "git",
  "git_ui",
+ "git_ui_core",
  "gpui",
  "itertools 0.14.0",
  "language",
  "log",
+ "markdown",
  "markdown_preview",
  "menu",
  "notifications",
@@ -15102,7 +15172,6 @@ dependencies = [
  "rayon",
  "remote_connection",
  "schemars 1.0.4",
- "search",
  "serde",
  "serde_json",
  "settings",
@@ -16991,6 +17060,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "futures 0.3.32",
+ "gpui",
  "http_proxy",
  "libc",
  "log",
@@ -17000,6 +17070,7 @@ dependencies = [
  "serde_json",
  "smol",
  "tempfile",
+ "windows-registry 0.6.1",
 ]
 
 [[package]]
@@ -17300,9 +17371,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
+checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -17320,22 +17391,22 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+checksum = "67dca2c9c51e58a4791a4b1ed58308b39c64224d349a935ab5039aa360942a48"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.228"
+version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.117",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -17821,7 +17892,7 @@ dependencies = [
  "feature_flags",
  "fs",
  "git",
- "git_ui",
+ "git_ui_core",
  "gpui",
  "http_client",
  "itertools 0.14.0",
@@ -19564,7 +19635,7 @@ dependencies = [
  "command_palette_hooks",
  "db",
  "fs",
- "git_ui",
+ "git_ui_core",
  "gpui",
  "icons",
  "notifications",
@@ -19591,9 +19662,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.52.1"
+version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67dee974fe86fd92cc45b7a95fdd2f99a36a6d7b0d431a231178d3d670bbcc6"
+checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
  "bytes 1.11.1",
  "libc",
@@ -20096,7 +20167,7 @@ dependencies = [
 [[package]]
 name = "trash"
 version = "5.2.5"
-source = "git+https://github.com/zed-industries/trash-rs?rev=47761739192828a66b11a94ba5420b82d63c03c5#47761739192828a66b11a94ba5420b82d63c03c5"
+source = "git+https://github.com/zed-industries/trash-rs?rev=41c6c800d884a89351f3b8856d12894cccee261d#41c6c800d884a89351f3b8856d12894cccee261d"
 dependencies = [
  "chrono",
  "libc",
@@ -20138,9 +20209,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-c"
-version = "0.24.1"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a3aad8f0129083a59fe8596157552d2bb7148c492d44c21558d68ca1c722707"
+checksum = "a9b2eb57a55fed6b00812912e730b7a275cf4fe98bfd6a5d76263d4438371728"
 dependencies = [
  "cc",
  "tree-sitter-language",
@@ -20516,6 +20587,7 @@ dependencies = [
  "theme",
  "theme_settings",
  "ui_macros",
+ "web-time",
  "windows 0.61.3",
 ]
 
@@ -21295,8 +21367,7 @@ dependencies = [
 [[package]]
 name = "wasm_thread"
 version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7516db7f32decdadb1c3b8deb1b7d78b9df7606c5cc2f6241737c2ab3a0258e"
+source = "git+https://github.com/zed-industries/wasm_thread?rev=0cf96c7708dfb97ccf3da50347e25edcf75d6937#0cf96c7708dfb97ccf3da50347e25edcf75d6937"
 dependencies = [
  "futures 0.3.32",
  "js-sys",

@@ -59,7 +59,12 @@ impl Render for BasedPyrightBanner {
                                         .label_size(LabelSize::Small)
                                         .end_icon(Icon::new(IconName::ArrowUpRight).size(IconSize::XSmall).color(Color::Muted))
                                         .on_click(|_, _, cx| {
-                                            cx.open_url("https://zed.dev/docs/languages/python")
+                                            // PaddleBoard: point at PaddleBoard's own docs.
+                                            // Upstream sends this to zed.dev/docs, which
+                                            // describes Zed's defaults, not this fork's.
+                                            cx.open_url(
+                                                "https://docs.paddleboard.dev/languages.html#python",
+                                            )
                                         }),
                                 )
                                 .child(IconButton::new("dismiss", IconName::Close).icon_size(IconSize::Small).on_click(

@@ -24,9 +24,9 @@ use git_ui::{
     git_status_icon,
 };
 use gpui::{
-    Anchor, AnyElement, App, Bounds, ClickEvent, ClipboardItem, DefiniteLength, DismissEvent,
-    DragMoveEvent, ElementId, Empty, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
-    MouseButton, MouseDownEvent, PathBuilder, Pixels, Point, ScrollHandle, ScrollStrategy,
+    Action, Anchor, AnyElement, App, Bounds, ClickEvent, ClipboardItem, DefiniteLength,
+    DismissEvent, DragMoveEvent, ElementId, Empty, Entity, EventEmitter, FocusHandle, Focusable,
+    Hsla, MouseButton, MouseDownEvent, PathBuilder, Pixels, Point, ScrollHandle, ScrollStrategy,
     ScrollWheelEvent, SharedString, Subscription, Task, TextStyleRefinement,
     UniformListScrollHandle, WeakEntity, Window, actions, anchored, deferred, point, prelude::*,
     px, uniform_list,
@@ -44,10 +44,14 @@ use project::{
     },
 };
 use project_panel::ProjectPanel;
-use search::{
-    SearchOption, SearchOptions, SearchSource, SelectNextMatch, SelectPreviousMatch,
-    ToggleCaseSensitive, buffer_search,
-};
+// PaddleBoard: these come from `search` here, not from upstream's `zed_actions`
+// crate, which this fork replaced with `paddleboard_actions`. Upstream's
+// `use zed_actions::{...}` for the same three names arrived with this merge and
+// was dropped — keeping it would have been both a missing crate and a duplicate
+// import of names already in scope.
+// `SearchOption`, `SearchOptions` and `SearchSource` were dropped from this list:
+// upstream's rework of the search bar in this merge removed their last uses here.
+use search::{SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive, buffer_search};
 use smallvec::{SmallVec, smallvec};
 use std::{
     cell::Cell,
@@ -2561,14 +2565,6 @@ impl GitGraph {
             .focus_handle(cx)
             .tab_index(1)
             .tab_stop(true);
-        let search_options = {
-            let mut options = SearchOptions::NONE;
-            options.set(
-                SearchOptions::CASE_SENSITIVE,
-                self.search_state.case_sensitive,
-            );
-            options
-        };
 
         h_flex()
             .key_context("GitGraphSearchBar")
@@ -2594,11 +2590,29 @@ impl GitGraph {
                     .bg(color.toolbar_background)
                     .on_action(cx.listener(Self::confirm_search))
                     .child(self.search_state.editor.clone())
-                    .child(SearchOption::CaseSensitive.as_button(
-                        search_options,
-                        SearchSource::Buffer,
-                        query_focus_handle,
-                    )),
+                    .child({
+                        let focus_handle = query_focus_handle.clone();
+                        IconButton::new("git-graph-search-case-sensitive", IconName::CaseSensitive)
+                            .shape(ui::IconButtonShape::Square)
+                            .toggle_state(self.search_state.case_sensitive)
+                            .on_click({
+                                let focus_handle = query_focus_handle.clone();
+                                move |_, window, cx| {
+                                    if !focus_handle.is_focused(window) {
+                                        window.focus(&focus_handle, cx);
+                                    }
+                                    window.dispatch_action(ToggleCaseSensitive.boxed_clone(), cx);
+                                }
+                            })
+                            .tooltip(move |_window, cx| {
+                                Tooltip::for_action_in(
+                                    "Match Case Sensitivity",
+                                    &ToggleCaseSensitive,
+                                    &focus_handle,
+                                    cx,
+                                )
+                            })
+                    }),
             )
             .child(
                 h_flex()
@@ -7037,12 +7051,12 @@ mod tests {
                         &serde_json::to_string(&json!([
                             // Tagged global task that should be scheduled from the Git graph context menu.
                             {
-                                "label": "Git Show $ZED_GIT_SHA_SHORT",
+                                "label": "Git Show $PADDLEBOARD_GIT_SHA_SHORT",
                                 "command": "git",
-                                "args": ["show", "$ZED_GIT_SHA"],
-                                "cwd": "$ZED_GIT_REPOSITORY_PATH",
+                                "args": ["show", "$PADDLEBOARD_GIT_SHA"],
+                                "cwd": "$PADDLEBOARD_GIT_REPOSITORY_PATH",
                                 "env": {
-                                    "REPOSITORY": "$ZED_GIT_REPOSITORY_NAME",
+                                    "REPOSITORY": "$PADDLEBOARD_GIT_REPOSITORY_NAME",
                                 },
                                 "tags": [GIT_COMMAND_TASK_TAG],
                             },
@@ -7055,9 +7069,9 @@ mod tests {
                             // Tagged task that still should not appear because Git graph task contexts
                             // do not provide editor-specific variables.
                             {
-                                "label": "Print File $ZED_FILE",
+                                "label": "Print File $PADDLEBOARD_FILE",
                                 "command": "echo",
-                                "args": ["$ZED_FILE"],
+                                "args": ["$PADDLEBOARD_FILE"],
                                 "tags": [GIT_COMMAND_TASK_TAG],
                             },
                         ]))
@@ -7190,10 +7204,10 @@ mod tests {
                     Some(
                         &serde_json::to_string(&json!([
                             {
-                                "label": "Check out $ZED_GIT_REF",
+                                "label": "Check out $PADDLEBOARD_GIT_REF",
                                 "command": "git",
-                                "args": ["checkout", "$ZED_GIT_REF"],
-                                "cwd": "$ZED_GIT_REPOSITORY_PATH",
+                                "args": ["checkout", "$PADDLEBOARD_GIT_REF"],
+                                "cwd": "$PADDLEBOARD_GIT_REPOSITORY_PATH",
                                 "tags": [GIT_COMMAND_TASK_TAG],
                             },
                         ]))

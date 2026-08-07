@@ -33,6 +33,14 @@ on:
     tags:
       - "v*"
 
+# Serialize per tag, but NEVER cancel: `cancel-in-progress: true` here could kill
+# a run midway through `notarytool submit`, leaving a submission Apple has
+# accepted with no local ticket to staple. Every other workflow in this repo
+# cancels superseded runs; this one deliberately does not.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -43,6 +51,11 @@ jobs:
     # (rust::Slice iterator not treated as a contiguous_iterator). Local builds
     # on a newer Xcode compile it fine, so match the runner toolchain to that.
     runs-on: macos-15
+    # RELEASING.md observes 110-190 min for this build, so 240 is headroom rather
+    # than a target. It exists because the DEFAULT is 360: a job wedged on a
+    # notarization that never returns would bill 3,600 minutes at the macOS 10x
+    # multiplier — more than this account spent in the whole of 2026-08-01..04.
+    timeout-minutes: 240
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -97,11 +110,33 @@ jobs:
 
   linux:
     # Independent of the macOS job — a Linux failure won't block the signed DMG or
-    # the release. Runs on a Blacksmith 8-vCPU runner: the stock GitHub runner's
-    # 7 GB RAM OOM-killed the release link phase (see git history), and Blacksmith
-    # has ample RAM and is faster. Kept on the 22.04 image for broad glibc
-    # compatibility. No signing. REQUIRES the Blacksmith GitHub App on the repo.
-    runs-on: blacksmith-8vcpu-ubuntu-2204
+    # the release. No signing.
+    #
+    # PaddleBoard: back on a GitHub-hosted runner as of 2026-08-04, reversing
+    # 488c2f30ae. That commit moved this to `blacksmith-8vcpu-ubuntu-2204` because
+    # "the stock GitHub ubuntu runner OOM-killed the release link phase twice
+    # (7GB RAM)" — which was true, and was measured in the PRIVATE dev repo, where
+    # standard runners are 2 vCPU / 8 GB. This workflow does not actually run
+    # there: `publish-public.sh` ships it to `paddleboarddev/paddleboard`, and
+    # every real release (v0.2.1 onward) has run in that PUBLIC repo, where
+    # standard runners are **4 vCPU / 16 GB and free and unlimited**. So the fix
+    # was applied against the wrong tier's limits: Blacksmith is billed, while the
+    # runner that replaced it has more than double the RAM that OOM'd, for free.
+    #
+    # `ubuntu-22.04`, NOT `ubuntu-latest`: this tarball is distributed to users, so
+    # the image sets the glibc floor. A newer image silently raises the minimum
+    # distro that can run PaddleBoard, and nothing in CI would catch it.
+    #
+    # The 2026-07-07 hedges are restored below, because ONE of the two constraints
+    # did not improve: RAM went 7 -> 16 GB, but disk is 14 GB on BOTH tiers.
+    #
+    # If this OOMs or fills the disk anyway, the tarball is the only casualty (the
+    # DMG job is independent) — revert this job to blacksmith-8vcpu-ubuntu-2204.
+    runs-on: ubuntu-22.04
+    # Was unbounded (360 default). Free on the public repo, but an unbounded job
+    # is what makes a wedged build expensive if this workflow is ever run from the
+    # private repo, as the 2026-07-07 v0.0.0-linuxtest tags did.
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -110,6 +145,21 @@ jobs:
 
       - name: Build the public stable channel
         run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
+
+      - name: Free up disk space
+        # A full Zed-fork release build produces a large target/ dir; the stock
+        # ubuntu runner (~14 GB free on /) can run out mid-build. Reclaim ~20 GB of
+        # preinstalled toolchains a Rust build never touches, and print disk/RAM so
+        # a resource failure is visible instead of a silently-killed runner.
+        # Only CodeQL is taken from /opt/hostedtoolcache, never the whole directory
+        # — `actions/*` steps resolve their tools from it.
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+                      /usr/local/lib/android /opt/hostedtoolcache/CodeQL \
+                      /usr/share/swift || true
+          sudo docker image prune --all --force || true
+          echo "=== disk ===" ; df -h /
+          echo "=== ram ===" ; free -h
 
       - name: Install Linux build dependencies
         run: ./script/linux
@@ -129,9 +179,28 @@ jobs:
       - name: Set up Rust
         run: rustup update stable
 
+      - name: Add swap space
+        # Belt-and-braces, not the load-bearing fix: the public runner's 16 GB
+        # should clear the bar that 7 GB failed. Kept because an OOM here is
+        # unusually expensive to diagnose — the runner dies mid-build, so the build
+        # step's conclusion comes back empty and even the `failure()` log upload
+        # never runs, leaving no artifact to read. The swapfile lives on /mnt,
+        # which is a separate, much larger ephemeral disk than the 14 GB /.
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile
+          sudo fallocate -l 16G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
       - name: Build the Linux bundle (x86_64)
         env:
           PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
+          # Matches the public runner's 4 vCPU. Also caps peak RAM: parallel
+          # codegen units are what pushed the old 7 GB runner over the edge.
+          CARGO_BUILD_JOBS: "4"
           # PaddleBoard: build the inherited webrtc-sys (LiveKit/Chromium C++) with
           # clang, not the runner's default g++. That code is Clang-only — g++
           # rejects it with "changes meaning of 'Network' [-fpermissive]" in

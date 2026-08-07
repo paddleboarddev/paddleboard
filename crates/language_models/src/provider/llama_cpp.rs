@@ -1465,7 +1465,8 @@ impl ConfigurationView {
                     )
                     .child(
                         ListBulletItem::new(
-                            "Click 'Connect' below to start using llama.cpp in Zed",
+                            // PaddleBoard: product name in user-visible text.
+                            "Click 'Connect' below to start using llama.cpp in PaddleBoard",
                         )
                         .label_color(Color::Muted),
                     ),

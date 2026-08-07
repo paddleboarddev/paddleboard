@@ -11,7 +11,8 @@ use futures::channel::{mpsc, oneshot};
 use futures::future;
 
 use futures::{FutureExt, StreamExt};
-use git_ui::{file_diff_view::FileDiffView, multi_diff_view::MultiDiffView};
+use git_ui::multi_diff_view::MultiDiffView;
+use git_ui_core::file_diff_view::FileDiffView;
 use gpui::{App, AppContext as _, AsyncApp, Global, TaskExt, WindowHandle};
 use onboarding::FIRST_OPEN;
 use onboarding::show_onboarding_view;
@@ -2344,6 +2345,14 @@ mod tests {
             .await;
 
         assert!(!errored);
+
+        // The flag is consumed by `suggest_on_worktree_updated`, which runs on the
+        // worktree's first `UpdatedEntries` event. That used to land inside the
+        // await above; since the 2026-08-03 upstream merge it lands one pump
+        // later, so the scan has to be driven explicitly. The behaviour is
+        // unchanged — without this the worktree never emits and the flag is still
+        // set when the assertion runs.
+        cx.run_until_parked();
 
         let multi_workspace = cx.update(|cx| cx.windows()[0].downcast::<MultiWorkspace>().unwrap());
         multi_workspace

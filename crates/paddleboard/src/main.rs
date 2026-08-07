@@ -27,7 +27,7 @@ use editor::Editor;
 use workspace::welcome::WelcomePage;
 use extension::ExtensionHostProxy;
 use fs::{Fs, RealFs};
-use futures::{StreamExt, channel::oneshot, future};
+use futures::{FutureExt, StreamExt, channel::oneshot, future};
 use git::GitHostingProviderRegistry;
 use git_ui::clone::clone_and_open;
 use gpui::{
@@ -147,7 +147,7 @@ fn fail_to_open_window_async(e: anyhow::Error, cx: &mut AsyncApp) {
 
 fn fail_to_open_window(e: anyhow::Error, _cx: &mut App) {
     eprintln!(
-        "PaddleBoard failed to open a window: {e:?}. See https://zed.dev/docs/linux for troubleshooting steps (upstream docs, shared codebase)."
+        "PaddleBoard failed to open a window: {e:?}. See https://docs.paddleboard.dev/linux.html for troubleshooting steps."
     );
     #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
     {
@@ -170,7 +170,7 @@ fn fail_to_open_window(e: anyhow::Error, _cx: &mut App) {
                     Notification::new("PaddleBoard failed to launch")
                         .body(Some(
                             format!(
-                                "{e:?}. See https://zed.dev/docs/linux for troubleshooting steps (upstream docs, shared codebase)."
+                                "{e:?}. See https://docs.paddleboard.dev/linux.html for troubleshooting steps."
                             )
                             .as_str(),
                         ))
@@ -716,7 +716,6 @@ fn main() {
                 .clone(),
         };
         copilot_chat::init(
-            app_state.fs.clone(),
             app_state.client.http_client(),
             copilot_chat_configuration,
             cx,
@@ -809,7 +808,7 @@ fn main() {
         language_tools::init(cx);
         // PaddleBoard: call::init removed — collaborative calls are not supported
         git_ui::init(cx);
-        git_graph::init(cx);
+        paddleboard_git_graph::init(cx);
         feedback::init(cx);
         markdown_preview::init(cx);
         tour::init(cx); // PaddleBoard: registers the tour action + first-launch check.
@@ -989,11 +988,22 @@ fn main() {
             }),
         };
 
+        let (first_window_tx, first_window_rx) = oneshot::channel::<()>();
+        let first_window_tx = Rc::new(RefCell::new(Some(first_window_tx)));
+        let _first_window_subscription = cx.observe_new::<MultiWorkspace>(move |_, _, _| {
+            if let Some(tx) = first_window_tx.borrow_mut().take() {
+                tx.send(()).ok();
+            }
+        });
+
+        let restore_finished = cx.background_spawn(restore_task).shared();
+
         cx.spawn({
             let db = workspace::WorkspaceDb::global(cx);
             let fs = app_state.fs.clone();
+            let restore_finished = restore_finished.clone();
             async move |_cx| {
-                restore_task.await;
+                restore_finished.await;
                 db.garbage_collect_workspaces(
                     fs.as_ref(),
                     &current_session_id,
@@ -1009,7 +1019,16 @@ fn main() {
         component_preview::init(app_state.clone(), cx);
 
         cx.spawn(async move |cx| {
+            let _first_window_subscription = _first_window_subscription;
+            let first_window_placed = first_window_rx.shared();
             while let Some(urls) = open_rx.next().await {
+                // On a macOS cold launch, `zed <path>` arrives here after startup already
+                // began restoring the session, so wait for a restored window to exist before
+                // matching. Otherwise this open sees no windows and spawns a redundant one (#61346).
+                futures::select_biased! {
+                    _ = restore_finished.clone() => {}
+                    _ = first_window_placed.clone() => {}
+                }
                 cx.update(|cx| {
                     if let Some(request) = OpenRequest::parse(urls, cx).log_err() {
                         handle_open_request(request, app_state.clone(), cx);

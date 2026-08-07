@@ -428,7 +428,7 @@ fn workspace_error_notification_id() -> NotificationId {
     NotificationId::unique::<WorkspaceErrorNotification>()
 }
 
-fn markdown_style(window: &Window, cx: &App) -> MarkdownStyle {
+pub fn markdown_style(window: &Window, cx: &App) -> MarkdownStyle {
     let settings = ThemeSettings::get_global(cx);
     let ui_font_family = settings.ui_font.family.clone();
     let ui_font_fallbacks = settings.ui_font.fallbacks.clone();
@@ -1196,7 +1196,8 @@ pub mod simple_message_notification {
             });
 
             let with_primary_action = cx.new(|cx| {
-                MessageNotification::new("A new version of Zed is available for download.", cx)
+                // PaddleBoard: product name in user-visible text.
+                MessageNotification::new("A new version of PaddleBoard is available for download.", cx)
                     .with_title("Update Available")
                     .primary_message("Restart Now")
                     .primary_icon(IconName::ArrowCircle)
@@ -1299,7 +1300,12 @@ pub mod simple_message_notification {
                     "Linux desktop portal initialization failed.".into()
                 }
                 fn secondary_message(&self) -> Option<SharedString> {
-                    Some("Zed needs an xdg-desktop-portal implementation to open files.".into())
+                    // PaddleBoard: user-visible product name, and the docs link
+                    // below points at our own platform page rather than upstream's.
+                    Some(
+                        "PaddleBoard needs an xdg-desktop-portal implementation to open files."
+                            .into(),
+                    )
                 }
                 fn severity(&self) -> ErrorSeverity {
                     ErrorSeverity::Critical
@@ -1307,7 +1313,7 @@ pub mod simple_message_notification {
                 fn primary_action(&self) -> ErrorAction {
                     ErrorAction::link(
                         "See Docs",
-                        "https://zed.dev/docs/linux#i-cant-open-any-files",
+                        "https://docs.paddleboard.dev/linux.html#i-cant-open-any-files",
                     )
                 }
             }
