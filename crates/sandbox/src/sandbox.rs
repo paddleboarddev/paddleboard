@@ -431,7 +431,8 @@ impl fmt::Display for SandboxError {
             }
             SandboxError::BwrapSetuidRejected => write!(
                 formatter,
-                "the only available `bwrap` is setuid-root, which Zed refuses to run"
+                // PaddleBoard: product name in user-visible text.
+                "the only available `bwrap` is setuid-root, which PaddleBoard refuses to run"
             ),
             SandboxError::SandboxProbeFailed => {
                 write!(

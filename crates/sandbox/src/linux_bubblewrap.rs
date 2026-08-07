@@ -105,7 +105,8 @@ impl LauncherStatus {
         match self {
             LauncherStatus::BwrapNotFound => "no usable `bwrap` binary was found on PATH",
             LauncherStatus::SetuidRejected => {
-                "the only available `bwrap` is setuid-root, which Zed refuses to run"
+                // PaddleBoard: product name in user-visible text.
+                "the only available `bwrap` is setuid-root, which PaddleBoard refuses to run"
             }
             LauncherStatus::SandboxProbeFailed => {
                 "`bwrap` is present but failed to create a sandbox (unprivileged user \
