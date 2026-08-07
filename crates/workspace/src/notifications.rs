@@ -1196,7 +1196,8 @@ pub mod simple_message_notification {
             });
 
             let with_primary_action = cx.new(|cx| {
-                MessageNotification::new("A new version of Zed is available for download.", cx)
+                // PaddleBoard: product name in user-visible text.
+                MessageNotification::new("A new version of PaddleBoard is available for download.", cx)
                     .with_title("Update Available")
                     .primary_message("Restart Now")
                     .primary_icon(IconName::ArrowCircle)
