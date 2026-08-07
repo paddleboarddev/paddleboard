@@ -1093,14 +1093,21 @@
     // Content will be centered within the panel.
     "max_content_width": 850,
     // The default model to use when creating new threads.
-    "default_model": {
-      // The provider to use.
-      "provider": "zed.dev",
-      // The model to use.
-      "model": "claude-sonnet-4",
-      // Whether thinking is enabled.
-      "enable_thinking": false,
-    },
+    //
+    // PaddleBoard: deliberately UNSET, where upstream ships "zed.dev". Zed's hosted
+    // models are one option among many here -- alongside Anthropic, Google, OpenAI,
+    // local models, and any OpenAI-compatible endpoint -- and shipping it as the
+    // default would make a fresh install's first request prompt for a Zed sign-in.
+    // That is a requirement in everything but name. With no default, onboarding walks
+    // you to a provider and your choice stands.
+    //
+    // Set it yourself with the shape below:
+    //
+    //   "default_model": {
+    //     "provider": "anthropic",
+    //     "model": "claude-sonnet-4",
+    //     "enable_thinking": false,
+    //   },
     // Additional parameters for language model requests. When making a request to a model, parameters will be taken
     // from the last entry in this list that matches the model's provider and name. In each entry, both provider
     // and model are optional, so that you can specify parameters for either one.

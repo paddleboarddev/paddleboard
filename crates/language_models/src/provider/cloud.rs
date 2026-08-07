@@ -1103,7 +1103,10 @@ fn zed_ai_description(
     eligible_for_trial: bool,
 ) -> &'static str {
     if !is_connected {
-        return "Sign in to have access to Zed's complete agentic experience with hosted models.";
+        // PaddleBoard: name the service plainly and say it is optional. PaddleBoard is
+        // a fork of Zed, and using Zed's hosted models supports the upstream project --
+        // but bring-your-own keys and local models are first-class alternatives.
+        return "Optional: sign in to use Zed's hosted models. PaddleBoard is a fork of Zed, and this supports the upstream project. You can use your own API keys or run models locally instead.";
     }
 
     match plan {
@@ -1182,8 +1185,12 @@ impl RenderOnce for ZedAiConfiguration {
                 .gap_2()
                 .when(!self.compact, |this| this.child(Label::new(description)))
                 .child(
-                    // PaddleBoard: user-visible copy rebranded from Zed.
-                    Button::new("sign_in", "Sign In to use PaddleBoard AI")
+                    // PaddleBoard: credit Zed by name rather than rebranding. This is
+                    // Zed's hosted service, not a PaddleBoard offering — the same
+                    // reasoning already recorded on PADDLEBOARD_CLOUD_PROVIDER_NAME.
+                    // Signing in is always optional; PaddleBoard ships no default that
+                    // requires it.
+                    Button::new("sign_in", "Sign in to use Zed")
                         .start_icon(
                             Icon::new(IconName::Github)
                                 .size(IconSize::Small)
