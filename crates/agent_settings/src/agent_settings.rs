@@ -767,7 +767,11 @@ impl Settings for AgentSettings {
                 None
             },
             flexible: agent.flexible.unwrap(),
-            default_model: Some(agent.default_model.unwrap()),
+            // PaddleBoard: pass the Option through instead of unwrapping. Every other
+            // field here unwraps because default.json supplies it, but PaddleBoard
+            // deliberately ships NO default model — you choose one explicitly — so this
+            // key is absent and the unwrap panicked before any window opened.
+            default_model: agent.default_model,
             subagent_model: agent.subagent_model,
             inline_assistant_model: agent.inline_assistant_model,
             inline_assistant_use_streaming_tools: agent
