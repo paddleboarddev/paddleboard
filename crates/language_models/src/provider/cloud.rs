@@ -1190,7 +1190,7 @@ impl RenderOnce for ZedAiConfiguration {
                     // reasoning already recorded on PADDLEBOARD_CLOUD_PROVIDER_NAME.
                     // Signing in is always optional; PaddleBoard ships no default that
                     // requires it.
-                    Button::new("sign_in", "Sign In to Zed")
+                    Button::new("sign_in", "Sign in to use Zed")
                         .start_icon(
                             Icon::new(IconName::Github)
                                 .size(IconSize::Small)
