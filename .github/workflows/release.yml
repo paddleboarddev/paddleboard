@@ -146,6 +146,17 @@ jobs:
       - name: Build the public stable channel
         run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
 
+      # PaddleBoard: the same guard the macOS job has had all along. Without it this
+      # job will happily build whatever tree the tag points at and attach the tarball
+      # anyway -- so publishing v0.2.6 from a commit still carrying 0.2.5 produced a
+      # release whose Linux binary reported the OLD version. Promoted, that is an
+      # update loop: the updater offers 0.2.6, installs it, the binary still says
+      # 0.2.5, and it offers again forever. macOS caught it and Linux did not, which
+      # is the only reason it was noticed at all. Runs before any building, so a
+      # mismatch costs seconds rather than an hour.
+      - name: Validate tag against crate version
+        run: script/determine-release-channel
+
       - name: Free up disk space
         # A full Zed-fork release build produces a large target/ dir; the stock
         # ubuntu runner (~14 GB free on /) can run out mid-build. Reclaim ~20 GB of
