@@ -13,6 +13,8 @@
 #   - ZED_* env vars in scripts          (the app reads PADDLEBOARD_*; a ZED_ export
 #                                         is invisible to it — bundle-mac shipped with
 #                                         ZED_BUNDLE so the bundled git went unused)
+#   - half-renamed prose                 (a "Zed" line within 5 lines of a PADDLEBOARD_*
+#                                         token — see the half-rename check below)
 #
 # Files that legitimately keep Zed names are allowlisted below — they are
 # upstream packaging/CI for formats PaddleBoard does not ship. If you PORT one
@@ -98,10 +100,97 @@ for hit in "${hits[@]:-}"; do
   fi
 done
 
+# --- half-rename check ------------------------------------------------------
+# Catches user-facing prose left saying "Zed" while the code around it was
+# renamed. The signature is proximity: a `Zed` line within 5 lines of a
+# `PADDLEBOARD_*` token. The run-as-root guard shipped in v0.2.6 printing
+# "Running Zed as root ..." three lines above `PADDLEBOARD_ALLOW_ROOT=true` —
+# half-renamed, and invisible to every pattern above (crates/util/src/util.rs).
+#
+# Proximity is the whole trick. Scanning all `Zed` string literals under crates/
+# yields ~168 hits, nearly all legitimate (Zed Cloud, keymap-compat names,
+# release_channel) — too noisy to gate on. Scanning only print/log macros yields
+# 3 and would have MISSED this bug, because the offending line is a continuation
+# inside a multi-line string with no macro token on it. Proximity to a renamed
+# symbol yields 3 hits repo-wide, all genuine, listed below.
+#
+# Comment lines are skipped: a `// PaddleBoard:` tag explaining a rename names
+# both products by design.
+
+# Content patterns, NOT file paths: these lines mention Zed correctly. Keyed by
+# content so the whole file stays covered — crates/cli/src/main.rs is where the
+# `MacOS/zed` bug shipped, so blanket-allowlisting it would reopen that hole.
+HALF_RENAME_OK=(
+  'dev\.zed\.Zed'                          # upstream Flatpak app id, matched verbatim
+  'LanguageModelProviderName::new\("Zed"\)' # Zed Cloud provider, deliberately named
+  '"Sign in to use Zed"'                   # Zed Cloud sign-in, deliberately named
+)
+
+half_rename_ok() {
+  for pattern in "${HALF_RENAME_OK[@]}"; do
+    if printf '%s' "$1" | grep -qE "$pattern"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+mapfile -t half_hits < <(
+  find script .github crates assets -type f 2>/dev/null \
+    | grep -vE '\.(png|jpe?g|gif|ico|icns|ttf|otf|woff2?|wasm|dylib|so|a|zip|gz|db|bin|mp4|webm|pdf)$' \
+    | tr '\n' '\0' \
+    | xargs -0 awk '
+        function flush(   i, j, lo, hi, near) {
+          for (i = 1; i <= n; i++) {
+            if (!zed[i]) continue
+            if (line[i] ~ /^[ \t]*(\/\/|#|\*)/) continue
+            lo = i - 5; if (lo < 1) lo = 1
+            hi = i + 5; if (hi > n) hi = n
+            near = 0
+            for (j = lo; j <= hi; j++) if (env[j]) { near = 1; break }
+            if (near) printf "%s:%d:%s\n", prev, i, line[i]
+          }
+        }
+        FILENAME != prev {
+          if (prev != "") flush()
+          prev = FILENAME; n = 0
+          split("", line); split("", env); split("", zed)
+        }
+        {
+          n++; line[n] = $0
+          if ($0 ~ /PADDLEBOARD_[A-Z_]+/) env[n] = 1
+          if ($0 ~ /(^|[^A-Za-z0-9_])Zed([^A-Za-z0-9_]|$)/) zed[n] = 1
+        }
+        END { if (prev != "") flush() }
+      ' 2>/dev/null | sort -u
+)
+
+half_failures=0
+for hit in "${half_hits[@]:-}"; do
+  [ -z "$hit" ] && continue
+  file="${hit%%:*}"
+  file="${file#./}"
+  if ! allowlisted "$file" && ! half_rename_ok "$hit"; then
+    echo "HALF-RENAME: $hit" >&2
+    half_failures=$((half_failures + 1))
+  fi
+done
+
 if [ "$failures" -gt 0 ]; then
   echo "check-zed-isms: $failures reference(s) to renamed Zed paths/packages outside the allowlist." >&2
   echo "Fix the reference (crates/zed -> crates/paddleboard, package zed -> paddleboard)," >&2
   echo "or add the file to ALLOWLIST in script/check-zed-isms if it is unused upstream infra." >&2
+fi
+
+if [ "$half_failures" -gt 0 ]; then
+  echo "check-zed-isms: $half_failures line(s) say \"Zed\" next to renamed PADDLEBOARD_* code." >&2
+  echo "This is the half-rename signature: the symbol was renamed, the prose was not." >&2
+  echo "Rename the user-facing text to PaddleBoard, or — if the line means Zed the" >&2
+  echo "product (Zed Cloud, an upstream app id) — add its content pattern to" >&2
+  echo "HALF_RENAME_OK in script/check-zed-isms." >&2
+fi
+
+if [ "$((failures + half_failures))" -gt 0 ]; then
   exit 1
 fi
 echo "check-zed-isms: clean."
