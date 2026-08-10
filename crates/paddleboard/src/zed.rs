@@ -2528,12 +2528,12 @@ fn open_worktree_setup_tasks_file(
     // Kept harmless on purpose: tasks with the `create_worktree` hook run automatically
     // when a worktree is created, so the example must be safe to save unedited.
     const WORKTREE_SETUP_TASK_EXAMPLE: &str = r#"  {
-    // Runs automatically after Zed creates a new git worktree.
-    // $ZED_WORKTREE_ROOT is the new worktree's root directory, and
-    // $ZED_MAIN_GIT_WORKTREE is the original repository's working directory.
+    // Runs automatically after PaddleBoard creates a new git worktree.
+    // $PADDLEBOARD_WORKTREE_ROOT is the new worktree's root directory, and
+    // $PADDLEBOARD_MAIN_GIT_WORKTREE is the original repository's working directory.
     "label": "Set up new worktree",
-    "command": "echo \"Setting up $ZED_WORKTREE_ROOT — edit this command\"",
-    "cwd": "$ZED_WORKTREE_ROOT",
+    "command": "echo \"Setting up $PADDLEBOARD_WORKTREE_ROOT — edit this command\"",
+    "cwd": "$PADDLEBOARD_WORKTREE_ROOT",
     "hooks": ["create_worktree"]
   }"#;
 
