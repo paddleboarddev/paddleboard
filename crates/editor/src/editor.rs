@@ -2858,8 +2858,9 @@ impl Editor {
             window,
             cx,
             |e, _, _| match e.error_code() {
+                // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
                 ErrorCode::RemoteUpgradeRequired => Some(format!(
-                "The remote instance of Zed does not support this yet. It must be upgraded to {}",
+                "The remote instance of PaddleBoard does not support this yet. It must be upgraded to {}",
                 e.error_tag("required").unwrap_or("the latest version")
             )),
                 _ => None,
@@ -2938,8 +2939,9 @@ impl Editor {
         })
         .detach_and_prompt_err("Failed to create buffer", window, cx, |e, _, _| {
             match e.error_code() {
+                // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
                 ErrorCode::RemoteUpgradeRequired => Some(format!(
-                "The remote instance of Zed does not support this yet. It must be upgraded to {}",
+                "The remote instance of PaddleBoard does not support this yet. It must be upgraded to {}",
                 e.error_tag("required").unwrap_or("the latest version")
             )),
                 _ => None,

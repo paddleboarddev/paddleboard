@@ -176,6 +176,157 @@ for hit in "${half_hits[@]:-}"; do
   fi
 done
 
+# --- user-facing prose check ------------------------------------------------
+# Prose saying "Zed" in a string a user reads. The half-rename check above only
+# fires when a PADDLEBOARD_* token happens to sit within 5 lines, so prose with
+# no renamed symbol nearby sails through — that is how "Zed needs an
+# xdg-desktop-portal implementation" passed this gate clean both before and
+# after it was fixed.
+#
+# The signal is sentence shape, not the macro a string sits in. Scanning by
+# macro (println!/bail!/...) misses UI text entirely, which is where most
+# user-facing strings in this app live: `Label::new("...")`, `.tooltip(...)`,
+# settings descriptions. So: a double-quoted literal containing the word Zed
+# and at least three whitespace-separated words. Single words ("Zed"), two-word
+# labels, identifiers and URLs are excluded by the word count.
+#
+# Measured on the tree when this was written: 156 literals contain "Zed", 107
+# are prose by that rule, and the path + content exclusions below cut it to the
+# genuine set. 16 real user-facing strings were fixed in the same commit that
+# added this check; what remains here is allowlisted with a reason.
+#
+# `///` doc comments are scanned too, but only in crates/cli: clap renders them
+# into `--help`, which makes them user-facing prose despite being comments.
+# (Found exactly one that way — `--system-specs`, half-renamed.)
+
+# Paths whose strings never reach a user.
+PROSE_PATH_SKIP='(_tests?\.rs$|/tests?/|/evals/|/benches/|/fixtures/|^crates/docs_preprocessor/|^crates/eval_cli/|^crates/benchmarks/|^crates/zed_eval)'
+
+# Content where "Zed" is the correct word. Keyed by content, not path, so the
+# rest of each file stays covered.
+PROSE_OK=(
+  'Zed Pro'                    # Zed's subscription tier
+  'Zed VIP'
+  'Zed account'                # Zed Cloud sign-in
+  "Zed's hosted"               # Zed Cloud models
+  'Zed AI'                     # Zed's hosted AI service
+  'Zed team'                   # rating sends the thread to Zed, not to us
+  'Zed Cloud'
+  'Zed models (enabled|disabled)'  # Zed Cloud business-plan states
+  'Sign in to use Zed'         # deliberate: the service really is Zed's
+  'fork of Zed'                # crediting upstream, on purpose
+  'managed by Zed'             # Zed Cloud manages the header
+  "Zed's built-in Zeta"        # Zeta is Zed's model
+  'Zed Plex'                   # real font family names
+  'Zed Industries'             # upstream copyright string, legally theirs
+  'Zed Keybind Context'        # names upstream's keymap-context concept
+  'Zed > Editor'               # keymap context example, same concept
+  'Zed server'                 # collab, removed here and inert
+  'Zed ones|Zed tasks|Zed debug templates|Zed format'  # anyhow context, never user-visible
+  'Handshake (before|after) Zed spawn'                 # anyhow context
+  'Zed managed Node'           # log line, not UI
+  'Hello from Zed'             # ACP echo fixture living outside a tests/ dir
+  'the Zed logo'               # visual-test prompt
+  'Zed X Copilot'              # asset name
+  'ENV=Zed'                    # env-var example in a placeholder
+  'Zed created it|worktree Zed created'  # internal invariant messages
+  'Linux Zed release'          # picks an upstream release for WSL, correctly named
+  'GPU Zed is running on'      # minidump field descriptions; telemetry is inert
+  'sharing a project in Zed'   # collab component preview, collab is removed
+  "Zed's agent with any ACP"   # component preview string
+  "author: Zed"                # markdown parser test data in a non-test file
+  "name: 'Zed'"                # vim surround test data in a non-test file
+  'Zed task variables'         # doc comment on a test helper
+  # --- Zed Cloud update path: renaming these would make them WRONG -----------
+  # Both buttons link to https://zed.dev/releases on the inert Zed AI error
+  # path. "Update PaddleBoard" pointing at Zed's download page is worse than
+  # leaving accurate text on a screen no PaddleBoard user reaches.
+  '"Update Zed"'
+  'update to Zed version'          # ZedUpdateRequiredError, paired with that same button
+  'Enable Fast Mode for Zed'       # Zed Cloud's own feature
+  # --- test and component-preview fixtures in non-test files ----------------
+  # `mod tests` blocks and `render_*_preview` helpers live inside ordinary
+  # source files, so a path-based skip cannot see them.
+  'Authorize Zed in your browser'  # acp/elicitation test + preview fixtures
+  'Choose how Zed should connect'  # elicitation form preview fixture
+  # --- internal docs, not rendered anywhere a user looks --------------------
+  "current Zed window's sidebar"   # doc on an IPC enum variant, not clap help
+  'When Zed started not as an'     # doc on the FORCE_CLI_MODE static
+  'Zed act like netcat'            # clap arg, but `hide = true`
+  'by the Zed side'                # doc on a private fn
+  'failed to copy Zed update'      # anyhow context in the updater
+  "'Zed'"                          # vim surround test data; the cursor marker sits mid-token
+)
+
+prose_ok() {
+  for pattern in "${PROSE_OK[@]}"; do
+    if printf '%s' "$1" | grep -qE "$pattern"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+mapfile -t prose_hits < <(
+  {
+    # The optional groups matter: "Zed needs an xdg-desktop-portal..." puts Zed
+    # at the very start of the literal, so a pattern demanding a non-word char
+    # on both sides misses it — which is the exact bug that motivated this
+    # check. Verified by injecting a regression before trusting a clean run.
+    # Whole lines, not `grep -o`: -o prints only the matched literal, so the
+    # line's leading `//` never reaches the comment filter and a disabled
+    # `#[allow(reason = "...about Zed")]` reads as live prose. The literal is
+    # extracted afterwards, in the awk stage below.
+    grep -rnE '"([^"]*[^A-Za-z0-9_])?Zed([^A-Za-z0-9_][^"]*)?"' crates/ --include=*.rs 2>/dev/null \
+      | grep -vE ':[0-9]+:[[:space:]]*(//|#|\*)' || true
+    grep -rnoE '///.*[^A-Za-z0-9_]Zed([^A-Za-z0-9_]|$).*' crates/cli --include=*.rs 2>/dev/null || true
+  } \
+    | awk -v skip="$PROSE_PATH_SKIP" '
+        {
+          # Match the path skip against the FILE field only. Anchored patterns
+          # like _tests?\.rs$ cannot match the whole grep line, which carries a
+          # trailing :line:content — that mistake let every *_tests.rs through.
+          i = index($0, ":")
+          if (i == 0) next
+          file = substr($0, 1, i - 1)
+          if (file ~ skip) next
+          rest = $0
+          if (!match(rest, /^[^:]*:[0-9]+:/)) next
+          prefix = substr(rest, 1, RLENGTH)
+          rest = substr(rest, RLENGTH + 1)
+
+          # Pull out the first double-quoted run that mentions Zed, so the word
+          # count below measures the sentence and not the surrounding code.
+          # Doc-comment lines carry no quotes and are measured whole.
+          seg = rest
+          if (rest ~ /"/) {
+            seg = ""
+            tail = rest
+            while (match(tail, /"[^"]*"/)) {
+              cand = substr(tail, RSTART, RLENGTH)
+              if (cand ~ /(^|[^A-Za-z0-9_])Zed([^A-Za-z0-9_]|$)/) { seg = cand; break }
+              tail = substr(tail, RSTART + RLENGTH)
+            }
+            if (seg == "") next
+          }
+
+          n = split(seg, w, /[ \t]+/)
+          if (n >= 3) print prefix seg
+        }' \
+    | sort -u
+)
+
+prose_failures=0
+for hit in "${prose_hits[@]:-}"; do
+  [ -z "$hit" ] && continue
+  file="${hit%%:*}"
+  file="${file#./}"
+  if ! allowlisted "$file" && ! prose_ok "$hit"; then
+    echo "ZED-PROSE: $hit" >&2
+    prose_failures=$((prose_failures + 1))
+  fi
+done
+
 # --- renamed-symbol check ---------------------------------------------------
 # A `ZED_X` where the fork also defines `PADDLEBOARD_X`. The counterpart is the
 # proof of a rename, so a surviving `ZED_X` is either a leftover or an upstream
@@ -264,7 +415,15 @@ if [ "$symbol_failures" -gt 0 ]; then
   echo "script/check-zed-isms with a reason." >&2
 fi
 
-if [ "$((failures + half_failures + symbol_failures))" -gt 0 ]; then
+if [ "$prose_failures" -gt 0 ]; then
+  echo "check-zed-isms: $prose_failures user-facing string(s) say \"Zed\"." >&2
+  echo "These are sentences a user reads — UI labels, errors, tooltips, clap help." >&2
+  echo "Rename to PaddleBoard, or — if the line means Zed the product (Zed Cloud," >&2
+  echo "Zed Pro, an upstream font or copyright, internal anyhow context) — add its" >&2
+  echo "content pattern to PROSE_OK in script/check-zed-isms with a reason." >&2
+fi
+
+if [ "$((failures + half_failures + symbol_failures + prose_failures))" -gt 0 ]; then
   exit 1
 fi
 echo "check-zed-isms: clean."

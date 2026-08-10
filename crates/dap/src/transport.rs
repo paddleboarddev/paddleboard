@@ -659,8 +659,9 @@ impl StdioTransport {
         cx: &mut AsyncApp,
     ) -> Result<Self> {
         let Some(binary_command) = &binary.command else {
+            // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
             bail!(
-                "When using the `stdio` transport, the path to a debug adapter binary must be set by Zed."
+                "When using the `stdio` transport, the path to a debug adapter binary must be set by PaddleBoard."
             );
         };
         let mut command = util::command::new_std_command(&binary_command);
