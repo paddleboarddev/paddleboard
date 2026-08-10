@@ -139,7 +139,8 @@ fn render_inspector_id(inspector_id: &InspectorElementId, cx: &App) -> Div {
                 .font_buffer(cx)
                 .text_xs()
                 .child(source_location_string)
-                .tooltip(Tooltip::text("Click to open by running Zed CLI"))
+                // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
+                .tooltip(Tooltip::text("Click to open by running the PaddleBoard CLI"))
                 .on_click(move |_, _window, cx| {
                     cx.background_spawn(open_zed_source_location(source_location))
                         .detach_and_log_err(cx);
