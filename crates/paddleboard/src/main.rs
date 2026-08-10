@@ -715,8 +715,10 @@ fn main() {
                 .enterprise_uri
                 .clone(),
         };
+        let credentials_provider = paddleboard_credentials_provider::global(cx);
         copilot_chat::init(
             app_state.client.http_client(),
+            credentials_provider,
             copilot_chat_configuration,
             cx,
         );

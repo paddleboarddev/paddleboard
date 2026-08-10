@@ -32,8 +32,8 @@ pub use dock::Panel;
 pub use multi_workspace::{
     CloseWorkspaceSidebar, DraggedSidebar, FocusWorkspaceSidebar, MoveProjectToNewWindow,
     MultiWorkspace, MultiWorkspaceEvent, NewThread, NextProject, NextThread, PreviousProject,
-    PreviousThread, ProjectGroup, ProjectGroupKey, SerializedProjectGroupState, Sidebar,
-    SidebarEvent, SidebarHandle, SidebarRenderState, SidebarSide, ToggleWorkspaceSidebar,
+    PreviousThread, ProjectGroup, ProjectGroupKey, RemovalIntent, SerializedProjectGroupState,
+    Sidebar, SidebarEvent, SidebarHandle, SidebarRenderState, SidebarSide, ToggleWorkspaceSidebar,
     sidebar_side_context_menu,
 };
 pub use path_list::{PathList, SerializedPathList};
@@ -9494,7 +9494,7 @@ pub fn open_remote_project_with_new_connection(
     app_state: Arc<AppState>,
     paths: Vec<PathBuf>,
     cx: &mut App,
-) -> Task<Result<Vec<Option<Box<dyn ItemHandle>>>>> {
+) -> Task<Result<(Option<Entity<Workspace>>, Vec<Option<Box<dyn ItemHandle>>>)>> {
     cx.spawn(async move |cx| {
         let (workspace_id, serialized_workspace) =
             deserialize_remote_project(remote_connection.connection_options(), paths.clone(), cx)
@@ -9513,7 +9513,7 @@ pub fn open_remote_project_with_new_connection(
             .await?
         {
             Some(result) => result,
-            None => return Ok(Vec::new()),
+            None => return Ok((None, Vec::new())),
         };
 
         let project = cx.update(|cx| {
@@ -9529,7 +9529,7 @@ pub fn open_remote_project_with_new_connection(
             )
         });
 
-        open_remote_project_inner(
+        let (workspace, items) = open_remote_project_inner(
             project,
             paths,
             workspace_id,
@@ -9540,7 +9540,8 @@ pub fn open_remote_project_with_new_connection(
             None,
             cx,
         )
-        .await
+        .await?;
+        Ok((Some(workspace), items))
     })
 }
 
@@ -9553,7 +9554,7 @@ pub fn open_remote_project_with_existing_connection(
     provisional_project_group_key: Option<ProjectGroupKey>,
     source_workspace: Option<WeakEntity<Workspace>>,
     cx: &mut AsyncApp,
-) -> Task<Result<Vec<Option<Box<dyn ItemHandle>>>>> {
+) -> Task<Result<(Entity<Workspace>, Vec<Option<Box<dyn ItemHandle>>>)>> {
     cx.spawn(async move |cx| {
         let (workspace_id, serialized_workspace) =
             deserialize_remote_project(connection_options.clone(), paths.clone(), cx).await?;
@@ -9583,7 +9584,7 @@ async fn open_remote_project_inner(
     provisional_project_group_key: Option<ProjectGroupKey>,
     source_workspace: Option<WeakEntity<Workspace>>,
     cx: &mut AsyncApp,
-) -> Result<Vec<Option<Box<dyn ItemHandle>>>> {
+) -> Result<(Entity<Workspace>, Vec<Option<Box<dyn ItemHandle>>>)> {
     let mut project_paths_to_open = vec![];
     let mut project_path_errors = vec![];
 
@@ -9682,7 +9683,10 @@ async fn open_remote_project_inner(
         }
     });
 
-    Ok(items.into_iter().map(|item| item?.ok()).collect())
+    Ok((
+        workspace,
+        items.into_iter().map(|item| item?.ok()).collect(),
+    ))
 }
 
 fn deserialize_remote_project(
@@ -10713,7 +10717,12 @@ mod tests {
         // Try to remove workspace B. It should prompt because of the dirty item.
         let remove_task = multi_workspace_handle
             .update(cx, |mw, window, cx| {
-                mw.remove([workspace_b.clone()], |_, _, _| unreachable!(), window, cx)
+                mw.remove(
+                    [workspace_b.clone()],
+                    RemovalIntent::CloseProject,
+                    window,
+                    cx,
+                )
             })
             .unwrap();
         cx.run_until_parked();
@@ -10751,7 +10760,12 @@ mod tests {
             .update(cx, |mw, window, cx| {
                 // First switch back to A.
                 mw.activate(workspace_a.clone(), None, window, cx);
-                mw.remove([workspace_b.clone()], |_, _, _| unreachable!(), window, cx)
+                mw.remove(
+                    [workspace_b.clone()],
+                    RemovalIntent::CloseProject,
+                    window,
+                    cx,
+                )
             })
             .unwrap();
         cx.run_until_parked();
