@@ -2996,11 +2996,7 @@ impl GitGraph {
                             })
                             .when_some(remote.clone(), |this, remote| {
                                 let provider_name = remote.host.name();
-<<<<<<< HEAD:crates/paddleboard_git_graph/src/paddleboard_git_graph.rs
-                                let icon = git_ui::get_provider_icon(provider_name.as_str());
-=======
                                 let icon = ui::git_hosting_provider_icon(provider_name.as_str());
->>>>>>> zed/main:crates/git_ui/src/git_graph.rs
                                 let parsed_remote = ParsedGitRemote {
                                     owner: remote.owner.as_ref().into(),
                                     repo: remote.repo.as_ref().into(),

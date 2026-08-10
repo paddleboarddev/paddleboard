@@ -64,13 +64,8 @@ use util::ResultExt as _;
 use util::path_list::PathList;
 use workspace::{
     CloseWindow, FocusWorkspaceSidebar, MultiWorkspace, MultiWorkspaceEvent, NextProject,
-<<<<<<< HEAD
-    NextThread, OpenMode, PreviousProject, PreviousThread, ProjectGroupKey, SaveIntent,
-    Sidebar as WorkspaceSidebar, SidebarSide, Toast, ToggleWorkspaceSidebar, Workspace,
-=======
-    NextThread, Open, OpenMode, PreviousProject, PreviousThread, ProjectGroupKey, RemovalIntent,
+    NextThread, OpenMode, PreviousProject, PreviousThread, ProjectGroupKey, RemovalIntent,
     SaveIntent, Sidebar as WorkspaceSidebar, SidebarSide, Toast, ToggleWorkspaceSidebar, Workspace,
->>>>>>> zed/main
     notifications::NotificationId, sidebar_side_context_menu,
 };
 

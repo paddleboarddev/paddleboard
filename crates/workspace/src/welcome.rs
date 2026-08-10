@@ -477,18 +477,14 @@ impl Render for WelcomePage {
                             .justify_center()
                             .mb_4()
                             .gap_4()
-<<<<<<< HEAD
                             // PaddleBoard: our logo + tagline instead of Zed's; img() keeps
                             // the full-color SVG (Vector renders a monochrome alpha mask)
                             .child(
                                 gpui::img("images/paddleboard_logo.svg")
                                     .flex_none()
-                                    .w(rems_from_px(45.))
-                                    .h(rems_from_px(45.)),
+                                    .w(rems_from_px(45_f32))
+                                    .h(rems_from_px(45_f32)),
                             )
-=======
-                            .child(Vector::square(VectorName::ZedLogo, rems_from_px(45_f32)))
->>>>>>> zed/main
                             .child(
                                 v_flex().child(Headline::new(welcome_label)).child(
                                     Label::new("The Open Source Agentic IDE that sails")

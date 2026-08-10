@@ -8351,7 +8351,7 @@ async fn test_archive_last_worktree_thread_removes_workspace(cx: &mut TestAppCon
         let metadata = ThreadMetadata {
             thread_id: ThreadId::new(),
             session_id: Some(acp::SessionId::new(Arc::from("remote-thread"))),
-            agent_id: agent::ZED_AGENT_ID.clone(),
+            agent_id: agent::PADDLEBOARD_AGENT_ID.clone(),
             title: Some("Remote Thread".into()),
             title_override: None,
             updated_at: chrono::TimeZone::with_ymd_and_hms(&Utc, 2024, 1, 3, 0, 0, 0).unwrap(),

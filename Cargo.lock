@@ -2055,27 +2055,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-=======
-name = "bindgen"
-version = "0.72.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
-dependencies = [
- "bitflags 2.13.1",
- "cexpr",
- "clang-sys",
- "itertools 0.10.5",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 2.1.1",
- "shlex",
- "syn 2.0.117",
-]
-
-[[package]]
->>>>>>> zed/main
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3600,17 +3579,9 @@ dependencies = [
  "http_client",
  "language_model",
  "log",
-<<<<<<< HEAD
- "paddleboard_credentials_provider",
- "paths",
- "serde",
- "serde_json",
- "settings",
-=======
  "serde",
  "serde_json",
  "util",
->>>>>>> zed/main
 ]
 
 [[package]]
@@ -5800,11 +5771,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
-<<<<<<< HEAD
- "windows-sys 0.61.2",
-=======
  "windows-sys 0.59.0",
->>>>>>> zed/main
 ]
 
 [[package]]
@@ -7140,13 +7107,8 @@ dependencies = [
  "glib-sys 0.21.5",
  "gobject-sys 0.21.5",
  "libc",
-<<<<<<< HEAD
  "system-deps 7.0.7",
- "windows-sys 0.61.2",
-=======
- "system-deps",
  "windows-sys 0.59.0",
->>>>>>> zed/main
 ]
 
 [[package]]
@@ -16901,11 +16863,7 @@ dependencies = [
  "errno 0.3.14",
  "libc",
  "linux-raw-sys 0.11.0",
-<<<<<<< HEAD
- "windows-sys 0.61.2",
-=======
  "windows-sys 0.59.0",
->>>>>>> zed/main
 ]
 
 [[package]]
@@ -19244,11 +19202,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.2",
-<<<<<<< HEAD
- "windows-sys 0.61.2",
-=======
  "windows-sys 0.59.0",
->>>>>>> zed/main
 ]
 
 [[package]]
@@ -22449,11 +22403,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
-<<<<<<< HEAD
- "windows-sys 0.61.2",
-=======
  "windows-sys 0.48.0",
->>>>>>> zed/main
 ]
 
 [[package]]
@@ -24160,187 +24110,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-=======
-name = "zed"
-version = "1.16.0"
-dependencies = [
- "acp_thread",
- "acp_tools",
- "action_log",
- "activity_indicator",
- "agent",
- "agent-client-protocol",
- "agent_servers",
- "agent_settings",
- "agent_skills",
- "agent_ui",
- "anyhow",
- "ashpd",
- "askpass",
- "assets",
- "audio",
- "auto_update",
- "auto_update_ui",
- "breadcrumbs",
- "call",
- "channel",
- "chrono",
- "clap",
- "cli",
- "client",
- "clock",
- "codestral",
- "collab_ui",
- "collections",
- "command_palette",
- "component",
- "component_preview",
- "copilot",
- "copilot_chat",
- "copilot_ui",
- "crashes",
- "csv_preview",
- "dap_adapters",
- "db",
- "debug_adapter_extension",
- "debugger_tools",
- "debugger_ui",
- "dev_container",
- "diagnostics",
- "edit_prediction",
- "edit_prediction_ui",
- "editor",
- "encoding_selector",
- "env_logger 0.11.8",
- "etw_tracing",
- "extension",
- "extension_host",
- "extensions_ui",
- "feature_flags",
- "feedback",
- "file_finder",
- "fs",
- "futures 0.3.32",
- "git",
- "git_hosting_providers",
- "git_ui",
- "git_ui_core",
- "go_to_line",
- "gpui",
- "gpui_platform",
- "gpui_tokio",
- "hdrhistogram",
- "http_client",
- "image",
- "image_viewer",
- "input_latency_ui",
- "inspector_ui",
- "install_cli",
- "itertools 0.14.0",
- "journal",
- "json_schema_store",
- "keymap_editor",
- "language",
- "language_extension",
- "language_model",
- "language_models",
- "language_onboarding",
- "language_selector",
- "language_tools",
- "languages",
- "line_ending_selector",
- "log",
- "lsp_locations",
- "markdown",
- "markdown_preview",
- "menu",
- "migrator",
- "mimalloc",
- "miniprofiler_ui",
- "node_runtime",
- "notifications",
- "onboarding",
- "outline",
- "outline_panel",
- "parking_lot",
- "paths",
- "picker",
- "pkg-config",
- "pretty_assertions",
- "profiling",
- "project",
- "project_panel",
- "project_symbols",
- "prompt_store",
- "proto",
- "rayon",
- "recent_projects",
- "release_channel",
- "remote",
- "remote_server",
- "repl",
- "reqwest_client",
- "rope",
- "sandbox",
- "search",
- "semver",
- "serde",
- "serde_json",
- "session",
- "settings",
- "settings_profile_selector",
- "settings_ui",
- "shellexpand",
- "sidebar",
- "smol",
- "snippet_provider",
- "snippets_ui",
- "svg_preview",
- "sysinfo 0.37.2",
- "system_specs",
- "tab_switcher",
- "task",
- "tasks_ui",
- "telemetry",
- "telemetry_events",
- "tempfile",
- "terminal_view",
- "theme",
- "theme_extension",
- "theme_selector",
- "theme_settings",
- "time",
- "time_format",
- "title_bar",
- "toolchain_selector",
- "tracing",
- "ui",
- "ui_prompt",
- "url",
- "urlencoding",
- "util",
- "uuid",
- "vim",
- "vim_mode_setting",
- "watch",
- "web_search",
- "web_search_providers",
- "which_key",
- "windows 0.61.3",
- "windows_resources",
- "workspace",
- "zed-reqwest",
- "zed_actions",
- "zed_credentials_provider",
- "zed_env_vars",
- "zlog",
- "zlog_settings",
- "ztracing",
-]
-
-[[package]]
->>>>>>> zed/main
 name = "zed-font-kit"
 version = "0.14.1-zed"
 source = "git+https://github.com/zed-industries/font-kit?rev=94b0f28166665e8fd2f53ff6d268a14955c82269#94b0f28166665e8fd2f53ff6d268a14955c82269"

@@ -28,12 +28,7 @@ language_model.workspace = true
 log.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-<<<<<<< HEAD
-settings.workspace = true
-paddleboard_credentials_provider.workspace = true
-=======
 util.workspace = true
->>>>>>> zed/main
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }

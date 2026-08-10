@@ -524,7 +524,12 @@ impl MultiWorkspace {
     // notified, so poke them whenever that state changes or the cached inset
     // goes stale.
     fn notify_traffic_light_panes(&self, cx: &mut Context<Self>) {
-        for workspace in self.retained_workspaces.clone() {
+        let workspaces = self
+            .held
+            .iter()
+            .map(|held| held.workspace.clone())
+            .collect::<Vec<_>>();
+        for workspace in workspaces {
             workspace.update(cx, |workspace, cx| {
                 workspace.top_left_pane().update(cx, |_, cx| cx.notify());
             });
