@@ -118,7 +118,7 @@ impl RenderOnce for SectionButton {
                     )
                     .child(
                         KeyBinding::for_action_in(action_ref, &self.focus_handle, cx)
-                            .size(rems_from_px(12.)),
+                            .size(rems_from_px(12_f32)),
                     ),
             )
             .on_click(move |_, window, cx| {
@@ -366,7 +366,7 @@ impl WelcomePage {
                     .style(ButtonStyle::Outlined)
                     .key_binding(
                         KeyBinding::for_action_in(&ToggleFocus, &self.focus_handle, cx)
-                            .size(rems_from_px(12.)),
+                            .size(rems_from_px(12_f32)),
                     )
                     .on_click(move |_, window, cx| {
                         focus.dispatch_action(&ToggleWorkspaceSidebar, window, cx);
@@ -477,6 +477,7 @@ impl Render for WelcomePage {
                             .justify_center()
                             .mb_4()
                             .gap_4()
+<<<<<<< HEAD
                             // PaddleBoard: our logo + tagline instead of Zed's; img() keeps
                             // the full-color SVG (Vector renders a monochrome alpha mask)
                             .child(
@@ -485,6 +486,9 @@ impl Render for WelcomePage {
                                     .w(rems_from_px(45.))
                                     .h(rems_from_px(45.)),
                             )
+=======
+                            .child(Vector::square(VectorName::ZedLogo, rems_from_px(45_f32)))
+>>>>>>> zed/main
                             .child(
                                 v_flex().child(Headline::new(welcome_label)).child(
                                     Label::new("The Open Source Agentic IDE that sails")
