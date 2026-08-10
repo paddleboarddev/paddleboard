@@ -176,6 +176,72 @@ for hit in "${half_hits[@]:-}"; do
   fi
 done
 
+# --- renamed-symbol check ---------------------------------------------------
+# A `ZED_X` where the fork also defines `PADDLEBOARD_X`. The counterpart is the
+# proof of a rename, so a surviving `ZED_X` is either a leftover or an upstream
+# reintroduction. This is exactly how `agent::ZED_AGENT_ID` came back in the
+# 2026-08-10 merge: a Rust *symbol*, so none of the path/package/env-var
+# patterns above saw it, and it lived in a test file, so only
+# `cargo check --all-targets` compiled it.
+#
+# A bare `ZED_[A-Z_]+` sweep is unusable here — 143 hits, nearly all correct:
+# upstream env vars the app still reads, the unported `zed_eval` tool, and Zed
+# Cloud's own names. Requiring the PADDLEBOARD_ counterpart is what makes it
+# precise. Two real bugs surfaced when this was first run: the shipped debug
+# tasks in assets/ used `$ZED_FILE`/`$ZED_WORKTREE_ROOT`, which never resolve.
+#
+# Names that legitimately keep ZED_ despite having a PADDLEBOARD_ sibling:
+SYMBOL_OK=(
+  ZED_CLOUD_PROVIDER_ID         # Zed Cloud provider identity, deliberately named
+  ZED_CLOUD_PROVIDER_NAME
+  ZED_RELEASE_CHANNEL           # build.rs sets a cfg from it, lib.rs reads the same name under that cfg — self-consistent nix/crane path
+  ZED_AGENT_MODEL               # upstream eval harness env var
+  ZED_GENERATE_MINIDUMPS        # upstream env var (telemetry is inert here anyway)
+  ZED_SIMULATE_NO_LLM_PROVIDER  # upstream test hook
+  ZED_WINDOW_DECORATIONS        # upstream env var
+  ZED_COMMIT_SHA                # Windows build tooling
+  ZED_RC_TOOLKIT_PATH           # Windows build tooling
+  ZED_META                      # asserted ABSENT by a docs test
+  ZED_BUNDLE_TYPE               # snapcraft, not shipped
+  ZED_PATH                      # resources/windows/zed.sh, not shipped
+)
+
+# Two greps total, then an awk join. Looping a tree-wide grep per renamed
+# suffix instead took ~80s, which is not worth paying on every PR.
+symbol_failures=0
+while IFS= read -r hit; do
+  [ -z "$hit" ] && continue
+  file="${hit%%:*}"
+  file="${file#./}"
+  allowlisted "$file" && continue
+  echo "ZED-SYMBOL: $hit" >&2
+  symbol_failures=$((symbol_failures + 1))
+done < <(
+  {
+    # Suffixes the fork renamed, e.g. AGENT_ID from PADDLEBOARD_AGENT_ID.
+    grep -rhoE '\bPADDLEBOARD_[A-Z_]+' crates assets 2>/dev/null \
+      | sed 's/^PADDLEBOARD_/RENAMED /' | sort -u
+    printf '%s\n' "${SYMBOL_OK[@]}" | sed 's/^ZED_/ALLOWED /'
+    grep -rnE '\bZED_[A-Z_]+' crates assets 2>/dev/null \
+      | grep -vE ':[0-9]+:[[:space:]]*(//|#|\*)' \
+      | grep -vE '\.(md|txt):' \
+      | sed 's/^/HIT /'
+  } | awk '
+      $1 == "RENAMED" { renamed[$2] = 1; next }
+      $1 == "ALLOWED" { allowed[$2] = 1; next }
+      $1 == "HIT" {
+        line = substr($0, 5)
+        rest = line
+        while (match(rest, /ZED_[A-Z_]+/)) {
+          sym = substr(rest, RSTART, RLENGTH)
+          suffix = substr(sym, 5)
+          if (renamed[suffix] && !allowed[suffix]) { print line; break }
+          rest = substr(rest, RSTART + RLENGTH)
+        }
+      }
+    ' || true
+)
+
 if [ "$failures" -gt 0 ]; then
   echo "check-zed-isms: $failures reference(s) to renamed Zed paths/packages outside the allowlist." >&2
   echo "Fix the reference (crates/zed -> crates/paddleboard, package zed -> paddleboard)," >&2
@@ -190,7 +256,15 @@ if [ "$half_failures" -gt 0 ]; then
   echo "HALF_RENAME_OK in script/check-zed-isms." >&2
 fi
 
-if [ "$((failures + half_failures))" -gt 0 ]; then
+if [ "$symbol_failures" -gt 0 ]; then
+  echo "check-zed-isms: $symbol_failures reference(s) to a ZED_ name this fork renamed." >&2
+  echo "The fork defines a PADDLEBOARD_ counterpart, so the ZED_ one is a leftover" >&2
+  echo "or an upstream reintroduction — rename it. If the ZED_ name is correct (an" >&2
+  echo "upstream env var, or Zed Cloud's own identity), add it to SYMBOL_OK in" >&2
+  echo "script/check-zed-isms with a reason." >&2
+fi
+
+if [ "$((failures + half_failures + symbol_failures))" -gt 0 ]; then
   exit 1
 fi
 echo "check-zed-isms: clean."
