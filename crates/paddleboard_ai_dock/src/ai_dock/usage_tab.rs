@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use gpui::ClickEvent;
 use paddleboard_usage::{ProviderModelTotals, TokenCounts, UsageSummary};
 use ui::{Callout, Severity, Tooltip, prelude::*};
+use util::paths::PathExt as _;
 
 use crate::ai_dock::AiDock;
 
@@ -45,8 +46,12 @@ fn render_header(summary: &UsageSummary, cx: &mut Context<AiDock>) -> impl IntoE
                         .color(Color::Muted),
                 )
                 .when_some(directory.clone(), |this, dir| {
+                    // PaddleBoard: `compact()` abbreviates $HOME to `~`. The raw
+                    // absolute path was printed in full and spilled the panel
+                    // width — on a default install this is
+                    // ~/Library/Application Support/PaddleBoard/usage.
                     this.child(
-                        Label::new(dir.to_string_lossy().to_string())
+                        Label::new(dir.compact().to_string_lossy().to_string())
                             .size(LabelSize::XSmall)
                             .color(Color::Muted),
                     )

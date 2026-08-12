@@ -74,6 +74,18 @@ pub(super) fn render(
         .overflow_y_scroll()
         .child(header)
         .child(catalog_section)
+        // PaddleBoard: the hosted McpServersView opens with its own search box
+        // and status filters, and the catalog above it has an "Available"
+        // heading. Without a matching heading here those controls read as
+        // filtering the catalog they sit under, rather than the installed list
+        // they belong to.
+        .child(
+            div().px_4().pt_3().child(
+                Label::new("Installed")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+            ),
+        )
         .child(installed_view)
         .into_any_element()
 }
