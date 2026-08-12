@@ -16,6 +16,31 @@ pub(super) fn render(modal: &AiDock, cx: &mut Context<AiDock>) -> impl IntoEleme
     let project_root = project_root(modal, cx);
     let discovered = paddleboard_personas::discover(project_root.as_deref());
 
+    // A starter that has been installed is discovered *and* catalogued, so it
+    // rendered twice — once as `senior-developer` under Discovered and once as
+    // `Senior Developer` marked "Installed (User)", with identical text. Drop
+    // it from Discovered and let the Starter row's badge carry the state, so
+    // "Discovered" means personas that didn't come from the catalog.
+    //
+    // Keyed on file name rather than display name because that is exactly what
+    // `installed_scope` below probes for; matching on anything else would let
+    // the two disagree.
+    let starter_file_names: Vec<String> = catalog
+        .personas
+        .iter()
+        .map(|entry| format!("{}.persona.md", entry.id))
+        .collect();
+    let discovered: Vec<_> = discovered
+        .into_iter()
+        .filter(|persona| {
+            !persona
+                .path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| starter_file_names.iter().any(|s| s == name))
+        })
+        .collect();
+
     let project_dir = project_root
         .as_ref()
         .map(|root| root.join(".claude").join("personas"));

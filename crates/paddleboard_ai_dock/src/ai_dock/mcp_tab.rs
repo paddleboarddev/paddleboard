@@ -62,8 +62,16 @@ pub(super) fn render(
             .into_any_element(),
     };
 
+    // PaddleBoard: this tab was the only one of the five without a scroll
+    // container, so its content was clipped by the modal body's
+    // `overflow_hidden` instead of scrolling — with nothing installed, the
+    // "No MCP servers installed yet" line was sliced in half by the modal's
+    // bottom edge, which is what every new user saw. Matches the id +
+    // overflow_y_scroll the other four tabs already use.
     v_flex()
+        .id("ai-dock-mcp-list")
         .size_full()
+        .overflow_y_scroll()
         .child(header)
         .child(catalog_section)
         .child(installed_view)
