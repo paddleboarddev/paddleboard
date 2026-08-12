@@ -22,8 +22,17 @@ name: Compile and lint
 # --all-features` across 267 crates — a release build's worth of work, far too
 # heavy per-PR. Debug + default features is the cheap config, and it is enough:
 # the 2026-08-10 breakage was in unconditionally-compiled code, so this would
-# have caught it. The gap that leaves is lints reachable only under a non-default
-# feature; `script/clippy` locally remains the full check.
+# have caught it.
+#
+# ⚠️ THIS JOB AND `script/clippy` COVER DIFFERENT CODE. NEITHER IS A SUPERSET.
+# `script/clippy` is `--release`, which turns `debug_assertions` OFF, so every
+# `#[cfg(debug_assertions)]` module is invisible to it — `inspector_ui` is
+# gated that way at `inspector_ui.rs:1`, and the FIRST run of this job caught a
+# `useless_borrows_in_formatting` error in `div_inspector.rs:626` that the local
+# script structurally cannot see, at any deny level. Conversely this job is
+# default-features, so it misses lints reachable only under a non-default
+# feature, which `script/clippy` does cover. Run both; a green one does not
+# imply the other.
 #
 # `--all-targets` includes test and bench code. A dependency's API change often
 # surfaces in a test first, so omitting it would leave the common case unchecked.
