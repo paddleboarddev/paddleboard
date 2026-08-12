@@ -34,10 +34,21 @@ pub(super) fn render(
     let header = render_tab_header(modal, cx);
     let catalog_section = render_catalog_section(&catalog.mcp_servers, &installed_ids, cx);
     let installed_view: AnyElement = match modal.mcp_view.as_ref() {
+        // PaddleBoard: `flex_1` alone made this stretch to exactly fill the
+        // scroll container above, so the container had nothing to scroll and
+        // McpServersView's own empty state stayed below the fold in the compact
+        // modal — the sliced text was fixed but the line was still unreachable.
+        //
+        // The floor is what makes it scrollable: it reserves room for the
+        // hosted view's search row, status filters and empty-state line, so in
+        // the compact modal the content genuinely exceeds the container and
+        // scrolls. `flex_1` stays because the view renders `size_full()` — drop
+        // it and the view collapses to zero height instead of filling the
+        // expanded modal.
         Some(view) => div()
             .id("ai-dock-mcp-installed")
             .flex_1()
-            .min_h_0()
+            .min_h(rems(9.))
             .child(view.clone())
             .into_any_element(),
         None => v_flex()
