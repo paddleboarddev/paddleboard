@@ -158,8 +158,9 @@ impl Panel for Browser {
 
     fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
         // PaddleBoard: hideable like upstream panels (paddleboard_ui settings).
-        Some(IconName::ToolWeb)
-            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).browser_button)
+        paddleboard_ui::PaddleboardUiSettings::get(cx)
+            .browser_button
+            .then_some(IconName::ToolWeb)
     }
 
     fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {

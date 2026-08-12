@@ -376,8 +376,9 @@ impl Panel for OrchestrationPanel {
         // thread" (mention URIs, the completion provider, the thread view), so this
         // matches the panel's own name and the existing vocabulary. Changing ours
         // rather than the Outline Panel's keeps the divergence on PaddleBoard's side.
-        Some(IconName::Thread)
-            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).orchestration_button)
+        paddleboard_ui::PaddleboardUiSettings::get(cx)
+            .orchestration_button
+            .then_some(IconName::Thread)
     }
 
     fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {

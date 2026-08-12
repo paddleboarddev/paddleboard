@@ -358,7 +358,7 @@ impl Render for StartAgentModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.cancel(&menu::Cancel, window, cx);
@@ -373,7 +373,7 @@ impl Render for StartAgentModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .disabled(self.name_input.read(cx).is_empty(cx))
                                         .on_click(cx.listener(|this, _, window, cx| {
