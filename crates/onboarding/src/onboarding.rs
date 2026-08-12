@@ -338,6 +338,18 @@ impl Render for Onboarding {
                 window.focus_prev(cx);
                 cx.notify();
             }))
+            // PaddleBoard: home/pageup/end/pagedown already dispatch these in the
+            // `menu` context this page opts into, but nothing handled them, so the
+            // keys did nothing at all and the page was mouse-wheel-only. Map them
+            // onto the page's own scroll handle.
+            .on_action(cx.listener(|this, _: &menu::SelectFirst, _, cx| {
+                this.scroll_handle.set_offset(gpui::point(px(0.), px(0.)));
+                cx.notify();
+            }))
+            .on_action(cx.listener(|this, _: &menu::SelectLast, _, cx| {
+                this.scroll_handle.scroll_to_bottom();
+                cx.notify();
+            }))
             .vertical_scrollbar_for(&self.scroll_handle, window, cx)
             .child(
                 div()
