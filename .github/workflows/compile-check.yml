@@ -62,6 +62,10 @@ on:
     branches: [main]
     paths-ignore: &docs_only
       - "**.md"
+      # `.rules` is agent documentation, but it is NOT a `.md` file, so `**.md`
+      # does not cover it and a rules-only edit used to compile all 267 crates.
+      # `CLAUDE.md` and `AGENTS.md` are symlinks to it and are matched above.
+      - ".rules"
       - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - "LICENSE*"
