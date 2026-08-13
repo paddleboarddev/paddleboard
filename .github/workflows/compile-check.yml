@@ -25,14 +25,27 @@ name: Compile and lint
 # have caught it.
 #
 # ⚠️ THIS JOB AND `script/clippy` COVER DIFFERENT CODE. NEITHER IS A SUPERSET.
-# `script/clippy` is `--release`, which turns `debug_assertions` OFF, so every
-# `#[cfg(debug_assertions)]` module is invisible to it — `inspector_ui` is
-# gated that way at `inspector_ui.rs:1`, and the FIRST run of this job caught a
-# `useless_borrows_in_formatting` error in `div_inspector.rs:626` that the local
-# script structurally cannot see, at any deny level. Conversely this job is
-# default-features, so it misses lints reachable only under a non-default
-# feature, which `script/clippy` does cover. Run both; a green one does not
-# imply the other.
+# Three axes decide which code even EXISTS to be linted, and this job differs
+# from a local `script/clippy` run on all three:
+#
+#   1. PROFILE. `script/clippy` is `--release`, which turns `debug_assertions`
+#      OFF, so every `#[cfg(debug_assertions)]` module is invisible to it —
+#      `inspector_ui` is gated that way at `inspector_ui.rs:1`. The first run of
+#      this job caught `useless_borrows_in_formatting` in `div_inspector.rs:626`
+#      that the local script cannot see at ANY deny level.
+#   2. FEATURES. `script/clippy` is `--all-features`; this job is default
+#      features, so lints reachable only under a non-default feature are the
+#      script's to catch, not this job's.
+#   3. TARGET OS. This is the one that bites hardest. A Mac cannot lint
+#      `#[cfg(target_os = "linux")]` code at all — cross-checking with
+#      `--target x86_64-unknown-linux-musl` needs `x86_64-linux-musl-gcc`, which
+#      a normal dev machine does not have. THIS JOB IS THE ONLY THING THAT LINTS
+#      LINUX-GATED CODE. The second run caught a `disallowed_methods` violation
+#      in `paddleboard_sandbox_prereqs_ui` (a raw `std::process::Command::spawn`
+#      in the Linux terminal launcher) for exactly that reason.
+#
+# So: a green `script/clippy` says nothing about this job, and vice versa. When
+# touching platform-gated code, expect CI to be the first thing that lints it.
 #
 # `--all-targets` includes test and bench code. A dependency's API change often
 # surfaces in a test first, so omitting it would leave the common case unchecked.
