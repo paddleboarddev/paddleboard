@@ -207,7 +207,7 @@ impl Client {
             "starting sandboxed context server (image={}, executable={:?}, args={:?})",
             sandbox.image,
             binary.executable,
-            &binary.args
+            binary.args
         );
 
         let server_name = binary

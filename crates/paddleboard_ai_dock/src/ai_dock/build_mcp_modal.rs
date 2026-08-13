@@ -185,7 +185,7 @@ impl Render for BuildMcpModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.cancel(&menu::Cancel, window, cx);
@@ -200,7 +200,7 @@ impl Render for BuildMcpModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .disabled(service_empty || description_empty)
                                         .on_click(cx.listener(|this, _, window, cx| {

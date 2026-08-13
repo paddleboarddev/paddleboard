@@ -613,7 +613,7 @@ fn spawn_linux_terminal(script_path: &std::path::Path) -> std::io::Result<()> {
 
     for (program, prefix_args) in CANDIDATES {
         if which::which(program).is_ok() {
-            let mut cmd = std::process::Command::new(program);
+            let mut cmd = util::command::new_command(program);
             cmd.args(*prefix_args);
             cmd.arg(script_path);
             cmd.spawn()?;

@@ -1,4 +1,4 @@
-name: Compile check
+name: Compile and lint
 
 # PaddleBoard: the compile gate. Until this existed, NO workflow in this repo
 # built Rust — the other PR checks cover embeds, zed-isms, llama pins, and
@@ -7,13 +7,55 @@ name: Compile check
 # run `cargo check` locally. That went wrong quietly during the 2026-07-21
 # Dependabot triage, where every Rust bump had to be hand-verified.
 #
-# Deliberately `cargo check`, not `script/clippy`: that script runs
-# `--release --all-targets --all-features` across 267 crates, which is a release
-# build's worth of work and far too heavy for a per-PR gate. This catches "does
-# it compile", which is the failure mode that was actually escaping.
+# The Linux job LINTS as well as compiles, as of 2026-08-12. It ran plain
+# `cargo check` until then, and nothing in this repo ran clippy at all — so
+# `./script/clippy` broke on 2026-08-10 (the upstream merge that bumped rustc to
+# 1.97) and stayed broken, silently, until someone ran it by hand. Clippy aborts
+# at the first failing crate, so the single error it reported was masking 21
+# more. That is the failure mode this now gates.
+#
+# `cargo clippy` SUBSUMES `cargo check` — it runs the same compilation and adds
+# lints — so this REPLACES the check step rather than adding a job. No new
+# billing line, same PR-only trigger, same concurrency group.
+#
+# Deliberately NOT `script/clippy`, which is `--release --all-targets
+# --all-features` across 267 crates — a release build's worth of work, far too
+# heavy per-PR. Debug + default features is the cheap config, and it is enough:
+# the 2026-08-10 breakage was in unconditionally-compiled code, so this would
+# have caught it.
+#
+# ⚠️ THIS JOB AND `script/clippy` COVER DIFFERENT CODE. NEITHER IS A SUPERSET.
+# Three axes decide which code even EXISTS to be linted, and this job differs
+# from a local `script/clippy` run on all three:
+#
+#   1. PROFILE. `script/clippy` is `--release`, which turns `debug_assertions`
+#      OFF, so every `#[cfg(debug_assertions)]` module is invisible to it —
+#      `inspector_ui` is gated that way at `inspector_ui.rs:1`. The first run of
+#      this job caught `useless_borrows_in_formatting` in `div_inspector.rs:626`
+#      that the local script cannot see at ANY deny level.
+#   2. FEATURES. `script/clippy` is `--all-features`; this job is default
+#      features, so lints reachable only under a non-default feature are the
+#      script's to catch, not this job's.
+#   3. TARGET OS. This is the one that bites hardest. A Mac cannot lint
+#      `#[cfg(target_os = "linux")]` code at all — cross-checking with
+#      `--target x86_64-unknown-linux-musl` needs `x86_64-linux-musl-gcc`, which
+#      a normal dev machine does not have. THIS JOB IS THE ONLY THING THAT LINTS
+#      LINUX-GATED CODE. The second run caught a `disallowed_methods` violation
+#      in `paddleboard_sandbox_prereqs_ui` (a raw `std::process::Command::spawn`
+#      in the Linux terminal launcher) for exactly that reason.
+#
+# So: a green `script/clippy` says nothing about this job, and vice versa. When
+# touching platform-gated code, expect CI to be the first thing that lints it.
 #
 # `--all-targets` includes test and bench code. A dependency's API change often
 # surfaces in a test first, so omitting it would leave the common case unchecked.
+#
+# THE TRADEOFF IS REAL: a weekly upstream merge can now redden this gate with
+# lints nobody here can fix. Sized from the 2026-08-12 sweep, that risk is small
+# — 1 of 22 sites was upstream-authored — and PaddleBoard shares upstream's
+# pinned toolchain, so upstream's own clippy CI keeps their tree mostly clean.
+# If it does become a recurring tax, drop `--deny warnings` before dropping the
+# job: a lint gate that only reports is still worth more than no gate.
 
 on:
   pull_request:
@@ -59,7 +101,9 @@ jobs:
     # ~23s a run) still fires; without this guard, removing the trigger outright
     # would have silently disabled macOS coverage entirely.
     if: github.event_name == 'pull_request'
-    timeout-minutes: 45
+    # 60, up from 45 on 2026-08-12: clippy does the same compilation as
+    # `cargo check` plus a lint pass, and a cold run was already ~29 min.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -111,11 +155,11 @@ jobs:
         with:
           key: compile-check-linux
 
-      - name: cargo check --workspace --all-targets
+      - name: cargo clippy --workspace --all-targets
         env:
           CC: clang
           CXX: clang++
-        run: cargo check --workspace --all-targets --locked
+        run: cargo clippy --workspace --all-targets --locked -- --deny warnings
 
   macos:
     # Narrow by design. A Linux-only gate cannot see macOS-gated code — the
@@ -138,6 +182,11 @@ jobs:
     # merge, only after it lands on main. If a macOS-only regression does escape,
     # a red main is the intended signal — fix forward, don't assume the gate is
     # broken. Revert to running on pull_request if that happens more than rarely.
+    # Still `cargo check`, NOT clippy, unlike the Linux job above. Deliberate:
+    # this bills at the 10x multiplier, and the Linux job already lints every
+    # crate that is not macOS-gated. The gap that leaves is lints reachable only
+    # under `cfg(target_os = "macos")` — narrow, and `./script/clippy` on a Mac
+    # covers it locally. Switch this to clippy if a macOS-only lint ever escapes.
     name: macOS (platform crates)
     runs-on: macos-15
     if: github.event_name == 'push'

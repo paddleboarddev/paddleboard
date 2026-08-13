@@ -610,12 +610,12 @@ impl Render for AddLlmProviderModal {
 
         let window_size = window.viewport_size();
         let rem_size = window.rem_size();
-        let is_large_window = window_size.height / rem_size > rems_from_px(600.).0;
+        let is_large_window = window_size.height / rem_size > rems_from_px(600.0_f32).0;
 
         let modal_max_height = if is_large_window {
-            rems_from_px(450.)
+            rems_from_px(450.0_f32)
         } else {
-            rems_from_px(200.)
+            rems_from_px(200.0_f32)
         };
 
         v_flex()
@@ -679,7 +679,7 @@ impl Render for AddLlmProviderModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .on_click(cx.listener(|this, _event, window, cx| {
                                             this.cancel(&menu::Cancel, window, cx)
@@ -693,7 +693,7 @@ impl Render for AddLlmProviderModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .on_click(cx.listener(|this, _event, window, cx| {
                                             this.confirm(&menu::Confirm, window, cx)

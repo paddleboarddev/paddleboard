@@ -1102,7 +1102,7 @@ impl Render for SetSailModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.cancel(&menu::Cancel, window, cx);
@@ -1118,7 +1118,7 @@ impl Render for SetSailModal {
                                                 &focus_handle,
                                                 cx,
                                             )
-                                            .map(|kb| kb.size(rems_from_px(12.))),
+                                            .map(|kb| kb.size(rems_from_px(12.0_f32))),
                                         )
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.confirm(&menu::Confirm, window, cx);
