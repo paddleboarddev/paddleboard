@@ -25,6 +25,10 @@ on:
     # checks: a skipped check here cannot leave a PR unmergeable.
     paths-ignore:
       - "**.md"
+      # `.rules` is agent documentation, but it is NOT a `.md` file, so `**.md`
+      # does not cover it and a rules-only edit used to build and run the whole
+      # suite. `CLAUDE.md` and `AGENTS.md` are symlinks to it, matched above.
+      - ".rules"
       - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - "LICENSE*"
