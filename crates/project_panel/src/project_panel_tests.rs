@@ -11062,6 +11062,7 @@ pub(crate) fn init_test(cx: &mut TestAppContext) {
                     .get_or_insert_default()
                     .auto_fold_dirs = Some(false);
                 settings.project.worktree.file_scan_exclusions = Some(Vec::new());
+                settings.project.worktree.file_scan_depth = Some(0);
             });
         });
     });
@@ -11081,12 +11082,20 @@ fn init_test_with_editor(cx: &mut TestAppContext) {
                     .project_panel
                     .get_or_insert_default()
                     .auto_fold_dirs = Some(false);
-                settings.project.worktree.file_scan_exclusions = Some(Vec::new())
+                settings.project.worktree.file_scan_exclusions = Some(Vec::new());
+                settings.project.worktree.file_scan_depth = Some(0);
             });
         });
     });
 }
 
+// PaddleBoard: upstream's `init_test_with_git_ui` helper and its two callers
+// (`test_file_history_action_uses_focused_project_panel_selection` and
+// `..._does_not_fall_back_to_editor_...`) are deliberately not carried here.
+// They exercise `git::FileHistory` dispatch, which this fork restructured —
+// `git_graph` registers its own renderer to break a dependency cycle (see
+// git_ui.rs:99). Taking the helper alone would be dead code. Re-evaluate if
+// the git_graph/git_ui split is ever unwound.
 fn set_auto_open_settings(
     cx: &mut TestAppContext,
     auto_open_settings: ProjectPanelAutoOpenSettings,

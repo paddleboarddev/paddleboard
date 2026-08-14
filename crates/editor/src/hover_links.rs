@@ -2180,6 +2180,7 @@ mod tests {
                 "This is file2.rs".as_bytes().to_vec(),
             )
             .await;
+        cx.run_until_parked();
 
         // Base document with {ABS} placeholder for absolute path prefix.
         // Each test case replaces a specific line to add cursor (ˇ) or highlight («»ˇ) markers.
@@ -2349,6 +2350,7 @@ Sentence ending file2.rs.
                     .to_vec(),
             )
             .await;
+        cx.run_until_parked();
 
         // PaddleBoard: wait for the worktree to finish scanning the inserted file
         // before hovering — otherwise the relative-path link resolution
@@ -2430,6 +2432,7 @@ Sentence ending file2.rs.
                     .to_vec(),
             )
             .await;
+        cx.run_until_parked();
 
         // PaddleBoard: wait for the worktree scan before hovering (relative-path
         // link resolution races the async scan otherwise).
@@ -2491,6 +2494,7 @@ Sentence ending file2.rs.
                 "line 1\nline 2\nline 3\n".as_bytes().to_vec(),
             )
             .await;
+        cx.run_until_parked();
 
         // PaddleBoard: wait for the worktree scan before hovering (relative-path
         // link resolution races the async scan otherwise).
@@ -2553,6 +2557,7 @@ Sentence ending file2.rs.
                     .to_vec(),
             )
             .await;
+        cx.run_until_parked();
 
         // Markdown link [text](file2.rs:3:2) should highlight only the inner link,
         // not the surrounding markdown syntax.
