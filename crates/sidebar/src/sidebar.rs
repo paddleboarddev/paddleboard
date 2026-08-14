@@ -7184,7 +7184,26 @@ impl Sidebar {
         let left_window_controls = !cfg!(target_os = "macos") && not_fullscreen && sidebar_on_left;
         let right_window_controls =
             !cfg!(target_os = "macos") && not_fullscreen && sidebar_on_right;
-        let header_height = platform_title_bar_height(window);
+        // PaddleBoard: match the tab bar rather than the title bar. These two
+        // strips sit side by side across the top of the window, so their bottom
+        // borders are read as one line — but they were scaling on different
+        // curves. `Tab::container_height` is `DynamicSpacing::Base32`, i.e.
+        // 2 x rem, while `platform_title_bar_height` is 1.75 x rem floored at
+        // 34px. At the default ui_font_size of 16 that is 32 vs 34, and the gap
+        // grows the other way as the font scales up (at 24: 48 vs 42), so the
+        // seam was never straight at any setting.
+        //
+        // The macOS floor keeps the header taller than the traffic lights, which
+        // are OS-drawn at a fixed size and do not scale: measured here they
+        // occupy rows 9-22 from the window top, so 28px clears them with margin
+        // while staying below the 32px the tab bar gives us by default. Only a
+        // ui_font_size under ~14 reaches the floor, and clearing the lights
+        // matters more than a straight seam at that size.
+        let header_height = if cfg!(target_os = "macos") {
+            Tab::container_height(cx).max(px(28.))
+        } else {
+            platform_title_bar_height(window)
+        };
 
         h_flex()
             .h(header_height)

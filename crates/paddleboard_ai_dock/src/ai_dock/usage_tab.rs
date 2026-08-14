@@ -144,6 +144,22 @@ fn total_card(label: &str, counts: TokenCounts, cx: &mut Context<AiDock>) -> imp
             .size(LabelSize::XSmall)
             .color(Color::Muted),
         )
+        // `TokenCounts::total()` sums all four categories, so a breakdown of only
+        // input and output does not add up to the headline above it whenever
+        // prompt caching is active — which, on Anthropic, is always. Cached reads
+        // also bill far below fresh input, so they are the line that explains a
+        // cheap-looking day.
+        .when(!counts.is_cache_zero(), |this| {
+            this.child(
+                Label::new(format!(
+                    "{} cached · {} written",
+                    format_tokens(counts.cache_read_input_tokens),
+                    format_tokens(counts.cache_creation_input_tokens)
+                ))
+                .size(LabelSize::XSmall)
+                .color(Color::Muted),
+            )
+        })
 }
 
 fn render_breakdown(summary: &UsageSummary, cx: &mut Context<AiDock>) -> impl IntoElement {
