@@ -139,13 +139,18 @@ pub fn catalog(cx: &App) -> Arc<Catalog> {
 /// compile.) The `.claude/commands/*.md` slash commands are symlinks to these
 /// files, so the command used in this repo and the bundled install copy still
 /// can't drift.
+/// PaddleBoard: `build`, `clippy`, `check-drift` and `update-tour` are
+/// deliberately absent. Their markdown still lives in `assets/ai_dock/skills/`
+/// — `.claude/commands/*.md` symlinks to it, so they remain this repo's own
+/// slash commands — but they are not catalog entries, because their *installed
+/// content* is repo-specific: `/build` cargo-builds the `paddleboard` crate,
+/// `/clippy` runs a script only this repo has, `/check-drift` diffs against
+/// upstream Zed. A user clicking "Add to project" in their own repo got a
+/// command that could not work there. Re-adding them requires rewriting the
+/// bodies to detect the project's toolchain, not just restoring these arms.
 pub fn bundled_skill_content(id: &str) -> Option<&'static str> {
     match id {
-        "build" => Some(include_str!("../../../assets/ai_dock/skills/build.md")),
-        "update-tour" => Some(include_str!("../../../assets/ai_dock/skills/update-tour.md")),
-        "clippy" => Some(include_str!("../../../assets/ai_dock/skills/clippy.md")),
         "test" => Some(include_str!("../../../assets/ai_dock/skills/test.md")),
-        "check-drift" => Some(include_str!("../../../assets/ai_dock/skills/check-drift.md")),
         "build-mcp" => Some(include_str!("../../../assets/ai_dock/skills/build-mcp.md")),
         _ => None,
     }
@@ -174,36 +179,31 @@ mod tests {
 
     #[test]
     fn bundled_skill_content_returns_known_skills() {
-        let build = bundled_skill_content("build").expect("build is bundled");
-        assert!(
-            build.contains("/build"),
-            "bundled `build.md` should mention `/build`: got {build:?}"
-        );
-
-        let update_tour = bundled_skill_content("update-tour").expect("update-tour is bundled");
-        assert!(
-            update_tour.contains("WELCOME.md") || update_tour.contains("tour"),
-            "bundled `update-tour.md` should reference WELCOME.md or `tour`: got {update_tour:?}"
-        );
-
-        let clippy = bundled_skill_content("clippy").expect("clippy is bundled");
-        assert!(
-            clippy.contains("script/clippy"),
-            "bundled `clippy.md` should mention `script/clippy`: got {clippy:?}"
-        );
-
         let test = bundled_skill_content("test").expect("test is bundled");
         assert!(
             test.contains("cargo test"),
             "bundled `test.md` should mention `cargo test`: got {test:?}"
         );
 
-        let check_drift =
-            bundled_skill_content("check-drift").expect("check-drift is bundled");
+        let build_mcp = bundled_skill_content("build-mcp").expect("build-mcp is bundled");
         assert!(
-            check_drift.contains("check-upstream-drift"),
-            "bundled `check-drift.md` should mention `check-upstream-drift`: got {check_drift:?}"
+            build_mcp.contains("MCP"),
+            "bundled `build-mcp.md` should mention MCP: got {build_mcp:?}"
         );
+    }
+
+    /// The repo-only skills are not shippable catalog entries: their installed
+    /// content assumes this repository. Pinning that here means restoring one by
+    /// accident fails a test rather than reaching a user's project.
+    #[test]
+    fn repo_specific_skills_are_not_bundled() {
+        for id in ["build", "clippy", "check-drift", "update-tour"] {
+            assert!(
+                bundled_skill_content(id).is_none(),
+                "`{id}` is a PaddleBoard-development command — its body only works \
+                 inside this repo, so it must not be installable into a user's project"
+            );
+        }
     }
 
     #[test]
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn every_bundled_id_is_in_catalog() {
         let catalog = Catalog::load();
-        let bundled_ids = ["build", "update-tour", "clippy", "test", "check-drift"];
+        let bundled_ids = ["test", "build-mcp"];
         for id in bundled_ids {
             assert!(
                 catalog.skills.iter().any(|s| s.id == id),
