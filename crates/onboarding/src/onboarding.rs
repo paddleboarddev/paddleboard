@@ -388,8 +388,11 @@ impl Render for Onboarding {
                                                             .size(HeadlineSize::Small),
                                                     )
                                                     .child(
+                                                        // PaddleBoard: kept in step with
+                                                        // welcome.rs, the README and the site —
+                                                        // see the note at welcome.rs.
                                                         Label::new(
-                                                            "The Open Source Agentic IDE that sails",
+                                                            "The open-source AI IDE you actually own",
                                                         )
                                                             .color(Color::Muted)
                                                             .size(LabelSize::Small)

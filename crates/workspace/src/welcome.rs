@@ -487,7 +487,12 @@ impl Render for WelcomePage {
                             )
                             .child(
                                 v_flex().child(Headline::new(welcome_label)).child(
-                                    Label::new("The Open Source Agentic IDE that sails")
+                                    // PaddleBoard: one tagline across the app, the README and
+                                    // paddleboard.dev. This surface and onboarding used to say
+                                    // "The Open Source Agentic IDE that sails", so a visitor who
+                                    // read the site and then opened the app met two different
+                                    // self-descriptions inside a minute.
+                                    Label::new("The open-source AI IDE you actually own")
                                         .size(LabelSize::Small)
                                         .color(Color::Muted)
                                         .italic(),
