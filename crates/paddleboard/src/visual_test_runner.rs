@@ -1318,6 +1318,21 @@ fn run_breakpoint_hover_visual_tests(
 /// This test captures two states:
 /// 1. Settings opened with a path that maps to multiple items (no auto-open)
 /// 2. Settings opened with a path that maps to a single SubPageLink (auto-opens sub-page)
+/// Moves the pointer off `window` so nothing is left hovered when it is captured.
+///
+/// The visual suite renders through the real `MacPlatform`, so a window's initial
+/// mouse position is read from the OS cursor (`Window::new`, via
+/// `platform_window.mouse_position()`). Whatever the developer's pointer happened
+/// to be resting on therefore gets baked into the screenshot — here, the
+/// `visible_on_hover` "Copy Link" icon on one settings row. This window's placement
+/// is chosen by the app rather than by the test, so the row under a stationary
+/// pointer changed between runs and the capture was never reproducible.
+#[cfg(target_os = "macos")]
+fn park_pointer_outside_window(window: gpui::AnyWindowHandle, cx: &mut VisualTestAppContext) {
+    cx.simulate_mouse_move(window, point(px(-1.0), px(-1.0)), None, Modifiers::default());
+    cx.run_until_parked();
+}
+
 #[cfg(target_os = "macos")]
 fn run_settings_ui_subpage_visual_tests(
     app_state: Arc<AppState>,
@@ -1393,6 +1408,8 @@ fn run_settings_ui_subpage_visual_tests(
         })
         .context("Settings window not found")?;
 
+    park_pointer_outside_window(settings_window_1.into(), cx);
+
     // Refresh and capture screenshot
     cx.update_window(settings_window_1.into(), |_, window, _cx| {
         window.refresh();
@@ -1438,6 +1455,8 @@ fn run_settings_ui_subpage_visual_tests(
                 .find_map(|window| window.downcast::<SettingsWindow>())
         })
         .context("Settings window not found for sub-page test")?;
+
+    park_pointer_outside_window(settings_window_2.into(), cx);
 
     // Refresh and capture screenshot
     cx.update_window(settings_window_2.into(), |_, window, _cx| {
