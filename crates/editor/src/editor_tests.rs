@@ -13364,6 +13364,56 @@ async fn test_autoindent_syntax_aware_applies_syntax_indent(cx: &mut TestAppCont
 }
 
 #[gpui::test]
+async fn test_ime_composition_keeps_manual_indent(cx: &mut TestAppContext) {
+    init_test(cx, |settings| {
+        settings.defaults.auto_indent = Some(settings::AutoIndentMode::SyntaxAware)
+    });
+
+    let mut cx = EditorTestContext::new(cx).await;
+    let language = Arc::new(
+        Language::new(
+            LanguageConfig {
+                brackets: BracketPairConfig {
+                    pairs: vec![BracketPair {
+                        start: "{".to_string(),
+                        end: "}".to_string(),
+                        close: false,
+                        surround: false,
+                        newline: false,
+                    }],
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            Some(tree_sitter_rust::LANGUAGE.into()),
+        )
+        .with_indents_query(r#"(_ "{" "}" @end) @indent"#)
+        .unwrap(),
+    );
+    cx.update_buffer(|buffer, cx| buffer.set_language(Some(language), cx));
+
+    cx.set_state("fn foo() {ˇ\n}");
+    cx.condition(|editor, cx| !editor.buffer.read(cx).is_parsing(cx))
+        .await;
+
+    cx.update_editor(|editor, window, cx| {
+        editor.newline(&Newline, window, cx);
+        // A manual indent here
+        editor.tab(&Tab, window, cx);
+    });
+    assert_eq!(cx.buffer_text(), "fn foo() {\n        \n}");
+
+    cx.update_editor(|editor, window, cx| {
+        editor.replace_and_mark_text_in_range(None, "n", None, window, cx);
+        editor.replace_and_mark_text_in_range(None, "nn", None, window, cx);
+    });
+
+    cx.run_until_parked();
+
+    assert_eq!(cx.buffer_text(), "fn foo() {\n        nn\n}");
+}
+
+#[gpui::test]
 async fn test_autoindent_disabled_with_nested_language(cx: &mut TestAppContext) {
     init_test(cx, |settings| {
         settings.defaults.auto_indent = Some(settings::AutoIndentMode::SyntaxAware);
@@ -27071,12 +27121,9 @@ async fn test_merge_base_diff_hunks_are_read_only(cx: &mut TestAppContext) {
         .unwrap();
     assert_eq!(
         index_contents,
-        [(
-            ::git::repository::repo_path("file.rs"),
-            "head\n".to_string(),
-        )]
-        .into_iter()
-        .collect::<HashMap<_, _>>()
+        [(::git::repository::repo_path("file.rs"), b"head\n".to_vec(),)]
+            .into_iter()
+            .collect::<HashMap<_, _>>()
     );
 }
 
@@ -33203,6 +33250,88 @@ async fn test_go_to_bookmark_with_out_of_order_bookmarks(cx: &mut TestAppContext
 
     ctx.go_to_previous_bookmark();
     assert_eq!(ctx.cursor_row(), 1, "Prev from row 5 should go to row 1");
+}
+
+#[gpui::test]
+async fn test_empty_rename_is_no_op(cx: &mut TestAppContext) {
+    init_test(cx, |_| {});
+    let capabilities = lsp::ServerCapabilities {
+        rename_provider: Some(lsp::OneOf::Right(lsp::RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: Default::default(),
+        })),
+        ..Default::default()
+    };
+    let mut cx = EditorLspTestContext::new_rust(capabilities, cx).await;
+
+    cx.set_state("let aˇbc = 1;");
+
+    let rename_request_count = Arc::new(AtomicUsize::new(0));
+    let _rename_handler = cx.set_request_handler::<lsp::request::Rename, _, _>({
+        let rename_request_count = rename_request_count.clone();
+        move |_, _, _| {
+            rename_request_count.fetch_add(1, atomic::Ordering::SeqCst);
+            async { Ok(None) }
+        }
+    });
+    let mut prepare_rename_handler = cx
+        .set_request_handler::<lsp::request::PrepareRenameRequest, _, _>(
+            move |_, _, _| async move {
+                Ok(Some(lsp::PrepareRenameResponse::Range(lsp::Range {
+                    start: lsp::Position {
+                        line: 0,
+                        character: 4,
+                    },
+                    end: lsp::Position {
+                        line: 0,
+                        character: 7,
+                    },
+                })))
+            },
+        );
+
+    for new_name in ["", "   "] {
+        let prepare_rename_task = cx
+            .update_editor(|editor, window, cx| editor.rename(&Rename, window, cx))
+            .expect("Prepare rename was not started");
+        prepare_rename_handler.next().await.unwrap();
+        prepare_rename_task.await.expect("Prepare rename failed");
+
+        let rename_editor = cx.editor(|editor, _, _| {
+            editor
+                .pending_rename()
+                .expect("Rename should still be pending")
+                .editor
+                .clone()
+        });
+        rename_editor.update_in(&mut cx.cx.cx, |editor, window, cx| {
+            editor.backspace(&Backspace, window, cx);
+            editor.insert(new_name, window, cx);
+        });
+        assert_eq!(
+            cx.editor(|editor, _, cx| {
+                editor
+                    .pending_rename()
+                    .expect("Rename should still be pending")
+                    .editor
+                    .read(cx)
+                    .text(cx)
+            }),
+            new_name
+        );
+
+        cx.update_editor(|editor, window, cx| {
+            editor
+                .confirm_rename(&ConfirmRename, window, cx)
+                .expect("Confirm rename should consume the action")
+        })
+        .await
+        .expect("Confirm rename failed");
+
+        assert_eq!(rename_request_count.load(atomic::Ordering::SeqCst), 0);
+        assert!(cx.editor(|editor, _, _| editor.pending_rename().is_none()));
+        assert_eq!(cx.buffer_text(), "let abc = 1;");
+    }
 }
 
 #[gpui::test]

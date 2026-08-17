@@ -1203,6 +1203,7 @@
           "delete_path": true,
           "diagnostics": true,
           "apply_code_action": true,
+          "ask_user": true,
           "edit_file": true,
           "write_file": true,
           "fetch": true,
@@ -1240,6 +1241,7 @@
         "tools": {
           "create_thread": true,
           "diagnostics": true,
+          "ask_user": true,
           "fetch": true,
           "list_agents_and_models": true,
           "list_directory": true,
