@@ -1638,6 +1638,33 @@ fn run_git_login_modal_visual_test(
     Ok(result)
 }
 
+/// Runs a `git` command inside a throwaway test repository.
+///
+/// Global and system config are ignored so the machine's git settings can't reach
+/// these commands. A developer with `commit.gpgsign = true` set globally would
+/// otherwise have the commit block forever on a passphrase prompt that can never
+/// appear in a headless run, hanging the whole visual suite with no error.
+#[cfg(target_os = "macos")]
+fn run_test_repo_git(repo_path: &Path, args: &[&str]) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo_path)
+        .env("GIT_CONFIG_GLOBAL", "")
+        .env("GIT_CONFIG_SYSTEM", "")
+        .output()
+        .with_context(|| format!("Failed to run `git {}`", args.join(" ")))?;
+
+    anyhow::ensure!(
+        output.status.success(),
+        "`git {}` failed in {}: {}",
+        args.join(" "),
+        repo_path.display(),
+        String::from_utf8_lossy(&output.stderr).trim()
+    );
+
+    Ok(())
+}
+
 /// Runs visual tests for the diff review button in git diff views.
 ///
 /// This test captures three states:
@@ -1658,34 +1685,19 @@ fn run_diff_review_visual_tests(
     std::fs::create_dir_all(&project_path)?;
 
     // Initialize a real git repository
-    std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&project_path)
-        .output()?;
+    run_test_repo_git(&project_path, &["init"])?;
 
     // Configure git user for commits
-    std::process::Command::new("git")
-        .args(["config", "user.email", "test@test.com"])
-        .current_dir(&project_path)
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(&project_path)
-        .output()?;
+    run_test_repo_git(&project_path, &["config", "user.email", "test@test.com"])?;
+    run_test_repo_git(&project_path, &["config", "user.name", "Test User"])?;
 
     // Create a test file with original content
     let original_content = "// Original content\n";
     std::fs::write(project_path.join("thread-view.tsx"), original_content)?;
 
     // Commit the original file
-    std::process::Command::new("git")
-        .args(["add", "thread-view.tsx"])
-        .current_dir(&project_path)
-        .output()?;
-    std::process::Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(&project_path)
-        .output()?;
+    run_test_repo_git(&project_path, &["add", "thread-view.tsx"])?;
+    run_test_repo_git(&project_path, &["commit", "-m", "Initial commit"])?;
 
     // Modify the file to create a diff
     let modified_content = r#"import { ScrollArea } from 'components';
