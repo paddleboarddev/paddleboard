@@ -5,7 +5,7 @@ use crate::{
 use fs::Fs;
 use gpui::{Entity, FontWeight, Subscription};
 use ui::{
-    ContextMenu, DropdownMenu, DropdownStyle, IconPosition, ProgressBar, Switch, ToggleState,
+    Chip, ContextMenu, DropdownMenu, DropdownStyle, IconPosition, ProgressBar, Switch, ToggleState,
     prelude::*,
 };
 
@@ -14,6 +14,7 @@ use ui::{
 /// picker, a download action with progress, and live status.
 pub struct LocalModelsView {
     manager: Option<Entity<LlamaManager>>,
+    emphasized: bool,
     _subscription: Option<Subscription>,
 }
 
@@ -26,8 +27,21 @@ impl LocalModelsView {
             .map(|manager| cx.observe(manager, |_, _, cx| cx.notify()));
         Self {
             manager,
+            emphasized: false,
             _subscription: subscription,
         }
+    }
+
+    /// Promote this card above the surface around it: a focused border, a solid
+    /// background, and a "no API key" badge on the heading.
+    ///
+    /// Onboarding sets this because Local Models is the only path that works
+    /// with no account at all, and next to a list of provider rows it otherwise
+    /// reads as just another one. The provider settings page leaves it off,
+    /// where the card is already the only thing on screen.
+    pub fn emphasized(mut self, emphasized: bool) -> Self {
+        self.emphasized = emphasized;
+        self
     }
 
     fn is_enabled(&self, cx: &App) -> bool {
@@ -259,15 +273,33 @@ impl Render for LocalModelsView {
             .p_3()
             .rounded_md()
             .border_1()
-            .border_color(cx.theme().colors().border_variant)
-            .bg(cx.theme().colors().background.opacity(0.5))
+            .border_color(if self.emphasized {
+                cx.theme().colors().border_focused
+            } else {
+                cx.theme().colors().border_variant
+            })
+            .bg(if self.emphasized {
+                cx.theme().colors().elevated_surface_background
+            } else {
+                cx.theme().colors().background.opacity(0.5)
+            })
             .child(
                 h_flex()
                     .justify_between()
                     .items_center()
                     .child(
                         v_flex()
-                            .child(Label::new("Local Models").weight(FontWeight::MEDIUM))
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(Label::new("Local Models").weight(FontWeight::MEDIUM))
+                                    .when(self.emphasized, |this| {
+                                        this.child(
+                                            Chip::new("No API key needed")
+                                                .label_color(Color::Accent),
+                                        )
+                                    }),
+                            )
                             .child(
                                 Label::new("Run a model locally, managed by PaddleBoard.")
                                     .size(LabelSize::Small)

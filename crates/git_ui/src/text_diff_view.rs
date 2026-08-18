@@ -77,7 +77,8 @@ impl TextDiffView {
         });
 
         let Some((source_buffer, expanded_selection_range)) = selection_data else {
-            log::warn!("There should always be at least one selection in Zed. This is a bug.");
+            // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
+            log::warn!("There should always be at least one selection in PaddleBoard. This is a bug.");
             return None;
         };
 

@@ -106,14 +106,17 @@ struct Args {
     /// Run PaddleBoard in the foreground (useful for debugging)
     #[arg(long)]
     foreground: bool,
-    /// Custom path to Zed.app or the zed binary
+    // PaddleBoard: clap renders these doc comments into `--help`, so they are
+    // user-facing prose; renamed from upstream's "Zed". The `--zed` flag name
+    // itself is left alone — renaming it would break existing invocations.
+    /// Custom path to PaddleBoard.app or the paddleboard binary
     #[arg(long)]
     zed: Option<PathBuf>,
     /// Run zed in dev-server mode
     #[arg(long)]
     dev_server_token: Option<String>,
     /// The username and WSL distribution to use when opening paths. If not specified,
-    /// Zed will attempt to open the paths directly.
+    /// PaddleBoard will attempt to open the paths directly.
     ///
     /// The username is optional, and if not specified, the default user for the distribution
     /// will be used.
@@ -124,7 +127,7 @@ struct Args {
     #[cfg(target_os = "windows")]
     #[arg(long, value_name = "USER@DISTRO")]
     wsl: Option<String>,
-    /// Not supported in PaddleBoard CLI, only supported on Zed binary
+    /// Not supported in PaddleBoard CLI, only supported on the PaddleBoard binary
     /// Will attempt to give the correct command to run
     #[arg(long)]
     system_specs: bool,
@@ -554,7 +557,7 @@ fn run() -> Result<()> {
     if args.system_specs {
         let path = app.path();
         let msg = [
-            "The `--system-specs` argument is not supported in the PaddleBoard CLI, only on Zed binary.",
+            "The `--system-specs` argument is not supported in the PaddleBoard CLI, only on the PaddleBoard binary.",
             "To retrieve the system specs on the command line, run the following command:",
             &format!("{} --system-specs", path.display()),
         ];

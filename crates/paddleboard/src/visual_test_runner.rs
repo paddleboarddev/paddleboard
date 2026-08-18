@@ -696,8 +696,38 @@ enum TestResult {
     BaselineUpdated(PathBuf),
 }
 
+/// Moves the pointer off `window` so nothing is left hovered when it is captured.
+///
+/// The visual suite renders through the real `MacPlatform`, so a window's initial
+/// mouse position is read from the OS cursor (`Window::new`, via
+/// `platform_window.mouse_position()`). Without this, whatever the developer's
+/// pointer happened to be resting on gets baked into the screenshot — a
+/// `visible_on_hover` control, a row highlight, a tooltip — and the capture is
+/// reproducible only for as long as nobody moves the mouse.
+#[cfg(target_os = "macos")]
+fn park_pointer_outside_window(window: gpui::AnyWindowHandle, cx: &mut VisualTestAppContext) {
+    cx.simulate_mouse_move(window, point(px(-1.0), px(-1.0)), None, Modifiers::default());
+    cx.run_until_parked();
+}
+
 #[cfg(target_os = "macos")]
 fn run_visual_test(
+    test_name: &str,
+    window: gpui::AnyWindowHandle,
+    cx: &mut VisualTestAppContext,
+    update_baseline: bool,
+) -> Result<TestResult> {
+    park_pointer_outside_window(window, cx);
+    run_visual_test_preserving_hover(test_name, window, cx, update_baseline)
+}
+
+/// Captures without parking the pointer first, for tests that position it themselves.
+///
+/// Only hover and tooltip tests want this. Everything else must go through
+/// `run_visual_test`, or the capture silently depends on where the developer left
+/// their mouse — see `park_pointer_outside_window`.
+#[cfg(target_os = "macos")]
+fn run_visual_test_preserving_hover(
     test_name: &str,
     window: gpui::AnyWindowHandle,
     cx: &mut VisualTestAppContext,
@@ -1213,7 +1243,7 @@ fn run_breakpoint_hover_visual_tests(
     })?;
     cx.run_until_parked();
 
-    let test2_result = run_visual_test(
+    let test2_result = run_visual_test_preserving_hover(
         "breakpoint_hover_circle",
         workspace_window.into(),
         cx,
@@ -1264,7 +1294,7 @@ fn run_breakpoint_hover_visual_tests(
 
     cx.run_until_parked();
 
-    let test3_result = run_visual_test(
+    let test3_result = run_visual_test_preserving_hover(
         "breakpoint_hover_tooltip",
         workspace_window.into(),
         cx,
@@ -1619,6 +1649,33 @@ fn run_git_login_modal_visual_test(
     Ok(result)
 }
 
+/// Runs a `git` command inside a throwaway test repository.
+///
+/// Global and system config are ignored so the machine's git settings can't reach
+/// these commands. A developer with `commit.gpgsign = true` set globally would
+/// otherwise have the commit block forever on a passphrase prompt that can never
+/// appear in a headless run, hanging the whole visual suite with no error.
+#[cfg(target_os = "macos")]
+fn run_test_repo_git(repo_path: &Path, args: &[&str]) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo_path)
+        .env("GIT_CONFIG_GLOBAL", "")
+        .env("GIT_CONFIG_SYSTEM", "")
+        .output()
+        .with_context(|| format!("Failed to run `git {}`", args.join(" ")))?;
+
+    anyhow::ensure!(
+        output.status.success(),
+        "`git {}` failed in {}: {}",
+        args.join(" "),
+        repo_path.display(),
+        String::from_utf8_lossy(&output.stderr).trim()
+    );
+
+    Ok(())
+}
+
 /// Runs visual tests for the diff review button in git diff views.
 ///
 /// This test captures three states:
@@ -1639,34 +1696,19 @@ fn run_diff_review_visual_tests(
     std::fs::create_dir_all(&project_path)?;
 
     // Initialize a real git repository
-    std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(&project_path)
-        .output()?;
+    run_test_repo_git(&project_path, &["init"])?;
 
     // Configure git user for commits
-    std::process::Command::new("git")
-        .args(["config", "user.email", "test@test.com"])
-        .current_dir(&project_path)
-        .output()?;
-    std::process::Command::new("git")
-        .args(["config", "user.name", "Test User"])
-        .current_dir(&project_path)
-        .output()?;
+    run_test_repo_git(&project_path, &["config", "user.email", "test@test.com"])?;
+    run_test_repo_git(&project_path, &["config", "user.name", "Test User"])?;
 
     // Create a test file with original content
     let original_content = "// Original content\n";
     std::fs::write(project_path.join("thread-view.tsx"), original_content)?;
 
     // Commit the original file
-    std::process::Command::new("git")
-        .args(["add", "thread-view.tsx"])
-        .current_dir(&project_path)
-        .output()?;
-    std::process::Command::new("git")
-        .args(["commit", "-m", "Initial commit"])
-        .current_dir(&project_path)
-        .output()?;
+    run_test_repo_git(&project_path, &["add", "thread-view.tsx"])?;
+    run_test_repo_git(&project_path, &["commit", "-m", "Initial commit"])?;
 
     // Modify the file to create a diff
     let modified_content = r#"import { ScrollArea } from 'components';
@@ -2644,6 +2686,10 @@ fn run_tool_permissions_visual_tests(
     })
     .log_err();
     cx.run_until_parked();
+
+    // This test captures directly rather than through `run_visual_test`, so it has
+    // to park the pointer itself.
+    park_pointer_outside_window(settings_window, cx);
 
     cx.update_window(settings_window, |_, window, _cx| {
         window.refresh();

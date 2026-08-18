@@ -597,8 +597,9 @@ impl Panel for ManifestPanel {
     fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
         // PaddleBoard: ListTodo (not ListTree) — the orchestration panel already
         // uses ListTree, and two identical dock glyphs are indistinguishable.
-        Some(IconName::ListTodo)
-            .filter(|_| paddleboard_ui::PaddleboardUiSettings::get(cx).manifest_button)
+        paddleboard_ui::PaddleboardUiSettings::get(cx)
+            .manifest_button
+            .then_some(IconName::ListTodo)
     }
 
     fn hide_button_setting(&self, _: &App) -> Option<workspace::HideStatusItem> {

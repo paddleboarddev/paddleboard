@@ -553,7 +553,8 @@ impl Editor {
             .all::<MultiBufferOffset>(&self.display_snapshot(cx));
 
         if selections.is_empty() {
-            log::warn!("There should always be at least one selection in Zed. This is a bug.");
+            // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
+            log::warn!("There should always be at least one selection in PaddleBoard. This is a bug.");
             return;
         };
 

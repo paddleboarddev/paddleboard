@@ -228,7 +228,17 @@ pub fn hang_traces_dir() -> &'static PathBuf {
 pub fn logs_dir() -> &'static PathBuf {
     static LOGS_DIR: OnceLock<PathBuf> = OnceLock::new();
     LOGS_DIR.get_or_init(|| {
-        if cfg!(target_os = "macos") {
+        // PaddleBoard: honour `--user-data-dir` on macOS, which upstream's macOS
+        // branch does not — it hardcodes ~/Library/Logs while every other path
+        // (config_dir, data_dir) checks CUSTOM_DATA_DIR first. The flag's own
+        // --help promises logs are included, and Linux already behaves that way,
+        // so a second instance started for isolation was writing into — and
+        // rotating — the primary profile's log.
+        //
+        // Only the custom-dir case is redirected: with no override this still
+        // resolves to ~/Library/Logs, which is the right macOS convention and
+        // avoids calling data_dir() before set_custom_data_dir() can run.
+        if cfg!(target_os = "macos") && CUSTOM_DATA_DIR.get().is_none() {
             home_dir().join("Library/Logs").join(APP_NAME)
         } else {
             data_dir().join("logs")

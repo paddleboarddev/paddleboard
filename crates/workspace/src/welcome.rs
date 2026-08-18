@@ -118,7 +118,7 @@ impl RenderOnce for SectionButton {
                     )
                     .child(
                         KeyBinding::for_action_in(action_ref, &self.focus_handle, cx)
-                            .size(rems_from_px(12.)),
+                            .size(rems_from_px(12_f32)),
                     ),
             )
             .on_click(move |_, window, cx| {
@@ -366,7 +366,7 @@ impl WelcomePage {
                     .style(ButtonStyle::Outlined)
                     .key_binding(
                         KeyBinding::for_action_in(&ToggleFocus, &self.focus_handle, cx)
-                            .size(rems_from_px(12.)),
+                            .size(rems_from_px(12_f32)),
                     )
                     .on_click(move |_, window, cx| {
                         focus.dispatch_action(&ToggleWorkspaceSidebar, window, cx);
@@ -482,12 +482,17 @@ impl Render for WelcomePage {
                             .child(
                                 gpui::img("images/paddleboard_logo.svg")
                                     .flex_none()
-                                    .w(rems_from_px(45.))
-                                    .h(rems_from_px(45.)),
+                                    .w(rems_from_px(45_f32))
+                                    .h(rems_from_px(45_f32)),
                             )
                             .child(
                                 v_flex().child(Headline::new(welcome_label)).child(
-                                    Label::new("The Open Source Agentic IDE that sails")
+                                    // PaddleBoard: one tagline across the app, the README and
+                                    // paddleboard.dev. This surface and onboarding used to say
+                                    // "The Open Source Agentic IDE that sails", so a visitor who
+                                    // read the site and then opened the app met two different
+                                    // self-descriptions inside a minute.
+                                    Label::new("The open-source AI IDE you actually own")
                                         .size(LabelSize::Small)
                                         .color(Color::Muted)
                                         .italic(),

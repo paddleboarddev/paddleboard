@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use gpui::ClickEvent;
 use paddleboard_usage::{ProviderModelTotals, TokenCounts, UsageSummary};
 use ui::{Callout, Severity, Tooltip, prelude::*};
+use util::paths::PathExt as _;
 
 use crate::ai_dock::AiDock;
 
@@ -45,8 +46,12 @@ fn render_header(summary: &UsageSummary, cx: &mut Context<AiDock>) -> impl IntoE
                         .color(Color::Muted),
                 )
                 .when_some(directory.clone(), |this, dir| {
+                    // PaddleBoard: `compact()` abbreviates $HOME to `~`. The raw
+                    // absolute path was printed in full and spilled the panel
+                    // width — on a default install this is
+                    // ~/Library/Application Support/PaddleBoard/usage.
                     this.child(
-                        Label::new(dir.to_string_lossy().to_string())
+                        Label::new(dir.compact().to_string_lossy().to_string())
                             .size(LabelSize::XSmall)
                             .color(Color::Muted),
                     )
@@ -139,6 +144,22 @@ fn total_card(label: &str, counts: TokenCounts, cx: &mut Context<AiDock>) -> imp
             .size(LabelSize::XSmall)
             .color(Color::Muted),
         )
+        // `TokenCounts::total()` sums all four categories, so a breakdown of only
+        // input and output does not add up to the headline above it whenever
+        // prompt caching is active — which, on Anthropic, is always. Cached reads
+        // also bill far below fresh input, so they are the line that explains a
+        // cheap-looking day.
+        .when(!counts.is_cache_zero(), |this| {
+            this.child(
+                Label::new(format!(
+                    "{} cached · {} written",
+                    format_tokens(counts.cache_read_input_tokens),
+                    format_tokens(counts.cache_creation_input_tokens)
+                ))
+                .size(LabelSize::XSmall)
+                .color(Color::Muted),
+            )
+        })
 }
 
 fn render_breakdown(summary: &UsageSummary, cx: &mut Context<AiDock>) -> impl IntoElement {

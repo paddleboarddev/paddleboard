@@ -107,11 +107,13 @@ pub fn install_cli_binary(window: &mut Window, cx: &mut Context<Workspace>) {
                         cx,
                         |cx| {
                             cx.new(|cx| {
+                                // PaddleBoard: user-facing product and CLI name,
+                                // renamed from upstream's "Zed" / `zed`.
                                 MessageNotification::new(
-                                    "You can add `zed` to your PATH manually.",
+                                    "You can add `paddleboard` to your PATH manually.",
                                     cx,
                                 )
-                                .with_title("Couldn't install the Zed CLI")
+                                .with_title("Couldn't install the PaddleBoard CLI")
                                 .more_info_message("Show me how")
                                 .more_info_url(CANT_INSTALL_DOCS_URL)
                             })

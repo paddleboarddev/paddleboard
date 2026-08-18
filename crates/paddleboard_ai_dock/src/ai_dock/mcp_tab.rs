@@ -34,10 +34,21 @@ pub(super) fn render(
     let header = render_tab_header(modal, cx);
     let catalog_section = render_catalog_section(&catalog.mcp_servers, &installed_ids, cx);
     let installed_view: AnyElement = match modal.mcp_view.as_ref() {
+        // PaddleBoard: `flex_1` alone made this stretch to exactly fill the
+        // scroll container above, so the container had nothing to scroll and
+        // McpServersView's own empty state stayed below the fold in the compact
+        // modal — the sliced text was fixed but the line was still unreachable.
+        //
+        // The floor is what makes it scrollable: it reserves room for the
+        // hosted view's search row, status filters and empty-state line, so in
+        // the compact modal the content genuinely exceeds the container and
+        // scrolls. `flex_1` stays because the view renders `size_full()` — drop
+        // it and the view collapses to zero height instead of filling the
+        // expanded modal.
         Some(view) => div()
             .id("ai-dock-mcp-installed")
             .flex_1()
-            .min_h_0()
+            .min_h(rems(9.))
             .child(view.clone())
             .into_any_element(),
         None => v_flex()
@@ -62,10 +73,30 @@ pub(super) fn render(
             .into_any_element(),
     };
 
+    // PaddleBoard: this tab was the only one of the five without a scroll
+    // container, so its content was clipped by the modal body's
+    // `overflow_hidden` instead of scrolling — with nothing installed, the
+    // "No MCP servers installed yet" line was sliced in half by the modal's
+    // bottom edge, which is what every new user saw. Matches the id +
+    // overflow_y_scroll the other four tabs already use.
     v_flex()
+        .id("ai-dock-mcp-list")
         .size_full()
+        .overflow_y_scroll()
         .child(header)
         .child(catalog_section)
+        // PaddleBoard: the hosted McpServersView opens with its own search box
+        // and status filters, and the catalog above it has an "Available"
+        // heading. Without a matching heading here those controls read as
+        // filtering the catalog they sit under, rather than the installed list
+        // they belong to.
+        .child(
+            div().px_4().pt_3().child(
+                Label::new("Installed")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+            ),
+        )
         .child(installed_view)
         .into_any_element()
 }

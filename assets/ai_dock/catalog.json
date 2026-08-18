@@ -88,39 +88,11 @@
   ],
   "skills": [
     {
-      "id": "build",
-      "name": "/build",
-      "description": "Build PaddleBoard via cargo. Use `bundle` for a macOS .app, `install` to drop it into /Applications.",
-      "homepage": null,
-      "featured": true
-    },
-    {
-      "id": "update-tour",
-      "name": "/update-tour",
-      "description": "Sync the in-app first-launch tour with the latest WELCOME.md after a user-facing change.",
-      "homepage": null,
-      "featured": true
-    },
-    {
-      "id": "clippy",
-      "name": "/clippy",
-      "description": "Run ./script/clippy (the project's custom lint script) instead of raw cargo clippy.",
-      "homepage": null,
-      "featured": true
-    },
-    {
       "id": "test",
       "name": "/test",
-      "description": "Run tests for a specific crate, file, or the whole project. Parses arguments to pick the right cargo test invocation.",
+      "description": "Rust projects: run tests for a specific crate, file, or the whole workspace. Parses arguments to pick the right cargo test invocation.",
       "homepage": null,
       "featured": true
-    },
-    {
-      "id": "check-drift",
-      "name": "/check-drift",
-      "description": "Run script/check-upstream-drift to see how far PaddleBoard has diverged from upstream Zed.",
-      "homepage": null,
-      "featured": false
     },
     {
       "id": "build-mcp",

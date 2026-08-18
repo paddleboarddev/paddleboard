@@ -5,7 +5,7 @@ name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
-version = "0.2.6"
+version = "0.2.7"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -41,7 +41,6 @@ visual-tests = [
     "dep:agent_servers",
     # PaddleBoard: stub credentials provider for the git-login modal visual test
     "dep:credentials_provider",
-    "dep:paddleboard_credentials_provider",
     "workspace/test-support",
     "project/test-support",
     "editor/test-support",
@@ -127,7 +126,11 @@ git_ui.workspace = true
 git_ui_core.workspace = true
 go_to_line.workspace = true
 system_specs.workspace = true
-gpui = { workspace = true, features = ["input-latency-histogram", "profiler"] }
+gpui = { workspace = true, features = [
+    "frame-duration-histogram",
+    "input-latency-histogram",
+    "profiler",
+] }
 gpui_platform = {workspace = true, features=["screen-capture", "font-kit", "wayland", "x11"]}
 image = { workspace = true, optional = true }
 semver.workspace = true
@@ -138,7 +141,7 @@ action_log = { workspace = true, optional = true }
 agent_servers = { workspace = true, optional = true }
 # PaddleBoard: visual-tests-only, for stubbing the keychain in the git-login modal test
 credentials_provider = { workspace = true, optional = true }
-paddleboard_credentials_provider = { workspace = true, optional = true }
+paddleboard_credentials_provider.workspace = true
 gpui_tokio.workspace = true
 rayon.workspace = true
 
@@ -291,6 +294,10 @@ image.workspace = true
 pkg-config = "0.3.22"
 
 [dev-dependencies]
+activity_indicator = { workspace = true, features = ["test-support"] }
+# PaddleBoard: upstream also adds `call` here; that crate is deleted in this fork
+# (collaborative calls are unsupported — see the tag at src/zed.rs:6341), and no
+# test references it.
 editor = { workspace = true, features = ["test-support"] }
 fs = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["input-latency-histogram", "test-support"] }

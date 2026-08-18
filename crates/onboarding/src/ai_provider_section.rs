@@ -7,7 +7,8 @@ use std::collections::HashMap;
 
 use gpui::{AnyView, App, Context, Entity, Subscription, Window};
 use language_model::{
-    ApiKeyConfiguration, IconOrSvg, LanguageModelProviderId, LanguageModelRegistry,
+    ANTHROPIC_PROVIDER_ID, ApiKeyConfiguration, GOOGLE_PROVIDER_ID, IconOrSvg,
+    LanguageModelProviderId, LanguageModelRegistry, OPEN_AI_PROVIDER_ID,
     PADDLEBOARD_CLOUD_PROVIDER_ID, ProviderSettingsView,
 };
 use paddleboard_llama_manager::ui::LocalModelsView;
@@ -17,6 +18,22 @@ use ui_input::InputField;
 // The managed local-models provider is surfaced as its own hero card, so it is
 // excluded from the "bring your own key" list to avoid rendering it twice.
 const LLAMA_CPP_PROVIDER_ID: &str = "llama.cpp";
+
+// Surfaced above the rest of the list: without this the user scans 15 visually
+// identical alphabetical rows to find the key they actually hold. Order is
+// deliberate, not alphabetical.
+const POPULAR_PROVIDER_IDS: [&LanguageModelProviderId; 3] = [
+    &ANTHROPIC_PROVIDER_ID,
+    &OPEN_AI_PROVIDER_ID,
+    &GOOGLE_PROVIDER_ID,
+];
+
+/// Rank within [`POPULAR_PROVIDER_IDS`], or `None` for everything else.
+fn popularity_rank(id: &LanguageModelProviderId) -> Option<usize> {
+    POPULAR_PROVIDER_IDS
+        .iter()
+        .position(|popular| *popular == id)
+}
 
 /// How a provider's configuration is presented once its row is expanded.
 enum RowConfig {
@@ -51,7 +68,7 @@ pub struct AiProviderSection {
 
 impl AiProviderSection {
     pub fn new(cx: &mut Context<Self>) -> Self {
-        let local_models = cx.new(|cx| LocalModelsView::new(cx));
+        let local_models = cx.new(|cx| LocalModelsView::new(cx).emphasized(true));
         let subscription = cx.observe(&LanguageModelRegistry::global(cx), |_, _, cx| cx.notify());
 
         Self {
@@ -238,6 +255,18 @@ impl AiProviderSection {
         }
     }
 
+    fn render_group_heading(label: impl Into<SharedString>) -> impl IntoElement {
+        h_flex()
+            .mt_2()
+            .gap_2()
+            .child(
+                Label::new(label)
+                    .size(LabelSize::Small)
+                    .color(Color::Muted),
+            )
+            .child(Divider::horizontal())
+    }
+
     fn render_provider_row(&self, row: RowMeta, cx: &mut Context<Self>) -> impl IntoElement {
         let border_variant = cx.theme().colors().border_variant;
         let surface = cx.theme().colors().elevated_surface_background;
@@ -303,13 +332,29 @@ impl AiProviderSection {
 
 impl Render for AiProviderSection {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let rows = self.collect_rows(cx);
+        let mut rows = self.collect_rows(cx);
+        // Popular providers first, in POPULAR_PROVIDER_IDS order; the rest keep
+        // the registry's own order after them.
+        rows.sort_by_key(|row| popularity_rank(&row.id).unwrap_or(usize::MAX));
+        let popular_count = rows
+            .iter()
+            .filter(|row| popularity_rank(&row.id).is_some())
+            .count();
+
         // Build rows eagerly: each borrows `cx` mutably, which a lazy `.map`
         // closure can't express (the borrow would escape the FnMut body).
         let mut provider_rows = Vec::with_capacity(rows.len());
         for row in rows {
             provider_rows.push(self.render_provider_row(row, cx).into_any_element());
         }
+        // With every popular provider hidden by settings, splitting would leave
+        // "Or bring your own key" empty and file everything under "More
+        // providers"; keep one list in that case.
+        let other_rows = if popular_count == 0 {
+            Vec::new()
+        } else {
+            provider_rows.split_off(popular_count.min(provider_rows.len()))
+        };
 
         v_flex()
             .gap_0p5()
@@ -321,34 +366,16 @@ impl Render for AiProviderSection {
                 )
                 .color(Color::Muted),
             )
-            // Zero-key hero: a managed model on the user's own machine.
-            .child(
-                v_flex()
-                    .mt_1p5()
-                    .p_2()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(cx.theme().colors().border_variant)
-                    .bg(cx.theme().colors().elevated_surface_background.opacity(0.5))
-                    .gap_1()
-                    .child(
-                        Label::new("Local Models — no API key needed")
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
-                    .child(self.local_models.clone()),
-            )
-            .child(
-                h_flex()
-                    .mt_2()
-                    .gap_2()
-                    .child(
-                        Label::new("Or bring your own key")
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
-                    .child(Divider::horizontal()),
-            )
+            // Zero-key hero: a managed model on the user's own machine. The card
+            // carries its own heading, description and emphasis (see
+            // `LocalModelsView::emphasized`) — wrapping it in a second titled
+            // box here duplicated both and nested one card inside another.
+            .child(div().mt_1p5().child(self.local_models.clone()))
+            .child(Self::render_group_heading("Or bring your own key"))
             .child(v_flex().gap_1p5().children(provider_rows))
+            .when(!other_rows.is_empty(), |this| {
+                this.child(Self::render_group_heading("More providers"))
+                    .child(v_flex().gap_1p5().children(other_rows))
+            })
     }
 }

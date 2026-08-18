@@ -70,7 +70,8 @@ fn open_copilot_code_verification_window(copilot: &Entity<Copilot>, window: &Win
             is_resizable: false,
             is_movable: true,
             titlebar: Some(gpui::TitlebarOptions {
-                title: Some("Use GitHub Copilot in Zed".into()),
+                // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
+                title: Some("Use GitHub Copilot in PaddleBoard".into()),
                 appears_transparent: true,
                 ..Default::default()
             }),
@@ -609,7 +610,8 @@ impl CopilotChatCodeVerification {
             .gap_2p5()
             .items_center()
             .text_center()
-            .child(Headline::new("Use GitHub Copilot Chat in Zed").size(HeadlineSize::Large))
+            // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
+            .child(Headline::new("Use GitHub Copilot Chat in PaddleBoard").size(HeadlineSize::Large))
             .child(
                 Label::new("Using Copilot Chat requires an active subscription on GitHub.")
                     .color(Color::Muted),

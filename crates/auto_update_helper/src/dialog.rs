@@ -190,7 +190,8 @@ unsafe extern "system" fn wnd_proc(
                 if let Ok(result) = data.borrow_mut().rx.recv()
                     && let Err(e) = result
                 {
-                    log::error!("Failed to update Zed: {:?}", e);
+                    // PaddleBoard: product name, renamed from upstream's "Zed".
+                    log::error!("Failed to update PaddleBoard: {:?}", e);
                     show_error(format!("Error: {:?}", e));
                 }
             });

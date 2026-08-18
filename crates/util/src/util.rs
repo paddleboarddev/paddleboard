@@ -230,10 +230,11 @@ pub fn prevent_root_execution() {
     let allow_root = std::env::var("PADDLEBOARD_ALLOW_ROOT").is_ok_and(|val| val == "true");
 
     if is_root && !allow_root {
+        // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
         eprintln!(
             "\
-Error: Running Zed as root or via sudo is unsupported.
-       Doing so (even once) may subtly break things for all subsequent non-root usage of Zed.
+Error: Running PaddleBoard as root or via sudo is unsupported.
+       Doing so (even once) may subtly break things for all subsequent non-root usage of PaddleBoard.
        It is untested and not recommended, don't complain when things break.
        If you wish to proceed anyways, set `PADDLEBOARD_ALLOW_ROOT=true` in your environment."
         );

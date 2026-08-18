@@ -247,7 +247,7 @@ impl TransportDelegate {
         let mut line = String::new();
 
         loop {
-            line.truncate(0);
+            line.clear();
 
             match reader.read_line(&mut line).await {
                 Ok(0) => break,
@@ -398,7 +398,7 @@ impl TransportDelegate {
     {
         let mut content_length = None;
         loop {
-            buffer.truncate(0);
+            buffer.clear();
             match reader.read_line(buffer).await {
                 Ok(0) => return ConnectionResult::ConnectionReset,
                 Ok(_) => {}
@@ -659,8 +659,9 @@ impl StdioTransport {
         cx: &mut AsyncApp,
     ) -> Result<Self> {
         let Some(binary_command) = &binary.command else {
+            // PaddleBoard: user-facing product name, renamed from upstream's "Zed".
             bail!(
-                "When using the `stdio` transport, the path to a debug adapter binary must be set by Zed."
+                "When using the `stdio` transport, the path to a debug adapter binary must be set by PaddleBoard."
             );
         };
         let mut command = util::command::new_std_command(&binary_command);

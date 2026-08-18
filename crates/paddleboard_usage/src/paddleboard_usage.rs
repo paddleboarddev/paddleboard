@@ -71,6 +71,14 @@ impl TokenCounts {
             && self.cache_read_input_tokens == 0
     }
 
+    /// True when neither cache category recorded anything — i.e. the provider
+    /// does no prompt caching, or none was hit yet. Callers use this to hide a
+    /// cache breakdown that would read as two zeroes on every non-caching
+    /// provider.
+    pub fn is_cache_zero(&self) -> bool {
+        self.cache_creation_input_tokens == 0 && self.cache_read_input_tokens == 0
+    }
+
     /// Total tokens across all four categories — the headline "tokens used".
     pub fn total(&self) -> u64 {
         self.input_tokens
