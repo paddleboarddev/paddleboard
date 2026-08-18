@@ -5960,11 +5960,8 @@ mod tests {
                 "context_server",
                 "copilot",
                 "copilot_edit_predictions",
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
                 "crewai",
                 "csv",
-=======
->>>>>>> zed/main:crates/zed/src/zed.rs
                 "debug_panel",
                 "debugger",
                 "dev",

@@ -1,24 +1,12 @@
 use crate::{
-<<<<<<< HEAD
-    AdoptPersonaTool,
-    ApplyCodeActionTool, CodeActionStore, ContextServerRegistry, CopyPathTool, CreateDirectoryTool,
-    CreateThreadTool, DbLanguageModel, DbThread, DeletePathTool, DiagnosticsTool, EditFileTool,
-    FetchTool, FindPathTool, FindReferencesTool, GetCodeActionsTool, GoToDefinitionTool, GrepTool,
-    InstallMcpServerTool, ListAgentsAndModelsTool, ListDirectoryTool, MovePathTool, ProjectSnapshot,
-    ReadFileTool,
-    RenameTool, SandboxServiceTool, SandboxTool, SandboxedTerminalTool, SemanticSearchTool,
-    SpawnAgentTool,
-    SpawnScionAgentTool, SystemPromptTemplate, Template, Templates, TerminalTool,
-    ToolPermissionDecision, WebSearchTool, WriteFileTool, decide_permission_from_settings,
-=======
-    ApplyCodeActionTool, AskUserTool, CodeActionStore, ContextServerRegistry, CopyPathTool,
-    CreateDirectoryTool, CreateThreadTool, DbLanguageModel, DbThread, DeletePathTool,
+    AdoptPersonaTool, ApplyCodeActionTool, AskUserTool, CodeActionStore, ContextServerRegistry,
+    CopyPathTool, CreateDirectoryTool, CreateThreadTool, DbLanguageModel, DbThread, DeletePathTool,
     DiagnosticsTool, EditFileTool, FetchTool, FindPathTool, FindReferencesTool, GetCodeActionsTool,
-    GoToDefinitionTool, GrepTool, ListAgentsAndModelsTool, ListDirectoryTool, MovePathTool,
-    ProjectSnapshot, ReadFileTool, RenameTool, SandboxedTerminalTool, SpawnAgentTool,
+    GoToDefinitionTool, GrepTool, InstallMcpServerTool, ListAgentsAndModelsTool, ListDirectoryTool,
+    MovePathTool, ProjectSnapshot, ReadFileTool, RenameTool, SandboxServiceTool, SandboxTool,
+    SandboxedTerminalTool, SemanticSearchTool, SpawnAgentTool, SpawnScionAgentTool,
     SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision, WebSearchTool,
     WriteFileTool, decide_permission_from_settings,
->>>>>>> zed/main
 };
 use acp_thread::{ClientUserMessageId, MentionUri};
 use action_log::ActionLog;
@@ -57,8 +45,8 @@ use language_model::{
     LanguageModelId, LanguageModelImage, LanguageModelProviderId, LanguageModelRegistry,
     LanguageModelRequest, LanguageModelRequestMessage, LanguageModelRequestTool,
     LanguageModelToolResult, LanguageModelToolResultContent, LanguageModelToolSchemaFormat,
-    LanguageModelToolUse, LanguageModelToolUseId, MessageContent, Role, SelectedModel, Speed,
-    StopReason, TokenUsage, PADDLEBOARD_CLOUD_PROVIDER_ID,
+    LanguageModelToolUse, LanguageModelToolUseId, MessageContent, PADDLEBOARD_CLOUD_PROVIDER_ID,
+    Role, SelectedModel, Speed, StopReason, TokenUsage,
 };
 use project::{Project, trusted_worktrees::TrustedWorktrees};
 use prompt_store::ProjectContext;
@@ -2251,7 +2239,10 @@ impl Thread {
         // tester" by switching this thread's persona. Registered only while
         // the persona system is enabled.
         if paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled {
-            self.add_tool(AdoptPersonaTool::new(cx.weak_entity(), self.project.clone()));
+            self.add_tool(AdoptPersonaTool::new(
+                cx.weak_entity(),
+                self.project.clone(),
+            ));
         }
 
         // PaddleBoard: local semantic search over the project, indexed on demand
@@ -4515,13 +4506,12 @@ impl Thread {
         // PaddleBoard: persona overlay is injected only while the persona
         // system is enabled; the stored persona is kept so re-enabling the
         // setting restores it.
-        let persona_overlay = if paddleboard_personas_settings::PersonasSettings::get_global(cx)
-            .enabled
-        {
-            self.persona.as_ref().map(|persona| persona.overlay.clone())
-        } else {
-            None
-        };
+        let persona_overlay =
+            if paddleboard_personas_settings::PersonasSettings::get_global(cx).enabled {
+                self.persona.as_ref().map(|persona| persona.overlay.clone())
+            } else {
+                None
+            };
         let system_prompt = SystemPromptTemplate {
             project: self.project_context.read(cx),
             available_tools,

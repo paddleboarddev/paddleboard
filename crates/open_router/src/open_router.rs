@@ -15,7 +15,10 @@ use strum::EnumString;
 use thiserror::Error;
 
 pub const OPEN_ROUTER_API_URL: &str = "https://openrouter.ai/api/v1";
-const OPEN_ROUTER_APP_TITLE: &str = "Zed";
+// PaddleBoard: this title is what OpenRouter shows for the calling app, so it carries
+// the fork's name rather than upstream's. Kept as a one-line constant override so the
+// call sites stay identical to upstream and future merges resolve mechanically.
+const OPEN_ROUTER_APP_TITLE: &str = "PaddleBoard";
 
 fn extract_retry_after(headers: &http::HeaderMap) -> Option<std::time::Duration> {
     if let Some(reset) = headers.get("X-RateLimit-Reset") {
@@ -497,68 +500,9 @@ pub async fn stream_completion(
     request: Request,
     extra_headers: &CustomHeaders,
 ) -> Result<BoxStream<'static, Result<ResponseStreamEvent, OpenRouterError>>, OpenRouterError> {
-<<<<<<< HEAD
-    let uri = format!("{api_url}/chat/completions");
-    let request = HttpRequest::builder()
-        .method(Method::POST)
-        .uri(uri)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("HTTP-Referer", "https://zed.dev")
-        .header("X-Title", "PaddleBoard")
-        .extra_headers(extra_headers)
-        .body(AsyncBody::from(
-            serde_json::to_string(&request).map_err(OpenRouterError::SerializeRequest)?,
-        ))
-        .map_err(OpenRouterError::BuildRequestBody)?;
-    let mut response = client
-        .send(request)
-        .await
-        .map_err(OpenRouterError::HttpSend)?;
-
-    if response.status().is_success() {
-        let reader = BufReader::new(response.into_body());
-        Ok(reader
-            .lines()
-            .filter_map(|line| async move {
-                match line {
-                    Ok(line) => {
-                        if line.starts_with(':') {
-                            return None;
-                        }
-
-                        let line = line.strip_prefix("data: ")?;
-                        if line == "[DONE]" {
-                            None
-                        } else {
-                            match serde_json::from_str::<ResponseStreamEvent>(line) {
-                                Ok(response) => Some(Ok(response)),
-                                Err(error) => {
-                                    if line.trim().is_empty() {
-                                        None
-                                    } else {
-                                        Some(Err(OpenRouterError::DeserializeResponse(error)))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Err(error) => Some(Err(OpenRouterError::ReadResponse(error))),
-                }
-            })
-            .boxed())
-    } else {
-        let code = ApiErrorCode::from_status(response.status().as_u16());
-
-        let mut body = String::new();
-        response
-            .body_mut()
-            .read_to_string(&mut body)
-=======
     let headers = completion_headers(extra_headers);
     let events =
         open_ai::stream_chat_completion(client, "OpenRouter", api_url, api_key, &headers, &request)
->>>>>>> zed/main
             .await
             .map_err(OpenRouterError::from_chat_completion_request_error)?;
     Ok(events
@@ -615,11 +559,7 @@ pub async fn list_models(
         .header("Accept", "application/json")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("HTTP-Referer", "https://zed.dev")
-<<<<<<< HEAD
-        .header("X-Title", "PaddleBoard")
-=======
         .header("X-Title", OPEN_ROUTER_APP_TITLE)
->>>>>>> zed/main
         .extra_headers(extra_headers)
         .body(AsyncBody::default())
         .map_err(OpenRouterError::BuildRequestBody)?;

@@ -7762,7 +7762,7 @@ dependencies = [
  "collections",
  "core-foundation 0.10.0",
  "core-video",
- "derive_more",
+ "derive_more 2.1.1",
  "etagere",
  "foreign-types 0.5.0",
  "gpui",
@@ -7841,10 +7841,6 @@ dependencies = [
  "core-graphics 0.24.0",
  "core-text",
  "ctor",
-<<<<<<< HEAD
- "derive_more 2.1.1",
-=======
->>>>>>> zed/main
  "dispatch2",
  "foreign-types 0.5.0",
  "futures 0.3.32",
@@ -9917,11 +9913,8 @@ dependencies = [
  "serde",
  "serde_json",
  "settings",
-<<<<<<< HEAD
+ "sha2 0.10.9",
  "smol",
-=======
- "sha2",
->>>>>>> zed/main
  "strum 0.27.2",
  "thiserror 2.0.17",
  "tokio",

@@ -34,21 +34,12 @@ use git::{
     blame::Blame,
     parse_git_remote_url,
     repository::{
-<<<<<<< HEAD
-        Branch, BranchesScanResult, CommitData, CommitDetails, CommitDiff, CommitFile,
-        CommitOptions, Contributor, CreateWorktreeTarget, DiffStatType, DiffType, FetchOptions,
+        Branch, BranchesScanResult, CommitData, CommitDetails, CommitFileStatus, CommitOptions,
+        Contributor, CreateWorktreeTarget, DiffStatType, DiffType, FetchOptions,
         FileHistoryChangedFileSets, GitCommitTemplate, GitRepository, GitRepositoryCheckpoint,
         InitialGraphCommitData, LogOrder, LogSource, PushOptions, Remote, RemoteCommandOutput,
         RepoPath, ResetMode, SearchCommitArgs, UpstreamTrackingStatus, Worktree as GitWorktree,
-        delete_branch_flag,
-=======
-        Branch, BranchesScanResult, CommitData, CommitDetails, CommitFileStatus, CommitOptions,
-        CreateWorktreeTarget, DiffStatType, DiffType, FetchOptions, FileHistoryChangedFileSets,
-        GitCommitTemplate, GitRepository, GitRepositoryCheckpoint, InitialGraphCommitData,
-        LogOrder, LogSource, PushOptions, Remote, RemoteCommandOutput, RepoPath, ResetMode,
-        SearchCommitArgs, UpstreamTrackingStatus, Worktree as GitWorktree, delete_branch_flag,
-        is_binary_content,
->>>>>>> zed/main
+        delete_branch_flag, is_binary_content,
     },
     stash::{GitStash, StashEntry},
     status::{
