@@ -5961,7 +5961,6 @@ mod tests {
                 "copilot",
                 "copilot_edit_predictions",
                 "crewai",
-                "csv",
                 "debug_panel",
                 "debugger",
                 "dev",

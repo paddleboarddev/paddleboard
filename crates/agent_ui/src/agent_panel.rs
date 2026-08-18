@@ -7637,7 +7637,7 @@ mod tests {
             acp::ContentChunk::new("New response".into()),
         )]);
         user_message_editor.update_in(cx, |_editor, window, cx| {
-            window.dispatch_action(Box::new(zed_actions::agent::Chat), cx);
+            window.dispatch_action(Box::new(paddleboard_actions::agent::Chat), cx);
         });
         cx.update(|window, _cx| window.blur());
         cx.run_until_parked();
