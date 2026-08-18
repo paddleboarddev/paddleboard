@@ -73,6 +73,22 @@ case. "Finished" and "released" are deliberately decoupled.
    read `target/visual_tests/<test>_diff.png` before deciding it's a regression; if the
    UI changed on purpose, re-record with `script/visual-test --update` and review the
    image diff in the commit.
+
+   ⚠️ **Run it on the built-in Retina display.** The baselines are recorded at a **2x**
+   backing-store scale. On a 1x external monitor — e.g. the 3840x1080 ultrawide — every
+   capture comes out at exactly **half** the baseline's pixel dimensions and the suite
+   reports near-total failure: on 2026-08-14 it returned **12 of 13 failed at 12-23%
+   match**, which reads exactly like a catastrophic regression and is purely an artifact
+   of which monitor the window opened on.
+
+   **The dangerous part is the obvious fix.** `--update` at 1x silently re-records all 24
+   baselines at half resolution: the suite goes green, permanently loses the ability to
+   catch sub-pixel drift, and breaks for anyone on a Retina display. **Check the image
+   dimensions before believing a mass failure** —
+   `sips -g pixelWidth -g pixelHeight crates/paddleboard/test_fixtures/visual_tests/<t>.png`
+   against `target/visual_tests/<t>.png`. An exact 2:1 ratio across unrelated tests is a
+   display mismatch, never a code regression; a real regression does not resize
+   `breakpoint_hover_none` and `git_login_modal` by the same factor at once.
 3. Bump `crates/paddleboard/Cargo.toml` `version` to the next number; commit on `main`.
 4. Publish the source snapshot to the public repo (note: **no** `FIRST_PUBLISH` — this
    *appends* a new commit onto the public history rather than replacing it):
