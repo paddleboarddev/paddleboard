@@ -12,10 +12,7 @@ use editor::Editor;
 use git::{
     BuildCommitPermalinkParams, GitHostingProviderRegistry, GitRemote, Oid, ParsedGitRemote,
     parse_git_remote_url,
-    repository::{
-        CommitDiff, CommitFile, InitialGraphCommitData, LogOrder, LogSource, RepoPath,
-        SearchCommitArgs,
-    },
+    repository::{InitialGraphCommitData, LogOrder, LogSource, RepoPath, SearchCommitArgs},
     status::{FileStatus, StatusCode, TrackedStatus},
 };
 use git_ui::{
@@ -39,8 +36,8 @@ use picker::{Picker, PickerDelegate};
 use project::{
     ProjectPath,
     git_store::{
-        CommitDataState, GitGraphEvent, GitStore, GitStoreEvent, GraphDataResponse, Repository,
-        RepositoryEvent, RepositoryId,
+        CommitDataState, CommitDiff, CommitFile, GitGraphEvent, GitStore, GitStoreEvent,
+        GraphDataResponse, Repository, RepositoryEvent, RepositoryId,
     },
 };
 use project_panel::ProjectPanel;
@@ -1732,6 +1729,10 @@ impl GitGraph {
         Chip::new(name.clone())
             .label_size(LabelSize::Small)
             .truncate()
+            .tooltip({
+                let name = name.clone();
+                move |_, cx| Tooltip::simple(name.clone(), cx)
+            })
             .map(|chip| {
                 if is_head {
                     chip.icon(IconName::Check)
@@ -1761,6 +1762,7 @@ impl GitGraph {
             return chip.into_any_element();
         };
         div()
+            .min_w_0()
             .child(chip)
             .on_mouse_down(
                 MouseButton::Right,
