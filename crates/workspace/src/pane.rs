@@ -4696,6 +4696,10 @@ impl Render for Pane {
 }
 
 impl ItemNavHistory {
+    pub fn is_preview_item(&self) -> bool {
+        self.history.0.lock().preview_item_id == Some(self.item.id())
+    }
+
     pub fn push<D: 'static + Any + Send + Sync>(
         &mut self,
         data: Option<D>,
@@ -4707,19 +4711,18 @@ impl ItemNavHistory {
             .upgrade()
             .is_some_and(|item| item.include_in_nav_history())
         {
-            let is_preview_item = self.history.0.lock().preview_item_id == Some(self.item.id());
+            let is_preview_item = self.is_preview_item();
             self.history
                 .push(data, self.item.clone(), is_preview_item, row, cx);
         }
     }
 
     pub fn navigation_entry(&self, data: Option<Arc<dyn Any + Send + Sync>>) -> NavigationEntry {
-        let is_preview_item = self.history.0.lock().preview_item_id == Some(self.item.id());
         NavigationEntry {
             item: self.item.clone(),
             data,
             timestamp: 0,
-            is_preview: is_preview_item,
+            is_preview: self.is_preview_item(),
             row: None,
         }
     }

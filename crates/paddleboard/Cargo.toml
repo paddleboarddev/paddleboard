@@ -71,9 +71,11 @@ required-features = ["visual-tests"]
 browser.workspace = true
 llm_picker.workspace = true
 acp_tools.workspace = true
+action_log = { workspace = true, optional = true }
 activity_indicator.workspace = true
-agent.workspace = true
 agent-client-protocol.workspace = true
+agent.workspace = true
+agent_servers = { workspace = true, optional = true }
 agent_settings.workspace = true
 agent_skills.workspace = true
 agent_ui = { workspace = true, features = ["audio"] }
@@ -89,16 +91,15 @@ channel.workspace = true
 clap.workspace = true
 cli.workspace = true
 client.workspace = true
+clock = { workspace = true, optional = true }
 codestral.workspace = true
 collections.workspace = true
 command_palette.workspace = true
-component.workspace = true
 component_preview.workspace = true
 copilot.workspace = true
 copilot_chat.workspace = true
 copilot_ui.workspace = true
 crashes.workspace = true
-csv_preview.workspace = true
 dap_adapters.workspace = true
 db.workspace = true
 debug_adapter_extension.workspace = true
@@ -133,15 +134,15 @@ gpui_platform = {workspace = true, features=["screen-capture", "font-kit", "wayl
 image = { workspace = true, optional = true }
 semver.workspace = true
 tempfile = { workspace = true, optional = true }
-clock = { workspace = true, optional = true }
 acp_thread.workspace = true
-action_log = { workspace = true, optional = true }
-agent_servers = { workspace = true, optional = true }
 # PaddleBoard: visual-tests-only, for stubbing the keychain in the git-login modal test
 credentials_provider = { workspace = true, optional = true }
 paddleboard_credentials_provider.workspace = true
 gpui_tokio.workspace = true
+spin = "0.10.0"
+itertools.workspace = true
 rayon.workspace = true
+tabular_data_preview.workspace = true
 
 edit_prediction.workspace = true
 edit_prediction_ui.workspace = true
@@ -168,9 +169,9 @@ markdown.workspace = true
 markdown_preview.workspace = true
 menu.workspace = true
 migrator.workspace = true
-miniprofiler_ui.workspace = true
 mimalloc = { version = "0.1", optional = true }
 nc.workspace = true
+miniprofiler_ui.workspace = true
 node_runtime.workspace = true
 notifications.workspace = true
 onboarding.workspace = true
@@ -208,21 +209,19 @@ snippets_ui.workspace = true
 svg_preview.workspace = true
 sysinfo.workspace = true
 tab_switcher.workspace = true
-task.workspace = true
 tasks_ui.workspace = true
 telemetry.workspace = true
 telemetry_events.workspace = true
 terminal_view.workspace = true
 theme.workspace = true
-theme_settings.workspace = true
 theme_extension.workspace = true
 theme_selector.workspace = true
+theme_settings.workspace = true
 time.workspace = true
 time_format.workspace = true
 title_bar.workspace = true
-ztracing.workspace = true
-tracing.workspace = true
 toolchain_selector.workspace = true
+tracing.workspace = true
 ui.workspace = true
 ui_prompt.workspace = true
 url.workspace = true
@@ -263,6 +262,7 @@ paddleboard_usage.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 zlog.workspace = true
 zlog_settings.workspace = true
+ztracing.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 etw_tracing.workspace = true
@@ -349,5 +349,5 @@ osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
-[package.metadata.cargo-machete]
-ignored = ["profiling", "zstd", "tracing"]
+[package.metadata.cargo-shear]
+ignored = ["profiling", "tracing"]
