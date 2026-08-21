@@ -74,9 +74,6 @@ uuid.workspace = true
 vim_mode_setting.workspace = true
 paddleboard_actions.workspace = true
 
-[target.'cfg(target_os = "windows")'.dependencies]
-windows.workspace = true
-
 [dev-dependencies]
 client = { workspace = true, features = ["test-support"] }
 db = { workspace = true, features = ["test-support"] }

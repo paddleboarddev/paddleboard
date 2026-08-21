@@ -1,5 +1,10 @@
 name = "Kotlin"
-grammar = "kotlin"
+# PaddleBoard: no grammar. `tree-sitter-kotlin-codanna` was dropped in the
+# 2026-08-20 upstream merge — it links crates.io tree-sitter and collides with
+# upstream's 0.27 git rev over `links = "tree-sitter"`, and has no 0.27-compatible
+# release. Kotlin therefore registers LSP-only (kotlin-language-server): no syntax
+# highlighting, but completions/diagnostics work. The .scm queries in this
+# directory are kept so restoring a grammar is a one-line change.
 path_suffixes = ["kt", "kts"]
 line_comments = ["// "]
 brackets = [
