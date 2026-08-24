@@ -870,6 +870,7 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
             add_panel_when_ready(terminal_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(git_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(debug_panel, workspace_handle.clone(), cx.clone()),
+<<<<<<< HEAD:crates/paddleboard/src/zed.rs
             add_panel_when_ready(browser_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(llm_picker_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(orchestration_panel, workspace_handle.clone(), cx.clone()),
@@ -910,6 +911,14 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
                 }
             })
             .log_err();
+=======
+            initialize_agent_panel(workspace_handle.clone(), cx.clone()).map(|r| r.log_err()),
+        );
+
+        workspace_handle.update(cx, |workspace, cx| {
+            workspace.finish_dock_restoration(cx);
+        })?;
+>>>>>>> zed/main:crates/zed/src/zed.rs
 
         anyhow::Ok(())
     })
@@ -1891,13 +1900,7 @@ fn quit(_: &Quit, cx: &mut App) {
         for window in &workspace_windows {
             window
                 .update(cx, |multi_workspace, window, cx| {
-                    for workspace in multi_workspace.workspaces() {
-                        flush_tasks.push(workspace.update(cx, |workspace, cx| {
-                            workspace.flush_serialization(window, cx)
-                        }));
-                    }
-                    flush_tasks.append(&mut multi_workspace.take_pending_removal_tasks());
-                    flush_tasks.push(multi_workspace.flush_serialization());
+                    flush_tasks.extend(multi_workspace.flush_pending_serialization(window, cx));
                 })
                 .log_err();
         }
