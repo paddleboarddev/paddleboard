@@ -299,14 +299,16 @@ enum AgentIcon {
 }
 
 // PaddleBoard: shared provider ordering for the settings list and the model picker —
-// Zed first, then the cloud-hyperscaler group (Amazon Bedrock + the two Google offerings)
-// together, then everything else alphabetically by display name.
+// the cloud-hyperscaler group (Amazon Bedrock + the two Google offerings) first, then
+// everything else alphabetically by display name, then Zed last. Zed's hosted service
+// is upstream's, credited by name but optional, so it sits at the end of the list
+// rather than heading it.
 pub(crate) fn paddleboard_order_providers(providers: &mut [Arc<dyn LanguageModelProvider>]) {
     providers.sort_by_key(|provider| {
         let group = match provider.id().0.as_ref() {
-            "zed.dev" => 0,
-            "amazon-bedrock" | "google" | "vertex" => 1,
-            _ => 2,
+            "amazon-bedrock" | "google" | "vertex" => 0,
+            "zed.dev" => 2,
+            _ => 1,
         };
         (group, provider.name().0.to_lowercase())
     });
