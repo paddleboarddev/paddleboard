@@ -45,6 +45,10 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
         MenuItem::action("Terminal Panel", terminal_panel::Toggle),
         MenuItem::action("Debugger Panel", debug_panel::ToggleFocus),
         MenuItem::action("Agent Panel", assistant::ToggleFocus),
+        // PaddleBoard: the AI Dock is a modal rather than a panel, but this is
+        // where someone looks for the AI surfaces. Without it the dock had no
+        // menu entry at all, leaving the command palette its only route in.
+        MenuItem::action("AI Dock", paddleboard_actions::ai_dock::Open),
         MenuItem::action("Git Panel", git_panel::ToggleFocus),
         MenuItem::separator(),
         MenuItem::action("Diagnostics", diagnostics::Deploy),
