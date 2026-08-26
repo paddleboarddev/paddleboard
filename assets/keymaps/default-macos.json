@@ -726,6 +726,12 @@
       "cmd-7": ["workspace::ActivatePane", 6],
       "cmd-8": ["workspace::ActivatePane", 7],
       "cmd-9": ["workspace::ActivatePane", 8],
+      // PaddleBoard: the AI Dock had no keybinding and no menu entry, so the
+      // command palette was its only route in. "a" for AI Dock; the mnemonic
+      // single chords (cmd-alt-d, -a, -k) are all taken, and the d-family
+      // collides with editor::DeleteToNextSubwordEnd on Linux/Windows, which
+      // would shadow this wherever an editor has focus.
+      "cmd-k cmd-a": "ai_dock::Open",
       "cmd-b": "workspace::ToggleLeftDock",
       "cmd-alt-b": "workspace::ToggleRightDock",
       "cmd-r": "workspace::ToggleRightDock",
