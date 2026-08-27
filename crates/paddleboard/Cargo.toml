@@ -15,6 +15,11 @@ default-run = "paddleboard"
 workspace = true
 
 [features]
+inspector = [
+    "gpui/inspector",
+    "inspector_ui/inspector",
+    "ui/derive_inspector_reflection",
+]
 tracy = ["ztracing/tracy"]
 # LEAK_BACKTRACE=1 cargo run --features zed/track-project-leak --profile release-fast
 track-project-leak = ["gpui/leak-detection"]
@@ -267,20 +272,13 @@ ztracing.workspace = true
 [target.'cfg(target_os = "windows")'.dependencies]
 etw_tracing.workspace = true
 windows.workspace = true
-gpui = { workspace = true, features = [
-    "profiler",
-    "windows-manifest",
-] }
+gpui = { workspace = true, features = ["profiler", "windows-manifest"] }
 
 [build-dependencies]
 windows_resources = { path = "../windows_resources" }
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
-gpui = { workspace = true, features = [
-    "profiler",
-    "wayland",
-    "x11",
-] }
+gpui = { workspace = true, features = ["profiler", "wayland", "x11"] }
 ashpd.workspace = true
 image.workspace = true
 
@@ -314,7 +312,6 @@ image.workspace = true
 agent_ui = { workspace = true, features = ["test-support"] }
 search = { workspace = true, features = ["test-support"] }
 repl = { workspace = true, features = ["test-support"] }
-
 
 
 [package.metadata.bundle-dev]
