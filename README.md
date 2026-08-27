@@ -63,7 +63,6 @@ Everything you rely on still works — and these additions are all reachable fro
 
 - **Manifest panel — your git state at a glance.** A dockable tree of the project's git world: **Repositories** (multi-repo aware, click to switch the active repo), **Branches** (with ahead/behind counts), **Commits** (click one to open its diff), **Stashes** (click to apply/pop/drop), and **Contributors** (authors ranked by commit count). Reads entirely from state PaddleBoard already tracks — instant, and no git commands on the UI thread. See [WELCOME.md](./WELCOME.md#manifest--your-git-state-at-a-glance) for details.
 
-<<<<<<< HEAD
 - **Tiered language support.** A *Ready to use* tier (Rust, TypeScript/JavaScript, Python, Go, JSON, YAML, HTML/CSS, Dockerfile, and more) attaches automatically and downloads on first use — Dockerfiles (and Podman `Containerfile`s) get syntax highlighting plus `docker-langserver` out of the box. Languages that need an external toolchain — Java, Kotlin, PHP (via jdtls/kotlin-language-server/intelephense), C#, C++, and Swift — are opt-in: run `Manage Languages` from the command palette to enable a server in one click, with its prerequisite (JDK 17+, Node, .NET, or the Swift toolchain) shown up front so it never fails silently when the runtime is missing. (Swift's SourceKit-LSP ships with the platform toolchain and is resolved from PATH rather than downloaded.) See [WELCOME.md](./WELCOME.md#built-in-language-servers) for the full breakdown.
 
 - **Offline prose checking.** Markdown files and git commit messages get spelling and grammar checking by default via [Harper](https://writewithharper.com) — privacy-first and fully local, so no text leaves your machine. Squiggles come with quick-fix suggestions; keep a deliberate word with `cmd-.` → Add to dictionary.
@@ -116,8 +115,3 @@ PaddleBoard inherits Zed's tri-license (AGPL / Apache 2.0 / GPL). See the `LICEN
 ## Credits
 
 PaddleBoard builds on a lot of open-source work. See [CREDITS.md](./CREDITS.md) for the third-party language and prose servers it integrates (and their licenses), and `assets/licenses.md` for the full Rust dependency manifest.
-=======
-If you’d like to financially support the project, you can do so via GitHub Sponsors.
-Sponsorships go directly to Zed Industries and are used as general company revenue.
-There are no perks or entitlements associated with sponsorship.
->>>>>>> zed/main

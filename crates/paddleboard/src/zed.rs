@@ -870,13 +870,21 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
             add_panel_when_ready(terminal_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(git_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(debug_panel, workspace_handle.clone(), cx.clone()),
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
             add_panel_when_ready(browser_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(llm_picker_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(orchestration_panel, workspace_handle.clone(), cx.clone()),
             add_panel_when_ready(manifest_panel, workspace_handle.clone(), cx.clone()),
-            initialize_agent_panel(workspace_handle, cx.clone()).map(|r| r.log_err()),
+            initialize_agent_panel(workspace_handle.clone(), cx.clone()).map(|r| r.log_err()),
         );
+
+        workspace_handle.update(cx, |workspace, cx| {
+            workspace.finish_dock_restoration(cx);
+        })?;
+
+        // PaddleBoard: upstream's `finish_dock_restoration` must run BEFORE the
+        // browser-panel cleanup below. Restoration re-applies the persisted
+        // active panel, so running the cleanup first would let a serialized
+        // "browser is active" state win anyway.
 
         // The browser panel must never be the active/visible panel at startup —
         // it's an opt-in surface, not a default workspace. If a previous session
@@ -911,14 +919,6 @@ fn initialize_panels(window: &mut Window, cx: &mut Context<Workspace>) -> Task<a
                 }
             })
             .log_err();
-=======
-            initialize_agent_panel(workspace_handle.clone(), cx.clone()).map(|r| r.log_err()),
-        );
-
-        workspace_handle.update(cx, |workspace, cx| {
-            workspace.finish_dock_restoration(cx);
-        })?;
->>>>>>> zed/main:crates/zed/src/zed.rs
 
         anyhow::Ok(())
     })

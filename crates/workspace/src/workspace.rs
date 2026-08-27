@@ -3381,26 +3381,14 @@ impl Workspace {
                 }
             })?;
 
-<<<<<<< HEAD
-            #[cfg(target_os = "macos")]
-            let save_last_workspace = false;
-
-            // On Linux and Windows, closing the last window should restore the last workspace.
-            #[cfg(not(target_os = "macos"))]
-            let save_last_workspace = {
-                let remaining_workspaces = cx.update(|_window, cx| {
-=======
-            let workspace_count = cx.update(|_window, cx| {
-                cx.windows()
-                    .iter()
-                    .filter(|window| window.downcast::<MultiWorkspace>().is_some())
-                    .count()
-            })?;
+            // PaddleBoard: upstream binds `workspace_count` here and uses it only
+            // in its `active_call` branch below, which this fork does not have —
+            // the `call` and `collab` crates are deleted. Restoring the binding
+            // would be an unused-variable warning, and CI denies warnings.
 
             let (remaining_workspaces, closing_last_window_quits) = cx.update(|window, cx| {
                 let current_window = window.window_handle();
                 let remaining_workspaces =
->>>>>>> zed/main
                     cx.windows()
                         .into_iter()
                         .filter(|window| *window != current_window)
