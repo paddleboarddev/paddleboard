@@ -616,6 +616,7 @@
       "shift-f12": "editor::GoToImplementation",
       "alt-cmd-f12": "editor::GoToTypeDefinitionSplit",
       "alt-shift-f12": "editor::FindAllReferences",
+      "cmd-k cmd-h": "call_hierarchy::ShowIncomingCalls",
       "cmd-|": "editor::MoveToEnclosingBracket",
       "ctrl-m": "editor::MoveToEnclosingBracket", // From Jetbrains
       "alt-cmd-[": "editor::Fold",
@@ -658,6 +659,14 @@
     "bindings": {
       "cmd-k v": "svg::OpenPreviewToTheSide",
       "cmd-shift-v": "svg::OpenPreview",
+    },
+  },
+  {
+    "context": "Editor && (extension == csv || extension == tsv || extension == ssv || extension == psv)",
+    "use_key_equivalents": true,
+    "bindings": {
+      "cmd-k v": "tabular_data::OpenPreviewToTheSide",
+      "cmd-shift-v": "tabular_data::OpenPreview",
     },
   },
   {
@@ -1212,6 +1221,50 @@
     },
   },
   {
+<<<<<<< HEAD
+=======
+    "context": "CollabPanel && not_editing",
+    "use_key_equivalents": true,
+    "bindings": {
+      "ctrl-backspace": "collab_panel::Remove",
+      "space": "menu::Confirm",
+    },
+  },
+  {
+    "context": "CollabPanel",
+    "use_key_equivalents": true,
+    "bindings": {
+      "alt-up": "collab_panel::MoveChannelUp",
+      "alt-down": "collab_panel::MoveChannelDown",
+      "alt-enter": "collab_panel::OpenSelectedChannelNotes",
+      "shift-enter": "collab_panel::ToggleSelectedChannelFavorite",
+    },
+  },
+  {
+    "context": "(CollabPanel && editing) > Editor",
+    "use_key_equivalents": true,
+    "bindings": {
+      "space": "collab_panel::InsertSpace",
+    },
+  },
+  {
+    "context": "ChannelModal",
+    "use_key_equivalents": true,
+    "bindings": {
+      "tab": "channel_modal::ToggleMode",
+    },
+  },
+  {
+    "context": "CallHierarchyPicker > Picker > Editor",
+    "use_key_equivalents": true,
+    "bindings": {
+      "cmd-k cmd-h": "call_hierarchy::ToggleDirection",
+      "cmd-k right": "menu::SelectChild",
+      "cmd-k left": "menu::SelectParent",
+    },
+  },
+  {
+>>>>>>> zed/main
     "context": "Picker > Editor",
     "use_key_equivalents": true,
     "bindings": {

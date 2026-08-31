@@ -51,6 +51,7 @@ pub struct EditorSettings {
     pub search_wrap: bool,
     pub search: SearchSettings,
     pub auto_signature_help: bool,
+    pub language_detection: bool,
     pub show_signature_help_after_edits: bool,
     pub go_to_definition_fallback: GoToDefinitionFallback,
     pub go_to_definition_scroll_strategy: GoToDefinitionScrollStrategy,
@@ -195,8 +196,12 @@ pub struct SearchSettings {
     pub regex: bool,
     /// Whether to center the cursor on each search match when navigating.
     pub center_on_match: bool,
+<<<<<<< HEAD
     // PaddleBoard: search-as-you-type for project search (upstream Zed #9318).
     /// Whether project search runs automatically (debounced) as you type.
+=======
+    /// Start searching as you type in project search, without pressing Enter.
+>>>>>>> zed/main
     pub search_on_type: bool,
 }
 
@@ -303,6 +308,7 @@ impl Settings for EditorSettings {
                 search_on_type: search.search_on_type.unwrap(),
             },
             auto_signature_help: editor.auto_signature_help.unwrap(),
+            language_detection: editor.language_detection.unwrap(),
             show_signature_help_after_edits: editor.show_signature_help_after_edits.unwrap(),
             go_to_definition_fallback: editor.go_to_definition_fallback.unwrap(),
             go_to_definition_scroll_strategy: editor.go_to_definition_scroll_strategy.unwrap(),
