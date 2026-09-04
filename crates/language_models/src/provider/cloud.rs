@@ -31,7 +31,7 @@ use language_model::{
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
     LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
     LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
-    LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
+    LanguageModelToolChoice, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
     ProviderSettingsView, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
 };
@@ -596,11 +596,16 @@ impl From<ApiError> for LanguageModelCompletionError {
                         .unwrap_or(error.status)
                 };
 
-                return LanguageModelCompletionError::UpstreamProviderError {
-                    message: cloud_error.message,
+                // PaddleBoard: upstream replaced UpstreamProviderError with
+                // ProviderRejection + a category; from_http_status builds it and
+                // assigns the category. The `status` above is still the
+                // upstream_http_-decoded one, so that detail survives.
+                return LanguageModelCompletionError::from_http_status(
+                    PROVIDER_NAME,
                     status,
-                    retry_after: cloud_error.retry_after.map(Duration::from_secs_f64),
-                };
+                    cloud_error.message,
+                    cloud_error.retry_after.map(Duration::from_secs_f64),
+                );
             }
 
             return LanguageModelCompletionError::from_http_status(
@@ -711,22 +716,6 @@ impl LanguageModel for CloudLanguageModel {
 
     fn telemetry_id(&self) -> String {
         format!("zed.dev/{}", self.model.id)
-    }
-
-    fn tool_input_format(&self) -> LanguageModelToolSchemaFormat {
-        match self.model.provider {
-            cloud_llm_client::LanguageModelProvider::Anthropic
-            | cloud_llm_client::LanguageModelProvider::OpenAi
-            // PaddleBoard: Baseten serves an OpenAI-compatible API, so it takes the
-            // same request path and schema format as OpenAi throughout this file.
-            | cloud_llm_client::LanguageModelProvider::Baseten => {
-                LanguageModelToolSchemaFormat::JsonSchema
-            }
-            cloud_llm_client::LanguageModelProvider::Google
-            | cloud_llm_client::LanguageModelProvider::XAi => {
-                LanguageModelToolSchemaFormat::JsonSchemaSubset
-            }
-        }
     }
 
     fn max_token_count(&self) -> u64 {

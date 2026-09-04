@@ -252,23 +252,15 @@ mod python_locator {
     async fn test_python_locator() {
         let adapter = DebugAdapterName("Debugpy".into());
         let build_task = TaskTemplate {
-<<<<<<< HEAD
             label: "run module '$PADDLEBOARD_FILE'".into(),
             command: "$PADDLEBOARD_CUSTOM_PYTHON_ACTIVE_PADDLEBOARD_TOOLCHAIN".into(),
             args: vec!["-m".into(), "$PADDLEBOARD_CUSTOM_PYTHON_MODULE_NAME".into()],
-            env: Default::default(),
-            cwd: Some("$PADDLEBOARD_WORKTREE_ROOT".into()),
-=======
-            label: "run module '$ZED_FILE'".into(),
-            command: "$ZED_CUSTOM_PYTHON_ACTIVE_ZED_TOOLCHAIN".into(),
-            args: vec!["-m".into(), "$ZED_CUSTOM_PYTHON_MODULE_NAME".into()],
             env: {
                 let mut env = HashMap::default();
                 env.insert("PYTHON_ENV".to_string(), "production".to_string());
                 env
             },
-            cwd: Some("$ZED_WORKTREE_ROOT".into()),
->>>>>>> zed/main
+            cwd: Some("$PADDLEBOARD_WORKTREE_ROOT".into()),
             use_new_terminal: false,
             allow_concurrent_runs: false,
             reveal: task::RevealStrategy::Always,
@@ -290,14 +282,9 @@ mod python_locator {
                 "request": "launch",
                 "python": "$PADDLEBOARD_CUSTOM_PYTHON_ACTIVE_PADDLEBOARD_TOOLCHAIN",
                 "args": [],
-<<<<<<< HEAD
                 "cwd": "$PADDLEBOARD_WORKTREE_ROOT",
                 "module": "$PADDLEBOARD_CUSTOM_PYTHON_MODULE_NAME",
-=======
-                "cwd": "$ZED_WORKTREE_ROOT",
-                "module": "$ZED_CUSTOM_PYTHON_MODULE_NAME",
                 "env": { "PYTHON_ENV": "production" },
->>>>>>> zed/main
             }),
             tcp_connection: None,
         };

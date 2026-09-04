@@ -196,12 +196,7 @@ pub struct SearchSettings {
     pub regex: bool,
     /// Whether to center the cursor on each search match when navigating.
     pub center_on_match: bool,
-<<<<<<< HEAD
-    // PaddleBoard: search-as-you-type for project search (upstream Zed #9318).
-    /// Whether project search runs automatically (debounced) as you type.
-=======
     /// Start searching as you type in project search, without pressing Enter.
->>>>>>> zed/main
     pub search_on_type: bool,
 }
 

@@ -44,15 +44,9 @@ use language_model::{
     CompletionIntent, LanguageModel, LanguageModelCompletionError, LanguageModelCompletionEvent,
     LanguageModelId, LanguageModelImage, LanguageModelProviderId, LanguageModelRegistry,
     LanguageModelRequest, LanguageModelRequestMessage, LanguageModelRequestTool,
-<<<<<<< HEAD
-    LanguageModelToolResult, LanguageModelToolResultContent, LanguageModelToolSchemaFormat,
-    LanguageModelToolUse, LanguageModelToolUseId, MessageContent, PADDLEBOARD_CLOUD_PROVIDER_ID,
-    Role, SelectedModel, Speed, StopReason, TokenUsage,
-=======
     LanguageModelToolResult, LanguageModelToolResultContent, LanguageModelToolUse,
-    LanguageModelToolUseId, MessageContent, ProviderErrorCategory, Role, SelectedModel, Speed,
-    StopReason, TokenUsage, ZED_CLOUD_PROVIDER_ID,
->>>>>>> zed/main
+    LanguageModelToolUseId, MessageContent, PADDLEBOARD_CLOUD_PROVIDER_ID,
+    ProviderErrorCategory, Role, SelectedModel, Speed, StopReason, TokenUsage,
 };
 use project::{Project, trusted_worktrees::TrustedWorktrees};
 use prompt_store::ProjectContext;

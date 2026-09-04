@@ -23,11 +23,7 @@ members = [
     "crates/benchmarks",
     "crates/breadcrumbs",
     "crates/buffer_diff",
-<<<<<<< HEAD
-=======
-    "crates/call",
     "crates/call_hierarchy",
->>>>>>> zed/main
     "crates/channel",
     "crates/cli",
     "crates/client",
@@ -334,11 +330,7 @@ aws_http_client = { path = "crates/aws_http_client" }
 bedrock = { path = "crates/bedrock" }
 breadcrumbs = { path = "crates/breadcrumbs" }
 buffer_diff = { path = "crates/buffer_diff" }
-<<<<<<< HEAD
-=======
-call = { path = "crates/call" }
 call_hierarchy = { path = "crates/call_hierarchy" }
->>>>>>> zed/main
 channel = { path = "crates/channel" }
 cli = { path = "crates/cli" }
 client = { path = "crates/client" }
@@ -628,13 +620,10 @@ aws-config = { version = "1.8.10", features = ["behavior-version-latest"] }
 aws-credential-types = { version = "1.2.8", features = [
     "hardcoded-credentials",
 ] }
-<<<<<<< HEAD
 # PaddleBoard: default-features off to drop the SDK's `rustls` feature — it
 # pulls the legacy hyper-0.14/rustls-0.21 connector (Dependabot: vulnerable,
 # unpatchable in-range). Bedrock traffic runs through our own aws_http_client;
 # `default-https-client` (rustls 0.23) stays as the SDK-side fallback.
-=======
->>>>>>> zed/main
 aws-sdk-bedrockruntime = { version = "1.112.0", default-features = false, features = [
     "behavior-version-latest",
     "default-https-client",
@@ -701,13 +690,9 @@ encoding_rs = "0.8"
 env_logger = "0.11"
 etagere = "0.2"
 exec = "0.3.1"
-<<<<<<< HEAD
-fancy-regex = "0.18.0"
+fancy-regex = "0.19"
 fork = "0.4.0"
 flate2 = "1.0"
-=======
-fancy-regex = "0.19"
->>>>>>> zed/main
 flume = "0.12"
 foreign-types = "0.5"
 futures = "0.3.32"
@@ -889,16 +874,11 @@ runtimelib = { version = "1.4.0", default-features = false, features = [
 rust-embed = { version = "8.11", features = ["include-exclude"] }
 rustc-hash = "2.1.0"
 rustix = { version = "1.1", features = ["fs"] }
-<<<<<<< HEAD
 # PaddleBoard: use the ring provider instead of the default aws-lc-rs. aws-lc's C code picks up
 # glibc-2.38+ `__isoc23_*` symbols when compiled with GCC >= 14 and then fails to link the static
 # musl remote_server (zed#24880). Bedrock still gets aws-lc via the AWS SDK's own rustls features.
 rustls = { version = "0.23.26", default-features = false, features = ["logging", "ring", "std", "tls12"] }
-rustls-platform-verifier = "0.5.0"
-=======
-rustls = { version = "0.23.26" }
 rustls-platform-verifier = "0.7"
->>>>>>> zed/main
 # WARNING: If you change this, you must also publish a new version of zed-scap to crates.io
 scap = { git = "https://github.com/zed-industries/scap", rev = "4afea48c3b002197176fb19cd0f9b180dd36eaac", default-features = false, package = "zed-scap", version = "0.0.8-zed" }
 schemars = { version = "1.0", features = ["indexmap2"] }
@@ -1095,16 +1075,12 @@ async-process = { git = "https://github.com/zed-industries/async-process.git", r
 async-task = { git = "https://github.com/smol-rs/async-task.git", rev = "b4486cd71e4e94fbda54ce6302444de14f4d190e" }
 windows-capture = { git = "https://github.com/zed-industries/windows-capture.git", rev = "f0d6c1b6691db75461b732f6d5ff56eed002eeb9" }
 calloop = { git = "https://github.com/zed-industries/calloop" }
-<<<<<<< HEAD
 # PaddleBoard: no `livekit` patch entry — the call/collab/livekit crates are
 # deleted from this fork, so the livekit crate itself left the graph (its patch
 # only produced a "was not used" warning on every cargo update). libwebrtc and
-# webrtc-sys below are still LOAD-BEARING: crates/audio depends on libwebrtc.
-libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev = "d0e27be0cdad89eadab3e36207cda0a2b6e359ee" }
-=======
-livekit = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev = "0a1c519cfce9b365229026b55de9b9dbdb6fed3c" }
+# webrtc-sys below are still LOAD-BEARING: crates/audio depends on libwebrtc,
+# and their revs must match — bump them together.
 libwebrtc = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev = "0a1c519cfce9b365229026b55de9b9dbdb6fed3c" }
->>>>>>> zed/main
 notify = { git = "https://github.com/zed-industries/notify", rev = "0890bbb8ca40a4b5d1f67031698dd7918b37d991" }
 notify-types = { git = "https://github.com/zed-industries/notify", rev = "0890bbb8ca40a4b5d1f67031698dd7918b37d991" }
 webrtc-sys = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev = "0a1c519cfce9b365229026b55de9b9dbdb6fed3c" }

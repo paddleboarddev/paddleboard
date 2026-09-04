@@ -456,6 +456,14 @@ fallible_options::flattened_deserialize!(SettingsContent {
         node, proxy, reduce_motion, server_url, credentials_url, session, telemetry, terminal,
         title_bar, vim_mode, calls, which_key, vim, modeline_lines, feature_flags,
         instrumentation,
+        // PaddleBoard: this fork's own settings sections. Upstream added this
+        // macro in the 2026-08-31 merge and naturally listed only its own
+        // fields, which is a compile error here — every field of
+        // SettingsContent must appear. Add a line whenever a paddleboard_*
+        // section is added.
+        paddleboard_auto_update, paddleboard_sandbox, paddleboard_otel,
+        paddleboard_personas, paddleboard_rag, paddleboard_scion,
+        paddleboard_ui, paddleboard_usage,
     },
     defaults: {},
 });

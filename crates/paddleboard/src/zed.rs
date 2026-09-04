@@ -1865,40 +1865,8 @@ fn quit(_: &Quit, cx: &mut App) {
             }
         }
 
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-        // If the user cancels any save prompt, then keep the app open.
-        for window in &workspace_windows {
-            let window = *window;
-            let workspaces = window
-                .update(cx, |multi_workspace, _, _cx| {
-                    multi_workspace.workspaces().cloned().collect::<Vec<_>>()
-                })
-                .log_err();
-
-            let Some(workspaces) = workspaces else {
-                continue;
-            };
-
-            for workspace in workspaces {
-                if let Some(should_close) = window
-                    .update(cx, |multi_workspace, window, cx| {
-                        multi_workspace.activate(workspace.clone(), None, window, cx);
-                        window.activate_window();
-                        workspace.update(cx, |workspace, cx| {
-                            workspace.prepare_to_close(CloseIntent::Quit, window, cx)
-                        })
-                    })
-                    .log_err()
-                {
-                    if !should_close.await? {
-                        return Ok(());
-                    }
-                }
-            }
-=======
         if !workspace::prepare_windows_to_quit(&workspace_windows, cx).await {
             return Ok(());
->>>>>>> zed/main:crates/zed/src/zed.rs
         }
 
         cx.update(|cx| cx.quit());
@@ -5970,11 +5938,7 @@ mod tests {
                 "branches",
                 "browser",
                 "buffer_search",
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-=======
                 "call_hierarchy",
-                "channel_modal",
->>>>>>> zed/main:crates/zed/src/zed.rs
                 "cli",
                 "client",
                 "collab",
@@ -7740,8 +7704,6 @@ mod tests {
     }
 
     #[gpui::test]
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
-=======
     async fn test_quit_preserves_focused_workspace_for_restore(cx: &mut TestAppContext) {
         use session::Session;
         use workspace::{OpenMode, Workspace};
@@ -8011,7 +7973,6 @@ mod tests {
     }
 
     #[gpui::test]
->>>>>>> zed/main:crates/zed/src/zed.rs
     async fn test_restored_project_groups_survive_workspace_key_change(cx: &mut TestAppContext) {
         use session::Session;
         use util::path_list::PathList;

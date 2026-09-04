@@ -774,12 +774,7 @@
     "regex": false,
     // Whether to center the cursor on each search match when navigating.
     "center_on_match": false,
-<<<<<<< HEAD
-    // PaddleBoard: whether project search runs automatically (debounced) as
-    // you type, instead of waiting for Enter.
-=======
     // Start searching as you type in project search, without pressing Enter.
->>>>>>> zed/main
     "search_on_type": true,
   },
   // When to populate a new search's query based on the text under the cursor.

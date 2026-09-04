@@ -8,15 +8,9 @@ use gpui::{App, AppContext as _, BenchAppContext, BorrowAppContext as _, Focusab
 use indoc::{formatdoc, indoc};
 use language::{Buffer, Capability, DiskState, File, LocalFile};
 use rand::{Rng as _, SeedableRng as _, rngs::StdRng};
-<<<<<<< HEAD
-use settings::SettingsStore;
-use util::RandomCharIter;
-use paddleboard_actions::editor::{MoveDown, MoveUp};
-=======
 use settings::{LocalSettingsKind, LocalSettingsPath, SettingsStore, WorktreeId};
 use util::{RandomCharIter, paths::PathStyle, rel_path::RelPath};
-use zed_actions::editor::{MoveDown, MoveUp};
->>>>>>> zed/main
+use paddleboard_actions::editor::{MoveDown, MoveUp};
 
 struct BenchFile {
     path: Arc<RelPath>,

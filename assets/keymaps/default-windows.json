@@ -1163,40 +1163,6 @@
     },
   },
   {
-<<<<<<< HEAD
-=======
-    "context": "CollabPanel && not_editing",
-    "use_key_equivalents": true,
-    "bindings": {
-      "ctrl-backspace": "collab_panel::Remove",
-      "space": "menu::Confirm",
-    },
-  },
-  {
-    "context": "CollabPanel",
-    "use_key_equivalents": true,
-    "bindings": {
-      "alt-up": "collab_panel::MoveChannelUp",
-      "alt-down": "collab_panel::MoveChannelDown",
-      "alt-enter": "collab_panel::OpenSelectedChannelNotes",
-      "shift-enter": "collab_panel::ToggleSelectedChannelFavorite",
-    },
-  },
-  {
-    "context": "(CollabPanel && editing) > Editor",
-    "use_key_equivalents": true,
-    "bindings": {
-      "space": "collab_panel::InsertSpace",
-    },
-  },
-  {
-    "context": "ChannelModal",
-    "use_key_equivalents": true,
-    "bindings": {
-      "tab": "channel_modal::ToggleMode",
-    },
-  },
-  {
     "context": "CallHierarchyPicker > Picker > Editor",
     "use_key_equivalents": true,
     "bindings": {
@@ -1206,7 +1172,6 @@
     },
   },
   {
->>>>>>> zed/main
     "context": "Picker > Editor",
     "use_key_equivalents": true,
     "bindings": {

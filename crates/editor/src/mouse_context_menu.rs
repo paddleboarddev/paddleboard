@@ -272,11 +272,11 @@ pub fn deploy_context_menu(
                 )
                 .action(
                     "Show Incoming Calls",
-                    Box::new(zed_actions::ShowIncomingCalls),
+                    Box::new(paddleboard_actions::ShowIncomingCalls),
                 )
                 .action(
                     "Show Outgoing Calls",
-                    Box::new(zed_actions::ShowOutgoingCalls),
+                    Box::new(paddleboard_actions::ShowOutgoingCalls),
                 )
                 .separator()
                 .action("Rename Symbol", Box::new(Rename))

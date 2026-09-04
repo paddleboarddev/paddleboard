@@ -1,16 +1,11 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
 version = "0.2.7"
-=======
-name = "zed"
-version = "1.19.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -96,12 +91,7 @@ audio.workspace = true
 auto_update.workspace = true
 auto_update_ui.workspace = true
 breadcrumbs.workspace = true
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
-=======
-call.workspace = true
 call_hierarchy.workspace = true
-channel.workspace = true
->>>>>>> zed/main:crates/zed/Cargo.toml
 chrono.workspace = true
 channel.workspace = true
 clap.workspace = true
@@ -142,20 +132,14 @@ git_hosting_providers.workspace = true
 git_ui.workspace = true
 git_ui_core.workspace = true
 go_to_line.workspace = true
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 system_specs.workspace = true
-gpui = { workspace = true, features = [
-    "profiler",
-=======
 gpui = { workspace = true, features = ["profiler", "stacker"] }
 gpui_platform = { workspace = true, features = [
     "screen-capture",
     "font-kit",
     "wayland",
     "x11",
->>>>>>> zed/main:crates/zed/Cargo.toml
 ] }
-gpui_platform = {workspace = true, features=["screen-capture", "font-kit", "wayland", "x11"]}
 image = { workspace = true, optional = true }
 semver.workspace = true
 tempfile = { workspace = true, optional = true }

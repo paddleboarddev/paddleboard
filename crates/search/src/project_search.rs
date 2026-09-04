@@ -360,9 +360,6 @@ enum InputPanel {
 }
 
 // PaddleBoard: how long the query must be idle before search-as-you-type runs.
-// Long enough that intermediate prefixes of a steadily-typed query don't
-// search; short enough to feel immediate when the user pauses.
-const SEARCH_ON_TYPE_DEBOUNCE: Duration = Duration::from_millis(200);
 
 pub struct ProjectSearchView {
     pub(crate) workspace: WeakEntity<Workspace>,
@@ -383,14 +380,8 @@ pub struct ProjectSearchView {
     pending_replace_next: bool,
     included_opened_only: bool,
     regex_language: Option<Arc<Language>>,
-<<<<<<< HEAD
-    // PaddleBoard: pending debounced search-as-you-type run; replaced (and
-    // thereby cancelled) on every keystroke.
-    search_on_type_task: Option<Task<()>>,
-=======
     debounced_search: Option<Task<()>>,
     last_search_signature: Option<SearchSignature>,
->>>>>>> zed/main
     _subscriptions: Vec<Subscription>,
 }
 
@@ -1552,33 +1543,6 @@ impl ProjectSearchView {
                         }
                     }
                 }
-                // PaddleBoard: search-as-you-type (upstream Zed #9318). Each
-                // keystroke replaces the pending task, so the search runs once
-                // the user pauses for the debounce interval.
-                if let EditorEvent::Edited { .. } = event
-                    && EditorSettings::get_global(cx).search.search_on_type
-                {
-                    this.search_on_type_task = Some(cx.spawn(async move |this, cx| {
-                        cx.background_executor()
-                            .timer(SEARCH_ON_TYPE_DEBOUNCE)
-                            .await;
-                        this.update(cx, |this, cx| {
-                            let query = this.search_query_text(cx);
-                            // Skip when the query already ran (e.g. the user
-                            // pressed Enter inside the debounce window).
-                            let already_searched = this
-                                .entity
-                                .read(cx)
-                                .last_search_query_text
-                                .as_deref()
-                                == Some(query.as_str());
-                            if !query.is_empty() && !already_searched {
-                                this.search(cx);
-                            }
-                        })
-                        .ok();
-                    }));
-                }
                 cx.emit(ViewEvent::EditorEvent(event.clone()))
             },
         ));
@@ -1696,12 +1660,8 @@ impl ProjectSearchView {
             pending_replace_next: false,
             included_opened_only: false,
             regex_language: None,
-<<<<<<< HEAD
-            search_on_type_task: None,
-=======
             debounced_search: None,
             last_search_signature: None,
->>>>>>> zed/main
             _subscriptions: subscriptions,
         };
 
@@ -6906,7 +6866,7 @@ pub mod tests {
             .read_with(cx, |mw, _| mw.workspace().clone())
             .unwrap();
         let cx = &mut VisualTestContext::from_window(window.into(), cx);
-        let search = cx.new(|cx| ProjectSearch::new(project.clone(), cx));
+        let search = cx.new(|cx| ProjectSearch::new(project.clone(), workspace.downgrade(), cx));
         let search_view = cx.add_window(|window, cx| {
             ProjectSearchView::new(workspace.downgrade(), search.clone(), window, cx, None)
         });

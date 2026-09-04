@@ -237,13 +237,7 @@ fn start_etw_recording(cx: &mut App, heap_pid: Option<u32>) {
     .detach();
 }
 
-<<<<<<< HEAD
-const RECORDING_TIMEOUT: Duration = Duration::from_secs(60);
-
 const INSTANCE_NAME: &str = "PaddleBoard";
-=======
-const INSTANCE_NAME: &str = "Zed";
->>>>>>> zed/main
 
 const BUILTIN_PROFILES: &[&str] = &[
     "CPU.Verbose.Memory",
@@ -502,7 +496,7 @@ fn record_etw_trace_inner(heap_pid: Option<u32>, stream: &mut net::UnixStream) -
     send_json(stream, &StatusMessage::Started)?;
 
     let command: Command =
-        recv_json(&mut BufReader::new(&mut *stream)).context("Receive command from Zed")?;
+        recv_json(&mut BufReader::new(&mut *stream)).context("Receive command from PaddleBoard")?;
 
     match command {
         Command::Cancel => {

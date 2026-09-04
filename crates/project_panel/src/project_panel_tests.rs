@@ -11,15 +11,10 @@ use menu::Cancel;
 use pretty_assertions::assert_eq;
 use project::{FakeFs, ProjectPath};
 use serde_json::json;
-<<<<<<< HEAD
-use settings::{ProjectPanelAutoOpenSettings, SettingsStore, SplicingVec};
+use settings::{FolderIndicator, ProjectPanelAutoOpenSettings, SettingsStore, SplicingVec};
 // PaddleBoard: no `use smallvec::smallvec` — upstream's bare `smallvec![]` calls
 // live in the two test_file_history_action_* tests this fork does not carry
 // (see the note below). The one call here is fully qualified.
-=======
-use settings::{FolderIndicator, ProjectPanelAutoOpenSettings, SettingsStore, SplicingVec};
-use smallvec::smallvec;
->>>>>>> zed/main
 use std::path::{Path, PathBuf};
 use util::{path, paths::PathStyle, rel_path::rel_path};
 use workspace::{
