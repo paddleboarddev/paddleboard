@@ -23,6 +23,7 @@ mod document_links;
 mod document_symbols;
 mod editor_settings;
 mod element;
+mod emmet_ext;
 mod fold;
 mod folding_ranges;
 mod git;
@@ -31,6 +32,7 @@ pub mod hover_links;
 pub mod hover_popover;
 mod indent_guides;
 mod inlays;
+mod inline_input;
 pub mod items;
 mod jsx_tag_auto_close;
 mod linked_editing_ranges;
@@ -63,6 +65,7 @@ mod clipboard;
 mod code_actions;
 mod completions;
 mod config;
+mod cursor_animation;
 mod diagnostics;
 mod edit_prediction;
 mod input;
@@ -108,15 +111,16 @@ pub use element::{
 };
 pub use git::blame::{BlameRenderer, GitBlame};
 pub use git::{
-    DiffHunkDelegate, ResolvedDiffHunk, ResolvedDiffHunks, RestoreOnlyDiffHunkDelegate,
-    RestoreOnlyUnstagedDiffHunkDelegate, UncommittedDiffHunkDelegate, render_diff_hunk_controls,
-    set_blame_renderer,
+    DefaultDiffHunkRenderer, DiffHunkRenderer, HiddenDiffHunkRenderer,
+    HiddenUnstagedDiffHunkRenderer, render_diff_hunk_controls, set_blame_renderer,
 };
 pub(crate) use git::{DiffHunkKey, StoredReviewComment};
 use git::{DiffReviewDragState, DiffReviewOverlay, InlineBlamePopover};
 pub(crate) use git::{DisplayDiffHunk, PhantomDiffReviewIndicator};
 pub use hover_popover::hover_markdown_style;
 pub use inlays::Inlay;
+pub use inline_input::InlineInputState;
+pub(crate) use inline_input::{InlineInputHistoryDirection, InlineInputPreview};
 pub use items::MAX_TAB_TITLE_LEN;
 pub use linked_editing_ranges::LinkedEdits;
 pub use lsp::CompletionContext;
@@ -143,6 +147,7 @@ use code_context_menus::{
 use code_lens::CodeLensState;
 use collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use convert_case::{Case, Casing};
+use cursor_animation::CursorAnimationStates;
 use dap::TelemetrySpawnLocation;
 use display_map::*;
 use document_colors::LspColorData;
@@ -988,6 +993,7 @@ pub struct Editor {
     completion_provider: Option<Rc<dyn CompletionProvider>>,
     collaboration_hub: Option<Box<dyn CollaborationHub>>,
     blink_manager: Entity<BlinkManager>,
+    cursor_animations: CursorAnimationStates,
     show_cursor_names: bool,
     hovered_cursors: HashMap<HoveredCursor, Task<()>>,
     pub show_local_selections: bool,
@@ -1046,6 +1052,7 @@ pub struct Editor {
     linked_editing_range_task: Option<Task<Option<()>>>,
     linked_edit_ranges: linked_editing_ranges::LinkedEditingRanges,
     pending_rename: Option<RenameState>,
+    pending_inline_input: Option<InlineInputState>,
     searchable: bool,
     cursor_shape: CursorShape,
     /// Whether the cursor is offset one character to the left when something is
@@ -1158,7 +1165,8 @@ pub struct Editor {
     registered_buffers: HashMap<BufferId, OpenLspBufferHandle>,
     language_detection_task: Task<()>,
     load_diff_task: Option<Shared<Task<()>>>,
-    diff_hunk_delegate: Option<Arc<dyn DiffHunkDelegate>>,
+    diff_hunk_renderer: Option<Arc<dyn DiffHunkRenderer>>,
+    diff_hunk_action_target: Option<WeakEntity<Editor>>,
     selection_mark_mode: bool,
     toggle_fold_multiple_buffers: Task<()>,
     _scroll_cursor_center_top_bottom_task: Task<()>,
@@ -1564,11 +1572,17 @@ struct SnippetState {
     choices: Vec<Option<Vec<String>>>,
 }
 
+pub struct RenameTarget {
+    range: Range<text::Anchor>,
+    language_server_id: Option<LanguageServerId>,
+}
+
 #[doc(hidden)]
 pub struct RenameState {
     pub range: Range<Anchor>,
     pub old_name: Arc<str>,
     pub editor: Entity<Editor>,
+    language_server_id: Option<LanguageServerId>,
     block_id: CustomBlockId,
 }
 
@@ -2326,6 +2340,7 @@ impl Editor {
             collaboration_hub: project.clone().map(|project| Box::new(project) as _),
             project,
             blink_manager: blink_manager.clone(),
+            cursor_animations: CursorAnimationStates::default(),
             show_local_selections: true,
             show_scrollbars: ScrollbarAxes {
                 horizontal: full_mode,
@@ -2385,6 +2400,7 @@ impl Editor {
             document_highlights_task: None,
             linked_editing_range_task: None,
             pending_rename: None,
+            pending_inline_input: None,
             searchable: !is_minimap,
             cursor_shape: EditorSettings::get_global(cx)
                 .cursor_shape
@@ -2507,7 +2523,8 @@ impl Editor {
             serialize_folds: Task::ready(()),
             text_style_refinement: None,
             load_diff_task: None,
-            diff_hunk_delegate: None,
+            diff_hunk_renderer: None,
+            diff_hunk_action_target: None,
             minimap: None,
             change_list: ChangeList::new(),
             mode,
@@ -2732,6 +2749,9 @@ impl Editor {
         key_context.set("mode", mode);
         if self.pending_rename.is_some() {
             key_context.add("renaming");
+        }
+        if self.pending_inline_input.is_some() {
+            key_context.add("inline_input");
         }
 
         if let Some(snippet_stack) = self.snippet_stack.last() {
@@ -3497,6 +3517,7 @@ impl Editor {
         let mut dismissed = false;
 
         dismissed |= self.take_rename(false, window, cx).is_some();
+        dismissed |= self.take_inline_input(window, cx).is_some();
         dismissed |= self.hide_blame_popover(true, cx);
         dismissed |= hide_hover(self, cx);
         dismissed |= self.hide_signature_help(cx, SignatureHelpHiddenBy::Escape);
@@ -4902,6 +4923,25 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Result<()> {
+        self.insert_snippet_with_autoindent(
+            insertion_ranges,
+            snippet,
+            Some(AutoindentMode::Block {
+                original_indent_columns: Vec::new(),
+            }),
+            window,
+            cx,
+        )
+    }
+
+    pub(crate) fn insert_snippet_with_autoindent(
+        &mut self,
+        insertion_ranges: &[Range<MultiBufferOffset>],
+        snippet: Snippet,
+        autoindent_mode: Option<AutoindentMode>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<()> {
         struct Tabstop<T> {
             is_end_tabstop: bool,
             ranges: Vec<Range<T>>,
@@ -4914,10 +4954,7 @@ impl Editor {
                 .iter()
                 .cloned()
                 .map(|range| (range, snippet_text.clone()));
-            let autoindent_mode = AutoindentMode::Block {
-                original_indent_columns: Vec::new(),
-            };
-            buffer.edit(edits, Some(autoindent_mode), cx);
+            buffer.edit(edits, autoindent_mode, cx);
 
             let snapshot = &*buffer.read(cx);
             let snippet = &snippet;
@@ -5755,20 +5792,21 @@ impl Editor {
                             .collect::<String>();
 
                         if !line_text_after_indent.is_empty() {
-                            let block_prefix = language_scope
+                            let block_prefixes = language_scope
                                 .block_comment()
-                                .map(|c| c.prefix.as_ref())
-                                .filter(|p| !p.is_empty());
-                            let doc_prefix = language_scope
-                                .documentation_comment()
-                                .map(|c| c.prefix.as_ref())
-                                .filter(|p| !p.is_empty());
+                                .into_iter()
+                                .chain(language_scope.documentation_comment())
+                                .filter(|comment| {
+                                    language_scope.override_name() == Some("comment")
+                                        && !comment.prefix.is_empty()
+                                        && !line_text_after_indent.starts_with(comment.end.as_ref())
+                                })
+                                .map(|comment| comment.prefix.as_ref());
                             let comment_prefixes = language_scope
                                 .line_comment_prefixes()
                                 .iter()
                                 .map(|p| p.as_ref())
-                                .chain(block_prefix)
-                                .chain(doc_prefix)
+                                .chain(block_prefixes)
                                 .map(|prefix| (prefix, false));
                             let all_prefixes = comment_prefixes.chain(
                                 language_scope
@@ -6790,13 +6828,14 @@ impl Editor {
                     .map(|(i, &row)| (row, i))
                     .collect();
 
-                // Compute new line start offsets after rotation (handles CRLF)
-                let newline_len = line_ranges[1].start.0 - line_ranges[0].end.0;
-                let first_line_start = line_ranges[0].start.0;
-                let mut new_line_starts: Vec<usize> = vec![first_line_start];
-                for text in line_texts.iter().take(num_rows - 1) {
-                    let prev_start = *new_line_starts.last().unwrap();
-                    new_line_starts.push(prev_start + text.len() + newline_len);
+                let mut old_line_end = 0;
+                let mut new_line_end = 0;
+                let mut new_line_starts = Vec::new();
+                for (range, text) in line_ranges.iter().zip(&line_texts) {
+                    let line_start = new_line_end + (range.start.0 - old_line_end);
+                    new_line_starts.push(line_start);
+                    old_line_end = range.end.0;
+                    new_line_end = line_start + text.len();
                 }
 
                 let new_selections = selections
@@ -7230,7 +7269,7 @@ impl Editor {
     }
 
     fn convert_text_case(text: &str, case: Case) -> String {
-        text.lines()
+        text.split('\n')
             .map(|line| {
                 let trimmed_start = line.trim_start();
                 let leading = &line[..line.len() - trimmed_start.len()];
@@ -7996,8 +8035,12 @@ impl Editor {
         drop(snapshot);
 
         Some(cx.spawn_in(window, async move |this, cx| {
-            let rename_range = prepare_rename.await?;
-            if let Some(rename_range) = rename_range {
+            let rename_target = prepare_rename.await?;
+            if let Some(RenameTarget {
+                range: rename_range,
+                language_server_id,
+            }) = rename_target
+            {
                 this.update_in(cx, |this, window, cx| {
                     let snapshot = cursor_buffer.read(cx).snapshot();
                     let rename_buffer_range = rename_range.to_offset(&snapshot);
@@ -8149,6 +8192,7 @@ impl Editor {
                         range,
                         old_name,
                         editor: rename_editor,
+                        language_server_id,
                         block_id,
                     });
                 })?;
@@ -8192,6 +8236,7 @@ impl Editor {
             &buffer,
             start,
             new_name.clone(),
+            rename.language_server_id,
             cx,
         )?;
 
@@ -9195,7 +9240,7 @@ impl Editor {
     ) -> impl 'a + Iterator<Item = (Range<Anchor>, Hsla)> {
         self.highlighted_rows
             .get(&TypeId::of::<T>())
-            .map_or(&[] as &[_], |vec| vec.as_slice())
+            .map_or(&[] as &[_], |highlights| highlights.as_slice())
             .iter()
             .map(|highlight| (highlight.range.clone(), (highlight.color)(cx)))
     }
@@ -9209,21 +9254,75 @@ impl Editor {
         cx: &mut App,
     ) -> BTreeMap<DisplayRow, LineHighlight> {
         let snapshot = self.snapshot(window, cx);
+        let max_row = snapshot.max_point().row();
+        self.highlighted_display_rows_in_range(
+            Anchor::Min..Anchor::Max,
+            DisplayRow(0)..max_row.next_row(),
+            &snapshot.display_snapshot,
+            cx,
+        )
+    }
+
+    pub fn highlighted_display_rows_in_range(
+        &self,
+        anchor_range: Range<Anchor>,
+        display_row_range: Range<DisplayRow>,
+        snapshot: &DisplaySnapshot,
+        cx: &App,
+    ) -> BTreeMap<DisplayRow, LineHighlight> {
+        if display_row_range.is_empty() {
+            return BTreeMap::default();
+        }
+
+        let buffer_snapshot = snapshot.buffer_snapshot();
         let mut used_highlight_orders = HashMap::default();
         self.highlighted_rows
             .values()
-            .flat_map(|highlighted_rows| highlighted_rows.iter())
+            .flat_map(|highlighted_rows| {
+                let start_index = highlighted_rows.partition_point(|highlight| {
+                    highlight
+                        .range
+                        .end
+                        .cmp(&anchor_range.start, buffer_snapshot)
+                        .is_lt()
+                });
+                let end_index = highlighted_rows.partition_point(|highlight| {
+                    highlight
+                        .range
+                        .start
+                        .cmp(&anchor_range.end, buffer_snapshot)
+                        .is_le()
+                });
+                highlighted_rows[start_index..end_index]
+                    .iter()
+                    .filter(|highlight| {
+                        highlight
+                            .range
+                            .end
+                            .cmp(&anchor_range.start, buffer_snapshot)
+                            .is_ge()
+                            && highlight
+                                .range
+                                .start
+                                .cmp(&anchor_range.end, buffer_snapshot)
+                                .is_le()
+                    })
+            })
             .fold(
                 BTreeMap::<DisplayRow, LineHighlight>::new(),
                 |mut unique_rows, highlight| {
-                    let start = highlight.range.start.to_display_point(&snapshot);
-                    let end = highlight.range.end.to_display_point(&snapshot);
-                    let start_row = start.row().0;
-                    let end_row = if !highlight.range.end.is_max() && end.column() == 0 {
+                    let start = highlight.range.start.to_display_point(snapshot);
+                    let end = highlight.range.end.to_display_point(snapshot);
+                    let start_row = start.row().0.max(display_row_range.start.0);
+                    let mut end_row = if !highlight.range.end.is_max() && end.column() == 0 {
                         end.row().0.saturating_sub(1)
                     } else {
                         end.row().0
                     };
+                    end_row = end_row.min(display_row_range.end.0.saturating_sub(1));
+                    if start_row > end_row {
+                        return unique_rows;
+                    }
                     let mut header_rows = snapshot
                         .blocks_in_range(
                             DisplayRow(start_row)..DisplayRow(end_row.saturating_add(1)),
@@ -9958,6 +10057,17 @@ impl Editor {
                 if !is_fresh_language {
                     self.registered_buffers.remove(&buffer_id);
                 }
+                // No event exists for a buffer detaching from a language server: a switch
+                // to a language with no server emits neither LanguageServerRemoved nor
+                // LanguageServerBufferRegistered, so the language change itself is the only
+                // signal that this buffer's server set changed. Run the same LSP data sweep
+                // as those events do, or hints and colors from the old server stay visible.
+                if self.project.is_some() {
+                    self.register_buffer(*buffer_id, cx);
+                    self.invalidate_semantic_tokens(Some(*buffer_id));
+                    self.update_lsp_data(Some(*buffer_id), window, cx);
+                    self.refresh_inlay_hints(InlayHintRefreshReason::ServerRemoved, cx);
+                }
                 jsx_tag_auto_close::refresh_enabled_in_any_buffer(self, multibuffer, cx);
                 cx.emit(EditorEvent::Reparsed(*buffer_id));
                 self.update_edit_prediction_settings(cx);
@@ -10689,6 +10799,7 @@ impl Editor {
     }
 
     fn handle_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.cursor_animations.clear();
         cx.emit(EditorEvent::Focused);
 
         if let Some(descendant) = self
@@ -10753,6 +10864,7 @@ impl Editor {
     }
 
     pub fn handle_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.cursor_animations.clear();
         self.blink_manager.update(cx, BlinkManager::disable);
         self.buffer
             .update(cx, |buffer, cx| buffer.remove_active_selections(cx));
@@ -11619,13 +11731,14 @@ pub trait SemanticsProvider {
         buffer: &Entity<Buffer>,
         position: text::Anchor,
         cx: &mut App,
-    ) -> Task<Result<Option<Range<text::Anchor>>>>;
+    ) -> Task<Result<Option<RenameTarget>>>;
 
     fn perform_rename(
         &self,
         buffer: &Entity<Buffer>,
         position: text::Anchor,
         new_name: String,
+        language_server_id: Option<LanguageServerId>,
         cx: &mut App,
     ) -> Option<Task<Result<ProjectTransaction>>>;
 }
@@ -11765,7 +11878,7 @@ impl SemanticsProvider for WeakEntity<Project> {
         buffer: &Entity<Buffer>,
         position: text::Anchor,
         cx: &mut App,
-    ) -> Task<Result<Option<Range<text::Anchor>>>> {
+    ) -> Task<Result<Option<RenameTarget>>> {
         let Some(this) = self.upgrade() else {
             return Task::ready(Ok(None));
         };
@@ -11775,7 +11888,13 @@ impl SemanticsProvider for WeakEntity<Project> {
             let task = project.prepare_rename(buffer.clone(), position, cx);
             cx.spawn(async move |_, cx| {
                 Ok(match task.await? {
-                    PrepareRenameResponse::Success(range) => Some(range),
+                    PrepareRenameResponse::Success {
+                        range,
+                        language_server_id,
+                    } => Some(RenameTarget {
+                        range,
+                        language_server_id,
+                    }),
                     PrepareRenameResponse::InvalidPosition => None,
                     PrepareRenameResponse::OnlyUnpreparedRenameSupported => {
                         // Fallback on using TreeSitter info to determine identifier range
@@ -11785,10 +11904,11 @@ impl SemanticsProvider for WeakEntity<Project> {
                             if kind != Some(CharKind::Word) {
                                 return None;
                             }
-                            Some(
-                                snapshot.anchor_before(range.start)
+                            Some(RenameTarget {
+                                range: snapshot.anchor_before(range.start)
                                     ..snapshot.anchor_after(range.end),
-                            )
+                                language_server_id: None,
+                            })
                         })
                     }
                 })
@@ -11801,10 +11921,11 @@ impl SemanticsProvider for WeakEntity<Project> {
         buffer: &Entity<Buffer>,
         position: text::Anchor,
         new_name: String,
+        language_server_id: Option<LanguageServerId>,
         cx: &mut App,
     ) -> Option<Task<Result<ProjectTransaction>>> {
         self.update(cx, |project, cx| {
-            project.perform_rename(buffer.clone(), position, new_name, cx)
+            project.perform_rename(buffer.clone(), position, new_name, language_server_id, cx)
         })
         .ok()
     }

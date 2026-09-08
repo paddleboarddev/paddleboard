@@ -56,8 +56,10 @@ use ui::{TintColor, prelude::*};
 
 use crate::provider::anthropic::{AnthropicEventMapper, AnthropicPromptCacheMode, into_anthropic};
 use crate::provider::google::{GoogleEventMapper, into_google};
+use language_model::chat_completion::ChatCompletionEventMapper;
+
 use crate::provider::open_ai::{
-    OpenAiEventMapper, OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
+    OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
 };
 
 const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
@@ -779,6 +781,11 @@ impl LanguageModel for CloudLanguageModel {
                 if enable_thinking && effort.is_some() {
                     request.thinking = Some(anthropic::Thinking::Adaptive {
                         display: Some(anthropic::AdaptiveThinkingDisplay::Summarized),
+                        // Thinking block binding needs a beta header on the upstream
+                        // Anthropic request, which this proxy controls rather than the
+                        // client, so opting in belongs server-side. Matches how
+                        // copilot_chat handles the same field.
+                        block_binding: None,
                     });
                     request.output_config = Some(anthropic::OutputConfig { effort });
                 }
@@ -926,7 +933,7 @@ impl LanguageModel for CloudLanguageModel {
                     )
                     .await?;
 
-                    let mut mapper = OpenAiEventMapper::new();
+                    let mut mapper = ChatCompletionEventMapper::new();
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,
@@ -1093,6 +1100,24 @@ struct ZedAiConfiguration {
     sign_in_callback: Arc<dyn Fn(&mut Window, &mut App) + Send + Sync>,
 }
 
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support {
+    use super::*;
+
+    pub fn young_account_configuration() -> AnyElement {
+        ZedAiConfiguration {
+            is_connected: true,
+            plan: Some(Plan::ZedBusiness),
+            is_zed_model_provider_enabled: true,
+            eligible_for_trial: false,
+            account_too_young: true,
+            compact: true,
+            sign_in_callback: Arc::new(|_, _| {}),
+        }
+        .into_any_element()
+    }
+}
+
 fn zed_ai_description(
     is_connected: bool,
     plan: Option<Plan>,
@@ -1203,7 +1228,10 @@ impl RenderOnce for ZedAiConfiguration {
 
         v_flex()
             .gap_2()
-            .when(!self.compact, |this| this.w_full())
+            .debug_selector(|| "zed-ai-configuration".into())
+            .when(!self.compact || self.account_too_young, |this| {
+                this.w_full()
+            })
             .map(|this| {
                 if self.account_too_young {
                     this.child(YoungAccountBanner).child(

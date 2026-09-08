@@ -58,6 +58,12 @@ pub fn init(client: Arc<Client>, _workspace_store: Entity<WorkspaceStore>, cx: &
     }
 
     cx.observe_new(move |project: &mut Project, _, cx| {
+        // PaddleBoard: upstream registers each project into a `ProjectRegistry` here
+        // to feed `log_worktree_diagnostics`. That is part of the memory-usage
+        // logging this fork does not carry (see the non-port note above), so the
+        // registry does not exist. The line merged cleanly because the surrounding
+        // block is shared -- nothing conflicted, it just referenced a binding that
+        // was never brought across.
         let client = client.clone();
 
         let Some(remote_client) = project.remote_client() else {

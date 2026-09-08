@@ -69,3 +69,4 @@ aidock-*.png
 .nixos-test-history
 
 .local*
+.cache
