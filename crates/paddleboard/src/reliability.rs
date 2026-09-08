@@ -2,10 +2,16 @@ use anyhow::{Context as _, Result};
 use client::{Client, telemetry::MINIDUMP_ENDPOINT};
 use feature_flags::FeatureFlagAppExt;
 use futures::{AsyncReadExt, TryStreamExt};
+<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
 use gpui::{App, AppContext as _, Entity, SerializedThreadTaskTimings, TaskExt};
 use http_client::{self, AsyncBody, HttpClient, Request};
 use log::info;
 use project::Project;
+=======
+use gpui::{App, AppContext, Entity, TaskExt, WeakEntity};
+use http_client::{AsyncBody, HttpClient, Request};
+use project::{Project, worktree_store::WorktreeStoreDiagnostics};
+>>>>>>> zed/main:crates/zed/src/reliability.rs
 use proto::{CrashReport, GetCrashFilesResponse};
 use reqwest::{
     Method,
@@ -13,13 +19,27 @@ use reqwest::{
 };
 use serde::Deserialize;
 use smol::stream::StreamExt;
+<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
 use std::{ffi::OsStr, fs, sync::Arc, thread::ThreadId, time::Duration};
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
+=======
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    ffi::OsStr,
+    fs,
+    rc::Rc,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use sysinfo::{MemoryRefreshKind, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
+>>>>>>> zed/main:crates/zed/src/reliability.rs
 use util::ResultExt;
 use workspace::WorkspaceStore;
 
 use crate::STARTUP_TIME;
 
+<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
 const MAX_HANG_TRACES: usize = 3;
 
 // PaddleBoard: upstream moved hang detection into a `reliability/hang_detection`
@@ -34,6 +54,14 @@ pub fn init(client: Arc<Client>, _workspace_store: Entity<WorkspaceStore>, cx: &
     } else {
         monitor_hangs(cx);
     }
+=======
+type ProjectRegistry = Rc<RefCell<Vec<WeakEntity<Project>>>>;
+
+pub fn init(client: Arc<Client>, workspace_store: Entity<WorkspaceStore>, cx: &mut App) {
+    hang_detection::start(client.clone(), cx);
+    let projects = ProjectRegistry::default();
+    start_memory_usage_logging(workspace_store, projects.clone(), cx);
+>>>>>>> zed/main:crates/zed/src/reliability.rs
 
     cx.on_flags_ready({
         let client = client.clone();
@@ -58,6 +86,7 @@ pub fn init(client: Arc<Client>, _workspace_store: Entity<WorkspaceStore>, cx: &
     }
 
     cx.observe_new(move |project: &mut Project, _, cx| {
+        projects.borrow_mut().push(cx.weak_entity());
         let client = client.clone();
 
         let Some(remote_client) = project.remote_client() else {
@@ -99,8 +128,28 @@ pub fn init(client: Arc<Client>, _workspace_store: Entity<WorkspaceStore>, cx: &
 fn monitor_hangs(cx: &App) {
     let main_thread_id = std::thread::current().id();
 
+<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
     let foreground_executor = cx.foreground_executor();
     let background_executor = cx.background_executor();
+=======
+/// Periodically logs this process' memory usage, so that gradual memory growth can be
+///
+/// Logs on a fixed heartbeat, and additionally whenever resident memory changed
+/// significantly since the last logged value, so that bursts of growth are timestamped
+/// against the surrounding log entries.
+fn start_memory_usage_logging(
+    workspace_store: Entity<WorkspaceStore>,
+    projects: ProjectRegistry,
+    cx: &App,
+) {
+    let (diagnostics_sender, mut diagnostics_receiver) = futures::channel::mpsc::unbounded();
+    cx.spawn(async move |cx| {
+        while diagnostics_receiver.next().await.is_some() {
+            cx.update(|cx| log_worktree_diagnostics(&workspace_store, &projects, cx));
+        }
+    })
+    .detach();
+>>>>>>> zed/main:crates/zed/src/reliability.rs
 
     // 3 seconds hang
     let (mut tx, mut rx) = futures::channel::mpsc::channel(3);
@@ -147,6 +196,7 @@ fn monitor_hangs(cx: &App) {
         .detach();
 }
 
+<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
 fn cleanup_old_hang_traces() {
     if let Ok(entries) = std::fs::read_dir(paths::hang_traces_dir()) {
         let mut files: Vec<_> = entries
@@ -192,6 +242,42 @@ fn save_hang_trace(
         "hang-{}.miniprof.json",
         hang_time.format("%Y-%m-%d_%H-%M-%S")
     ));
+=======
+fn log_worktree_diagnostics(
+    workspace_store: &Entity<WorkspaceStore>,
+    projects: &ProjectRegistry,
+    cx: &App,
+) {
+    let workspace_project_ids = workspace_store
+        .read(cx)
+        .workspaces()
+        .filter_map(|workspace| workspace.upgrade())
+        .map(|workspace| workspace.read(cx).project().entity_id())
+        .collect::<HashSet<_>>();
+    let live_projects = {
+        let mut projects = projects.borrow_mut();
+        projects.retain(|project| project.upgrade().is_some());
+        projects
+            .iter()
+            .filter_map(|project| project.upgrade())
+            .collect::<Vec<_>>()
+    };
+    let project_count = live_projects.len();
+    let orphaned_project_count = live_projects
+        .iter()
+        .filter(|project| !workspace_project_ids.contains(&project.entity_id()))
+        .count();
+    let mut worktree_store_ids = HashSet::new();
+    let mut store_count = 0;
+    let mut aggregate = WorktreeStoreDiagnostics::default();
+
+    for project in live_projects {
+        let worktree_store = project.read(cx).worktree_store();
+        if !worktree_store_ids.insert(worktree_store.entity_id()) {
+            continue;
+        }
+        store_count += 1;
+>>>>>>> zed/main:crates/zed/src/reliability.rs
 
     let Some(timings) = serde_json::to_string(&thread_timings)
         .context("hang timings serialization")
@@ -219,6 +305,7 @@ fn save_hang_trace(
         }
     }
 
+<<<<<<< HEAD:crates/paddleboard/src/reliability.rs
     std::fs::write(&trace_path, timings)
         .context("hang trace file writing")
         .log_err();
@@ -227,6 +314,30 @@ fn save_hang_trace(
         "hang detected, trace file saved at: {}",
         trace_path.display()
     );
+=======
+    let WorktreeStoreDiagnostics {
+        worktree_slots,
+        live_worktrees,
+        visible_worktrees,
+        strong_handles,
+        dead_weak_handles,
+        loading_worktrees,
+        total_entries,
+        visible_entries,
+        largest_worktree,
+    } = aggregate;
+    match largest_worktree {
+        Some(largest_worktree) => log::info!(
+            "worktree diagnostics: projects {project_count}, orphaned projects {orphaned_project_count}, stores {store_count}, slots {worktree_slots}, live {live_worktrees}, visible {visible_worktrees}, strong {strong_handles}, dead weak {dead_weak_handles}, loading {loading_worktrees}, entries {total_entries}, visible entries {visible_entries}, largest {} ({} entries, {} visible)",
+            largest_worktree.path.display(),
+            largest_worktree.entries,
+            largest_worktree.visible_entries,
+        ),
+        None => log::info!(
+            "worktree diagnostics: projects {project_count}, orphaned projects {orphaned_project_count}, stores {store_count}, slots {worktree_slots}, live {live_worktrees}, visible {visible_worktrees}, strong {strong_handles}, dead weak {dead_weak_handles}, loading {loading_worktrees}, entries {total_entries}, visible entries {visible_entries}, largest none",
+        ),
+    }
+>>>>>>> zed/main:crates/zed/src/reliability.rs
 }
 
 pub async fn upload_previous_minidumps(client: Arc<Client>) -> anyhow::Result<()> {

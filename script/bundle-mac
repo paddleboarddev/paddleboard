@@ -365,11 +365,30 @@ function sign_binary() {
     fi
 }
 
+debug_symbols_extracted=false
+function extract_debug_symbols() {
+    if [ "$debug_symbols_extracted" = true ]; then
+        return
+    fi
+    debug_symbols_extracted=true
+    if ! dsymutil --flat "target/${target_triple}/${target_dir}/zed" 2> target/dsymutil.log; then
+        echo "dsymutil failed"
+        cat target/dsymutil.log
+        exit 1
+    fi
+    if ! dsymutil --flat "target/${target_triple}/${target_dir}/remote_server" 2> target/dsymutil.log; then
+        echo "dsymutil failed"
+        cat target/dsymutil.log
+        exit 1
+    fi
+}
+
 function upload_debug_symbols() {
     if [ "$local_install" = true ]; then
         echo "local install; skipping sentry upload."
     elif [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
         echo "Uploading zed debug symbols to sentry..."
+<<<<<<< HEAD
         exe_path="target/${target_triple}/release/PaddleBoard"
         if ! dsymutil --flat "target/${target_triple}/${target_dir}/paddleboard" 2> target/dsymutil.log; then
             echo "dsymutil failed"
@@ -383,6 +402,9 @@ function upload_debug_symbols() {
         fi
         # note: this uploads the unstripped binary which is needed because it contains
         # .eh_frame data for stack unwinding. see https://github.com/getsentry/symbolic/issues/783
+=======
+        extract_debug_symbols
+>>>>>>> zed/main
         # Try uploading up to 3 times
         for attempt in 1 2 3; do
             echo "Sentry upload attempt $attempt..."
@@ -405,7 +427,21 @@ function upload_debug_symbols() {
 
 upload_debug_symbols
 
+<<<<<<< HEAD
 cp target/${target_triple}/${target_dir}/paddleboard "${app_path}/Contents/MacOS/paddleboard"
+=======
+# Sentry receives the extracted zed.dwarf, not the binary, so debug symbols
+# must be extracted before the binaries are stripped below. The .dwarf files
+# also keep symbols recoverable when the sentry upload is skipped.
+if [[ "$target_dir" == "release" && "$local_install" != true ]]; then
+    extract_debug_symbols
+    strip -x "target/${target_triple}/${target_dir}/zed"
+    strip -x "target/${target_triple}/${target_dir}/cli"
+    strip -x "target/${target_triple}/${target_dir}/remote_server"
+fi
+
+cp target/${target_triple}/${target_dir}/zed "${app_path}/Contents/MacOS/zed"
+>>>>>>> zed/main
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
 # PaddleBoard: ship the built-in sandbox's microVM runner next to the app binary
 # (that is where the engine's runtime detection looks for it).
