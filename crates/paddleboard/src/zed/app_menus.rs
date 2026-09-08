@@ -1,5 +1,7 @@
 use gpui::{App, Menu, MenuItem, OsAction};
+use project::DisableAiSettings;
 use release_channel::ReleaseChannel;
+use settings::Settings;
 use terminal_view::terminal_panel;
 use paddleboard_actions::{assistant, debug_panel, dev, git_panel};
 
@@ -44,12 +46,29 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
         // PaddleBoard: no Collab Panel; terminal action renamed upstream ToggleFocus -> Toggle.
         MenuItem::action("Terminal Panel", terminal_panel::Toggle),
         MenuItem::action("Debugger Panel", debug_panel::ToggleFocus),
-        MenuItem::action("Agent Panel", assistant::ToggleFocus),
+    ];
+
+    if !DisableAiSettings::get_global(cx).disable_ai {
+        view_items.push(MenuItem::action("Agent Panel", assistant::ToggleFocus));
+        // PaddleBoard: the AI Dock is a modal rather than a panel, but this is
+        // where someone looks for the AI surfaces. Without it the dock had no
+        // menu entry at all, leaving the command palette its only route in.
+        // Behind the same disable_ai gate as the Agent Panel above: every tab it
+        // hosts (Agents, Skills, MCP, Personas, Usage) is an AI surface, so
+        // leaving it visible would put an AI entry in the menu of a build that
+        // was configured to have none.
+        view_items.push(MenuItem::action(
+            "AI Dock",
+            paddleboard_actions::ai_dock::Open,
+        ));
+    }
+
+    view_items.extend([
         MenuItem::action("Git Panel", git_panel::ToggleFocus),
         MenuItem::separator(),
         MenuItem::action("Diagnostics", diagnostics::Deploy),
         MenuItem::separator(),
-    ];
+    ]);
 
     if ReleaseChannel::try_global(cx) == Some(ReleaseChannel::Dev) {
         view_items.push(MenuItem::action(
@@ -237,12 +256,20 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                     "Go to Definition",
                     editor::actions::GoToDefinition::default(),
                 ),
-                MenuItem::action("Go to Declaration", editor::actions::GoToDeclaration),
-                MenuItem::action("Go to Type Definition", editor::actions::GoToTypeDefinition),
+                MenuItem::action(
+                    "Go to Declaration",
+                    editor::actions::GoToDeclaration::default(),
+                ),
+                MenuItem::action(
+                    "Go to Type Definition",
+                    editor::actions::GoToTypeDefinition::default(),
+                ),
                 MenuItem::action(
                     "Find All References",
                     editor::actions::FindAllReferences::default(),
                 ),
+                MenuItem::action("Show Incoming Calls", call_hierarchy::ShowIncomingCalls),
+                MenuItem::action("Show Outgoing Calls", call_hierarchy::ShowOutgoingCalls),
                 MenuItem::separator(),
                 MenuItem::action("Next Problem", editor::actions::GoToDiagnostic::default()),
                 MenuItem::action(

@@ -13,19 +13,16 @@ use fuzzy_nucleo::{PathMatch, PathMatchCandidate};
 use gpui::{
     Action, AnyElement, App, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
     KeyContext, Modifiers, ModifiersChangedEvent, ParentElement, Render, Styled, Task, TaskExt,
-    WeakEntity, Window, actions, rems,
+    WeakEntity, Window, actions,
 };
 use language::{BufferSnapshot, Point};
-use open_path_prompt::{
-    OpenPathPrompt,
-    file_finder_settings::{FileFinderSettings, FileFinderWidth},
-};
+use open_path_prompt::{OpenPathPrompt, file_finder_settings::FileFinderSettings};
 use picker::{Picker, PickerDelegate};
 use project::{
     PathMatchCandidateSet, Project, ProjectPath, WorktreeId, worktree_store::WorktreeStore,
 };
 
-use settings::{Settings, SettingsStore};
+use settings::{ModalWidthContent, Settings, SettingsStore};
 use std::{
     borrow::Cow,
     cmp, mem,
@@ -45,8 +42,10 @@ use util::{
     rel_path::RelPath,
 };
 use workspace::{
-    ModalView, OpenOptions, OpenVisible, SplitDirection, Workspace,
-    item::PreviewTabsSettings, notifications::NotifyResultExt, pane,
+    // PaddleBoard: no OpenChannelNotesById — upstream uses it for collab channel
+    // notes, which this fork does not carry.
+    MAX_RECENT_SELECTIONS, ModalView, OpenOptions, OpenVisible,
+    SplitDirection, Workspace, item::PreviewTabsSettings, notifications::NotifyResultExt, pane,
 };
 use paddleboard_actions::search::ToggleIncludeIgnored;
 
@@ -321,17 +320,9 @@ impl FileFinder {
         });
     }
 
-    pub fn modal_max_width(width_setting: FileFinderWidth, window: &mut Window) -> Pixels {
-        let window_width = window.viewport_size().width;
-        let small_width = rems(34.).to_pixels(window.rem_size());
-
-        match width_setting {
-            FileFinderWidth::Small => small_width,
-            FileFinderWidth::Full => window_width,
-            FileFinderWidth::XLarge => (window_width - px(512.)).max(small_width),
-            FileFinderWidth::Large => (window_width - px(768.)).max(small_width),
-            FileFinderWidth::Medium => (window_width - px(1024.)).max(small_width),
-        }
+    pub fn modal_max_width(width_setting: ModalWidthContent, window: &mut Window) -> Pixels {
+        let small_width = picker::DEFAULT_MODAL_WIDTH.to_pixels(window.rem_size());
+        width_setting.to_pixels(small_width, window.viewport_size().width)
     }
 }
 
@@ -840,7 +831,6 @@ impl FoundPath {
     }
 }
 
-const MAX_RECENT_SELECTIONS: usize = 20;
 const SEARCH_DEBOUNCE: Duration = Duration::from_millis(100);
 const WORKTREE_UPDATE_REFRESH_DEBOUNCE: Duration = Duration::from_millis(200);
 
@@ -1331,8 +1321,9 @@ impl FileFinderDelegate {
         }
 
         (
-            HighlightedLabel::new(file_name, file_name_positions),
+            HighlightedLabel::new(file_name, file_name_positions).single_line(),
             HighlightedLabel::new(full_path, full_path_positions)
+                .single_line()
                 .size(LabelSize::Small)
                 .color(Color::Muted),
         )
@@ -1752,6 +1743,11 @@ impl PickerDelegate for FileFinderDelegate {
         self.selected_index
     }
 
+    fn set_hovered_index(&mut self, ix: usize, _: &mut Window, cx: &mut Context<Picker<Self>>) {
+        self.selected_index = ix;
+        cx.notify();
+    }
+
     fn set_selected_index(&mut self, ix: usize, _: &mut Window, cx: &mut Context<Picker<Self>>) {
         self.has_changed_selected_index = true;
         self.selected_index = ix;
@@ -1959,7 +1955,7 @@ impl PickerDelegate for FileFinderDelegate {
     fn dismissed(&mut self, _: &mut Window, cx: &mut Context<Picker<FileFinderDelegate>>) {
         self.file_finder
             .update(cx, |_, cx| cx.emit(DismissEvent))
-            .log_err();
+            .ok();
     }
 
     fn try_get_preview_data_for_match(&self, cx: &App) -> Option<picker::PreviewUpdate> {
@@ -2106,8 +2102,8 @@ impl FileFinderDelegate {
                         .w_full()
                         .min_w_0()
                         .gap_1p5()
-                        .child(file_name_label.truncate_middle())
-                        .child(full_path_label.truncate_start()),
+                        .child(file_name_label.flex_none().truncate_middle())
+                        .child(full_path_label.flex_1().truncate_start()),
                 )
                 .end_slot::<AnyElement>(end_slot),
         )

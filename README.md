@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> Remove this line to confirm you've reviewed this PR before submitting.
+
 <div align="center">
 
 <img src="assets/branding/social-preview.png" alt="PaddleBoard — the open-source AI IDE you actually own" width="840">

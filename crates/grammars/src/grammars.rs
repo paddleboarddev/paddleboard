@@ -1,13 +1,16 @@
 use std::borrow::Cow;
 
 use anyhow::Context as _;
-use language_core::{LanguageConfig, LanguageQueries, QUERY_FILENAME_PREFIXES};
-use rust_embed::RustEmbed;
+use language_core::{LanguageConfig, LanguageQueries, QueryFile, QueryFileContents};
 
-#[derive(RustEmbed)]
-#[folder = "src/"]
-#[exclude = "*.rs"]
-struct GrammarDir;
+// Dev builds read the checkout's query files at runtime instead of embedding
+// them; see the `assets` crate for the rationale.
+util::fs_embed! {
+    struct GrammarDir,
+    crate_relative = "src/",
+    root_relative = "crates/grammars/src",
+    exclude = ["*.rs"],
+}
 
 /// Register all built-in native tree-sitter grammars with the provided registration function.
 ///
@@ -37,7 +40,6 @@ pub fn native_grammars() -> Vec<(&'static str, tree_sitter::Language)> {
         ("jsdoc", tree_sitter_jsdoc::LANGUAGE.into()),
         ("json", tree_sitter_json::LANGUAGE.into()),
         ("jsonc", tree_sitter_json::LANGUAGE.into()),
-        // PaddleBoard: Kotlin via `tree-sitter-kotlin-codanna` (MIT).
         // Picked specifically because (a) it's the only published Kotlin
         // grammar with a `tree-sitter >= 0.21` constraint open enough to
         // resolve against the workspace's `tree-sitter 0.26`, and
@@ -48,7 +50,6 @@ pub fn native_grammars() -> Vec<(&'static str, tree_sitter::Language)> {
         // (`identifier`/`qualified_identifier`) and would require
         // rewriting every .scm we adopted. Uses the older `language()`
         // function API instead of the `LANGUAGE: LanguageFn` constant.
-        ("kotlin", tree_sitter_kotlin_codanna::language()),
         ("markdown", tree_sitter_md::LANGUAGE.into()),
         ("markdown-inline", tree_sitter_md::INLINE_LANGUAGE.into()),
         // PaddleBoard: PHP via canonical tree-sitter/tree-sitter-php (MIT).
@@ -84,7 +85,7 @@ pub fn load_config(name: &str) -> LanguageConfig {
     )
     .unwrap();
 
-    let config: LanguageConfig = ::toml::from_str(&config_toml)
+    let config = LanguageConfig::from_toml(&config_toml)
         .with_context(|| format!("failed to load config.toml for language {name:?}"))
         .unwrap();
 
@@ -146,30 +147,15 @@ mod dockerfile_tests {
     }
 }
 
-/// Load all `.scm` query files for a given language name into a `LanguageQueries`.
-///
-/// Multiple `.scm` files with the same prefix (e.g. `highlights.scm` and
-/// `highlights_extra.scm`) are concatenated together with their contents appended.
+/// Load all Tree-sitter query files for a given language name.
 pub fn load_queries(name: &str) -> LanguageQueries {
-    let mut result = LanguageQueries::default();
-    for path in GrammarDir::iter() {
-        if let Some(remainder) = path.strip_prefix(name).and_then(|p| p.strip_prefix('/')) {
-            if !remainder.ends_with(".scm") {
-                continue;
-            }
-            for (prefix, query) in QUERY_FILENAME_PREFIXES {
-                if remainder.starts_with(prefix) {
-                    let contents = match GrammarDir::get(path.as_ref()).unwrap().data {
-                        Cow::Borrowed(bytes) => Cow::Borrowed(std::str::from_utf8(bytes).unwrap()),
-                        Cow::Owned(bytes) => Cow::Owned(String::from_utf8(bytes).unwrap()),
-                    };
-                    match query(&mut result) {
-                        None => *query(&mut result) = Some(contents),
-                        Some(existing) => existing.to_mut().push_str(contents.as_ref()),
-                    }
-                }
-            }
-        }
-    }
-    result
+    LanguageQueries::from_files(GrammarDir::iter().filter_map(|path| {
+        let file_name = path.strip_prefix(name)?.strip_prefix('/')?;
+        let query_file = file_name.parse::<QueryFile>().ok()?;
+        let contents = match GrammarDir::get(path.as_ref())?.data {
+            Cow::Borrowed(bytes) => Cow::Borrowed(std::str::from_utf8(bytes).ok()?),
+            Cow::Owned(bytes) => Cow::Owned(String::from_utf8(bytes).ok()?),
+        };
+        Some(QueryFileContents::new(query_file, contents))
+    }))
 }

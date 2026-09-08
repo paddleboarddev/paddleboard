@@ -55,6 +55,9 @@ jobs:
     # than a target. It exists because the DEFAULT is 360: a job wedged on a
     # notarization that never returns would bill 3,600 minutes at the macOS 10x
     # multiplier — more than this account spent in the whole of 2026-08-01..04.
+    # PaddleBoard: bundle-mac now makes TWO notarization round trips (the .app,
+    # then the DMG — see #118), so the slack above the 190-min upper bound is
+    # thinner than it looks. Re-measure on the next cut before trusting 240.
     timeout-minutes: 240
     steps:
       - name: Checkout

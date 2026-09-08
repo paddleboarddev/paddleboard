@@ -84,6 +84,18 @@ use crate::zed::{CrashHandler, OpenRequestKind, eager_load_active_theme_and_icon
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+fn build_application() -> Application {
+    let platform = gpui_platform::current_platform(false);
+    // PaddleBoard: upstream gates the accessibility tree behind an env var and
+    // defaults to the inaccessible platform; ours is the same behaviour with the
+    // variable renamed, since ZED_* names do not exist in this fork.
+    if std::env::var("PADDLEBOARD_EXPERIMENTAL_A11Y").as_deref() == Ok("1") {
+        Application::with_platform(platform)
+    } else {
+        Application::new_inaccessible(platform)
+    }
+}
+
 fn files_not_created_on_launch(errors: HashMap<io::ErrorKind, Vec<&Path>>) {
     let message = "PaddleBoard failed to launch";
     let error_details = errors
@@ -218,22 +230,12 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     if args.record_etw_trace {
-        let zed_pid = args
-            .etw_zed_pid
-            .and_then(|pid| if pid >= 0 { Some(pid as u32) } else { None });
-        let Some(output_path) = args.etw_output else {
-            eprintln!("--etw-output is required for --record-etw-trace");
-            process::exit(1);
-        };
-
         let Some(etw_socket) = args.etw_socket else {
             eprintln!("--etw-socket is required for --record-etw-trace");
             process::exit(1);
         };
 
-        if let Err(error) =
-            etw_tracing::record_etw_trace(zed_pid, &output_path, etw_socket.as_str())
-        {
+        if let Err(error) = etw_tracing::record_etw_trace(args.etw_zed_pid, &etw_socket) {
             eprintln!("ETW trace recording failed: {error:#}");
             process::exit(1);
         }
@@ -271,10 +273,15 @@ fn main() {
         return;
     }
 
-    // Set custom data directory.
-    if let Some(dir) = &args.user_data_dir {
-        paths::set_custom_data_dir(dir);
-    }
+    let restart_arguments = if let Some(directory) = args.user_data_dir.as_deref() {
+        let directory = paths::set_custom_data_dir(directory);
+        vec![
+            std::ffi::OsString::from("--user-data-dir"),
+            directory.as_os_str().to_owned(),
+        ]
+    } else {
+        Vec::new()
+    };
 
     #[cfg(target_os = "windows")]
     match util::get_zed_cli_path() {
@@ -348,8 +355,9 @@ fn main() {
     #[cfg(windows)]
     check_for_conpty_dll();
 
-    let app =
-        Application::with_platform(gpui_platform::current_platform(false)).with_assets(Assets);
+    let app = build_application()
+        .with_assets(Assets)
+        .with_restart_arguments(restart_arguments);
 
     let app_db = db::AppDatabase::new();
     let system_id = app.background_executor().spawn(system_id());
@@ -442,7 +450,7 @@ fn main() {
         log::info!("Using git binary path: {:?}", git_binary_path);
     }
 
-    let fs = Arc::new(RealFs::new(git_binary_path, app.background_executor()));
+    let fs = RealFs::new(git_binary_path, app.background_executor());
     let (user_keymap_file_rx, user_keymap_watcher) = watch_config_file(
         &app.background_executor(),
         fs.clone(),
@@ -760,6 +768,8 @@ fn main() {
         dev_container::init(cx);
 
         load_embedded_fonts(cx);
+        #[cfg(target_os = "linux")]
+        prewarm_fonts(cx);
 
         editor::init(cx);
         image_viewer::init(cx);
@@ -781,6 +791,7 @@ fn main() {
         file_finder::init(cx);
         tab_switcher::init(cx);
         outline::init(cx);
+        call_hierarchy::init(cx);
         project_symbols::init(cx);
         project_panel::init(cx);
         outline_panel::init(cx);
@@ -814,7 +825,7 @@ fn main() {
         feedback::init(cx);
         markdown_preview::init(cx);
         tour::init(cx); // PaddleBoard: registers the tour action + first-launch check.
-        csv_preview::init(cx);
+        tabular_data_preview::init(cx);
         svg_preview::init(cx);
         onboarding::init(cx);
         settings_ui::init(cx);
@@ -1878,18 +1889,13 @@ struct Args {
 
     /// The PID of the Zed process to trace for heap analysis.
     #[cfg(target_os = "windows")]
-    #[arg(long, hide = true, allow_hyphen_values = true)]
-    etw_zed_pid: Option<i64>,
-
-    /// Output path for the ETW trace file.
-    #[cfg(target_os = "windows")]
     #[arg(long, hide = true)]
-    etw_output: Option<PathBuf>,
+    etw_zed_pid: Option<u32>,
 
     /// Unix socket path for IPC with the parent Zed process.
     #[cfg(target_os = "windows")]
     #[arg(long, hide = true)]
-    etw_socket: Option<String>,
+    etw_socket: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -1946,6 +1952,50 @@ fn load_embedded_fonts(cx: &App) {
     cx.text_system()
         .add_fonts(embedded_fonts.into_inner())
         .unwrap();
+}
+
+#[cfg(target_os = "linux")]
+fn prewarm_fonts(cx: &mut App) {
+    let theme_settings = theme::theme_settings(cx);
+    let ui_font = theme_settings.ui_font(cx).clone();
+    let buffer_font = theme_settings.buffer_font(cx).clone();
+    let mut fonts = vec![ui_font.clone(), buffer_font.clone()];
+    let mut add_variant = |base_font: &gpui::Font, weight, style| {
+        let mut font = base_font.clone();
+        font.weight = weight;
+        font.style = style;
+        fonts.push(font);
+    };
+
+    for weight in [
+        gpui::FontWeight::MEDIUM,
+        gpui::FontWeight::SEMIBOLD,
+        gpui::FontWeight::BOLD,
+    ] {
+        add_variant(&ui_font, weight, gpui::FontStyle::Normal);
+    }
+    add_variant(&ui_font, gpui::FontWeight::NORMAL, gpui::FontStyle::Italic);
+    add_variant(
+        &buffer_font,
+        gpui::FontWeight::BOLD,
+        gpui::FontStyle::Normal,
+    );
+    add_variant(
+        &buffer_font,
+        gpui::FontWeight::NORMAL,
+        gpui::FontStyle::Italic,
+    );
+    add_variant(
+        &buffer_font,
+        gpui::FontWeight::BOLD,
+        gpui::FontStyle::Italic,
+    );
+
+    let text_system = cx.text_system().clone();
+    cx.background_spawn(async move {
+        text_system.prewarm_fonts(&fonts);
+    })
+    .detach();
 }
 
 /// Spawns a background task to load the user themes from the themes directory.

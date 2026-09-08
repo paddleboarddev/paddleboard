@@ -25,12 +25,13 @@ use gpui::{
 use http_client::http::{HeaderMap, HeaderValue};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Response, StatusCode};
 use language_model::{
-    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, FastModeConfirmation,
+    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, BASETEN_PROVIDER_ID,
+    BASETEN_PROVIDER_NAME, FastModeConfirmation,
     GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, InlineDescription, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
     LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
     LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
-    LanguageModelToolChoice, LanguageModelToolSchemaFormat, OPEN_AI_PROVIDER_ID,
+    LanguageModelToolChoice, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME,
     ProviderSettingsView, RateLimiter, X_AI_PROVIDER_ID, X_AI_PROVIDER_NAME,
 };
@@ -55,8 +56,10 @@ use ui::{TintColor, prelude::*};
 
 use crate::provider::anthropic::{AnthropicEventMapper, AnthropicPromptCacheMode, into_anthropic};
 use crate::provider::google::{GoogleEventMapper, into_google};
+use language_model::chat_completion::ChatCompletionEventMapper;
+
 use crate::provider::open_ai::{
-    OpenAiEventMapper, OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
+    OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
 };
 
 const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
@@ -595,11 +598,16 @@ impl From<ApiError> for LanguageModelCompletionError {
                         .unwrap_or(error.status)
                 };
 
-                return LanguageModelCompletionError::UpstreamProviderError {
-                    message: cloud_error.message,
+                // PaddleBoard: upstream replaced UpstreamProviderError with
+                // ProviderRejection + a category; from_http_status builds it and
+                // assigns the category. The `status` above is still the
+                // upstream_http_-decoded one, so that detail survives.
+                return LanguageModelCompletionError::from_http_status(
+                    PROVIDER_NAME,
                     status,
-                    retry_after: cloud_error.retry_after.map(Duration::from_secs_f64),
-                };
+                    cloud_error.message,
+                    cloud_error.retry_after.map(Duration::from_secs_f64),
+                );
             }
 
             return LanguageModelCompletionError::from_http_status(
@@ -642,6 +650,7 @@ impl LanguageModel for CloudLanguageModel {
         match self.model.provider {
             Anthropic => ANTHROPIC_PROVIDER_ID,
             OpenAi => OPEN_AI_PROVIDER_ID,
+            Baseten => BASETEN_PROVIDER_ID,
             Google => GOOGLE_PROVIDER_ID,
             XAi => X_AI_PROVIDER_ID,
         }
@@ -652,6 +661,7 @@ impl LanguageModel for CloudLanguageModel {
         match self.model.provider {
             Anthropic => ANTHROPIC_PROVIDER_NAME,
             OpenAi => OPEN_AI_PROVIDER_NAME,
+            Baseten => BASETEN_PROVIDER_NAME,
             Google => GOOGLE_PROVIDER_NAME,
             XAi => X_AI_PROVIDER_NAME,
         }
@@ -708,19 +718,6 @@ impl LanguageModel for CloudLanguageModel {
 
     fn telemetry_id(&self) -> String {
         format!("zed.dev/{}", self.model.id)
-    }
-
-    fn tool_input_format(&self) -> LanguageModelToolSchemaFormat {
-        match self.model.provider {
-            cloud_llm_client::LanguageModelProvider::Anthropic
-            | cloud_llm_client::LanguageModelProvider::OpenAi => {
-                LanguageModelToolSchemaFormat::JsonSchema
-            }
-            cloud_llm_client::LanguageModelProvider::Google
-            | cloud_llm_client::LanguageModelProvider::XAi => {
-                LanguageModelToolSchemaFormat::JsonSchemaSubset
-            }
-        }
     }
 
     fn max_token_count(&self) -> u64 {
@@ -784,6 +781,11 @@ impl LanguageModel for CloudLanguageModel {
                 if enable_thinking && effort.is_some() {
                     request.thinking = Some(anthropic::Thinking::Adaptive {
                         display: Some(anthropic::AdaptiveThinkingDisplay::Summarized),
+                        // Thinking block binding needs a beta header on the upstream
+                        // Anthropic request, which this proxy controls rather than the
+                        // client, so opting in belongs server-side. Matches how
+                        // copilot_chat handles the same field.
+                        block_binding: None,
                     });
                     request.output_config = Some(anthropic::OutputConfig { effort });
                 }
@@ -825,7 +827,8 @@ impl LanguageModel for CloudLanguageModel {
                 });
                 async move { Ok(future.await?.boxed()) }.boxed()
             }
-            cloud_llm_client::LanguageModelProvider::OpenAi => {
+            cloud_llm_client::LanguageModelProvider::OpenAi
+            | cloud_llm_client::LanguageModelProvider::Baseten => {
                 let client = self.client.clone();
                 let llm_api_token = self.llm_api_token.clone();
                 let organization_id = organization_id.clone();
@@ -930,7 +933,7 @@ impl LanguageModel for CloudLanguageModel {
                     )
                     .await?;
 
-                    let mut mapper = OpenAiEventMapper::new();
+                    let mut mapper = ChatCompletionEventMapper::new();
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,
@@ -1055,6 +1058,7 @@ fn provider_name(provider: &cloud_llm_client::LanguageModelProvider) -> Language
     match provider {
         cloud_llm_client::LanguageModelProvider::Anthropic => ANTHROPIC_PROVIDER_NAME,
         cloud_llm_client::LanguageModelProvider::OpenAi => OPEN_AI_PROVIDER_NAME,
+        cloud_llm_client::LanguageModelProvider::Baseten => BASETEN_PROVIDER_NAME,
         cloud_llm_client::LanguageModelProvider::Google => GOOGLE_PROVIDER_NAME,
         cloud_llm_client::LanguageModelProvider::XAi => X_AI_PROVIDER_NAME,
     }
@@ -1094,6 +1098,24 @@ struct ZedAiConfiguration {
     account_too_young: bool,
     compact: bool,
     sign_in_callback: Arc<dyn Fn(&mut Window, &mut App) + Send + Sync>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_support {
+    use super::*;
+
+    pub fn young_account_configuration() -> AnyElement {
+        ZedAiConfiguration {
+            is_connected: true,
+            plan: Some(Plan::ZedBusiness),
+            is_zed_model_provider_enabled: true,
+            eligible_for_trial: false,
+            account_too_young: true,
+            compact: true,
+            sign_in_callback: Arc::new(|_, _| {}),
+        }
+        .into_any_element()
+    }
 }
 
 fn zed_ai_description(
@@ -1206,7 +1228,10 @@ impl RenderOnce for ZedAiConfiguration {
 
         v_flex()
             .gap_2()
-            .when(!self.compact, |this| this.w_full())
+            .debug_selector(|| "zed-ai-configuration".into())
+            .when(!self.compact || self.account_too_young, |this| {
+                this.w_full()
+            })
             .map(|this| {
                 if self.account_too_young {
                     this.child(YoungAccountBanner).child(

@@ -91,10 +91,10 @@ rustup target add $target_triple
 echo "Compiling paddleboard binaries"
 # PaddleBoard: paddleboard_krun_helper is the built-in container sandbox's microVM
 # runner; it ships in Contents/MacOS next to the main binary.
-cargo build ${build_flag} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
+cargo --config .cargo/bundle-config.toml build ${build_flag} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
-cargo build ${build_flag} --package remote_server --target $target_triple
+cargo --config .cargo/bundle-config.toml build ${build_flag} --package remote_server --target $target_triple
 
 echo "Creating application bundle"
 pushd crates/paddleboard
@@ -292,7 +292,33 @@ function sign_app_binaries() {
         rm -rf ${dmg_source_directory}
         mkdir -p ${dmg_source_directory}
         mv "${app_path}" "${dmg_source_directory}"
+        app_in_dmg="${dmg_source_directory}/$(basename "${app_path}")"
         notarization_key_file=$(mktemp)
+
+        # PaddleBoard: notarize and staple the .app BEFORE the DMG is built, so the
+        # bundle carries its own ticket. Stapling the DMG alone leaves an app dragged
+        # out of it verifiable only by an ONLINE call to Apple; a user who downloads
+        # while connected, goes offline, then launches for the first time is refused
+        # outright. Order is forced: a ticket cannot be stapled to something that has
+        # not been notarized, and the DMG must be built from the already-stapled app,
+        # so this cannot be folded into the DMG pass below.
+        if [[ $can_code_sign = true ]]; then
+            app_zip_path="${dmg_target_directory}/$(basename "${app_path}").zip"
+            echo "Notarizing app bundle with Apple"
+            # ditto, not zip: notarytool rejects an archive that has lost the bundle's
+            # symlinks and resource forks, which is exactly what /usr/bin/zip drops.
+            /usr/bin/ditto -c -k --keepParent "${app_in_dmg}" "${app_zip_path}"
+            echo "$APPLE_NOTARIZATION_KEY" > "$notarization_key_file"
+            "${xcode_bin_dir_path}/notarytool" submit --wait --key "$notarization_key_file" --key-id "$APPLE_NOTARIZATION_KEY_ID" --issuer "$APPLE_NOTARIZATION_ISSUER_ID" "${app_zip_path}"
+            # The ticket is stapled to the bundle, never to the zip -- the zip was only
+            # ever a transport for the upload and is dead once notarization returns.
+            "${xcode_bin_dir_path}/stapler" staple "${app_in_dmg}"
+            # Truncate rather than rm: the DMG pass below rewrites this same path, and
+            # recreating it with `>` would lose mktemp's 0600 mode. Emptying it keeps
+            # the signing key out of the file across the `npm install` that runs next.
+            : > "$notarization_key_file"
+            rm "${app_zip_path}"
+        fi
 
         echo "Adding symlink to /Applications to ${dmg_source_directory}"
         ln -s /Applications ${dmg_source_directory}
@@ -316,6 +342,12 @@ function sign_app_binaries() {
             "${xcode_bin_dir_path}/notarytool" submit --wait --key "$notarization_key_file" --key-id "$APPLE_NOTARIZATION_KEY_ID" --issuer "$APPLE_NOTARIZATION_ISSUER_ID" "${dmg_file_path}"
             rm "$notarization_key_file"
             "${xcode_bin_dir_path}/stapler" staple "${dmg_file_path}"
+
+            # Both artifacts must validate. The app check is the one that regresses
+            # silently: dropping it leaves the DMG green while the bundle users
+            # actually run has no ticket -- the exact state issue #118 describes.
+            "${xcode_bin_dir_path}/stapler" validate "${dmg_file_path}"
+            "${xcode_bin_dir_path}/stapler" validate "${app_in_dmg}"
         fi
 
         if [ "$open_result" = true ]; then
@@ -333,24 +365,33 @@ function sign_binary() {
     fi
 }
 
+debug_symbols_extracted=false
+function extract_debug_symbols() {
+    if [ "$debug_symbols_extracted" = true ]; then
+        return
+    fi
+    debug_symbols_extracted=true
+    # PaddleBoard: `paddleboard`, not upstream's `zed`. This function arrived from
+    # upstream as new code, so no conflict marked it -- but the path it names does
+    # not exist in this fork and dsymutil would abort the release build.
+    if ! dsymutil --flat "target/${target_triple}/${target_dir}/paddleboard" 2> target/dsymutil.log; then
+        echo "dsymutil failed"
+        cat target/dsymutil.log
+        exit 1
+    fi
+    if ! dsymutil --flat "target/${target_triple}/${target_dir}/remote_server" 2> target/dsymutil.log; then
+        echo "dsymutil failed"
+        cat target/dsymutil.log
+        exit 1
+    fi
+}
+
 function upload_debug_symbols() {
     if [ "$local_install" = true ]; then
         echo "local install; skipping sentry upload."
     elif [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
         echo "Uploading zed debug symbols to sentry..."
-        exe_path="target/${target_triple}/release/PaddleBoard"
-        if ! dsymutil --flat "target/${target_triple}/${target_dir}/paddleboard" 2> target/dsymutil.log; then
-            echo "dsymutil failed"
-            cat target/dsymutil.log
-            exit 1
-        fi
-        if ! dsymutil --flat "target/${target_triple}/${target_dir}/remote_server" 2> target/dsymutil.log; then
-            echo "dsymutil failed"
-            cat target/dsymutil.log
-            exit 1
-        fi
-        # note: this uploads the unstripped binary which is needed because it contains
-        # .eh_frame data for stack unwinding. see https://github.com/getsentry/symbolic/issues/783
+        extract_debug_symbols
         # Try uploading up to 3 times
         for attempt in 1 2 3; do
             echo "Sentry upload attempt $attempt..."
@@ -372,6 +413,17 @@ function upload_debug_symbols() {
 }
 
 upload_debug_symbols
+
+# Sentry receives the extracted paddleboard.dwarf, not the binary, so debug symbols
+# must be extracted before the binaries are stripped below. The .dwarf files
+# also keep symbols recoverable when the sentry upload is skipped.
+if [[ "$target_dir" == "release" && "$local_install" != true ]]; then
+    extract_debug_symbols
+    # PaddleBoard: `paddleboard`, not upstream's `zed` — this fork renamed the binary.
+    strip -x "target/${target_triple}/${target_dir}/paddleboard"
+    strip -x "target/${target_triple}/${target_dir}/cli"
+    strip -x "target/${target_triple}/${target_dir}/remote_server"
+fi
 
 cp target/${target_triple}/${target_dir}/paddleboard "${app_path}/Contents/MacOS/paddleboard"
 cp target/${target_triple}/${target_dir}/cli "${app_path}/Contents/MacOS/cli"
