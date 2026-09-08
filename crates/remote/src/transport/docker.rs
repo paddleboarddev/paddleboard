@@ -687,16 +687,9 @@ impl RemoteConnection for DockerExecConnection {
 
         let mut docker_args = vec!["exec".to_string()];
 
-<<<<<<< HEAD
-        for (k, v) in self.connection_options.remote_env.iter() {
-            docker_args.push("-e".to_string());
-            docker_args.push(format!("{k}={v}"));
-        }
-        for env_var in ["RUST_LOG", "RUST_BACKTRACE", "PADDLEBOARD_GENERATE_MINIDUMPS"] {
-=======
         push_environment(&mut docker_args, &self.connection_options.remote_env);
-        for env_var in ["RUST_LOG", "RUST_BACKTRACE", "ZED_GENERATE_MINIDUMPS"] {
->>>>>>> zed/main
+        // PaddleBoard: PADDLEBOARD_GENERATE_MINIDUMPS, not upstream's ZED_ prefix.
+        for env_var in ["RUST_LOG", "RUST_BACKTRACE", "PADDLEBOARD_GENERATE_MINIDUMPS"] {
             if let Some(value) = std::env::var(env_var).ok() {
                 docker_args.push("-e".to_string());
                 docker_args.push(format!("{env_var}={value}"));

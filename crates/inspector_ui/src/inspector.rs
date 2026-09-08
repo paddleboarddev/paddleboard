@@ -109,18 +109,11 @@ fn render_inspector_id(inspector_id: &InspectorElementId, cx: &App) -> Div {
     let source_location = inspector_id.path.source_location;
     // For unknown reasons, for some elements the path is absolute.
     let source_location_string = source_location.to_string();
-<<<<<<< HEAD
-    let source_location_string = source_location_string
-        .strip_prefix(env!("PADDLEBOARD_REPO_DIR"))
-        .and_then(|s| s.strip_prefix("/"))
-        .map(|s| s.to_string())
-=======
     // Resolve the checkout at runtime rather than baking it in at build time
     // (which corgi rejects, and which would be wrong in any other worktree).
     let source_location_string = util::dev_repo_root()
         .and_then(|root| Path::new(&source_location_string).strip_prefix(root).ok())
         .map(|path| path.display().to_string())
->>>>>>> zed/main
         .unwrap_or(source_location_string);
 
     v_flex()
@@ -169,13 +162,9 @@ fn render_inspector_id(inspector_id: &InspectorElementId, cx: &App) -> Div {
 async fn open_zed_source_location(
     location: &'static std::panic::Location<'static>,
 ) -> anyhow::Result<()> {
-<<<<<<< HEAD
-    let mut path = Path::new(env!("PADDLEBOARD_REPO_DIR")).to_path_buf();
-=======
     let mut path = util::dev_repo_root()
         .context("locating the zed checkout to open sources from")?
         .to_path_buf();
->>>>>>> zed/main
     path.push(Path::new(location.file()));
     let path_arg = format!(
         "{}:{}:{}",

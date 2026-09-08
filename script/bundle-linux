@@ -131,18 +131,15 @@ fi
 # is skipped.
 # We use llvm-objcopy because GNU objcopy on older distros (e.g. Ubuntu 20.04)
 # doesn't understand CREL sections produced by newer LLVM.
-<<<<<<< HEAD
-llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/paddleboard"
-llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/cli"
-llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/paddleboard-krun-helper"
-llvm-objcopy --strip-debug "${target_dir}/${remote_server_triple}/release/remote_server"
-=======
-llvm-objcopy --only-keep-debug "${target_dir}/${target_triple}/release/zed" "${target_dir}/${target_triple}/release/zed.dbg"
+llvm-objcopy --only-keep-debug "${target_dir}/${target_triple}/release/paddleboard" "${target_dir}/${target_triple}/release/paddleboard.dbg"
 llvm-objcopy --only-keep-debug "${target_dir}/${remote_server_triple}/release/remote_server" "${target_dir}/${remote_server_triple}/release/remote_server.dbg"
-llvm-objcopy --strip-debug --discard-all "${target_dir}/${target_triple}/release/zed"
+llvm-objcopy --strip-debug --discard-all "${target_dir}/${target_triple}/release/paddleboard"
 llvm-objcopy --strip-debug --discard-all "${target_dir}/${target_triple}/release/cli"
 llvm-objcopy --strip-debug --discard-all "${target_dir}/${remote_server_triple}/release/remote_server"
->>>>>>> zed/main
+# PaddleBoard: the krun helper is ours, so upstream has no line for it. Left on
+# plain --strip-debug rather than upstream's --discard-all: nothing in this merge
+# requires changing how a PaddleBoard-only binary is stripped.
+llvm-objcopy --strip-debug "${target_dir}/${target_triple}/release/paddleboard-krun-helper"
 
 # Ensure that remote_server does not depend on libssl nor libcrypto, as we got rid of these deps.
 if ldd "${target_dir}/${remote_server_triple}/release/remote_server" | grep -q 'libcrypto\|libssl'; then

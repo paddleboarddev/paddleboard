@@ -852,6 +852,7 @@ fn update_command_palette_filter(cx: &mut App) {
         ];
 
         let open_rules_library_action = [TypeId::of::<paddleboard_actions::assistant::OpenRulesLibrary>()];
+        let manage_skills_action = [TypeId::of::<paddleboard_actions::assistant::ManageSkills>()];
         let skill_creator_actions = [
             TypeId::of::<paddleboard_actions::assistant::OpenSkillCreator>(),
             TypeId::of::<paddleboard_actions::assistant::CreateSkillFromUrl>(),
@@ -906,25 +907,21 @@ fn update_command_palette_filter(cx: &mut App) {
             filter.show_namespace("multi_workspace");
         }
 
-<<<<<<< HEAD
-        // Hide `assistant: open rules library` — Rules are surfaced
+        // PaddleBoard: hide `assistant: open rules library` — Rules are surfaced
         // through the Skills UI now. Applied after the disable-ai /
         // agent-enabled branches so it overrides the
         // `show_namespace("assistant")` call above without affecting the
         // rest of that namespace's actions.
+        //
+        // Upstream's `manage_skills` hide below is the same move for a different
+        // command (Skills moved into the settings UI). The two are independent and
+        // both apply — taking either side alone would silently re-expose a command.
+        filter.hide_action_types(&manage_skills_action);
         if !disable_ai {
             filter.hide_action_types(&open_rules_library_action);
             filter.show_action_types(skill_creator_actions.iter());
         } else {
             filter.show_action_types(open_rules_library_action.iter());
-=======
-        // Skills are surfaced through the settings UI now, so this command
-        // should never appear in the palette.
-        filter.hide_action_types(&manage_skills_action);
-        if !disable_ai {
-            filter.show_action_types(skill_creator_actions.iter());
-        } else {
->>>>>>> zed/main
             filter.hide_action_types(&skill_creator_actions);
         }
     });
@@ -1103,7 +1100,7 @@ mod tests {
                 "OpenProjectAgentsMdRules should be visible by default"
             );
             assert!(
-                filter.is_hidden(&zed_actions::assistant::ManageSkills),
+                filter.is_hidden(&paddleboard_actions::assistant::ManageSkills),
                 "ManageSkills should be hidden even when AI is enabled"
             );
         });
@@ -1194,11 +1191,11 @@ mod tests {
         cx.update(|cx| {
             let filter = CommandPaletteFilter::try_global(cx).unwrap();
             assert!(
-                filter.is_hidden(&zed_actions::assistant::ManageSkills),
+                filter.is_hidden(&paddleboard_actions::assistant::ManageSkills),
                 "ManageSkills should be hidden when AI is disabled"
             );
             assert!(
-                filter.is_hidden(&zed_actions::assistant::OpenSkillCreator),
+                filter.is_hidden(&paddleboard_actions::assistant::OpenSkillCreator),
                 "OpenSkillCreator should be hidden when AI is disabled"
             );
             assert!(

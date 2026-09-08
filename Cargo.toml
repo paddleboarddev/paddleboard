@@ -809,14 +809,10 @@ oci-client = { version = "0.17", default-features = false, features = [
 ] }
 oci-spec = "0.9"
 open = "5.0.0"
-<<<<<<< HEAD
 opentelemetry = { version = "0.32", default-features = false, features = ["trace"] }
 opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace", "rt-tokio"] }
 opentelemetry-otlp = { version = "0.32", default-features = false, features = ["trace", "grpc-tonic"] }
-ordered-float = "2.1.1"
-=======
 ordered-float = "5"
->>>>>>> zed/main
 palette = { version = "0.7.5", default-features = false, features = ["std"] }
 parking_lot = "0.12.1"
 parse_int = "0.9"

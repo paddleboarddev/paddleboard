@@ -174,10 +174,6 @@ use crate::{
 pub const SERIALIZATION_THROTTLE_TIME: Duration = Duration::from_millis(200);
 pub const MAX_RECENT_SELECTIONS: usize = 20;
 
-<<<<<<< HEAD
-static PADDLEBOARD_WINDOW_SIZE: LazyLock<Option<Size<Pixels>>> = LazyLock::new(|| {
-    env::var("PADDLEBOARD_WINDOW_SIZE")
-=======
 /// Which optional window-title variables are actually referenced by the active
 /// template. Used to skip expensive lookups when the template doesn't need them.
 struct WindowTitleNeeds {
@@ -312,9 +308,9 @@ fn render_window_title_format(
     segments.join(separator)
 }
 
-static ZED_WINDOW_SIZE: LazyLock<Option<Size<Pixels>>> = LazyLock::new(|| {
-    env::var("ZED_WINDOW_SIZE")
->>>>>>> zed/main
+// PaddleBoard: PADDLEBOARD_WINDOW_SIZE, not upstream's ZED_ prefix.
+static PADDLEBOARD_WINDOW_SIZE: LazyLock<Option<Size<Pixels>>> = LazyLock::new(|| {
+    env::var("PADDLEBOARD_WINDOW_SIZE")
         .ok()
         .as_deref()
         .and_then(parse_pixel_size_env_var)
@@ -8359,7 +8355,25 @@ impl Workspace {
     }
 }
 
-<<<<<<< HEAD
+fn project_window_title(project: &Project, cx: &App) -> String {
+    let mut title = String::new();
+
+    for (index, worktree) in project.visible_worktrees(cx).enumerate() {
+        let name = worktree.read(cx).root_name_str();
+        if index > 0 {
+            title.push_str(", ");
+        }
+        title.push_str(name);
+    }
+
+    if title.is_empty() {
+        // Keep the default untitled-window text instead of showing a blank title.
+        "empty project".to_string()
+    } else {
+        title
+    }
+}
+
 // PaddleBoard: upstream relocated this from a nested fn to top level in the
 // 2026-08-20 merge, in the same block as join_channel/join_channel_internal/
 // join_in_room_project/leader_border_for_pane. Those four are collab code that
@@ -8389,68 +8403,6 @@ fn serialize_pane_handle(
                     }
                     return None;
                 };
-=======
-fn project_window_title(project: &Project, cx: &App) -> String {
-    let mut title = String::new();
-
-    for (index, worktree) in project.visible_worktrees(cx).enumerate() {
-        let name = worktree.read(cx).root_name_str();
-        if index > 0 {
-            title.push_str(", ");
-        }
-        title.push_str(name);
-    }
-
-    if title.is_empty() {
-        // Keep the default untitled-window text instead of showing a blank title.
-        "empty project".to_string()
-    } else {
-        title
-    }
-}
-
-pub trait AnyActiveCall {
-    fn entity(&self) -> AnyEntity;
-    fn is_in_room(&self, _: &App) -> bool;
-    fn room_id(&self, _: &App) -> Option<u64>;
-    fn channel_id(&self, _: &App) -> Option<ChannelId>;
-    fn hang_up(&self, _: &mut App) -> Task<Result<()>>;
-    fn unshare_project(&self, _: Entity<Project>, _: &mut App) -> Result<()>;
-    fn remote_participant_for_peer_id(&self, _: PeerId, _: &App) -> Option<RemoteCollaborator>;
-    fn is_sharing_project(&self, _: &App) -> bool;
-    fn is_sharing_screen(&self, _: &App) -> bool;
-    fn has_remote_participants(&self, _: &App) -> bool;
-    fn local_participant_is_guest(&self, _: &App) -> bool;
-    fn client(&self, _: &App) -> Arc<Client>;
-    fn share_on_join(&self, _: &App) -> bool;
-    fn join_channel(&self, _: ChannelId, _: &mut App) -> Task<Result<bool>>;
-    fn room_update_completed(&self, _: &mut App) -> Task<()>;
-    fn most_active_project(&self, _: &App) -> Option<(u64, u64)>;
-    fn share_project(&self, _: Entity<Project>, _: &mut App) -> Task<Result<u64>>;
-    fn join_project(
-        &self,
-        _: u64,
-        _: Arc<LanguageRegistry>,
-        _: Arc<dyn Fs>,
-        _: &mut App,
-    ) -> Task<Result<Entity<Project>>>;
-    fn peer_id_for_user_in_room(&self, _: u64, _: &App) -> Option<PeerId>;
-    fn subscribe(
-        &self,
-        _: &mut Window,
-        _: &mut Context<Workspace>,
-        _: Box<dyn Fn(&mut Workspace, &ActiveCallEvent, &mut Window, &mut Context<Workspace>)>,
-    ) -> Subscription;
-    fn create_shared_screen(
-        &self,
-        _: PeerId,
-        _: &Entity<Pane>,
-        _: &mut Window,
-        _: &mut App,
-    ) -> Option<Entity<SharedScreen>>;
-    fn peer_ids_with_video_tracks(&self, _: &App) -> Vec<PeerId>;
-}
->>>>>>> zed/main
 
                 Some(SerializedItem {
                     kind: Arc::from(handle.serialized_item_kind()),
@@ -11124,7 +11076,7 @@ mod tests {
             file_stem: Some("main".to_string()),
             remote_name: Some("nickname".to_string()),
             remote_host: Some("example.com".to_string()),
-            app_name: "Zed",
+            app_name: "PaddleBoard",
             branch: Some("main".to_string()),
         };
 
@@ -11180,7 +11132,7 @@ mod tests {
             file_stem: Some("main".to_string()),
             remote_name: None,
             remote_host: None,
-            app_name: "Zed",
+            app_name: "PaddleBoard",
             branch: None,
         };
 
@@ -11202,14 +11154,14 @@ mod tests {
     fn test_render_window_title_format_renders_new_variables() {
         let context = WindowTitleContext {
             project_name: "project".to_string(),
-            app_name: "Zed",
+            app_name: "PaddleBoard",
             branch: Some("feature/foo".to_string()),
             ..Default::default()
         };
 
         assert_eq!(
             render_window_title_format("${projectName}${separator}${appName}", " — ", &context),
-            "project — Zed"
+            "project — PaddleBoard"
         );
         assert_eq!(
             render_window_title_format("${projectName}${separator}${branch}", " — ", &context),
@@ -11611,7 +11563,10 @@ mod tests {
             });
         });
         cx.executor().run_until_parked();
-        assert_eq!(cx.window_title().as_deref(), Some("Zed — root1, root2"));
+        assert_eq!(
+            cx.window_title().as_deref(),
+            Some("PaddleBoard — root1, root2")
+        );
 
         let item = cx.new(|cx| {
             TestItem::new(cx).with_project_items(&[TestProjectItem::new_in_worktree(
@@ -11628,7 +11583,7 @@ mod tests {
         let expected_file_path = path!("/root1/src/one.txt");
         assert_eq!(
             cx.window_title().as_deref(),
-            Some(format!("Zed — root1, root2 — one — {expected_file_path}").as_str())
+            Some(format!("PaddleBoard — root1, root2 — one — {expected_file_path}").as_str())
         );
     }
 

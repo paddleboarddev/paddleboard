@@ -689,7 +689,6 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             status_bar.add_right_item(line_ending_indicator, window, cx);
             status_bar.add_right_item(cursor_position, window, cx);
             status_bar.add_right_item(image_info, window, cx);
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
             // PaddleBoard: sandbox prerequisites indicator (Podman + gVisor).
             status_bar.add_right_item(sandbox_status_item, window, cx);
             // PaddleBoard: MCP server health indicator.
@@ -700,15 +699,20 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
             status_bar.add_right_item(set_sail_status_item, window, cx);
             // PaddleBoard: Placid mode toggle.
             status_bar.add_right_item(placid_status_item, window, cx);
-            // PaddleBoard: last on the right, so that when it does appear — which
-            // is rarely — it reads as transient rather than displacing the items
-            // people navigate by position.
+            // PaddleBoard: rarely visible, so it sits left of the fixed items and
+            // reads as transient rather than displacing the ones people navigate
+            // by position.
             status_bar.add_right_item(update_status_item, window, cx);
-=======
             // Keep these last so they stay leftmost and can change without moving the other items.
+            //
+            // PaddleBoard: upstream's two go after ours rather than before. Both
+            // blocks claim the leftmost slot for the same reason, and only one can
+            // have it — `pending_keystrokes_indicator` toggles on every multi-key
+            // chord, where the update indicator appears once in a release cycle.
+            // The cost is that a pending update shifts these two left while it is
+            // shown, which is the rarer and less distracting of the two motions.
             status_bar.add_right_item(vim_mode_indicator, window, cx);
             status_bar.add_right_item(pending_keystrokes_indicator, window, cx);
->>>>>>> zed/main:crates/zed/src/zed.rs
         });
 
         let panels_task = initialize_panels(window, cx);

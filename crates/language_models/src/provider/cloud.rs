@@ -56,8 +56,10 @@ use ui::{TintColor, prelude::*};
 
 use crate::provider::anthropic::{AnthropicEventMapper, AnthropicPromptCacheMode, into_anthropic};
 use crate::provider::google::{GoogleEventMapper, into_google};
+use language_model::chat_completion::ChatCompletionEventMapper;
+
 use crate::provider::open_ai::{
-    OpenAiEventMapper, OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
+    OpenAiResponseEventMapper, into_open_ai, into_open_ai_response,
 };
 
 const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
@@ -779,6 +781,11 @@ impl LanguageModel for CloudLanguageModel {
                 if enable_thinking && effort.is_some() {
                     request.thinking = Some(anthropic::Thinking::Adaptive {
                         display: Some(anthropic::AdaptiveThinkingDisplay::Summarized),
+                        // Thinking block binding needs a beta header on the upstream
+                        // Anthropic request, which this proxy controls rather than the
+                        // client, so opting in belongs server-side. Matches how
+                        // copilot_chat handles the same field.
+                        block_binding: None,
                     });
                     request.output_config = Some(anthropic::OutputConfig { effort });
                 }
@@ -926,7 +933,7 @@ impl LanguageModel for CloudLanguageModel {
                     )
                     .await?;
 
-                    let mut mapper = OpenAiEventMapper::new();
+                    let mut mapper = ChatCompletionEventMapper::new();
                     Ok(map_cloud_completion_events(
                         Box::pin(response_lines(response, includes_status_messages)),
                         &provider_name,

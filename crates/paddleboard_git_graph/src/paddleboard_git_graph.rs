@@ -5922,13 +5922,13 @@ mod tests {
         // an `Editor` itself, so resolving the file-history target must go through
         // `act_as` rather than a direct downcast of the active item.
         cx.update(|window, cx| {
-            window.dispatch_action(Box::new(crate::project_diff::Diff), cx);
+            window.dispatch_action(Box::new(git_ui::project_diff::Diff), cx);
         });
         cx.run_until_parked();
 
         workspace.read_with(cx, |workspace, cx| {
             workspace
-                .active_item_as::<crate::ProjectDiff>(cx)
+                .active_item_as::<git_ui::project_diff::ProjectDiff>(cx)
                 .expect("project diff should be the active item");
         });
 

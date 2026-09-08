@@ -243,9 +243,6 @@
   //
   // Default: true
   "zoomed_padding": true,
-<<<<<<< HEAD
-  // On Linux, what draws PaddleBoard's window decorations (titlebar).
-=======
   // Window title template.
   // Available variables are ${projectName}, ${fileName}, ${filePath},
   // ${relativePath}, ${fileStem}, ${remoteName}, ${remoteHost},
@@ -263,8 +260,7 @@
   //
   // Default: " — "
   "window_title_separator": " — ",
-  // On Linux, what draws Zed's window decorations (titlebar).
->>>>>>> zed/main
+  // On Linux, what draws PaddleBoard's window decorations (titlebar).
   // This setting has no effect on other platforms:
   // 1. Client application (PaddleBoard) draws its own window decorations.
   //    "client"

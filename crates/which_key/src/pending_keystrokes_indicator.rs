@@ -235,7 +235,7 @@ impl Render for PendingKeystrokesIndicator {
 
         let button = ButtonLike::new("pending-keystrokes-indicator")
             .on_click(|_, window, cx| {
-                window.dispatch_action(zed_actions::dev::OpenKeyContextView.boxed_clone(), cx);
+                window.dispatch_action(paddleboard_actions::dev::OpenKeyContextView.boxed_clone(), cx);
             })
             .child(if cx.reduce_motion() {
                 Icon::new(IconName::CountdownTimer)
@@ -556,7 +556,7 @@ mod tests {
                 .on_action(|_: &LongerBinding, _, _| {})
                 .on_action(|_: &LongestBinding, _, _| {})
                 .on_action(
-                    cx.listener(|this, _: &zed_actions::dev::OpenKeyContextView, _, _| {
+                    cx.listener(|this, _: &paddleboard_actions::dev::OpenKeyContextView, _, _| {
                         this.open_key_context_view_count
                             .set(this.open_key_context_view_count.get() + 1);
                     }),

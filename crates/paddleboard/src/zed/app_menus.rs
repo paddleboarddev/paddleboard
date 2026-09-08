@@ -46,21 +46,24 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
         // PaddleBoard: no Collab Panel; terminal action renamed upstream ToggleFocus -> Toggle.
         MenuItem::action("Terminal Panel", terminal_panel::Toggle),
         MenuItem::action("Debugger Panel", debug_panel::ToggleFocus),
-<<<<<<< HEAD:crates/paddleboard/src/zed/app_menus.rs
-        MenuItem::action("Agent Panel", assistant::ToggleFocus),
-        // PaddleBoard: the AI Dock is a modal rather than a panel, but this is
-        // where someone looks for the AI surfaces. Without it the dock had no
-        // menu entry at all, leaving the command palette its only route in.
-        MenuItem::action("AI Dock", paddleboard_actions::ai_dock::Open),
-=======
     ];
 
     if !DisableAiSettings::get_global(cx).disable_ai {
         view_items.push(MenuItem::action("Agent Panel", assistant::ToggleFocus));
+        // PaddleBoard: the AI Dock is a modal rather than a panel, but this is
+        // where someone looks for the AI surfaces. Without it the dock had no
+        // menu entry at all, leaving the command palette its only route in.
+        // Behind the same disable_ai gate as the Agent Panel above: every tab it
+        // hosts (Agents, Skills, MCP, Personas, Usage) is an AI surface, so
+        // leaving it visible would put an AI entry in the menu of a build that
+        // was configured to have none.
+        view_items.push(MenuItem::action(
+            "AI Dock",
+            paddleboard_actions::ai_dock::Open,
+        ));
     }
 
     view_items.extend([
->>>>>>> zed/main:crates/zed/src/zed/app_menus.rs
         MenuItem::action("Git Panel", git_panel::ToggleFocus),
         MenuItem::separator(),
         MenuItem::action("Diagnostics", diagnostics::Deploy),
