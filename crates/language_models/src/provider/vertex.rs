@@ -15,8 +15,7 @@ use language_model::{
     ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, InlineDescription, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelId, LanguageModelName,
     LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
-    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice,
-    LanguageModelToolSchemaFormat, ProviderSettingsView, RateLimiter, SubPageProviderSettings,
+    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice, ProviderSettingsView, RateLimiter, SubPageProviderSettings,
 };
 use paddleboard_vertex::{
     GcloudTokenProvider, ServiceAccountKey, TokenProvider, VertexAuth, stream_generate_content,
@@ -384,10 +383,6 @@ impl LanguageModel for VertexLanguageModel {
             | LanguageModelToolChoice::Any
             | LanguageModelToolChoice::None => true,
         }
-    }
-
-    fn tool_input_format(&self) -> LanguageModelToolSchemaFormat {
-        LanguageModelToolSchemaFormat::JsonSchemaSubset
     }
 
     fn telemetry_id(&self) -> String {

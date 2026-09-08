@@ -87,7 +87,7 @@ fi
 # PaddleBoard: paddleboard_krun_helper is the built-in container sandbox's microVM
 # runner; it ships in libexec next to the editor binary (find_krun_helper looks
 # for a sibling of the running executable). Mirrors script/bundle-mac.
-cargo build --release --target "${target_triple}" --package paddleboard --package cli --package paddleboard_krun_helper
+cargo --config .cargo/bundle-config.toml build --release --target "${target_triple}" --package paddleboard --package cli --package paddleboard_krun_helper
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
 if [[ "$remote_server_triple" == "$musl_triple" ]]; then
@@ -95,7 +95,7 @@ if [[ "$remote_server_triple" == "$musl_triple" ]]; then
     musl_cc_var="CC_$(echo "$remote_server_triple" | tr '-' '_')"
     export "$musl_cc_var"=musl-gcc
 fi
-cargo build --release --target "${remote_server_triple}" --package remote_server
+cargo --config .cargo/bundle-config.toml build --release --target "${remote_server_triple}" --package remote_server
 
 # Upload debug info to sentry.io
 if ! command -v sentry-cli >/dev/null 2>&1; then

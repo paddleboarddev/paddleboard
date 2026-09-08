@@ -91,10 +91,10 @@ rustup target add $target_triple
 echo "Compiling paddleboard binaries"
 # PaddleBoard: paddleboard_krun_helper is the built-in container sandbox's microVM
 # runner; it ships in Contents/MacOS next to the main binary.
-cargo build ${build_flag} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
+cargo --config .cargo/bundle-config.toml build ${build_flag} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
-cargo build ${build_flag} --package remote_server --target $target_triple
+cargo --config .cargo/bundle-config.toml build ${build_flag} --package remote_server --target $target_triple
 
 echo "Creating application bundle"
 pushd crates/paddleboard
