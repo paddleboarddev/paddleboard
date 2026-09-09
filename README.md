@@ -1,6 +1,3 @@
-<div align="center">
-
-<img src="assets/branding/social-preview.png" alt="PaddleBoard — the open-source AI IDE you actually own" width="840">
 
 ### The open-source AI IDE you actually own
 
