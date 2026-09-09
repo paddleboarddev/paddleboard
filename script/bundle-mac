@@ -419,8 +419,21 @@ upload_debug_symbols
 # also keep symbols recoverable when the sentry upload is skipped.
 if [[ "$target_dir" == "release" && "$local_install" != true ]]; then
     extract_debug_symbols
-    # PaddleBoard: `paddleboard`, not upstream's `zed` — this fork renamed the binary.
-    strip -x "target/${target_triple}/${target_dir}/paddleboard"
+    # PaddleBoard: upstream also strips the main binary here. We do NOT.
+    #
+    # v0.2.8's release build died at `sign_app_binaries` with
+    #   .../Contents/MacOS/paddleboard: internal error in Code Signing subsystem
+    # after 154 minutes -- the first cut carrying this step, which arrived with the
+    # 2026-09-08 upstream merge (#221). v0.2.7 shipped with no strip at all and
+    # signed fine. `cli` below is stripped in the same pass and signs without
+    # complaint, so it is not stripping as such: it is stripping the one binary that
+    # is then re-signed with entitlements, and is an order of magnitude larger.
+    #
+    # Leaving the main binary unstripped restores exactly what shipped through
+    # v0.2.7. The cost is bundle size; the alternative -- `codesign
+    # --remove-signature` before the strip, the documented remedy for this error --
+    # is untested here and each attempt costs ~2.5 hours of macOS CI. See #223
+    # before reinstating this line.
     strip -x "target/${target_triple}/${target_dir}/cli"
     strip -x "target/${target_triple}/${target_dir}/remote_server"
 fi
