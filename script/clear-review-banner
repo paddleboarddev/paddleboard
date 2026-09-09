@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# clear-review-banner — remove the PR review banner from README.md, if present.
+#
+# Why this exists rather than a `sed '1,3d'` one-liner: that command deletes the
+# first three lines whatever they are. Run once with the banner present it is
+# correct; run twice it silently eats the next three lines. On 2026-09-09 it ran
+# twice and removed `<div align="center">` and the social-preview <img> from the
+# README, leaving a `</div>` with no opening tag. Nothing failed and nothing
+# warned -- the loss was only visible by reading the file.
+#
+# CLAUDE.md has agents prepend the banner on every source change and reserves its
+# removal for the human author, so this runs often. It must be safe to run when
+# the banner is absent, and safe to run twice in a row.
+#
+# Exit 0 whether or not the banner was there; the point is the end state.
+
+set -euo pipefail
+
+README="$(cd "$(dirname "$0")/.." && pwd)/README.md"
+
+if [ ! -f "$README" ]; then
+  echo "clear-review-banner: no README.md at $README" >&2
+  exit 1
+fi
+
+python3 - "$README" <<'PY'
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+    text = handle.read()
+
+BANNER = (
+    "> [!IMPORTANT]\n"
+    "> Remove this line to confirm you've reviewed this PR before submitting.\n"
+)
+
+if not text.startswith(BANNER):
+    print("clear-review-banner: banner not present, README left untouched.")
+    raise SystemExit(0)
+
+rest = text[len(BANNER):]
+# The banner is written with one blank line after it. Drop exactly that one, so
+# running this never reaches into the document's own content.
+if rest.startswith("\n"):
+    rest = rest[1:]
+
+with open(path, "w", encoding="utf-8") as handle:
+    handle.write(rest)
+print("clear-review-banner: banner removed.")
+PY
