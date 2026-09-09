@@ -2,8 +2,9 @@
 //! servers. Replaces the hardcoded "Agent Setup" row on the Welcome screen
 //! and absorbs the standalone MCP Servers page.
 //!
-//! Entry point: the `paddleboard_actions::ai_dock::Open` action toggles an
-//! `AiDock` on the active workspace. The dock owns three tab views and a
+//! Entry point: the `paddleboard_actions::ai_dock::Open` action opens an
+//! `AiDock` on the active workspace, or switches an already-open one to the
+//! requested tab -- it never dismisses. The dock owns three tab views and a
 //! shared `Catalog` loaded once at startup from the in-repo JSON.
 
 use std::sync::Arc;
@@ -26,17 +27,17 @@ pub fn init(cx: &mut App) {
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
         workspace.register_action(
             |workspace, _: &paddleboard_actions::ai_dock::Open, window, cx| {
-                AiDock::toggle(workspace, AiDockTab::Agents, window, cx);
+                AiDock::open(workspace, AiDockTab::Agents, window, cx);
             },
         );
         workspace.register_action(
             |workspace, _: &paddleboard_actions::ai_dock::OpenPersonas, window, cx| {
-                AiDock::toggle(workspace, AiDockTab::Personas, window, cx);
+                AiDock::open(workspace, AiDockTab::Personas, window, cx);
             },
         );
         workspace.register_action(
             |workspace, _: &paddleboard_actions::McpServers, window, cx| {
-                AiDock::toggle(workspace, AiDockTab::Mcp, window, cx);
+                AiDock::open(workspace, AiDockTab::Mcp, window, cx);
             },
         );
     })
