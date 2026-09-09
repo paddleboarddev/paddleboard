@@ -40,6 +40,42 @@ if (!hasReleaseNotes) {
   );
 }
 
+// A user-facing note also has to land in UNRELEASED.md, which is where release
+// notes are built from at cut time. Without this the file goes stale and the notes
+// get reconstructed from the git log instead -- slower, and it silently drops
+// anything whose PR body was thin. That has now happened three times: v0.1.8.1 ->
+// v0.2.6, v0.2.6 -> v0.2.7, and v0.2.7 -> v0.3.0. Twice was called a process
+// problem in UNRELEASED.md itself; a third time says the process needed a check.
+//
+// Its own pattern rather than reusing RELEASE_NOTES_PATTERN above: that one carries
+// the /g flag, so `.test()` advances `lastIndex` and a second call against the same
+// string returns false. Sharing it would make this check quietly unreliable.
+const USER_FACING_NOTE_PATTERN = /Release Notes:\s*\n+-\s*(?!N\/A\b)\S/i;
+
+const touchesUnreleased =
+  danger.git.modified_files.includes("UNRELEASED.md") ||
+  danger.git.created_files.includes("UNRELEASED.md");
+
+if (USER_FACING_NOTE_PATTERN.test(body) && !touchesUnreleased) {
+  warn(
+    [
+      "This PR has a user-facing release note but does not touch `UNRELEASED.md`.",
+      "",
+      "Release notes are built from that file at cut time. A bullet that only exists",
+      "in this PR body has to be recovered from the log later, which is how the file",
+      "went stale for v0.2.6 and again for v0.2.7.",
+      "",
+      "Add the same bullet to the `## Next` section:",
+      "",
+      "```",
+      "- Added/Fixed/Improved ...",
+      "```",
+      "",
+      'Not needed if the note is "N/A".',
+    ].join("\n"),
+  );
+}
+
 const ISSUE_LINK_PATTERN =
   /(?:- )?(?<!(?:Close[sd]?|Fixe[sd]|Resolve[sd]|Implement[sed]|Follow-up of|Part of):?\s+)https:\/\/github\.com\/[\w-]+\/[\w-]+\/issues\/\d+/gi;
 
