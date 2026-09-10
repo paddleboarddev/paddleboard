@@ -43,12 +43,32 @@ pub struct AiDock {
 }
 
 impl AiDock {
-    pub fn toggle(
+    /// Opens the AI Dock on `tab`, or switches an already-open dock to it.
+    ///
+    /// Deliberately not `toggle_modal` on its own. That helper *dismisses* when a
+    /// modal of the same type is already active, and returns silently when the
+    /// active modal declines to close (`DismissDecision::Dismiss(false)` or
+    /// `Pending`). Either way the user gets no modal, no error and no log line —
+    /// which is exactly the report in #200: a long-lived session answers
+    /// `ai dock: open` by doing nothing visible.
+    ///
+    /// Every action routed here is named `Open*`, so opening is what they should do.
+    /// Checking for a live dock first means the outcome no longer depends on the
+    /// modal layer's view of the world being accurate.
+    pub fn open(
         workspace: &mut Workspace,
         tab: AiDockTab,
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
+        if let Some(dock) = workspace.active_modal::<AiDock>(cx) {
+            dock.update(cx, |dock, cx| {
+                dock.switch_tab(tab, window, cx);
+                dock.focus_handle.focus(window, cx);
+            });
+            return;
+        }
+
         let weak_workspace = workspace.weak_handle();
         workspace.toggle_modal(window, cx, |_window, cx| AiDock {
             focus_handle: cx.focus_handle(),
