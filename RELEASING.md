@@ -106,6 +106,17 @@ case. "Finished" and "released" are deliberately decoupled.
    previous tag. For richer notes: `RELEASE_NOTES_FILE=notes.md bash script/publish-public.sh …`
    — build them from `UNRELEASED.md`. To push source + tag only (no Release):
    `SKIP_RELEASE=1 …`.
+
+   ⚠️ **`SKIP_RELEASE=1` does not skip the release *build*.** It skips only the GitHub
+   Release metadata. The script still force-pushes the tag, and the tag is what triggers
+   `release.yml` — so a "source-only" publish costs a full signed-and-notarized run
+   (~2.5-3 h) and **replaces the artifacts already attached to that Release**. On
+   2026-09-10 a source-only publish to correct the public README rebuilt and replaced
+   v0.2.8's DMG. That happened to be an improvement, because the rebuild picked up four
+   PRs that had landed since the original cut — but the general case is that the binary
+   users download changes underneath a published Release without anyone asking for it.
+   If you only want to correct source and keep the artifacts, re-point the tag by hand
+   rather than through this script.
 5. The tag triggers `release.yml`, which builds, signs, notarizes and attaches the DMG and
    Linux tarball to that same Release (see [The binary](#the-binary)).
 6. **Promote it.** Releases are created as prereleases; until promoted, the updater skips
