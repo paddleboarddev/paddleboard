@@ -176,10 +176,31 @@ impl ZedAiOnboarding {
             .gap_1()
             .child(Headline::new("Welcome to PaddleBoard AI"))
             .child(
+<<<<<<< HEAD
                 Label::new("Configure a language model provider to get started.")
                     .color(Color::Muted)
                     .mb_2(),
             )
+=======
+                Label::new("Sign in to try GPT Luna. Your 14 days begin when you start the trial.")
+                    .color(Color::Muted)
+                    .mb_2(),
+            )
+            .child(PlanDefinitions.sign_in_upsell())
+            .child(
+                Button::new("sign_in", "Sign In to Try GPT Luna")
+                    .disabled(signing_in)
+                    .full_width()
+                    .style(ButtonStyle::Tinted(ui::TintColor::Accent))
+                    .on_click({
+                        let callback = self.sign_in.clone();
+                        move |_, window, cx| {
+                            telemetry::event!("Start Trial Clicked", state = "pre-sign-in");
+                            callback(window, cx)
+                        }
+                    }),
+            )
+>>>>>>> zed/main
             .children(self.render_dismiss_button())
             .into_any_element()
     }
@@ -205,7 +226,18 @@ impl ZedAiOnboarding {
             .w_full()
             .relative()
             .gap_1()
+<<<<<<< HEAD
             .child(Headline::new("Welcome to PaddleBoard AI"))
+=======
+            .child(Self::pro_trial_stamp(cx))
+            .child(Headline::new("Welcome to the Zed Pro Trial"))
+            .child(
+                Label::new("Included for 14 days from when your trial started:")
+                    .color(Color::Muted)
+                    .mb_2(),
+            )
+            .child(PlanDefinitions.pro_trial(false))
+>>>>>>> zed/main
             .children(self.render_dismiss_button())
             .into_any_element()
     }

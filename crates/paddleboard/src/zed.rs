@@ -6038,7 +6038,11 @@ mod tests {
                 "language_selector",
                 "languages",
                 "line_ending_selector",
+<<<<<<< HEAD:crates/paddleboard/src/zed.rs
                 "llm_picker",
+=======
+                "lsp_command_selector",
+>>>>>>> zed/main:crates/zed/src/zed.rs
                 "lsp_tool",
                 "manifest",
                 "markdown",

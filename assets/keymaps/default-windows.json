@@ -550,8 +550,8 @@
       "ctrl-k ctrl-i": "editor::Hover",
       "ctrl-k ctrl-b": "editor::BlameHover",
       "ctrl-k ctrl-f": "editor::FormatSelections",
-      "ctrl-/": ["editor::ToggleComments", { "advance_downwards": false }],
-      "ctrl-k ctrl-c": ["editor::ToggleComments", { "advance_downwards": false }],
+      "ctrl-/": ["editor::ToggleComments", { "advance_downwards": false, "comment_empty_lines": true }],
+      "ctrl-k ctrl-c": ["editor::ToggleComments", { "advance_downwards": false, "comment_empty_lines": true }],
       "ctrl-k ctrl-/": "editor::ToggleBlockComments",
       "shift-alt-a": "editor::ToggleBlockComments",
       "f8": ["editor::GoToDiagnostic", { "severity": { "min": "hint", "max": "error" } }],
@@ -1000,6 +1000,8 @@
       "ctrl-shift-enter": "project_panel::OpenWithSystem",
       "alt-d": "project_panel::CompareMarkedFiles",
       "ctrl-k ctrl-shift-f": "project_panel::NewSearchInDirectory",
+      "menu": "project_panel::OpenContextMenu",
+      "shift-f10": "project_panel::OpenContextMenu",
       "shift-down": "menu::SelectNext",
       "shift-up": "menu::SelectPrevious",
       "escape": "menu::Cancel",
@@ -1197,6 +1199,23 @@
     },
   },
   {
+<<<<<<< HEAD
+=======
+    "context": "LspCommandSelector > Picker > Editor",
+    "use_key_equivalents": true,
+    "bindings": {
+      "tab": "lsp_command_selector::ToggleArgumentsFocus",
+    },
+  },
+  {
+    "context": "ChannelModal > Picker > Editor",
+    "use_key_equivalents": true,
+    "bindings": {
+      "tab": "channel_modal::ToggleMode",
+    },
+  },
+  {
+>>>>>>> zed/main
     "context": "ToolchainSelector",
     "use_key_equivalents": true,
     "bindings": {
