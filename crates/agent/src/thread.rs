@@ -3808,7 +3808,7 @@ impl Thread {
             ]);
             let (response_tx, response_rx) = oneshot::channel();
             event_stream
-                .0
+                .sender
                 .unbounded_send(Ok(ThreadEvent::ToolCallAuthorization(
                     ToolCallAuthorization {
                         tool_call: acp::ToolCallUpdate::new(
