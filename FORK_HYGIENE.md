@@ -127,6 +127,7 @@ The job can be triggered on demand via the **Actions** tab → *Merge upstream Z
 | `test.yml` | test gate: runs the `paddleboard*` crates' tests on Linux |
 | `public-embeds.yml` | per-PR hygiene: embeds, zed-isms, llama pins, zombie files |
 | `upstream-drift.yml` | drift report, sticky PR comment + weekly |
+| `upstream-drift-baseline.yml` | re-saves the drift baseline in a bot PR once an upstream merge PR lands |
 | `release.yml` | tag-triggered signed/notarized DMG + Linux tarball |
 | `watch-llama-cpp-advisories.yml` | llama.cpp security watcher |
 | `watch-scion-releases.yml` | Scion release watcher |
