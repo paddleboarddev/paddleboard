@@ -572,12 +572,8 @@ impl LanguageModelRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-<<<<<<< HEAD
     use crate::LanguageModelProviderName;
-    use crate::fake_provider::FakeLanguageModelProvider;
-=======
     use crate::fake_provider::{FakeLanguageModel, FakeLanguageModelProvider};
->>>>>>> zed/main
 
     #[test]
     fn selected_model_allows_slashes_in_model_id() {

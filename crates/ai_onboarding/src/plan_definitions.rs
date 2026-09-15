@@ -17,23 +17,6 @@ impl PlanDefinitions {
 
     pub fn pro_trial(&self, _period: bool) -> impl IntoElement {
         List::new()
-<<<<<<< HEAD
-=======
-            .child(ListBulletItem::new("Unlimited edit predictions"))
-            .child(ListBulletItem::new("$5 of GPT Luna"))
-            .child(ListBulletItem::new("No credit card required"))
-    }
-
-    pub fn pro_trial(&self, period: bool) -> impl IntoElement {
-        List::new()
-            .child(ListBulletItem::new("$5 of GPT Luna"))
-            .child(ListBulletItem::new("Unlimited edit predictions"))
-            .when(period, |this| {
-                this.child(ListBulletItem::new(
-                    "14 days from trial start, no credit card required",
-                ))
-            })
->>>>>>> zed/main
     }
 
     pub fn pro_plan(&self) -> impl IntoElement {

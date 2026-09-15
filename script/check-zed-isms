@@ -235,6 +235,7 @@ PROSE_OK=(
   'sharing a project in Zed'   # collab component preview, collab is removed
   "Zed's agent with any ACP"   # component preview string
   "author: Zed"                # markdown parser test data in a non-test file
+  'expected Zed upgrade prompt'  # test assertion on Zed Cloud's payment-required path
   "name: 'Zed'"                # vim surround test data in a non-test file
   'Zed task variables'         # doc comment on a test helper
   # --- Zed Cloud update path: renaming these would make them WRONG -----------

@@ -697,12 +697,7 @@ fork = "0.4.0"
 flate2 = "1.0"
 flume = "0.12"
 foreign-types = "0.5"
-<<<<<<< HEAD
-futures = "0.3.32"
-=======
-fork = "0.4.0"
 futures = "0.3.34"
->>>>>>> zed/main
 futures-concurrency = "7.7.1"
 futures-lite = "2"
 gh-workflow = { git = "https://github.com/zed-industries/gh-workflow", rev = "37f3c0575d379c218a9c455ee67585184e40d43f" }

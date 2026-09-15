@@ -2,9 +2,6 @@ use super::*;
 // use crate::undo::tests::{build_create_operation, build_rename_operation};
 use collections::HashSet;
 use editor::{Editor, MultiBufferOffset};
-<<<<<<< HEAD
-use gpui::{Empty, Entity, TestAppContext, VisualTestContext};
-=======
 use git::{
     Oid,
     repository::{InitialGraphCommitData, LogSource, RepoPath},
@@ -13,7 +10,6 @@ use gpui::{
     AnyWindowHandle, Empty, Entity, InputEvent as _, KeyDownEvent, Keystroke, TestAppContext,
     VisualTestContext,
 };
->>>>>>> zed/main
 use language::{
     Diagnostic, DiagnosticEntry, DiagnosticMessage, DiagnosticSourceKind, LanguageServerId,
     PointUtf16, Unclipped,

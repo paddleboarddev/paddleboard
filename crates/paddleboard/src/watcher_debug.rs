@@ -76,7 +76,8 @@ struct Export {
     exclusion_scope: &'static str,
 }
 
-const EXCLUSION_SCOPE: &str = "Patterns Zed skips when scanning your open local projects. Excluded files may still produce watcher events.";
+// PaddleBoard: user-facing product name.
+const EXCLUSION_SCOPE: &str = "Patterns PaddleBoard skips when scanning your open local projects. Excluded files may still produce watcher events.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum WatcherTab {

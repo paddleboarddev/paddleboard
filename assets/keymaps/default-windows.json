@@ -1199,8 +1199,6 @@
     },
   },
   {
-<<<<<<< HEAD
-=======
     "context": "LspCommandSelector > Picker > Editor",
     "use_key_equivalents": true,
     "bindings": {
@@ -1208,14 +1206,6 @@
     },
   },
   {
-    "context": "ChannelModal > Picker > Editor",
-    "use_key_equivalents": true,
-    "bindings": {
-      "tab": "channel_modal::ToggleMode",
-    },
-  },
-  {
->>>>>>> zed/main
     "context": "ToolchainSelector",
     "use_key_equivalents": true,
     "bindings": {
