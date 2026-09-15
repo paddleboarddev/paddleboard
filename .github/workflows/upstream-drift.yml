@@ -64,15 +64,17 @@ jobs:
 
       - name: Generate drift report
         id: drift
+        # Explicit `shell: bash` runs with `-o pipefail`, so a script error
+        # fails the job. GitHub's default `bash -e` takes `tee`'s exit code.
+        shell: bash
         run: |
-          # On PRs, --check compares against the committed baseline and
-          # exits non-zero if any crate's drift exceeds the threshold.
-          # Scheduled / manual runs just report — no gate.
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            ./script/check-upstream-drift --check 2>&1 | tee /tmp/drift.md
-          else
-            ./script/check-upstream-drift | tee /tmp/drift.md
-          fi
+          # Report-only: this job never fails a PR on drift thresholds, so
+          # there is no `--check`. The thresholds compare against a baseline
+          # re-saved only after each upstream merge lands
+          # (`upstream-drift-baseline.yml`), and against a moving zed/main, so
+          # they accumulate everything since that merge rather than measuring
+          # the PR under review. Over-threshold warnings still appear in the report.
+          ./script/check-upstream-drift 2>&1 | tee /tmp/drift.md
 
       - name: Write workflow summary
         if: always()

@@ -131,7 +131,7 @@ The original `stdio` transport (which runs the binary directly on your host) is 
 
 One place to browse and install everything the agent talks to. Think of it as the marina where every external collaborator your PaddleBoard talks to ties up.
 
-- Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Antigravity) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
+- Open it with `Cmd-K Cmd-A` (`Ctrl-K Ctrl-A` on Linux and Windows), **View → AI Dock**, the command palette (`ai_dock: Open`), or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Antigravity) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
 - Five tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), **Personas** (who the agent should *be* — see below), **MCP Servers** (the absorbed management page plus a catalog of common servers), and **Usage** (local, per-provider token stats — see below).
 - Installed items show a green badge; missing ones show an **Install / Sign In / Set Up / Learn More** action that does the right thing for the category — registry agent installs are a one-click settings write, CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/test`, `/build-mcp`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory, alongside built-in commands (`/verify`, `/review`, `/security-review`) that the agent already provides.
 - The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
@@ -205,13 +205,14 @@ Step mode only applies to the root thread. Subagents spawned from that thread ru
 
 When you have multiple agents running — root threads, subagents spawned mid-task, background threads — it can be hard to track what's active. The Agent Threads panel gives you a live tree view of everything.
 
-**How to open it:** Click the `ListTree` icon in the panel bar, or search for `orchestration_panel: Toggle Focus` in the command palette.
+**How to open it:** Press `Cmd-K Cmd-G` (`Ctrl-K Ctrl-G` on Linux and Windows), choose **View → Agent Threads**, click the **Thread** icon in the panel bar, or search for `orchestration_panel: Toggle Focus` in the command palette. The panel-bar icon can be hidden with the `paddleboard_ui.orchestration_button` setting.
 
 The panel shows:
 
 - Every active agent session across all conversation views
 - Subagents indented under the thread that spawned them
-- A status indicator: accent-colored when generating, muted when idle
+- Each thread's own agent icon, so a tree mixing PaddleBoard's agent with Claude Code or other external agents stays readable at a glance — hover a row for the agent's name
+- What each thread is doing, ranked by how urgently it needs you: **waiting for your confirmation** (in the warning colour, with a warning marker) outranks **running tools** (a hammer marker), which outranks **generating** (accent) and **idle** (muted)
 - Click any row to jump directly to that thread in the Agent Panel
 
 The tree updates in real time as threads start, finish, or spawn subagents.
