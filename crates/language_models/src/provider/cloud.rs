@@ -1135,7 +1135,9 @@ fn zed_ai_description(
         Some(Plan::ZedPro) => {
             "You have access to Zed's hosted models through your Pro subscription."
         }
-        Some(Plan::ZedProTrial) => "You have access to Zed's hosted models through your Pro trial.",
+        Some(Plan::ZedProTrial) => {
+            "Your Pro trial includes $5 of GPT Luna and unlimited edit predictions for 14 days from trial start."
+        }
         Some(Plan::ZedStudent) => {
             "You have access to Zed's hosted models through your Student subscription."
         }
@@ -1151,7 +1153,7 @@ fn zed_ai_description(
         }
         Some(Plan::ZedFree) | None => {
             if eligible_for_trial {
-                "Subscribe for access to Zed's hosted models. Start with a 14 day free trial."
+                "Start a free trial with $5 of GPT Luna and unlimited edit predictions for 14 days from trial start."
             } else {
                 "Subscribe for access to Zed's hosted models."
             }
@@ -1183,7 +1185,7 @@ impl RenderOnce for ZedAiConfiguration {
                 .on_click(|_, _, cx| cx.open_url(&zed_urls::account_url(cx)))
                 .into_any_element()
         } else if self.plan.is_none() || self.eligible_for_trial {
-            Button::new("start_trial", "Start 14-day Free Pro Trial")
+            Button::new("start_trial", "Start Free Trial")
                 .when(!self.compact, |this| {
                     this.full_width().label_size(LabelSize::Small)
                 })

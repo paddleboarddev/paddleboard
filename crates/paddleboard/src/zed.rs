@@ -6039,6 +6039,7 @@ mod tests {
                 "languages",
                 "line_ending_selector",
                 "llm_picker",
+                "lsp_command_selector",
                 "lsp_tool",
                 "manifest",
                 "markdown",
