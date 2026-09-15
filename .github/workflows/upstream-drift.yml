@@ -70,9 +70,10 @@ jobs:
         run: |
           # Report-only: this job never fails a PR on drift thresholds, so
           # there is no `--check`. The thresholds compare against a baseline
-          # that is only refreshed by hand, and against a moving zed/main, so
-          # they measure time since the last `--save-baseline` rather than the
-          # PR under review. Over-threshold warnings still appear in the report.
+          # re-saved only after each upstream merge lands
+          # (`upstream-drift-baseline.yml`), and against a moving zed/main, so
+          # they accumulate everything since that merge rather than measuring
+          # the PR under review. Over-threshold warnings still appear in the report.
           ./script/check-upstream-drift 2>&1 | tee /tmp/drift.md
 
       - name: Write workflow summary
