@@ -20,7 +20,7 @@ use settings::Settings;
 use task::{
     HideStrategy, RevealStrategy, RevealTarget, SaveStrategy, Shell, SpawnInTerminal, TaskId,
 };
-use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, prelude::*};
+use ui::{Color, ContextMenu, Icon, IconName, IconSize, Label, LabelSize, Tooltip, prelude::*};
 use workspace::{
     Toast, Workspace,
     dock::{DockPosition, Panel, PanelEvent},
@@ -254,15 +254,21 @@ impl OrchestrationPanel {
     ) {
         let thread_data = thread_view.read(cx);
         let session_id = thread_data.session_id.clone();
-        let status = thread_data.thread.read(cx).status();
-
-        let title: SharedString = thread_data
-            .thread
-            .read(cx)
-            .title()
-            .unwrap_or_else(|| "Untitled".into());
-
-        let is_generating = matches!(status, ThreadStatus::Generating);
+        let thread = thread_data.thread.read(cx);
+        let title: SharedString = thread.title().unwrap_or_else(|| "Untitled".into());
+        let node_state = TreeNodeState::from_thread(
+            thread.is_waiting_for_confirmation(),
+            thread.has_in_progress_tool_calls(),
+            matches!(thread.status(), ThreadStatus::Generating),
+        );
+        // External agents (Claude Code, Antigravity, ...) supply their own SVG. Without
+        // it every node in a mixed tree wears the same generic icon, which defeats a
+        // tree whose whole job is telling several agents apart at a glance.
+        let agent_icon = match &thread_data.agent_icon_from_external_svg {
+            Some(svg) => Icon::from_external_svg(svg.clone()),
+            None => Icon::new(thread_data.agent_icon),
+        };
+        let agent_display_name = thread_data.agent_display_name.clone();
 
         let indent = depth as f32 * 12.0;
 
@@ -283,6 +289,7 @@ impl OrchestrationPanel {
             .items_center()
             .cursor_pointer()
             .hover(move |style| style.bg(hover_bg))
+            .tooltip(Tooltip::text(agent_display_name))
             .on_click(cx.listener(move |_this, _, window, cx| {
                 conv_view_entity.update(cx, |conv, cx| {
                     conv.navigate_to_session(nav_session_id.clone(), window, cx);
@@ -294,22 +301,25 @@ impl OrchestrationPanel {
                 }
             }))
             .child(
-                Icon::new(IconName::ZedAssistant)
+                agent_icon
                     .size(IconSize::XSmall)
-                    .color(if is_generating {
-                        Color::Accent
-                    } else {
-                        Color::Muted
-                    }),
+                    .color(node_state.icon_color()),
             )
             .child(
                 Label::new(title)
                     .size(LabelSize::Small)
-                    .color(if is_generating {
-                        Color::Default
-                    } else {
-                        Color::Muted
-                    }),
+                    .color(node_state.label_color())
+                    .truncate(),
+            )
+            .when_some(
+                node_state.indicator(),
+                |row, (indicator_icon, indicator_color)| {
+                    row.child(div().flex_1()).child(
+                        Icon::new(indicator_icon)
+                            .size(IconSize::XSmall)
+                            .color(indicator_color),
+                    )
+                },
             )
             .into_any_element();
 
@@ -1000,4 +1010,104 @@ pub fn init(cx: &mut App) {
         },
     )
     .detach();
+}
+
+/// What a node in the agent tree is doing, ranked by how urgently it needs someone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TreeNodeState {
+    /// Outranks everything: a tool call awaiting approval stalls its whole subtree
+    /// until a person acts, and a tree that buried it under "generating" would hide
+    /// the one row that actually needs attention.
+    WaitingForConfirmation,
+    RunningTools,
+    Generating,
+    Idle,
+}
+
+impl TreeNodeState {
+    fn from_thread(waiting_for_confirmation: bool, running_tools: bool, generating: bool) -> Self {
+        if waiting_for_confirmation {
+            Self::WaitingForConfirmation
+        } else if running_tools {
+            Self::RunningTools
+        } else if generating {
+            Self::Generating
+        } else {
+            Self::Idle
+        }
+    }
+
+    fn icon_color(self) -> Color {
+        match self {
+            Self::WaitingForConfirmation => Color::Warning,
+            Self::RunningTools | Self::Generating => Color::Accent,
+            Self::Idle => Color::Muted,
+        }
+    }
+
+    fn label_color(self) -> Color {
+        match self {
+            Self::Idle => Color::Muted,
+            Self::WaitingForConfirmation | Self::RunningTools | Self::Generating => {
+                Color::Default
+            }
+        }
+    }
+
+    /// Only states a person can act on or should watch get a trailing marker.
+    /// Generating is already carried by the icon colour; marking it too would put a
+    /// badge on nearly every live row and teach people to ignore badges.
+    fn indicator(self) -> Option<(IconName, Color)> {
+        match self {
+            Self::WaitingForConfirmation => Some((IconName::Warning, Color::Warning)),
+            Self::RunningTools => Some((IconName::ToolHammer, Color::Accent)),
+            Self::Generating | Self::Idle => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_confirmation_outranks_every_other_state() {
+        assert_eq!(
+            TreeNodeState::from_thread(true, true, true),
+            TreeNodeState::WaitingForConfirmation
+        );
+        assert_eq!(
+            TreeNodeState::from_thread(false, true, true),
+            TreeNodeState::RunningTools
+        );
+        assert_eq!(
+            TreeNodeState::from_thread(false, false, true),
+            TreeNodeState::Generating
+        );
+        assert_eq!(
+            TreeNodeState::from_thread(false, false, false),
+            TreeNodeState::Idle
+        );
+    }
+
+    #[test]
+    fn test_only_actionable_states_carry_an_indicator() {
+        assert!(TreeNodeState::WaitingForConfirmation.indicator().is_some());
+        assert!(TreeNodeState::RunningTools.indicator().is_some());
+        assert!(TreeNodeState::Generating.indicator().is_none());
+        assert!(TreeNodeState::Idle.indicator().is_none());
+    }
+
+    #[test]
+    fn test_waiting_for_confirmation_is_the_only_warning_state() {
+        for state in [
+            TreeNodeState::WaitingForConfirmation,
+            TreeNodeState::RunningTools,
+            TreeNodeState::Generating,
+            TreeNodeState::Idle,
+        ] {
+            let is_warning = matches!(state.icon_color(), Color::Warning);
+            assert_eq!(is_warning, state == TreeNodeState::WaitingForConfirmation);
+        }
+    }
 }
