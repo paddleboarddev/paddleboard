@@ -215,9 +215,9 @@ jobs:
             -p crashes \
             -p fs \
             -p gpui \
+            -p gpui_apple \
             -p gpui_macos \
             -p gpui_platform \
-            -p media \
             -p sandbox \
             -p time_format \
             -p util
