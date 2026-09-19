@@ -1020,7 +1020,7 @@ mod tests {
         expected.extend([
             paths::tasks_file().clone(),
             paths::debug_scenarios_file().clone(),
-            PathBuf::from(ZED_INSPECTOR_STYLE_JSON),
+            PathBuf::from(PADDLEBOARD_INSPECTOR_STYLE_JSON),
         ]);
         expected.sort();
         assert_eq!(watched_paths(fs), expected);

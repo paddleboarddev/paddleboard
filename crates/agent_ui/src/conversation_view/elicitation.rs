@@ -446,7 +446,7 @@ mod tests {
                 .on_action(|_: &crate::CycleModeSelector, _, _| {
                     panic!("form navigation must not cycle the agent mode");
                 })
-                .on_action(|_: &zed_actions::agent::Chat, _, _| {
+                .on_action(|_: &paddleboard_actions::agent::Chat, _, _| {
                     panic!("form submission must not send a chat message");
                 })
                 .child(

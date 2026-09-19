@@ -12,8 +12,9 @@ use std::sync::Arc;
 use ui::{ConfiguredApiCard, prelude::*};
 use x_ai_subscribed::{PROVIDER_ID, PROVIDER_NAME, State, SuperGrokModel, create_language_model};
 
+// PaddleBoard: user-facing product name.
 const SUBSCRIPTION_DESCRIPTION: &str =
-    "Sign in with your SuperGrok subscription to use Grok models in Zed's agent.";
+    "Sign in with your SuperGrok subscription to use Grok models in PaddleBoard's agent.";
 
 pub struct XAiSubscribedProvider {
     state: Entity<State>,
