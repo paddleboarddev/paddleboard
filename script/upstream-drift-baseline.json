@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-09-15",
-  "upstream_ref": "d62802d456ac93a5abce5fecd5e98d2b8124485d",
-  "upstream_sha": "d62802d456",
-  "head_sha": "d1b6401cd4",
+  "generated_at": "2026-09-19",
+  "upstream_ref": "c982733897f7f8dcde4a69938bd62e35f445a756",
+  "upstream_sha": "c982733897",
+  "head_sha": "1fd4aa71c4",
   "crates": {
-    "agent": {"files": 27, "insertions": 2569, "deletions": 124, "tags": 36},
-    "agent_ui": {"files": 31, "insertions": 8446, "deletions": 272, "tags": 70},
+    "agent": {"files": 27, "insertions": 2566, "deletions": 124, "tags": 36},
+    "agent_ui": {"files": 32, "insertions": 8447, "deletions": 273, "tags": 70},
     "buffer_diff": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
     "client": {"files": 5, "insertions": 70, "deletions": 301, "tags": 4},
     "editor": {"files": 13, "insertions": 42, "deletions": 31, "tags": 6},
@@ -20,5 +20,5 @@
     "text": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
     "workspace": {"files": 15, "insertions": 428, "deletions": 1683, "tags": 25}
   },
-  "totals": {"files": 120, "insertions": 12420, "deletions": 2483, "tags": 186}
+  "totals": {"files": 121, "insertions": 12418, "deletions": 2484, "tags": 186}
 }
