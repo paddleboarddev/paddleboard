@@ -1114,6 +1114,16 @@ webrtc-sys = { git = "https://github.com/zed-industries/livekit-rust-sdks", rev 
 # https://github.com/dtolnay/cxx/issues/1752
 scratch = { path = "corgi-patches/scratch" }
 
+# PaddleBoard: block 0.1.6 (unmaintained since 2016, and still the latest release)
+# declares `static _NSConcreteStackBlock` with an uninhabited type, which
+# rust-lang/rust#74840 is turning into a hard error. It already is one when the
+# crate is built on its own; as a dependency it's capped to a future-incompat
+# warning on every build. About ten crates (cocoa, metal, core-video, ...) pull it in,
+# so it can only be fixed here. The patch makes `Class` an opaque zero-sized
+# type, which only ever has its address taken. Drop this once upstream Zed patches or
+# removes block (their gpui_macos -> objc2 migration is in progress).
+block = { path = "corgi-patches/block" }
+
 [profile.dev]
 split-debuginfo = "unpacked"
 incremental = true
