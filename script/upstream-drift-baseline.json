@@ -1,24 +1,24 @@
 {
   "generated_at": "2026-09-15",
-  "upstream_ref": "zed/main",
-  "upstream_sha": "b68add5b37",
-  "head_sha": "77d7cc7de4",
+  "upstream_ref": "d62802d456ac93a5abce5fecd5e98d2b8124485d",
+  "upstream_sha": "d62802d456",
+  "head_sha": "d1b6401cd4",
   "crates": {
-    "agent": {"files": 29, "insertions": 2782, "deletions": 977, "tags": 36},
-    "agent_ui": {"files": 34, "insertions": 8559, "deletions": 885, "tags": 70},
+    "agent": {"files": 27, "insertions": 2569, "deletions": 124, "tags": 36},
+    "agent_ui": {"files": 31, "insertions": 8446, "deletions": 272, "tags": 70},
     "buffer_diff": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
     "client": {"files": 5, "insertions": 70, "deletions": 301, "tags": 4},
-    "editor": {"files": 21, "insertions": 109, "deletions": 1174, "tags": 6},
-    "gpui": {"files": 23, "insertions": 406, "deletions": 2709, "tags": 1},
-    "language": {"files": 7, "insertions": 85, "deletions": 1183, "tags": 0},
-    "language_core": {"files": 5, "insertions": 6, "deletions": 372, "tags": 0},
-    "lsp": {"files": 1, "insertions": 1, "deletions": 14, "tags": 0},
+    "editor": {"files": 13, "insertions": 42, "deletions": 31, "tags": 6},
+    "gpui": {"files": 3, "insertions": 43, "deletions": 2, "tags": 1},
+    "language": {"files": 1, "insertions": 2, "deletions": 2, "tags": 0},
+    "language_core": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
+    "lsp": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
     "multi_buffer": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
-    "project": {"files": 20, "insertions": 382, "deletions": 899, "tags": 10},
+    "project": {"files": 12, "insertions": 306, "deletions": 59, "tags": 10},
     "rope": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
-    "settings_content": {"files": 14, "insertions": 514, "deletions": 17, "tags": 34},
+    "settings_content": {"files": 13, "insertions": 514, "deletions": 9, "tags": 34},
     "text": {"files": 0, "insertions": 0, "deletions": 0, "tags": 0},
-    "workspace": {"files": 15, "insertions": 490, "deletions": 1960, "tags": 25}
+    "workspace": {"files": 15, "insertions": 428, "deletions": 1683, "tags": 25}
   },
-  "totals": {"files": 174, "insertions": 13404, "deletions": 10491, "tags": 186}
+  "totals": {"files": 120, "insertions": 12420, "deletions": 2483, "tags": 186}
 }
