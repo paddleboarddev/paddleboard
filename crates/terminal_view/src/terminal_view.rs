@@ -2324,7 +2324,7 @@ mod tests {
         cx.update(|cx| {
             cx.on_action({
                 let rerun_count = rerun_count.clone();
-                move |_: &zed_actions::Rerun, _| rerun_count.set(rerun_count.get() + 1)
+                move |_: &paddleboard_actions::Rerun, _| rerun_count.set(rerun_count.get() + 1)
             });
         });
         let (pane, terminal, terminal_view) =
