@@ -176,6 +176,22 @@ jobs:
     # Find them with:
     #   grep -rln 'cfg(target_os = "macos")' crates/*/Cargo.toml
     #
+    # PaddleBoard: that grep only finds manifest-level gating, and it MISSES code
+    # gated in source — a crate with no macOS-only dependency can still hold
+    # `#[cfg(target_os = "macos")]` blocks that Linux clippy never compiles. The
+    # source-level list is:
+    #   grep -rl 'cfg(target_os = "macos")' crates/*/src | sed 's|crates/||; s|/src/.*||' | sort -u
+    # Most of what that adds is upstream code, which upstream's own macOS CI
+    # covers. PaddleBoard-owned crates have no such backstop, which is why
+    # `paddleboard_sandbox_prereqs` is in the list below despite declaring no
+    # macOS-only dependency: its gated code is the `sw_vers` parse and the
+    # `container` CLI health probe that decide the macOS-native sandbox tier —
+    # the code most exposed to a new macOS release. It costs seconds (anyhow,
+    # serde_json, tokio). Deliberately NOT added: `paddleboard_sandbox_prereqs_ui`
+    # (one `open -a Terminal` call, but pulls in `ui` and `workspace`) and
+    # `paddleboard` itself (the whole app). Verified clean on macOS 27 / Xcode 27
+    # locally on 2026-09-29.
+    #
     # MAIN-ONLY since 2026-07-28, for cost. At the 10x multiplier this job bills
     # roughly ten times its ~2-3 min wall clock on every run, and it was the
     # single largest line in this repo's CI spend. Personal-account repos cannot
@@ -192,7 +208,15 @@ jobs:
     # under `cfg(target_os = "macos")` — narrow, and `./script/clippy` on a Mac
     # covers it locally. Switch this to clippy if a macOS-only lint ever escapes.
     name: macOS (platform crates)
-    runs-on: macos-15
+    # PaddleBoard: macos-26, not macos-15. `macos-latest` moved to macOS 26 in
+    # June 2026 and macos-14 is already deprecated, so 15 is the trailing edge.
+    # More to the point, the gate should compile against an SDK at least as new
+    # as what developers and users run (this repo's own dev Mac is on macOS 27),
+    # or SDK-gated breakage only ever shows up off-CI. The release job stays on
+    # macos-15 deliberately — see the comment there; moving it would change the
+    # SDK that shipped binaries link against, which is a product decision, not a
+    # CI one.
+    runs-on: macos-26
     if: github.event_name == 'push'
     timeout-minutes: 45
     steps:
@@ -205,7 +229,11 @@ jobs:
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          key: compile-check-macos
+          # PaddleBoard: the image is part of the key. rust-cache keys on
+          # `runner.os` ("macOS"), not the image version, so without this a
+          # cache populated on macos-15 would be restored onto macos-26 and
+          # hand the job artifacts built against the older SDK.
+          key: compile-check-macos-26
 
       - name: cargo check (macOS-gated crates)
         run: |
@@ -218,6 +246,7 @@ jobs:
             -p gpui_apple \
             -p gpui_macos \
             -p gpui_platform \
+            -p paddleboard_sandbox_prereqs \
             -p sandbox \
             -p time_format \
             -p util
