@@ -6089,6 +6089,7 @@ mod tests {
                 "variable_list",
                 "vim",
                 "welcome",
+                "which_key",
                 "window",
                 "workspace",
                 "worktree_picker",

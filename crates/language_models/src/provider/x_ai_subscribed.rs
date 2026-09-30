@@ -1,16 +1,19 @@
 use anyhow::{Result, anyhow};
 use credentials_provider::CredentialsProvider;
-use futures::future::Shared;
-use gpui::{App, Context, Entity, SharedString, Task, Window};
+use futures::FutureExt as _;
+use futures::future::{BoxFuture, Shared};
+
+use gpui::{App, AsyncApp, Context, Entity, SharedString, Task, Window};
 use http_client::HttpClient;
 use language_model::{
-    AuthenticateError, IconOrSvg, InlineDescription, LanguageModel, LanguageModelProvider,
+    AuthenticateError, IconOrSvg, InlineDescription, LanguageModel, LanguageModelClient,
+    LanguageModelCompletionError, LanguageModelCompletionStream, LanguageModelProvider,
     LanguageModelProviderId, LanguageModelProviderName, LanguageModelProviderState,
-    ProviderSettingsView,
+    LanguageModelRequest, ModelRateLimiters, ProviderSettingsView, unavailable_error,
 };
 use std::sync::Arc;
 use ui::{ConfiguredApiCard, prelude::*};
-use x_ai_subscribed::{PROVIDER_ID, PROVIDER_NAME, State, SuperGrokModel, create_language_model};
+use x_ai_subscribed::{PROVIDER_ID, PROVIDER_NAME, State, SuperGrokModel, language_model};
 
 // PaddleBoard: user-facing product name.
 const SUBSCRIPTION_DESCRIPTION: &str =
@@ -18,6 +21,7 @@ const SUBSCRIPTION_DESCRIPTION: &str =
 
 pub struct XAiSubscribedProvider {
     state: Entity<State>,
+    request_limiters: ModelRateLimiters,
 }
 
 impl XAiSubscribedProvider {
@@ -27,11 +31,21 @@ impl XAiSubscribedProvider {
         cx: &mut App,
     ) -> Self {
         let state = cx.new(|cx| State::new(http_client, credentials_provider, cx));
-        Self { state }
+        Self {
+            state,
+            request_limiters: ModelRateLimiters::default(),
+        }
     }
 
-    fn create_model(&self, model: SuperGrokModel, cx: &App) -> Arc<dyn LanguageModel> {
-        create_language_model(model, &self.state, cx)
+    /// The current configuration of `model`, if this provider still offers it.
+    fn config(
+        &self,
+        model: &LanguageModel,
+    ) -> Result<SuperGrokModel, LanguageModelCompletionError> {
+        SuperGrokModel::all()
+            .into_iter()
+            .find(|config| config.id() == model.id.0.as_ref())
+            .ok_or_else(|| unavailable_error(model))
     }
 }
 
@@ -56,25 +70,22 @@ impl LanguageModelProvider for XAiSubscribedProvider {
         IconOrSvg::Icon(IconName::AiXAi)
     }
 
-    fn default_model(&self, cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        Some(self.create_model(SuperGrokModel::Grok46, cx))
+    fn default_model(&self, _cx: &App) -> Option<LanguageModel> {
+        Some(language_model(&SuperGrokModel::Grok47))
     }
 
-    fn default_fast_model(&self, cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        Some(self.create_model(SuperGrokModel::GrokBuild01, cx))
+    fn default_fast_model(&self, _cx: &App) -> Option<LanguageModel> {
+        Some(language_model(&SuperGrokModel::GrokBuild01))
     }
 
-    fn provided_models(&self, cx: &App) -> Vec<Arc<dyn LanguageModel>> {
+    fn provided_models(&self, cx: &App) -> Vec<LanguageModel> {
         if !self.is_authenticated(cx) {
             return Vec::new();
         }
-        SuperGrokModel::all()
-            .into_iter()
-            .map(|model| self.create_model(model, cx))
-            .collect()
+        SuperGrokModel::all().iter().map(language_model).collect()
     }
 
-    fn recommended_models(&self, cx: &App) -> Vec<Arc<dyn LanguageModel>> {
+    fn recommended_models(&self, cx: &App) -> Vec<LanguageModel> {
         self.default_model(cx).into_iter().collect()
     }
 
@@ -148,6 +159,23 @@ impl LanguageModelProvider for XAiSubscribedProvider {
         "You are not signed in to SuperGrok. \
         Sign in via Settings > AI > LLM Providers to continue."
             .into()
+    }
+}
+
+impl LanguageModelClient for XAiSubscribedProvider {
+    fn stream_completion(
+        &self,
+        model: &LanguageModel,
+        request: LanguageModelRequest,
+        cx: &AsyncApp,
+    ) -> BoxFuture<'static, Result<LanguageModelCompletionStream, LanguageModelCompletionError>>
+    {
+        let config = match self.config(model) {
+            Ok(config) => config,
+            Err(error) => return async move { Err(error) }.boxed(),
+        };
+        let request_limiter = self.request_limiters.for_model(&model.id);
+        x_ai_subscribed::stream_completion(&config, &self.state, &request_limiter, request, cx)
     }
 }
 
