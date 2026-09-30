@@ -50,6 +50,17 @@ jobs:
     # libc++ fails to compile the inherited webrtc-sys cxx bridge under C++20
     # (rust::Slice iterator not treated as a contiguous_iterator). Local builds
     # on a newer Xcode compile it fine, so match the runner toolchain to that.
+    #
+    # PaddleBoard: staying on macos-15 is now also a product decision, reviewed
+    # 2026-09-29 and deliberately deferred past the v0.3.0 beta. macOS 26+ only
+    # applies its new design language to apps compiled against the 26+ SDK
+    # (there is an opt-OUT plist key, `UIDesignRequiresCompatibility`, but no
+    # opt-in), so shipping from this runner means release builds keep the legacy
+    # native chrome — titlebar, traffic lights, menus, file dialogs — on macOS
+    # 26 and 27. gpui draws the app body itself, so only that chrome is affected.
+    # Moving to macos-26 is the ONLY way to change it, and it re-validates the
+    # webrtc-sys C++20 bridge plus a 110-190 min notarized build, so it is a
+    # post-beta change. The compile-check gate already runs on macos-26.
     runs-on: macos-15
     # RELEASING.md observes 110-190 min for this build, so 240 is headroom rather
     # than a target. It exists because the DEFAULT is 360: a job wedged on a
