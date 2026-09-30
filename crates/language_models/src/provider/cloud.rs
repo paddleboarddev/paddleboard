@@ -25,8 +25,7 @@ use gpui::{
 use http_client::http::{HeaderMap, HeaderValue};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Response, StatusCode};
 use language_model::{
-    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, BASETEN_PROVIDER_ID,
-    BASETEN_PROVIDER_NAME, FastModeConfirmation,
+    ANTHROPIC_PROVIDER_ID, ANTHROPIC_PROVIDER_NAME, AuthenticateError, FastModeConfirmation,
     GOOGLE_PROVIDER_ID, GOOGLE_PROVIDER_NAME, IconOrSvg, InlineDescription, LanguageModel,
     LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelEffortLevel,
     LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
@@ -650,7 +649,6 @@ impl LanguageModel for CloudLanguageModel {
         match self.model.provider {
             Anthropic => ANTHROPIC_PROVIDER_ID,
             OpenAi => OPEN_AI_PROVIDER_ID,
-            Baseten => BASETEN_PROVIDER_ID,
             Google => GOOGLE_PROVIDER_ID,
             XAi => X_AI_PROVIDER_ID,
         }
@@ -661,7 +659,6 @@ impl LanguageModel for CloudLanguageModel {
         match self.model.provider {
             Anthropic => ANTHROPIC_PROVIDER_NAME,
             OpenAi => OPEN_AI_PROVIDER_NAME,
-            Baseten => BASETEN_PROVIDER_NAME,
             Google => GOOGLE_PROVIDER_NAME,
             XAi => X_AI_PROVIDER_NAME,
         }
@@ -827,8 +824,7 @@ impl LanguageModel for CloudLanguageModel {
                 });
                 async move { Ok(future.await?.boxed()) }.boxed()
             }
-            cloud_llm_client::LanguageModelProvider::OpenAi
-            | cloud_llm_client::LanguageModelProvider::Baseten => {
+            cloud_llm_client::LanguageModelProvider::OpenAi => {
                 let client = self.client.clone();
                 let llm_api_token = self.llm_api_token.clone();
                 let organization_id = organization_id.clone();
@@ -1058,7 +1054,6 @@ fn provider_name(provider: &cloud_llm_client::LanguageModelProvider) -> Language
     match provider {
         cloud_llm_client::LanguageModelProvider::Anthropic => ANTHROPIC_PROVIDER_NAME,
         cloud_llm_client::LanguageModelProvider::OpenAi => OPEN_AI_PROVIDER_NAME,
-        cloud_llm_client::LanguageModelProvider::Baseten => BASETEN_PROVIDER_NAME,
         cloud_llm_client::LanguageModelProvider::Google => GOOGLE_PROVIDER_NAME,
         cloud_llm_client::LanguageModelProvider::XAi => X_AI_PROVIDER_NAME,
     }
