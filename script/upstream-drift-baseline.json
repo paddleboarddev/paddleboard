@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-19",
-  "upstream_ref": "c982733897f7f8dcde4a69938bd62e35f445a756",
-  "upstream_sha": "c982733897",
-  "head_sha": "1fd4aa71c4",
+  "generated_at": "2026-09-30",
+  "upstream_ref": "a434bb7ee275cefa348a2bfaf27dc30280bf38f7",
+  "upstream_sha": "a434bb7ee2",
+  "head_sha": "7cbff1d977",
   "crates": {
     "agent": {"files": 27, "insertions": 2566, "deletions": 124, "tags": 36},
     "agent_ui": {"files": 32, "insertions": 8447, "deletions": 273, "tags": 70},
