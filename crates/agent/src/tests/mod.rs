@@ -5815,6 +5815,7 @@ async fn test_spawn_agent_tool_forwards_explicit_model(cx: &mut TestAppContext) 
                     message: "prompt".to_string(),
                     session_id: None,
                     model: Some("fake-corp/cheap-model".to_string()),
+                    persona: None,
                 }),
                 event_stream,
                 cx,
@@ -5848,6 +5849,7 @@ async fn test_spawn_agent_tool_rejects_model_when_resuming(cx: &mut TestAppConte
                     message: "prompt".to_string(),
                     session_id: Some(acp::SessionId::new("subagent-id")),
                     model: Some("fake-corp/other-model".to_string()),
+                    persona: None,
                 }),
                 event_stream,
                 cx,
@@ -5915,11 +5917,8 @@ async fn test_subagent_tool_call_end_to_end(cx: &mut TestAppContext) {
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
-<<<<<<< HEAD
         persona: None,
-=======
         model: None,
->>>>>>> zed/main
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -6059,11 +6058,8 @@ async fn test_subagent_tool_output_does_not_include_thinking(cx: &mut TestAppCon
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
-<<<<<<< HEAD
         persona: None,
-=======
         model: None,
->>>>>>> zed/main
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -6220,11 +6216,8 @@ async fn test_subagent_tool_call_cancellation_during_task_prompt(cx: &mut TestAp
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
-<<<<<<< HEAD
         persona: None,
-=======
         model: None,
->>>>>>> zed/main
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -6357,11 +6350,8 @@ async fn test_subagent_tool_resume_session(cx: &mut TestAppContext) {
         label: "initial task".to_string(),
         message: "do the first task".to_string(),
         session_id: None,
-<<<<<<< HEAD
         persona: None,
-=======
         model: None,
->>>>>>> zed/main
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),
@@ -6431,11 +6421,8 @@ async fn test_subagent_tool_resume_session(cx: &mut TestAppContext) {
         label: "follow-up task".to_string(),
         message: "do the follow-up task".to_string(),
         session_id: Some(subagent_session_id.clone()),
-<<<<<<< HEAD
         persona: None,
-=======
         model: None,
->>>>>>> zed/main
     };
     let resume_tool_use = LanguageModelToolUse {
         id: "subagent_2".into(),
@@ -7405,11 +7392,8 @@ async fn test_subagent_error_propagation(cx: &mut TestAppContext) {
         label: "label".to_string(),
         message: "subagent task prompt".to_string(),
         session_id: None,
-<<<<<<< HEAD
         persona: None,
-=======
         model: None,
->>>>>>> zed/main
     };
     let subagent_tool_use = LanguageModelToolUse {
         id: "subagent_1".into(),

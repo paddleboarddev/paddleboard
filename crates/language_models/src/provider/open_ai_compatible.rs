@@ -81,7 +81,6 @@ impl OpenAiCompatibleLanguageModelProvider {
         }
     }
 
-<<<<<<< HEAD
     /// PaddleBoard: construct a first-class, built-in OpenAI-compatible provider
     /// (e.g. Z.ai, Fireworks) whose settings come from a dedicated settings block
     /// resolved by `resolve_settings`, rather than the user-defined
@@ -101,20 +100,10 @@ impl OpenAiCompatibleLanguageModelProvider {
             name,
             http_client,
             state,
+            request_limiters: ModelRateLimiters::default(),
         }
     }
 
-    fn create_language_model(&self, model: AvailableModel) -> Arc<dyn LanguageModel> {
-        Arc::new(OpenAiCompatibleLanguageModel {
-            id: LanguageModelId::from(model.name.clone()),
-            provider_id: self.id.clone(),
-            provider_name: self.name.clone(),
-            model,
-            state: self.state.clone(),
-            http_client: self.http_client.clone(),
-            request_limiter: RateLimiter::new(4),
-        })
-=======
     /// Every model this provider offers, in settings order.
     fn available_models<'a>(&self, cx: &'a App) -> &'a [AvailableModel] {
         &self.state.read(cx).settings.available_models
@@ -242,7 +231,6 @@ impl OpenAiCompatibleLanguageModelProvider {
         });
 
         async move { Ok(future.await?.boxed()) }.boxed()
->>>>>>> zed/main
     }
 }
 

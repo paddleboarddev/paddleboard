@@ -593,7 +593,6 @@ impl LlamaCppLanguageModelProvider {
         Self::settings(cx).api_url != LLAMA_CPP_API_URL
     }
 
-<<<<<<< HEAD
     // PaddleBoard: mirror the managed "Local Models" settings into the runtime
     // manager, so toggling the setting (from our UI or an edited settings file)
     // starts or stops the local server.
@@ -608,7 +607,6 @@ impl LlamaCppLanguageModelProvider {
             });
         }
     }
-=======
     /// Every model this provider offers, keyed by id; see [`compute_effective_models`].
     fn llama_cpp_models(&self, cx: &App) -> HashMap<String, llama_cpp::Model> {
         compute_effective_models(
@@ -705,7 +703,6 @@ impl LlamaCppLanguageModelProvider {
 
         async move { Ok(future.await?.boxed()) }.boxed()
     }
->>>>>>> zed/main
 }
 
 impl LanguageModelProviderState for LlamaCppLanguageModelProvider {

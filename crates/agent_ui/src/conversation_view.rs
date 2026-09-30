@@ -665,7 +665,7 @@ impl ConversationView {
 
     pub fn delete_history_entry(
         &mut self,
-        _session_id: &acp::SessionId,
+        _session_id: &acp_v1::SessionId,
         _cx: &mut Context<Self>,
     ) {
         // History-entry deletion via AgentConnectionEntry::history() is currently
@@ -675,7 +675,7 @@ impl ConversationView {
 
     pub fn navigate_to_session(
         &mut self,
-        _session_id: acp::SessionId,
+        _session_id: acp_v1::SessionId,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) {

@@ -1094,239 +1094,119 @@ impl ExtensionsPage {
             .into_any_element()
     }
 
-<<<<<<< HEAD
-    fn render_feature_upsells(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut container = v_flex();
-
-        for feature in &self.upsells {
-            let banner = match feature {
-                Feature::AgentClaude => self.render_feature_upsell_banner(
-                    "Claude Agent support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/ai/external-agents#claude-agent".into(),
-                    false,
-                    cx,
-                ),
-                Feature::AgentCodex => self.render_feature_upsell_banner(
-                    "Codex CLI support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/ai/external-agents#codex-cli".into(),
-                    false,
-                    cx,
-                ),
-                Feature::AgentGemini => self.render_feature_upsell_banner(
-                    "Gemini CLI support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/ai/external-agents#gemini-cli".into(),
-                    false,
-                    cx,
-                ),
-                Feature::ExtensionBasedpyright => self.render_feature_upsell_banner(
-                    "Basedpyright (Python language server) support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/python#basedpyright".into(),
-                    false,
-                    cx,
-                ),
-                Feature::ExtensionRuff => self.render_feature_upsell_banner(
-                    "Ruff (linter for Python) support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/python#code-formatting--linting".into(),
-                    false,
-                    cx,
-                ),
-                Feature::ExtensionTailwind => self.render_feature_upsell_banner(
-                    "Tailwind CSS support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/tailwindcss".into(),
-                    false,
-                    cx,
-                ),
-                Feature::ExtensionTy => self.render_feature_upsell_banner(
-                    "Ty (Python language server) support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/python".into(),
-                    false,
-                    cx,
-                ),
-                Feature::Git => self.render_feature_upsell_banner(
-                    "PaddleBoard comes with basic Git support—more features are coming in the future."
-                        .into(),
-                    "https://zed.dev/docs/git".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageBash => self.render_feature_upsell_banner(
-                    "Shell support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/bash".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageC => self.render_feature_upsell_banner(
-                    "C support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/c".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageCpp => self.render_feature_upsell_banner(
-                    "C++ support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/cpp".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageGo => self.render_feature_upsell_banner(
-                    "Go support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/go".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguagePython => self.render_feature_upsell_banner(
-                    "Python support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/python".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageReact => self.render_feature_upsell_banner(
-                    "React support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/typescript".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageRust => self.render_feature_upsell_banner(
-                    "Rust support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/rust".into(),
-                    false,
-                    cx,
-                ),
-                Feature::LanguageTypescript => self.render_feature_upsell_banner(
-                    "Typescript support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/languages/typescript".into(),
-                    false,
-                    cx,
-                ),
-                Feature::OpenIn => self.render_feature_upsell_banner(
-                    "PaddleBoard supports linking to a source line on GitHub and others.".into(),
-                    "https://zed.dev/docs/git#git-integrations".into(),
-                    false,
-                    cx,
-                ),
-                Feature::Vim => self.render_feature_upsell_banner(
-                    "Vim support is built-in to PaddleBoard!".into(),
-                    "https://zed.dev/docs/vim".into(),
-                    true,
-                    cx,
-                ),
-            };
-            container = container.child(banner);
-        }
-
-        container
-=======
+    // PaddleBoard: user-facing product name in every banner below. Upstream's
+    // structure is taken as-is so this stays a strings-only divergence.
     fn render_feature_upsells(&self, cx: &Context<Self>) -> impl IntoElement {
         v_flex().children(self.upsells.iter().map(|feature| match feature {
             Feature::AgentClaude => self.render_feature_upsell_banner(
-                "Claude Agent support is built-in to Zed!",
+                "Claude Agent support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/ai/external-agents#claude-agent",
                 false,
                 cx,
             ),
             Feature::AgentCodex => self.render_feature_upsell_banner(
-                "Codex CLI support is built-in to Zed!",
+                "Codex CLI support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/ai/external-agents#codex-cli",
                 false,
                 cx,
             ),
             Feature::AgentGemini => self.render_feature_upsell_banner(
-                "Gemini CLI support is built-in to Zed!",
+                "Gemini CLI support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/ai/external-agents#gemini-cli",
                 false,
                 cx,
             ),
             Feature::ExtensionBasedpyright => self.render_feature_upsell_banner(
-                "Basedpyright (Python language server) support is built-in to Zed!",
+                "Basedpyright (Python language server) support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/python#basedpyright",
                 false,
                 cx,
             ),
             Feature::ExtensionRuff => self.render_feature_upsell_banner(
-                "Ruff (linter for Python) support is built-in to Zed!",
+                "Ruff (linter for Python) support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/python#code-formatting--linting",
                 false,
                 cx,
             ),
             Feature::ExtensionTailwind => self.render_feature_upsell_banner(
-                "Tailwind CSS support is built-in to Zed!",
+                "Tailwind CSS support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/tailwindcss",
                 false,
                 cx,
             ),
             Feature::ExtensionTy => self.render_feature_upsell_banner(
-                "Ty (Python language server) support is built-in to Zed!",
+                "Ty (Python language server) support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/python",
                 false,
                 cx,
             ),
             Feature::Git => self.render_feature_upsell_banner(
-                "Zed comes with basic Git support—more features are coming in the future.",
+                "PaddleBoard comes with basic Git support—more features are coming in the future.",
                 "https://zed.dev/docs/git",
                 false,
                 cx,
             ),
             Feature::LanguageBash => self.render_feature_upsell_banner(
-                "Shell support is built-in to Zed!",
+                "Shell support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/bash",
                 false,
                 cx,
             ),
             Feature::LanguageC => self.render_feature_upsell_banner(
-                "C support is built-in to Zed!",
+                "C support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/c",
                 false,
                 cx,
             ),
             Feature::LanguageCpp => self.render_feature_upsell_banner(
-                "C++ support is built-in to Zed!",
+                "C++ support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/cpp",
                 false,
                 cx,
             ),
             Feature::LanguageGo => self.render_feature_upsell_banner(
-                "Go support is built-in to Zed!",
+                "Go support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/go",
                 false,
                 cx,
             ),
             Feature::LanguagePython => self.render_feature_upsell_banner(
-                "Python support is built-in to Zed!",
+                "Python support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/python",
                 false,
                 cx,
             ),
             Feature::LanguageReact => self.render_feature_upsell_banner(
-                "React support is built-in to Zed!",
+                "React support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/typescript",
                 false,
                 cx,
             ),
             Feature::LanguageRust => self.render_feature_upsell_banner(
-                "Rust support is built-in to Zed!",
+                "Rust support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/rust",
                 false,
                 cx,
             ),
             Feature::LanguageTypescript => self.render_feature_upsell_banner(
-                "Typescript support is built-in to Zed!",
+                "Typescript support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/languages/typescript",
                 false,
                 cx,
             ),
             Feature::OpenIn => self.render_feature_upsell_banner(
-                "Zed supports linking to a source line on GitHub and others.",
+                "PaddleBoard supports linking to a source line on GitHub and others.",
                 "https://zed.dev/docs/git#git-integrations",
                 false,
                 cx,
             ),
             Feature::Vim => self.render_feature_upsell_banner(
-                "Vim support is built-in to Zed!",
+                "Vim support is built-in to PaddleBoard!",
                 "https://zed.dev/docs/vim",
                 true,
                 cx,
             ),
         }))
->>>>>>> zed/main
     }
 }
 

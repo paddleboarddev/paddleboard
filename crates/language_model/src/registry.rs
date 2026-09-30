@@ -1,11 +1,6 @@
 use crate::{
-<<<<<<< HEAD
-    LanguageModel, LanguageModelId, LanguageModelProvider, LanguageModelProviderId,
-    LanguageModelProviderState,
-=======
     LanguageModel, LanguageModelCompletionError, LanguageModelId, LanguageModelProvider,
-    LanguageModelProviderId, LanguageModelProviderState, ZED_CLOUD_PROVIDER_ID, unavailable_error,
->>>>>>> zed/main
+    LanguageModelProviderId, LanguageModelProviderState, unavailable_error,
 };
 use collections::{BTreeMap, HashSet};
 use gpui::{App, Context, Entity, EventEmitter, Global, prelude::*};
@@ -133,11 +128,7 @@ impl LanguageModel {
     }
 
     pub fn is_provided_by_zed(&self) -> bool {
-<<<<<<< HEAD
-        self.provider.id() == crate::provider::PADDLEBOARD_CLOUD_PROVIDER_ID
-=======
-        self.provider_id == ZED_CLOUD_PROVIDER_ID
->>>>>>> zed/main
+        self.provider_id == crate::provider::PADDLEBOARD_CLOUD_PROVIDER_ID
     }
 }
 
@@ -570,12 +561,8 @@ impl LanguageModelRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-<<<<<<< HEAD
     use crate::LanguageModelProviderName;
-    use crate::fake_provider::{FakeLanguageModel, FakeLanguageModelProvider};
-=======
     use crate::fake_provider::FakeLanguageModelProvider;
->>>>>>> zed/main
 
     #[test]
     fn selected_model_allows_slashes_in_model_id() {

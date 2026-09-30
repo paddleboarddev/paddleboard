@@ -2793,8 +2793,8 @@ pub fn available_native_agent(cx: &App) -> AvailableAgent {
     }
 
     AvailableAgent {
-        id: ZED_AGENT_ID.to_string(),
-        name: ZED_AGENT_ID.0.clone(),
+        id: PADDLEBOARD_AGENT_ID.to_string(),
+        name: PADDLEBOARD_AGENT_ID.0.clone(),
         is_native: true,
         models,
     }

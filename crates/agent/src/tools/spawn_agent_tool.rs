@@ -52,19 +52,16 @@ pub struct SpawnAgentToolInput {
     /// Session ID of an existing agent session to continue instead of creating a new one. Omit to create a new agent.
     #[serde(default, deserialize_with = "deserialize_session_id")]
     pub session_id: Option<acp::SessionId>,
-<<<<<<< HEAD
     /// Optional persona for the sub-agent, by name from the "Available
     /// Personas" list (e.g. give a review subtask the `qa-engineer` persona).
     /// The sub-agent holds that identity for its whole session.
     #[serde(default)]
     pub persona: Option<String>,
-=======
     /// Optional model override. Pass the exact `models[].id` returned for the
     /// native Zed agent (`is_native: true`) by `list_agents_and_models`.
     /// Omit to preserve default behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
->>>>>>> zed/main
 }
 
 fn deserialize_session_id<'de, D>(deserializer: D) -> Result<Option<acp::SessionId>, D::Error>
@@ -205,7 +202,6 @@ impl AgentTool for SpawnAgentTool {
                     session_info: None,
                 })?;
 
-<<<<<<< HEAD
             // PaddleBoard: persona system — resolve the requested persona
             // BEFORE creating the session, so an unknown name fails cheap
             // with the available options.
@@ -256,14 +252,14 @@ impl AgentTool for SpawnAgentTool {
                 None
             };
 
-=======
             let SpawnAgentToolInput {
                 label,
                 message,
                 session_id,
                 model,
+                // PaddleBoard: already resolved into `thread_persona` above.
+                persona: _,
             } = input;
->>>>>>> zed/main
             let (subagent, mut session_info) = cx.update(|cx| {
                 let subagent = match (session_id, model) {
                     (Some(_), Some(_)) => Err(anyhow::anyhow!(

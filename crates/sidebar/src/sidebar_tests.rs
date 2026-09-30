@@ -15,11 +15,9 @@ use agent_ui::{
 };
 use chrono::DateTime;
 use fs::{FakeFs, Fs};
-<<<<<<< HEAD
-use gpui::{Action as _, TestAppContext, UpdateGlobal};
-=======
-use gpui::{App, Bounds, Hsla, Point, Rgba, TestAppContext, UpdateGlobal, VisualTestContext};
->>>>>>> zed/main
+use gpui::{
+    Action as _, App, Bounds, Hsla, Point, Rgba, TestAppContext, UpdateGlobal, VisualTestContext,
+};
 use pretty_assertions::assert_eq;
 use project::AgentId;
 use settings::{Settings, SettingsStore};

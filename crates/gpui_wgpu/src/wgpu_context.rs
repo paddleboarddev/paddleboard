@@ -152,21 +152,7 @@ impl WgpuContext {
         compositor_gpu: Option<CompositorGpuHint>,
         reject_software: bool,
     ) -> anyhow::Result<Self> {
-<<<<<<< HEAD
-        let device_id_filter = match std::env::var("PADDLEBOARD_DEVICE_ID") {
-            Ok(val) => parse_pci_id(&val)
-                .context("Failed to parse device ID from `PADDLEBOARD_DEVICE_ID` environment variable")
-                .log_err(),
-            Err(std::env::VarError::NotPresent) => None,
-            err => {
-                err.context("Failed to read value of `PADDLEBOARD_DEVICE_ID` environment variable")
-                    .log_err();
-                None
-            }
-        };
-=======
         let device_id_filter = Self::device_id_filter();
->>>>>>> zed/main
 
         // Select an adapter by actually testing surface configuration with the real device.
         // This is the only reliable way to determine compatibility on hybrid GPU systems.
@@ -331,15 +317,17 @@ impl WgpuContext {
     }
 
     #[cfg(not(target_family = "wasm"))]
+    // PaddleBoard: the override env var is PADDLEBOARD_DEVICE_ID. Upstream's
+    // extraction of this helper would otherwise rename it back to PADDLEBOARD_DEVICE_ID.
     fn device_id_filter() -> Option<u32> {
-        match std::env::var("ZED_DEVICE_ID") {
+        match std::env::var("PADDLEBOARD_DEVICE_ID") {
             Ok(value) => parse_pci_id(&value)
-                .context("Failed to parse device ID from `ZED_DEVICE_ID` environment variable")
+                .context("Failed to parse device ID from `PADDLEBOARD_DEVICE_ID` environment variable")
                 .log_err(),
             Err(std::env::VarError::NotPresent) => None,
             error => {
                 error
-                    .context("Failed to read value of `ZED_DEVICE_ID` environment variable")
+                    .context("Failed to read value of `PADDLEBOARD_DEVICE_ID` environment variable")
                     .log_err();
                 None
             }
@@ -537,64 +525,7 @@ impl WgpuContext {
             log::info!("PADDLEBOARD_DEVICE_ID filter: {:#06x}", device_id);
         }
 
-<<<<<<< HEAD
-        // Sort adapters into a single priority order. Tiers (from highest to lowest):
-        //
-        // 1. PADDLEBOARD_DEVICE_ID match — explicit user override
-        // 2. Compositor GPU match — the GPU the display server is rendering on
-        // 3. Device type (Discrete > Integrated > Other > Virtual > Cpu).
-        //    "Other" ranks above "Virtual" because OpenGL seems to count as "Other".
-        // 4. Backend — prefer Vulkan/Metal/Dx12 over GL/etc.
-        adapters.sort_by_key(|adapter| {
-            let info = adapter.get_info();
-
-            // Backends like OpenGL report device=0 for all adapters, so
-            // device-based matching is only meaningful when non-zero.
-            let device_known = info.device != 0;
-
-            let user_override: u8 = match device_id_filter {
-                Some(id) if device_known && info.device == id => 0,
-                _ => 1,
-            };
-
-            let compositor_match: u8 = match compositor_gpu {
-                Some(hint)
-                    if device_known
-                        && info.vendor == hint.vendor_id
-                        && info.device == hint.device_id =>
-                {
-                    0
-                }
-                _ => 1,
-            };
-
-            let type_priority: u8 = if info.device_type == wgpu::DeviceType::Cpu {
-                4
-            } else {
-                match info.device_type {
-                    wgpu::DeviceType::DiscreteGpu => 0,
-                    wgpu::DeviceType::IntegratedGpu => 1,
-                    wgpu::DeviceType::Other => 2,
-                    wgpu::DeviceType::VirtualGpu => 3,
-                    wgpu::DeviceType::Cpu => 4,
-                }
-            };
-
-            let backend_priority: u8 = match info.backend {
-                wgpu::Backend::Vulkan | wgpu::Backend::Metal | wgpu::Backend::Dx12 => 0,
-                _ => 1,
-            };
-
-            (
-                user_override,
-                compositor_match,
-                type_priority,
-                backend_priority,
-            )
-        });
-=======
         Self::sort_adapters(&mut adapters, device_id_filter, compositor_gpu);
->>>>>>> zed/main
 
         // Log all available adapters (in sorted order)
         log::info!("Found {} GPU adapter(s):", adapters.len());
@@ -656,7 +587,7 @@ impl WgpuContext {
 
     /// Sort adapters into a single priority order. Tiers (from highest to lowest):
     ///
-    /// 1. ZED_DEVICE_ID match — explicit user override
+    /// 1. PADDLEBOARD_DEVICE_ID match — explicit user override
     /// 2. Compositor GPU match — the GPU the display server is rendering on
     /// 3. Device type (Discrete > Integrated > Other > Virtual > Cpu).
     ///    "Other" ranks above "Virtual" because OpenGL seems to count as "Other".

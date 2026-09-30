@@ -58,14 +58,11 @@ open_ai = { workspace = true, features = ["schemars"] }
 openai_subscribed.workspace = true
 opencode = { workspace = true, features = ["schemars"] }
 open_router = { workspace = true, features = ["schemars"] }
-<<<<<<< HEAD
 # PaddleBoard: Google Vertex AI provider
 paddleboard_vertex.workspace = true
 # PaddleBoard: managed "Local Models" (llama.cpp) runtime manager
 paddleboard_llama_manager.workspace = true
-=======
 paths.workspace = true
->>>>>>> zed/main
 rand.workspace = true
 release_channel.workspace = true
 schemars.workspace = true
@@ -76,11 +73,8 @@ semver.workspace = true
 sha2.workspace = true
 smol.workspace = true
 strum.workspace = true
-<<<<<<< HEAD
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
-=======
->>>>>>> zed/main
 ui.workspace = true
 ui_input.workspace = true
 util.workspace = true

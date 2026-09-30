@@ -6088,11 +6088,8 @@ mod tests {
                 "toolchain",
                 "variable_list",
                 "vim",
-<<<<<<< HEAD:crates/paddleboard/src/zed.rs
                 "welcome",
-=======
                 "which_key",
->>>>>>> zed/main:crates/zed/src/zed.rs
                 "window",
                 "workspace",
                 "worktree_picker",

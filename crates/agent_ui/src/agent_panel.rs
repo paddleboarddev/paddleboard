@@ -84,17 +84,12 @@ use language::LanguageRegistry;
 use language_model::LanguageModelRegistry;
 use notifications::status_toast::StatusToast;
 use project::{Project, ProjectPath, Worktree};
-<<<<<<< HEAD
-use settings::TerminalDockPosition;
 use settings::{
     LanguageModelProviderSetting, LanguageModelSelection, NotifyWhenAgentWaiting, Settings,
-    update_settings_file,
+    SettingsStore, update_settings_file,
 };
 // PaddleBoard: skill creator modal entry points.
 use skill_creator::{SkillCreatorOpenMode, is_supported_skill_url, open_skill_creator};
-=======
-use settings::{NotifyWhenAgentWaiting, Settings, SettingsStore, update_settings_file};
->>>>>>> zed/main
 
 use search::{BufferSearchBar, buffer_search::Deploy as DeployBufferSearch};
 use terminal::Event as TerminalEvent;
@@ -4302,7 +4297,7 @@ impl AgentPanel {
             AssistantConfigurationEvent::NewThread(provider) => {
                 if LanguageModelRegistry::read_global(cx)
                     .default_model()
-                    .is_none_or(|model| model.provider.id() != provider.id())
+                    .is_none_or(|model| model.provider_id != provider.id())
                     && let Some(model) = provider.default_model(cx)
                 {
                     update_settings_file(self.fs.clone(), cx, move |settings, _| {
@@ -5349,44 +5344,7 @@ impl agent::SiblingThreadHost for AgentPanelSiblingHost {
             .upgrade()
             .ok_or_else(|| anyhow!("Agent panel is no longer available"))?;
 
-<<<<<<< HEAD
-        let mut agents = Vec::new();
-
-        // Native Zed agent — always available, and we can enumerate models
-        // directly from the language model registry.
-        let native_models = {
-            let registry = LanguageModelRegistry::read_global(cx);
-            let default = registry.default_model();
-            let mut models = Vec::new();
-            for provider in registry.providers() {
-                if !provider.is_authenticated(cx) {
-                    continue;
-                }
-                let provider_id = provider.id();
-                for model in provider.provided_models(cx) {
-                    let id = format!("{}/{}", provider_id.0, model.id().0);
-                    let is_default = default
-                        .as_ref()
-                        .map(|cm| cm.provider.id() == provider_id && cm.model.id() == model.id())
-                        .unwrap_or(false);
-                    models.push(agent::AvailableModel {
-                        id,
-                        name: model.name().0,
-                        is_default,
-                    });
-                }
-            }
-            models
-        };
-        agents.push(agent::AvailableAgent {
-            id: agent::PADDLEBOARD_AGENT_ID.to_string(),
-            name: Agent::NativeAgent.label(),
-            is_native: true,
-            models: native_models,
-        });
-=======
         let mut agents = vec![agent::available_native_agent(cx)];
->>>>>>> zed/main
 
         let project = panel.read(cx).project.clone();
         let agent_server_store = project.read(cx).agent_server_store().clone();
@@ -6740,36 +6698,9 @@ impl AgentPanel {
             .child(toolbar_content)
     }
 
-<<<<<<< HEAD
     fn should_render_trial_end_upsell(&self, _cx: &mut Context<Self>) -> bool {
         // PaddleBoard: Zed Pro trial upsell is disabled.
         false
-=======
-    fn should_render_trial_end_upsell(&self, cx: &mut Context<Self>) -> bool {
-        if TrialEndUpsell::dismissed(cx) {
-            return false;
-        }
-
-        match &self.base_view {
-            BaseView::AgentThread { .. } => {
-                if LanguageModelRegistry::global(cx)
-                    .read(cx)
-                    .default_model()
-                    .is_some_and(|model| model.provider_id != language_model::ZED_CLOUD_PROVIDER_ID)
-                {
-                    return false;
-                }
-            }
-            BaseView::Terminal { .. } | BaseView::Uninitialized => {
-                return false;
-            }
-        }
-
-        let plan = self.user_store.read(cx).plan();
-        let has_previous_trial = self.user_store.read(cx).trial_started_at().is_some();
-
-        plan.is_some_and(|plan| plan == Plan::ZedFree) && has_previous_trial
->>>>>>> zed/main
     }
 
     fn dismiss_ai_onboarding(&mut self, cx: &mut Context<Self>) {

@@ -24,7 +24,8 @@ use language_model::{
     LanguageModelId, LanguageModelName, LanguageModelProviderId, LanguageModelProviderName,
     LanguageModelRequest, LanguageModelToolChoiceSupport, ModelRateLimiters, OPEN_AI_PROVIDER_ID,
     OPEN_AI_PROVIDER_NAME, ProviderErrorCategory, RateLimiter, X_AI_PROVIDER_ID,
-    X_AI_PROVIDER_NAME, ZED_CLOUD_PROVIDER_ID, ZED_CLOUD_PROVIDER_NAME, unavailable_error,
+    PADDLEBOARD_CLOUD_PROVIDER_ID, PADDLEBOARD_CLOUD_PROVIDER_NAME, X_AI_PROVIDER_NAME,
+    unavailable_error,
 };
 
 use schemars::JsonSchema;
@@ -48,8 +49,10 @@ use open_ai::completion::{
     into_open_ai_response, token_usage_from_response_usage,
 };
 
-const PROVIDER_ID: LanguageModelProviderId = ZED_CLOUD_PROVIDER_ID;
-const PROVIDER_NAME: LanguageModelProviderName = ZED_CLOUD_PROVIDER_NAME;
+// PaddleBoard: this fork renames the cloud provider constants; upstream moved
+// this code here in a new crate, so the rename has to be re-applied.
+const PROVIDER_ID: LanguageModelProviderId = PADDLEBOARD_CLOUD_PROVIDER_ID;
+const PROVIDER_NAME: LanguageModelProviderName = PADDLEBOARD_CLOUD_PROVIDER_NAME;
 
 /// Trait for acquiring and refreshing LLM authentication tokens.
 pub trait CloudLlmTokenProvider: Send + Sync {
@@ -96,7 +99,8 @@ impl LlmRequestError {
                     PROVIDER_NAME,
                     Some(StatusCode::UNAUTHORIZED),
                     None,
-                    "Zed rejected the credentials for this request.".to_string(),
+                    // PaddleBoard: user-facing product name.
+                    "PaddleBoard rejected the credentials for this request.".to_string(),
                     None,
                     ProviderErrorCategory::Authentication,
                 )
@@ -106,7 +110,8 @@ impl LlmRequestError {
                     PROVIDER_NAME,
                     None,
                     None,
-                    "Not signed in to Zed.".to_string(),
+                    // PaddleBoard: user-facing product name.
+                    "Not signed in to PaddleBoard.".to_string(),
                     None,
                     ProviderErrorCategory::Authentication,
                 )

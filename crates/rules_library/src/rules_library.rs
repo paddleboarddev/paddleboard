@@ -7,7 +7,7 @@ use gpui::{
     size,
 };
 use language::{Buffer, LanguageRegistry, language_settings::SoftWrap};
-use language_model::{ConfiguredModel, LanguageModelRegistry};
+use language_model::LanguageModelRegistry;
 use picker::{Picker, PickerDelegate};
 use platform_title_bar::PlatformTitleBar;
 use release_channel::ReleaseChannel;
@@ -670,10 +670,18 @@ impl RulesLibrary {
         };
 
         let rule_editor = &self.rule_editors[&active_rule_id].body_editor;
-        let Some(ConfiguredModel { provider, .. }) =
-            LanguageModelRegistry::read_global(cx).inline_assistant_model()
-        else {
-            return;
+        // Upstream turned `LanguageModel` into a plain struct, so the provider
+        // is resolved from the registry rather than carried with the model. The
+        // block ends the registry borrow before `cx` is used mutably below.
+        let provider = {
+            let registry = LanguageModelRegistry::read_global(cx);
+            let Some(model) = registry.inline_assistant_model() else {
+                return;
+            };
+            match registry.provider_for_model(&model) {
+                Ok(provider) => provider,
+                Err(_) => return,
+            }
         };
 
         let initial_prompt = action.prompt.clone();
