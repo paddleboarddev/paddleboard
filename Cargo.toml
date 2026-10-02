@@ -307,7 +307,10 @@ edition = "2024"
 
 [workspace.dependencies]
 browser = { path = "crates/browser" }
-wry = "0.40.0"
+# PaddleBoard: PaddleBoard-only dependency (upstream Zed has no wry line), used by
+# gpui_macos for the browser panel's child WKWebView. Bumped 0.40 -> 0.57 in #220;
+# see crates/gpui_macos/src/window.rs for the child-attachment and bounds semantics.
+wry = "0.57.0"
 
 #
 # Workspace member crates

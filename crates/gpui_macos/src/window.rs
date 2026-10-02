@@ -1926,11 +1926,19 @@ impl PlatformWindow for MacWindow {
             size: wry::dpi::Size::Logical(wry::dpi::LogicalSize::new(0.0, 0.0)),
         };
 
-        let builder = wry::WebViewBuilder::new_as_child(&window_handle)
+        let builder = wry::WebViewBuilder::new()
             .with_url(url)
             .with_bounds(rect);
-        if let Ok(webview) = builder.build() {
-            self.0.lock().webview = Some(webview);
+        // wry 0.35 removed `new_as_child`: the parent window moved from the
+        // constructor to the terminal call (see #220).
+        //
+        // PaddleBoard: log the failure. This used to drop the error silently, which
+        // is the worst place in the file for that — every sibling method here logs,
+        // and a webview that fails to attach otherwise presents as an empty panel
+        // with nothing anywhere to say why.
+        match builder.build_as_child(&window_handle) {
+            Ok(webview) => self.0.lock().webview = Some(webview),
+            Err(error) => log::error!("Failed to attach webview for {url}: {error}"),
         }
     }
 
@@ -1939,6 +1947,16 @@ impl PlatformWindow for MacWindow {
         if let Some(webview) = &mut state.webview {
             // wry's set_bounds internally flips Y (top-left → NSView bottom-left), so pass
             // GPUI's top-left coordinates directly and let wry do the conversion.
+            //
+            // PaddleBoard: re-verified against wry 0.57 on the 0.40 -> 0.57 bump (#220),
+            // because 0.51 "fixed handling of flipped coordinates when adding a WebView as
+            // a child" and this is behaviour, not signature. wry's `window_position` now
+            // branches on the PARENT view's `isFlipped`: it passes (x, y) straight through
+            // when flipped, and converts `frame.height - y - height` when not. GPUI's
+            // macOS view never overrides `isFlipped`, so it keeps NSView's default of
+            // false and wry takes the converting branch — identical to 0.40. Passing
+            // top-left stays correct. If GPUI ever makes its view flipped, this call
+            // starts double-counting and the webview jumps; that is the thing to re-check.
             let rect = wry::Rect {
                 position: wry::dpi::Position::Logical(wry::dpi::LogicalPosition::new(
                     f64::from(bounds.origin.x),
