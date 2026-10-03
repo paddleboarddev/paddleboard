@@ -1,11 +1,16 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
 version = "0.2.8"
+=======
+name = "zed"
+version = "1.24.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -136,6 +141,7 @@ gpui_platform = { workspace = true, features = [
     "x11",
 ] }
 image = { workspace = true, optional = true }
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 semver.workspace = true
 tempfile = { workspace = true, optional = true }
 acp_thread.workspace = true
@@ -144,6 +150,8 @@ credentials_provider = { workspace = true, optional = true }
 paddleboard_credentials_provider.workspace = true
 gpui_tokio.workspace = true
 spin = "0.10.0"
+=======
+>>>>>>> zed/main:crates/zed/Cargo.toml
 itertools.workspace = true
 rayon.workspace = true
 tabular_data_preview.workspace = true
