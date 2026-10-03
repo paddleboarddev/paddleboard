@@ -3413,12 +3413,9 @@ impl AgentPanel {
         }
 
         if self.active_thread_id(cx) == Some(id) {
-<<<<<<< HEAD
             self.clear_overlay_state();
-=======
             // Activating another view must not retain the thread that was explicitly removed
             self.base_view = BaseView::Uninitialized;
->>>>>>> zed/main
             if activate_draft_after_remove {
                 self.activate_draft(false, AgentThreadSource::AgentPanel, window, cx);
             } else {

@@ -1439,12 +1439,8 @@ dependencies = [
  "editor",
  "gpui",
  "markdown_preview",
-<<<<<<< HEAD
  "paddleboard_actions",
- "prompt_store",
-=======
  "project",
->>>>>>> zed/main
  "release_channel",
  "semver",
  "serde",
@@ -2197,15 +2193,6 @@ name = "borrow-or-share"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
-
-[[package]]
-name = "borsh"
-version = "1.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8646f98db542e39fc66e68a20b2144f6a732636df7c2354e74645faaa433ce"
-dependencies = [
- "cfg_aliases",
-]
 
 [[package]]
 name = "breadcrumbs"
@@ -3019,12 +3006,8 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
-<<<<<<< HEAD
  "thiserror 2.0.20",
-=======
- "thiserror 2.0.17",
  "tokio-rustls",
->>>>>>> zed/main
  "yawc",
 ]
 
@@ -6927,12 +6910,8 @@ dependencies = [
  "async-channel 2.5.0",
  "async-trait",
  "collections",
-<<<<<<< HEAD
  "derive_more 2.1.1",
-=======
- "derive_more",
  "file_content",
->>>>>>> zed/main
  "futures 0.3.34",
  "gpui",
  "http_client",
@@ -7451,12 +7430,8 @@ dependencies = [
  "core-foundation 0.10.0",
  "core-graphics 0.24.0",
  "core-video",
-<<<<<<< HEAD
  "derive_more 2.1.1",
-=======
- "derive_more",
  "dispatch2",
->>>>>>> zed/main
  "etagere",
  "foreign-types 0.5.0",
  "gpui",
@@ -7550,12 +7525,8 @@ dependencies = [
  "objc2-user-notifications",
  "parking_lot",
  "pathfinder_geometry",
-<<<<<<< HEAD
  "raw-window-handle 0.6.2",
-=======
- "raw-window-handle",
  "scheduler",
->>>>>>> zed/main
  "semver",
  "smallvec",
  "strum 0.28.0",
@@ -7692,12 +7663,8 @@ dependencies = [
  "log",
  "parking_lot",
  "rand 0.9.4",
-<<<<<<< HEAD
  "raw-window-handle 0.6.2",
-=======
- "raw-window-handle",
  "scheduler",
->>>>>>> zed/main
  "smallvec",
  "uuid",
  "windows 0.62.2",
@@ -11403,7 +11370,7 @@ dependencies = [
  "serde_json",
  "smol",
  "tempfile",
- "thiserror 2.0.17",
+ "thiserror 2.0.20",
  "util",
  "watch",
  "which",
@@ -12898,7 +12865,6 @@ dependencies = [
  "smol",
  "snippet_provider",
  "snippets_ui",
- "spin 0.10.0",
  "svg_preview",
  "sysinfo 0.39.6",
  "system_specs",
@@ -23672,187 +23638,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-=======
-name = "zed"
-version = "1.24.0"
-dependencies = [
- "acp_thread",
- "acp_tools",
- "action_log",
- "activity_indicator",
- "agent",
- "agent-client-protocol",
- "agent_servers",
- "agent_settings",
- "agent_skills",
- "agent_ui",
- "anyhow",
- "ashpd",
- "askpass",
- "assets",
- "audio",
- "auto_update",
- "auto_update_ui",
- "breadcrumbs",
- "call",
- "call_hierarchy",
- "channel",
- "chrono",
- "clap",
- "cli",
- "client",
- "clock",
- "codestral",
- "collab_ui",
- "collections",
- "command_palette",
- "component_preview",
- "copilot",
- "copilot_chat",
- "copilot_ui",
- "crashes",
- "dap_adapters",
- "db",
- "debug_adapter_extension",
- "debugger_tools",
- "debugger_ui",
- "dev_container",
- "diagnostics",
- "edit_prediction",
- "edit_prediction_ui",
- "editor",
- "encoding_selector",
- "env_logger 0.11.8",
- "etw_tracing",
- "extension",
- "extension_host",
- "extensions_ui",
- "feature_flags",
- "feedback",
- "file_finder",
- "fs",
- "futures 0.3.34",
- "git",
- "git_hosting_providers",
- "git_ui",
- "git_ui_core",
- "go_to_line",
- "gpui",
- "gpui_platform",
- "gpui_tokio",
- "hang_telemetry",
- "http_client",
- "image",
- "image_viewer",
- "input_latency_ui",
- "inspector_ui",
- "install_cli",
- "itertools 0.14.0",
- "journal",
- "json_schema_store",
- "keymap_editor",
- "language",
- "language_extension",
- "language_model",
- "language_models",
- "language_onboarding",
- "language_selector",
- "language_tools",
- "languages",
- "line_ending_selector",
- "log",
- "lsp_command_selector",
- "lsp_locations",
- "markdown",
- "markdown_preview",
- "menu",
- "migrator",
- "mimalloc",
- "miniprofiler_ui",
- "node_runtime",
- "notifications",
- "onboarding",
- "outline",
- "outline_panel",
- "parking_lot",
- "paths",
- "picker",
- "pkg-config",
- "pretty_assertions",
- "profiling",
- "project",
- "project_panel",
- "project_symbols",
- "prompt_store",
- "proto",
- "rayon",
- "recent_projects",
- "release_channel",
- "remote",
- "remote_server",
- "repl",
- "reqwest_client",
- "rope",
- "sandbox",
- "search",
- "semver",
- "serde",
- "serde_json",
- "session",
- "settings",
- "settings_profile_selector",
- "settings_ui",
- "shellexpand",
- "sidebar",
- "smol",
- "snippet_provider",
- "snippets_ui",
- "svg_preview",
- "sysinfo 0.39.6",
- "system_specs",
- "tab_switcher",
- "tabular_data_preview",
- "tasks_ui",
- "telemetry",
- "telemetry_events",
- "tempfile",
- "terminal_view",
- "theme",
- "theme_extension",
- "theme_selector",
- "theme_settings",
- "time",
- "time_format",
- "title_bar",
- "toolchain_selector",
- "tracing",
- "ui",
- "ui_prompt",
- "url",
- "urlencoding",
- "util",
- "uuid",
- "vim",
- "vim_mode_setting",
- "watch",
- "web_search",
- "web_search_providers",
- "which_key",
- "windows 0.62.2",
- "windows_resources",
- "workspace",
- "zed-reqwest",
- "zed_actions",
- "zed_credentials_provider",
- "zed_env_vars",
- "zlog",
- "zlog_settings",
- "ztracing",
-]
-
-[[package]]
->>>>>>> zed/main
 name = "zed-font-kit"
 version = "0.14.1-zed"
 source = "git+https://github.com/zed-industries/font-kit?rev=94b0f28166665e8fd2f53ff6d268a14955c82269#94b0f28166665e8fd2f53ff6d268a14955c82269"

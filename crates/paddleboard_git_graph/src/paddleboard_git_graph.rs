@@ -1,23 +1,13 @@
-<<<<<<< HEAD:crates/paddleboard_git_graph/src/paddleboard_git_graph.rs
 // PaddleBoard: git_graph lives in its own crate in this fork, so upstream's
 // `crate::commit_context_menu` imports resolve through git_ui instead. The
 // commit-menu actions are re-exported from there so dispatch stays shared with
 // the git panel. CommitAvatar/CommitView/git_status_icon already come in via the
-// existing `use git_ui::{…}` block below.
+// existing `use git_ui::{…}` block below. The task helpers and the docs slug are
+// `pub(crate)` upstream and were widened to `pub` in git_ui for this crate.
 pub use git_ui::commit_context_menu::{CopyCommitSha, CopyCommitTag, OpenCommitView};
 use git_ui::commit_context_menu::{
-    CommitContextMenuData, CommitContextMenuSource, commit_context_menu,
-=======
-pub use crate::commit_context_menu::{CopyCommitSha, CopyCommitTag, OpenCommitView};
-use crate::{
-    commit_context_menu::{
-        CUSTOM_GIT_COMMANDS_DOCS_SLUG, CommitContextMenuData, CommitContextMenuSource,
-        commit_context_menu, git_context_menu_tasks, git_task_context,
-    },
-    commit_tooltip::CommitAvatar,
-    commit_view::CommitView,
-    git_status_icon,
->>>>>>> zed/main:crates/git_ui/src/git_graph.rs
+    CUSTOM_GIT_COMMANDS_DOCS_SLUG, CommitContextMenuData, CommitContextMenuSource,
+    commit_context_menu, git_context_menu_tasks, git_task_context,
 };
 use collections::{BTreeMap, HashMap, IndexSet};
 use editor::Editor;
@@ -69,14 +59,7 @@ use std::{
     sync::{Arc, OnceLock},
     time::{Duration, Instant},
 };
-<<<<<<< HEAD:crates/paddleboard_git_graph/src/paddleboard_git_graph.rs
-=======
 use task::ResolvedTask;
-use zed_actions::{
-    buffer_search,
-    search::{SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive},
-};
->>>>>>> zed/main:crates/git_ui/src/git_graph.rs
 
 use theme::AccentColors;
 use time::{OffsetDateTime, UtcOffset, format_description::BorrowedFormatItem};
@@ -1149,6 +1132,30 @@ pub fn init(cx: &mut App) {
                                         selected_repo_id,
                                         git_store,
                                         LogSource::All,
+                                        None,
+                                        window,
+                                        cx,
+                                    );
+                                })
+                                .ok();
+                        }
+                    })
+                    .on_action({
+                        let workspace = workspace.clone();
+                        // PaddleBoard: the git panel's multi-selection "View File History"
+                        // dispatches one of these per selected entry.
+                        move |action: &git_ui::git_panel::OpenFileHistory, window, cx| {
+                            let repository_id = action.repository_id;
+                            let log_source = LogSource::Path(action.repo_path.clone());
+                            workspace
+                                .update(cx, |workspace, cx| {
+                                    let git_store =
+                                        workspace.project().read(cx).git_store().clone();
+                                    open_or_reuse_graph(
+                                        workspace,
+                                        repository_id,
+                                        git_store,
+                                        log_source,
                                         None,
                                         window,
                                         cx,

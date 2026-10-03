@@ -199,6 +199,18 @@ pub struct OpenAtCommit {
     pub sha: String,
 }
 
+/// Opens the Git Graph on one file's history. Internal: dispatched once per entry by
+/// the git panel's multi-selection "View File History", handled in `paddleboard_git_graph`.
+// PaddleBoard: upstream's `view_file_history` calls `crate::git_graph::open_or_reuse_graph`
+// directly. The graph crate depends on git_ui here, so the call goes through an action,
+// the same route `Open` and `OpenAtCommit` above take. Deliberately not a keymap action.
+#[derive(Clone, PartialEq, gpui::Action)]
+#[action(namespace = git_graph, no_json, no_register)]
+pub struct OpenFileHistory {
+    pub repository_id: RepositoryId,
+    pub repo_path: RepoPath,
+}
+
 fn prompt<T>(
     msg: &str,
     detail: Option<&str>,
@@ -2707,24 +2719,19 @@ impl GitPanel {
             return;
         };
         let repository_id = repository.read(cx).id;
-        let git_store = self.project.read(cx).git_store().clone();
-        self.workspace
-            .update(cx, |workspace, cx| {
-                for entry in entries {
-                    if !entry.status.is_created() {
-                        crate::git_graph::open_or_reuse_graph(
-                            workspace,
-                            repository_id,
-                            git_store.clone(),
-                            LogSource::Path(entry.repo_path),
-                            None,
-                            window,
-                            cx,
-                        );
-                    }
-                }
-            })
-            .log_err();
+        // PaddleBoard: one deferred action per entry; `paddleboard_git_graph` opens
+        // or reuses the graph (see `OpenFileHistory`).
+        for entry in entries {
+            if !entry.status.is_created() {
+                window.dispatch_action(
+                    Box::new(OpenFileHistory {
+                        repository_id,
+                        repo_path: entry.repo_path,
+                    }),
+                    cx,
+                );
+            }
+        }
         cx.stop_propagation();
     }
 
@@ -6962,34 +6969,6 @@ impl GitPanel {
                     } else {
                         cx.theme().colors().border
                     })
-<<<<<<< HEAD
-                    .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
-                        window.focus(&this.commit_editor.focus_handle(cx), cx);
-                    }))
-                    .child(
-                        h_flex()
-                            .size_full()
-                            .child(
-                                div()
-                                    .pt_2()
-                                    .px_2()
-                                    .h_full()
-                                    .flex_grow_1()
-                                    .cursor_text()
-                                    .on_action(|&paddleboard_actions::editor::MoveUp, _, cx| {
-                                        cx.stop_propagation();
-                                    })
-                                    .on_action(|&paddleboard_actions::editor::MoveDown, _, cx| {
-                                        cx.stop_propagation();
-                                    })
-                                    .child(EditorElement::new(
-                                        &self.commit_editor,
-                                        panel_editor_style,
-                                    )),
-                            )
-                            .child(vertical_buttons),
-                    )
-=======
                     .when(!collapsed, |this| {
                         this.on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                             window.focus(&this.commit_editor.focus_handle(cx), cx);
@@ -7004,10 +6983,10 @@ impl GitPanel {
                                         .h_full()
                                         .flex_grow_1()
                                         .cursor_text()
-                                        .on_action(|&zed_actions::editor::MoveUp, _, cx| {
+                                        .on_action(|&paddleboard_actions::editor::MoveUp, _, cx| {
                                             cx.stop_propagation();
                                         })
-                                        .on_action(|&zed_actions::editor::MoveDown, _, cx| {
+                                        .on_action(|&paddleboard_actions::editor::MoveDown, _, cx| {
                                             cx.stop_propagation();
                                         })
                                         .child(EditorElement::new(
@@ -7018,7 +6997,6 @@ impl GitPanel {
                                 .child(vertical_buttons),
                         )
                     })
->>>>>>> zed/main
                     .child(
                         h_flex()
                             .id("commit-footer")
@@ -10711,12 +10689,10 @@ mod tests {
 
         workspace.read_with(&cx, |workspace, cx| {
             assert_eq!(workspace.items_of_type::<SoloDiffView>(cx).count(), 2);
-            assert_eq!(
-                workspace
-                    .items_of_type::<crate::git_graph::GitGraph>(cx)
-                    .count(),
-                2
-            );
+            // PaddleBoard: upstream also asserts two `GitGraph` items opened. The graph
+            // lives in `paddleboard_git_graph` here, which is not initialised in this
+            // crate's tests, so `view_file_history` only dispatches `OpenFileHistory`
+            // and nothing handles it. The per-entry dispatch is what this test covers.
         });
     }
 
