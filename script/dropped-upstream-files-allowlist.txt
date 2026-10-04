@@ -23,4 +23,3 @@
 crates/zed/src/reliability/hang_detection.rs
 crates/zed/src/reliability/hang_detection/logging.rs
 crates/zed/src/reliability/hang_detection/task_traces.rs
-crates/zed/src/reliability/hang_detection/telemetry.rs
