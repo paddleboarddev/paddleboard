@@ -143,7 +143,6 @@ acp_thread.workspace = true
 credentials_provider = { workspace = true, optional = true }
 paddleboard_credentials_provider.workspace = true
 gpui_tokio.workspace = true
-spin = "0.10.0"
 itertools.workspace = true
 rayon.workspace = true
 tabular_data_preview.workspace = true

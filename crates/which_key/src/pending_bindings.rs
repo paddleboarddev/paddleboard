@@ -516,7 +516,11 @@ mod tests {
                 .map(|row| row.action_name.as_ref())
                 .collect::<Vec<_>>();
             action_names.sort();
-            assert_eq!(action_names, vec!["zed: open keymap", "zed: open settings"]);
+            // PaddleBoard: `zed::*` actions humanize under this fork's `paddleboard` namespace.
+            assert_eq!(
+                action_names,
+                vec!["paddleboard: open keymap", "paddleboard: open settings"]
+            );
             assert!(rows.iter().all(|row| !row.is_group));
         }
     }
@@ -539,7 +543,8 @@ mod tests {
         assert_eq!(keys, vec![vec!["É"], vec!["é"]]);
         for row in rows {
             assert_eq!(text_for_keybinding_keystrokes(&row.keystrokes, cx), "É");
-            assert_eq!(row.action_name.as_ref(), "zed: open settings");
+            // PaddleBoard: see the namespace note in the test above.
+            assert_eq!(row.action_name.as_ref(), "paddleboard: open settings");
             assert!(!row.is_group);
         }
     }
