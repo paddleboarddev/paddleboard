@@ -78,9 +78,26 @@ rustup target add $target
 $env:RELEASE_CHANNEL = $channel
 $env:PADDLEBOARD_RELEASE_CHANNEL = $channel
 
+# PaddleBoard: a hosted windows-2022 runner has 16 GB of RAM and a personal
+# account gets nothing bigger. The first release-profile probe (2026-10-05) died
+# in wasmtime-wasi with "rustc-LLVM ERROR: out of memory" at four parallel jobs
+# under the workspace profile (thin LTO, codegen-units = 1, limited debuginfo).
+# This is an unsigned preview, so trade a little binary speed and size for a
+# build that finishes: fewer parallel rustc processes, more codegen units per
+# crate (smaller LLVM modules, lower peak memory), and no debuginfo (nothing
+# consumes Windows symbols yet). Each knob yields to an explicit environment
+# value so a bigger machine can override it.
+if (-not $env:PADDLEBOARD_WINDOWS_BUILD_JOBS) { $env:PADDLEBOARD_WINDOWS_BUILD_JOBS = "3" }
+$env:CARGO_BUILD_JOBS = $env:PADDLEBOARD_WINDOWS_BUILD_JOBS
+if (-not $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS) { $env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "16" }
+if (-not $env:CARGO_PROFILE_RELEASE_DEBUG) { $env:CARGO_PROFILE_RELEASE_DEBUG = "0" }
+Write-Host "build jobs=$env:CARGO_BUILD_JOBS codegen-units=$env:CARGO_PROFILE_RELEASE_CODEGEN_UNITS debug=$env:CARGO_PROFILE_RELEASE_DEBUG"
+
 Write-Host "=== cargo build --release (paddleboard, cli) for $target ==="
+$buildStarted = Get-Date
 cargo build --release --locked --package paddleboard --package cli --target $target
 if ($LASTEXITCODE -ne 0) { throw "cargo build failed ($LASTEXITCODE)" }
+Write-Host ("build took {0:N0} minutes" -f ((Get-Date) - $buildStarted).TotalMinutes)
 
 Write-Host "=== laying out $stageDir ==="
 if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir }
