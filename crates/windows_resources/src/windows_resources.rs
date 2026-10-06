@@ -107,7 +107,9 @@ BEGIN
             VALUE "ProductName", "{product_name}\0"
             VALUE "ProductVersion", "{product_version}\0"
             VALUE "CompanyName", "PaddleBoard (paddleboarddev)\0"
-            VALUE "LegalCopyright", "Copyright 2022 - 2025 Zed Industries, Inc.; PaddleBoard additions \u00a9 2026 Jason Smith. GPL-3.0-or-later.\0"
+            // PaddleBoard: a literal sign, not an escape; this is a raw string and the
+            // file is UTF-8 (code_page 65001), so rc.exe takes the character as is.
+            VALUE "LegalCopyright", "Copyright 2022 - 2025 Zed Industries, Inc.; PaddleBoard additions © 2026 Jason Smith. GPL-3.0-or-later.\0"
         END
     END
     BLOCK "VarFileInfo"

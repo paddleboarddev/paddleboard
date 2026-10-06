@@ -324,7 +324,10 @@ jobs:
       - name: Build the Windows preview bundle (x86_64)
         shell: pwsh
         run: |
-          script/bundle-windows-preview.ps1 -Architecture x86_64 2>&1 | Tee-Object -FilePath bundle-windows.log
+          # *>&1, not 2>&1: Write-Host goes to pwsh's information stream, which 2>&1
+          # does not capture, so the probe logs ended at cargo's "Finished" with no
+          # bundle size or checksum line in them.
+          script/bundle-windows-preview.ps1 -Architecture x86_64 *>&1 | Tee-Object -FilePath bundle-windows.log
           exit $LASTEXITCODE
 
       - name: Upload Windows build log
