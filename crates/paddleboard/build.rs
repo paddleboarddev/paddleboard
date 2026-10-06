@@ -210,25 +210,14 @@ fn main() {
 
         #[cfg(windows)]
         {
-            // PaddleBoard: keep inline winresource setup so we control PaddleBoard branding
-            // and the PADDLEBOARD_RC_TOOLKIT_PATH env var name. Upstream refactored this into
-            // a `windows_resources` helper crate that hardcodes Zed branding.
-            let mut res = winresource::WindowsResource::new();
-
-            // Depending on the security applied to the computer, winresource might fail
-            // fetching the RC path. Therefore, we add a way to explicitly specify the
-            // toolkit path, allowing winresource to use a valid RC path.
-            if let Some(explicit_rc_toolkit_path) = std::env::var("PADDLEBOARD_RC_TOOLKIT_PATH").ok() {
-                res.set_toolkit_path(explicit_rc_toolkit_path.as_str());
-            }
-            res.set_icon(icon.to_str().unwrap());
-            res.set("FileDescription", "PaddleBoard");
-            res.set("ProductName", "PaddleBoard");
-
-            if let Err(e) = res.compile() {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
+            // PaddleBoard: this used to be an inline `winresource` block that carried
+            // the fork's branding, but the upstream merge that moved Zed onto the
+            // `windows_resources` helper also swapped this crate's build-dependency,
+            // so the inline block referenced a crate that was no longer declared.
+            // Nothing compiled Windows in CI, so it sat broken until the first Windows
+            // probe (2026-10-05). The helper is now ported to the fork's paths and
+            // names (`crates/windows_resources`), so call it like upstream does.
+            windows_resources::compile(false).expect("failed to compile Windows resources");
         }
     }
 
