@@ -103,7 +103,7 @@ PaddleBoard builds with [Cargo](https://doc.rust-lang.org/cargo/), the same tool
    ./script/bundle-mac -o       # release .app + .dmg (what the release pipeline ships)
    ```
 
-Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly.
+Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly. [GOVERNANCE.md](./GOVERNANCE.md) describes how the project is run and how decisions are made; everyone is expected to follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ---
 
