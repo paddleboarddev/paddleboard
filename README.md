@@ -20,7 +20,7 @@ Bring your own model keys — or run the models on your own machine. No telemetr
      does not move on promotion (see PR #82). A default badge silently sticks on
      an old version. -->
 [![Release](https://img.shields.io/github/v/release/paddleboarddev/paddleboard?sort=semver&display_name=tag&label=release&color=89b4fa&labelColor=1e1e2e)](https://github.com/paddleboarddev/paddleboard/releases/latest)
-[![Platforms](https://img.shields.io/badge/macOS%20·%20Linux-signed%20%26%20notarized-a6e3a1?labelColor=1e1e2e)](#building)
+[![Platforms](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows%20preview-download-a6e3a1?labelColor=1e1e2e)](#building)
 [![Telemetry](https://img.shields.io/badge/telemetry-none-fab387?labelColor=1e1e2e)](#whats-inherited-from-zed)
 [![License](https://img.shields.io/badge/license-GPL--3.0-cba6f7?labelColor=1e1e2e)](LICENSE-GPL)
 
@@ -113,7 +113,7 @@ A scheduled workflow merges `zed-industries/zed:main` into this repo every Monda
 
 ## License
 
-PaddleBoard inherits Zed's tri-license (AGPL / Apache 2.0 / GPL). See the `LICENSE-AGPL`, `LICENSE-APACHE`, and `LICENSE-GPL` files in this repo. Code derived from upstream Zed retains its original licensing.
+PaddleBoard is licensed GPL-3.0-or-later. The repository also carries Zed's `LICENSE-AGPL` and `LICENSE-APACHE`, which apply to the upstream code they came with; see the `LICENSE-AGPL`, `LICENSE-APACHE`, and `LICENSE-GPL` files in this repo. Code derived from upstream Zed retains its original licensing.
 
 ## Credits
 
