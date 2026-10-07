@@ -394,7 +394,7 @@ A status-bar meter shows how much of the model's context window the active agent
 
 PaddleBoard checks [its GitHub Releases](https://github.com/paddleboarddev/paddleboard/releases) once an hour, downloads a newer build in the background, and applies it when you restart. There's no update server and no account — and because PaddleBoard reports no telemetry, the check carries no install identifier with it.
 
-- **What you get offered** is the highest released version with a build for your platform: macOS on Apple silicon, or Linux on x86_64. Anywhere else — Intel Macs, ARM Linux, Windows — you're building from source, and PaddleBoard says so instead of failing quietly.
+- **What you get offered** is the highest released version with a build for your platform: macOS on Apple silicon, or Linux on x86_64. On Windows the unsigned preview zip doesn't update itself, so Check for Updates points you to the latest zip instead. Anywhere else (Intel Macs, ARM Linux) you're building from source, and PaddleBoard says so instead of failing quietly.
 - **Check now** rather than waiting for the poll: `Cmd-Shift-P` → **`auto update: Check`**. It runs even if you've turned automatic updates off.
 - **Turn it off** with `"auto_update": false`. It takes effect immediately, no restart.
 - **Beta builds** are skipped by default. To ride them as they're cut, set `"paddleboard_auto_update": { "include_prereleases": true }`.

@@ -103,7 +103,8 @@ pub static MINIDUMP_ENDPOINT: LazyLock<Option<String>> = LazyLock::new(|| {
 
 pub fn should_install_crash_handler(channel: ReleaseChannel) -> bool {
     matches!(
-        env::var("ZED_GENERATE_MINIDUMPS").as_deref(),
+        // PaddleBoard: renamed from ZED_GENERATE_MINIDUMPS, as the remote transports already are.
+        env::var("PADDLEBOARD_GENERATE_MINIDUMPS").as_deref(),
         Ok("true" | "1")
     ) || (channel != ReleaseChannel::Dev && MINIDUMP_ENDPOINT.is_some())
 }

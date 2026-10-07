@@ -372,11 +372,15 @@ pub fn get_zed_cli_path() -> Result<PathBuf> {
         // so here ./cli is for both installed and development builds.
         &["./cli"]
     } else if cfg!(target_os = "windows") {
-        // bin/zed.exe is for installed builds, ./cli.exe is for development builds.
-        &["bin/zed.exe", "./cli.exe"]
+        // PaddleBoard: the preview zip ships the CLI as bin\paddleboard.exe
+        // (script/bundle-windows-preview.ps1). Upstream's bin/zed.exe never exists
+        // here, so askpass was never set and Git/SSH password prompts failed.
+        // ./cli.exe is for development builds.
+        &["bin/paddleboard.exe", "./cli.exe"]
     } else if cfg!(target_os = "linux") || cfg!(target_os = "freebsd") {
         // bin is the standard, ./cli is for the target directory in development builds.
-        &["../bin/zed", "./cli"]
+        // PaddleBoard: the Linux tarball ships bin/paddleboard (script/bundle-linux).
+        &["../bin/paddleboard", "./cli"]
     } else {
         anyhow::bail!("unsupported platform for determining zed-cli path");
     };
