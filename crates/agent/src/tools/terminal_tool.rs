@@ -1246,6 +1246,25 @@ fn wsl_interop_blocked(content: &str) -> bool {
     content.contains("UtilGetPpid") || content.contains("Failed to parse: /proc/1/stat")
 }
 
+// PaddleBoard: lets the model-tiers hook test its classifier against the real
+// wording below, so a change here fails a test instead of turning failed checks
+// into passes.
+#[cfg(test)]
+pub(crate) fn paddleboard_process_content_for_tests(
+    output: acp::TerminalOutputResponse,
+    command: &str,
+    timed_out: bool,
+    user_stopped: bool,
+) -> String {
+    process_content(
+        output,
+        command,
+        timed_out,
+        user_stopped,
+        TerminalOutputSelection::default(),
+    )
+}
+
 fn process_content(
     output: acp::TerminalOutputResponse,
     command: &str,

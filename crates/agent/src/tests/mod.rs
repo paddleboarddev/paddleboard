@@ -55,6 +55,8 @@ use util::path;
 
 mod test_tools;
 use test_tools::*;
+// PaddleBoard: model tiers end-to-end tests.
+mod paddleboard_tiers;
 
 /// Returns the fake provider that serves the registry's default model.
 pub(crate) fn init_test(cx: &mut TestAppContext) -> Arc<FakeLanguageModelProvider> {

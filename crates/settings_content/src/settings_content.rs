@@ -18,6 +18,7 @@ mod paddleboard_personas;
 mod paddleboard_rag;
 // PaddleBoard: schema for the Scion integration (opt-in).
 mod paddleboard_scion;
+mod paddleboard_tiers;
 mod paddleboard_ui;
 // PaddleBoard: schema for the local LLM usage tracker.
 mod paddleboard_usage;
@@ -43,6 +44,7 @@ pub use paddleboard_otel::*;
 pub use paddleboard_personas::*;
 pub use paddleboard_rag::*;
 pub use paddleboard_scion::*;
+pub use paddleboard_tiers::*;
 pub use paddleboard_ui::*;
 pub use paddleboard_sandbox::*;
 pub use paddleboard_usage::*;

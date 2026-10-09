@@ -54,6 +54,9 @@ use super::elicitation::{
 };
 use super::*;
 
+// PaddleBoard: model tiers Blocker card (MODEL_TIERS.md).
+mod paddleboard_tiers_callout;
+
 const DATA_RETENTION_LEARN_MORE_URL: &str = "https://support.claude.com/en/articles/15425996-data-retention-practices-for-mythos-class-models";
 
 #[derive(Default)]
@@ -13202,6 +13205,8 @@ impl Render for ThreadView {
             })
             .children(self.render_skill_loading_issues(cx))
             .children(self.render_thread_retry_status_callout(cx))
+            // PaddleBoard: model tiers Blocker card.
+            .children(self.render_paddleboard_tier_blocker(cx))
             .children(self.render_thread_error(window, cx))
             .when_some(
                 match has_messages {

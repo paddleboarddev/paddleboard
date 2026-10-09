@@ -523,6 +523,7 @@ fn main() {
         paddleboard_personas_settings::init(cx);
         paddleboard_rag_settings::init(cx);
         paddleboard_scion_settings::init(cx);
+        paddleboard_tiers::init(cx);
         // PaddleBoard: force-link the usage-tracker settings before
         // `settings::init` collects registrations; real setup runs below.
         paddleboard_usage::init_settings(cx);

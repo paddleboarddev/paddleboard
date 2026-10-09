@@ -19,6 +19,10 @@ Then reset this file back to an empty `## Next` section.
      post-release placeholder (2026-09-10) recorded the AI Dock palette fix as shipped.
      Either it was included and needs no bullet, or it was missed and needs one. -->
 
+- Added model tiers: run routine agent work on a local model and move it to a stronger
+  one when the project's check fails twice. Off by default; enable with
+  `"paddleboard_tiers"` in settings and a check command per project. Escalation asks
+  first unless set to `"auto"`.
 - Added a keybinding and a View menu entry for the Agent Threads panel, which shows
   multi-agent sessions as a tree (`cmd-k cmd-g` on macOS, `ctrl-k ctrl-g` on Linux and
   Windows).

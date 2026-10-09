@@ -9,6 +9,10 @@ use crate::{
     WriteFileTool, decide_permission_from_settings,
 };
 use acp_thread::{AgentModelId, ClientUserMessageId, MentionUri};
+// PaddleBoard: model tiers (MODEL_TIERS.md). A child module so it can use this
+// file's private event-stream helpers without widening their visibility.
+mod paddleboard_tiers_hook;
+pub use paddleboard_tiers_hook::{TierBlocker, TierOffer};
 use action_log::ActionLog;
 use agent_settings::UserAgentsMd;
 
@@ -1340,6 +1344,8 @@ pub struct Thread {
     // thread. Persisted so the persona survives reload; injected into the
     // system prompt on every request while enabled.
     persona: Option<ThreadPersona>,
+    // PaddleBoard: model tiers. Runtime only; a reloaded thread starts a fresh count.
+    paddleboard_tiers: paddleboard_tiers_hook::TierState,
 }
 
 // PaddleBoard: persona system. The overlay is snapshotted at selection time so
@@ -1493,6 +1499,7 @@ impl Thread {
             sandboxed_terminal_temp_dir: None,
             sandbox_grants: Rc::new(RefCell::new(ThreadSandboxGrants::default())),
             persona: None,
+            paddleboard_tiers: Default::default(),
         }
     }
 
@@ -1875,6 +1882,7 @@ impl Thread {
                 &db_thread.sandbox_grants,
             ))),
             persona: db_thread.persona,
+            paddleboard_tiers: Default::default(),
         }
     }
 
@@ -2667,6 +2675,8 @@ impl Thread {
 
         self.messages
             .push(Arc::new(Message::User(UserMessage { id, content })));
+        // PaddleBoard: model tiers count failed checks per user request.
+        self.paddleboard_tiers_note_user_message();
         cx.notify();
 
         self.send_existing(cx)
@@ -3228,7 +3238,25 @@ impl Thread {
                     }
                 })?;
             } else if end_turn {
-                return Ok(());
+                // PaddleBoard: model tiers. Before the turn really ends, run the
+                // project check; a failure continues the turn on this model or a
+                // stronger one (see paddleboard_tiers_hook).
+                match Self::paddleboard_tiers_after_turn(
+                    this,
+                    event_stream,
+                    cancellation_rx.clone(),
+                    cx,
+                )
+                .await?
+                {
+                    paddleboard_tiers_hook::AfterTurn::End => return Ok(()),
+                    paddleboard_tiers_hook::AfterTurn::Continue => {}
+                    paddleboard_tiers_hook::AfterTurn::ContinueOnNewModel => {
+                        refusal_fallback_model = None;
+                    }
+                }
+                intent = CompletionIntent::UserPrompt;
+                attempt = 0;
             } else {
                 let end_at_boundary =
                     this.update(cx, |this, _| this.end_turn_at_next_boundary())?;
@@ -3656,6 +3684,8 @@ impl Thread {
             }
             kind = tool.kind();
         }
+        // PaddleBoard: model tiers run the project check only after edits.
+        self.paddleboard_tiers_note_tool(kind);
 
         self.send_or_update_tool_use(&tool_use, title, kind, owning_message_ix, event_stream);
 

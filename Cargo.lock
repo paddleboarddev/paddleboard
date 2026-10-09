@@ -297,6 +297,7 @@ dependencies = [
  "paddleboard_sandbox_settings",
  "paddleboard_scion",
  "paddleboard_scion_settings",
+ "paddleboard_tiers",
  "paddleboard_usage",
  "parking_lot",
  "paths",
@@ -12718,6 +12719,7 @@ dependencies = [
  "paddleboard_scion_settings",
  "paddleboard_scion_ui",
  "paddleboard_set_sail",
+ "paddleboard_tiers",
  "paddleboard_ui",
  "paddleboard_update_status",
  "paddleboard_usage",
@@ -13217,6 +13219,16 @@ dependencies = [
  "ui",
  "ui_input",
  "workspace",
+]
+
+[[package]]
+name = "paddleboard_tiers"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "pretty_assertions",
+ "settings",
+ "util",
 ]
 
 [[package]]

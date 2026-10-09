@@ -3177,6 +3177,32 @@
     "auto_commit": false
   },
 
+  // Model tiers: run routine agent work on a cheap model and move it to a
+  // stronger one when the project's check keeps failing. Off until you turn it
+  // on and set a check. Usually the check lives in the project's
+  // `.zed/settings.json`. See https://docs.paddleboard.dev/model-tiers.html
+  "paddleboard_tiers": {
+    // Whether model tiers are active.
+    "enabled": false,
+    // Cheapest first. Each tier names a model you have configured, e.g.
+    // { "name": "Local", "model": { "provider": "ollama", "model": "gemma3:12b" } }
+    "tiers": [],
+    // The command that decides whether the agent's work passed, e.g.
+    // { "command": "cargo test -p my_crate", "timeout_seconds": 300 }.
+    // It runs in the agent's terminal, with the same sandbox and permission
+    // prompt, after any turn that edited files.
+    "check": null,
+    // Fix attempts on the same model after a failed check, before stopping.
+    "retries_per_tier": 1,
+    // When a tier runs out of attempts:
+    // - "ask": stop and offer the next tier.
+    // - "auto": move up without asking, up to "auto_ceiling".
+    // - "off": stop and report.
+    "escalation": "ask",
+    // The highest tier "auto" may reach without asking, by name. null = no limit.
+    "auto_ceiling": null
+  },
+
   // Configuration for developer-oriented instrumentation tools that can be
   // toggled at runtime.
   "instrumentation": {

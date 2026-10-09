@@ -267,6 +267,7 @@ members = [
     "crates/paddleboard_personas_settings",
     "crates/paddleboard_scion",
     "crates/paddleboard_scion_settings",
+    "crates/paddleboard_tiers",
     "crates/paddleboard_set_sail",
     "crates/paddleboard_scion_ui",
     "crates/paddleboard_usage",
@@ -567,6 +568,7 @@ paddleboard_personas = { path = "crates/paddleboard_personas" }
 paddleboard_personas_settings = { path = "crates/paddleboard_personas_settings" }
 paddleboard_scion = { path = "crates/paddleboard_scion" }
 paddleboard_scion_settings = { path = "crates/paddleboard_scion_settings" }
+paddleboard_tiers = { path = "crates/paddleboard_tiers" }
 paddleboard_scion_ui = { path = "crates/paddleboard_scion_ui" }
 paddleboard_set_sail = { path = "crates/paddleboard_set_sail" }
 paddleboard_usage = { path = "crates/paddleboard_usage" }

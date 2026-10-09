@@ -1,6 +1,6 @@
 # MODEL TIERS — run routine work on a local model, escalate on measured failure
 
-> **Status:** design, 2026-10-07. Jay's call the same day: this is a differentiator
+> **Status:** phase 1 built 2026-10-08 (see [As built](#as-built-2026-10-08)); designed 2026-10-07. Jay's call the same day: this is a differentiator
 > and ships **in the v0.3.0 beta**, even if the launch moves a week to get it right.
 > Working title only; the product name is Jay's to choose (see
 > [Open questions](#open-questions)).
@@ -218,6 +218,34 @@ built-in price is worse than none.
    up to ceiling, top tier, manual override resets), settings parsing, Blocker
    Summary formatting. One end-to-end test with a fake model and a check command
    that fails then passes.
+
+#### As built (2026-10-08)
+
+Phase 1 shipped with these deliberate differences from the design above:
+
+- **No `start_tier`.** The thread's current model decides which tier it is on, so
+  the user starts on the local tier with the normal model picker or default model.
+  A setting that silently replaced the chosen model on every new thread would fight
+  the user. A model that is not a tier is offered every tier.
+- **The check is the agent's own terminal tool**, called by the thread with a
+  synthetic tool-call card (`sandboxed_terminal` when the sandbox is on, else
+  `terminal`). That gives it the exact sandbox policy, permission prompt and
+  rendering of any agent command for free. Its result goes to the model as a plain
+  user message, not a tool result, because a tool result without a matching model
+  tool call is rejected by providers.
+- **The check also runs after a retry round with no edits.** A model that answers a
+  failure with "fixed" and changes nothing would otherwise end the run unverified.
+- **Pass/fail is read from the terminal tool's text**, keyed on the exact command
+  and matched after any sandbox notes. A test runs the real formatter so a wording
+  change upstream fails the build instead of turning failures into passes.
+- **Deferred:** the tier label in the thread header (the model picker already shows
+  the model) and the `tier` field in usage records (records are already per model,
+  which identifies the tier). A starter `local-narrow` profile is documented rather
+  than shipped as a default, since a new default profile would change every user's
+  profile list.
+- **The `paddleboard_tiers` key lives in the project settings struct**, which is
+  flattened into user settings, so one key serves both scopes and merges field by
+  field (tested).
 
 ### Phase 2 — after launch
 

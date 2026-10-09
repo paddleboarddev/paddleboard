@@ -311,6 +311,25 @@ Supported on macOS Apple Silicon and Linux today; other platforms show Local Mod
 
 ---
 
+### Model tiers — local first, escalate on failure
+
+Let a free local model do the routine work and bring in Claude or Gemini only when the work fails. Name your tiers cheapest first and give the project a check command in `.zed/settings.json`:
+
+```json
+{
+  "paddleboard_tiers": {
+    "enabled": true,
+    "tiers": [
+      { "name": "Local",   "model": { "provider": "ollama",    "model": "gemma3:12b" } },
+      { "name": "Precise", "model": { "provider": "anthropic", "model": "claude-sonnet-5" } }
+    ],
+    "check": { "command": "cargo test -p my_crate" }
+  }
+}
+```
+
+After any agent turn that edits files, the check runs in the agent's terminal as **Check: `cargo test -p my_crate`**, under the same sandbox and permission prompt as any other command. A failure goes back to the same model once. A second failure stops the run with a card offering the next tier; choose it and the stronger model continues in the same thread with a summary of what failed. Set `"escalation": "auto"` to move up without asking, and `"auto_ceiling"` to cap how far. The thread's current model decides which tier it is on, so start on the local tier with the model picker. Full reference: [docs.paddleboard.dev/model-tiers](https://docs.paddleboard.dev/model-tiers.html).
+
 ### Semantic search — find code by meaning, locally
 
 Turn on `"paddleboard_rag": { "enabled": true }` (default off) and the native agent gains a **`semantic_search`** tool: it searches the current project by *meaning* rather than exact strings, so it can find where a concept, behavior, or feature lives even when you don't know the keyword to grep for. It complements the literal `grep` tool — reach for semantic search when the search terms are fuzzy.

@@ -85,12 +85,19 @@ pub struct ProjectSettingsContent {
     ///
     /// Default: false
     pub disable_ai: Option<SaturatingBool>,
+
+    // PaddleBoard: model tiers. Here rather than at the root of SettingsContent
+    // so a project can set its own check command in `.zed/settings.json`; the
+    // project struct is flattened into the user settings too, so one field
+    // serves both scopes.
+    pub paddleboard_tiers: Option<crate::PaddleboardTiersContent>,
 }
 
 crate::fallible_options::flattened_deserialize!(ProjectSettingsContent {
     sections: { all_languages, worktree },
     options: {
         terminal, context_server_timeout, load_direnv, git_hosting_providers, disable_ai,
+        paddleboard_tiers,
     },
     defaults: { lsp, dap, context_servers },
 });
