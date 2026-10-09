@@ -702,6 +702,9 @@ async fn run_agent(
                 )
             }
         };
+        // PaddleBoard: upstream closes this JSON with `}}"`, a stray quote that
+        // fails every run at setup ("trailing characters"). Still present on
+        // zed/main at 9ab0715 (2026-10-08); drop this note when upstream fixes it.
         SettingsStore::update_global(cx, |store, cx| {
             let settings = format!(
                 r#"{{
@@ -717,7 +720,7 @@ async fn run_agent(
                     }},
                     "autosave": "off",
                     "format_on_save": "off"
-                }}"
+                }}
                 "#
             );
             store.set_user_settings(&settings, cx).result()
