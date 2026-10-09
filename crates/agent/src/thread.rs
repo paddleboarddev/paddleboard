@@ -3684,8 +3684,6 @@ impl Thread {
             }
             kind = tool.kind();
         }
-        // PaddleBoard: model tiers run the project check only after edits.
-        self.paddleboard_tiers_note_tool(kind);
 
         self.send_or_update_tool_use(&tool_use, title, kind, owning_message_ix, event_stream);
 

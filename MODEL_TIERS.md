@@ -83,7 +83,7 @@ A new top-level setting, `paddleboard_tiers`, in user or project settings:
     { "name": "Deep",     "model": { "provider": "anthropic", "model": "claude-fable-5-1" } }
   ],
   "start_tier": "Local",
-  // The failure signal. Runs in the agent sandbox after any turn that edited files.
+  // The failure signal. Runs in the agent sandbox at the end of every turn.
   "check": { "command": "cargo test -p my_crate", "timeout_seconds": 300 },
   // Fix attempts on the current tier before stopping. 1 = the "two-strike" rule.
   "retries_per_tier": 1,
@@ -96,7 +96,7 @@ A new top-level setting, `paddleboard_tiers`, in user or project settings:
 
 `model` reuses `LanguageModelSelection` (provider, model, thinking, effort), so a
 tier can be "Sonnet with extended thinking" as easily as "Sonnet". `check` is a
-project setting by nature; a project's `.zed/settings.json` (or the future
+project setting by nature; a project's `.paddleboard/settings.json` (or the future
 `harness.toml`, see [Open questions](#open-questions)) supplies it.
 
 The four tiers in the example are the brief's own. Nothing requires four: two
@@ -104,8 +104,8 @@ tiers (local, then Sonnet) is the expected common case.
 
 ### 2. The check (the missing failure signal)
 
-After a turn ends with `StopReason::EndTurn` **and the turn edited at least one
-file**, the thread runs `check.command`:
+After a turn ends with `StopReason::EndTurn` the thread runs `check.command`,
+whether or not the turn edited a file (see [As built](#as-built-2026-10-08)):
 
 - **Same sandbox as the terminal tool.** The command runs under the thread's
   `ThreadSandbox` and the persistent sandbox policy (`crates/agent/src/sandboxing.rs`),
@@ -233,8 +233,14 @@ Phase 1 shipped with these deliberate differences from the design above:
   rendering of any agent command for free. Its result goes to the model as a plain
   user message, not a tool result, because a tool result without a matching model
   tool call is rejected by providers.
-- **The check also runs after a retry round with no edits.** A model that answers a
-  failure with "fixed" and changes nothing would otherwise end the run unverified.
+- **The check runs after every top-level turn, edits or not** (changed 2026-10-08,
+  after the first real-model run). The design said "after a turn that edited a
+  file". On a real run `gemma4:e4b` described an implementation, called no tool
+  and ended its turn twice; with an edit trigger the check never fired and the run
+  ended "completed" with every test failing. A model that claims work it did not do
+  is exactly the failure tiers exist to catch. The cost is a check after a pure
+  question turn too, which is why the check should be fast. Subagent threads still
+  skip it; their parent checks.
 - **Pass/fail is read from the terminal tool's text**, keyed on the exact command
   and matched after any sandbox notes. A test runs the real formatter so a wording
   change upstream fails the build instead of turning failures into passes.
@@ -285,9 +291,9 @@ Mon 26.
    Agent Scaffolding ships it. Both should keep working.
 4. **Persona `tier:`** reverses a recorded scaffolding decision. Phase 2 either
    way; yes or no decides whether the persona format changes.
-5. **Does the check run after every edited turn, or only when the agent says it
-   is done?** Every edited turn is proposed: it is the only version that catches a
-   model that stops early and claims success.
+5. ~~**Does the check run after every edited turn, or only when the agent says it
+   is done?**~~ **Decided 2026-10-08: after every turn**, edited or not. A real
+   `gemma4:e4b` run claimed edits it never made; see [As built](#as-built-2026-10-08).
 
 ## Reference
 

@@ -90,9 +90,9 @@ fn enable_tiers(model: &LanguageModel, escalation: &str, cx: &mut TestAppContext
     });
 }
 
-/// Send a message, mark the turn as having edited a file, and end the model's
-/// reply with text.
-async fn edited_turn(
+/// Send a message and end the model's reply with text. No tool is called: the
+/// check runs after every turn, edits or not.
+async fn turn(
     thread: &Entity<Thread>,
     fake: &FakeLanguageModelProvider,
     model: &LanguageModel,
@@ -105,15 +105,10 @@ async fn edited_turn(
                 thread.project().clone(),
                 environment,
             ));
-            thread.paddleboard_tiers_note_tool(acp::ToolKind::Edit);
             thread.send(ClientUserMessageId::new(), ["add the field"], cx)
         })
         .unwrap();
     cx.run_until_parked();
-    // `send` resets the per-request count; the edit note must survive it.
-    thread.update(cx, |thread, _| {
-        thread.paddleboard_tiers_note_tool(acp::ToolKind::Edit)
-    });
     fake.send_last_text(model, "Done.");
     fake.end_last(model);
     events
@@ -145,7 +140,7 @@ async fn test_passing_check_ends_the_turn(cx: &mut TestAppContext) {
     disable_sandboxing(cx);
     let environment = Rc::new(ScriptedEnvironment::new(&[0]));
 
-    let mut events = edited_turn(&thread, &fake, &model, environment.clone(), cx).await;
+    let mut events = turn(&thread, &fake, &model, environment.clone(), cx).await;
     let events = collect_events_until_stop(&mut events, cx).await;
 
     assert_eq!(stop_events(events), vec![acp::StopReason::EndTurn]);
@@ -170,7 +165,7 @@ async fn test_failing_check_retries_once_then_blocks(cx: &mut TestAppContext) {
     disable_sandboxing(cx);
     let environment = Rc::new(ScriptedEnvironment::new(&[1, 1]));
 
-    let mut events = edited_turn(&thread, &fake, &model, environment.clone(), cx).await;
+    let mut events = turn(&thread, &fake, &model, environment.clone(), cx).await;
     cx.run_until_parked();
 
     // Strike one: the failure goes back to the same model.
@@ -226,7 +221,7 @@ async fn test_off_blocks_without_offering_a_tier(cx: &mut TestAppContext) {
     disable_sandboxing(cx);
     let environment = Rc::new(ScriptedEnvironment::new(&[1, 1]));
 
-    let mut events = edited_turn(&thread, &fake, &model, environment, cx).await;
+    let mut events = turn(&thread, &fake, &model, environment, cx).await;
     cx.run_until_parked();
     fake.send_last_text(&model, "Fixed.");
     fake.end_last(&model);
@@ -239,7 +234,7 @@ async fn test_off_blocks_without_offering_a_tier(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn test_no_edits_means_no_check(cx: &mut TestAppContext) {
+async fn test_check_runs_after_a_turn_with_no_tool_calls(cx: &mut TestAppContext) {
     let ThreadTest {
         model,
         fake,
@@ -250,24 +245,30 @@ async fn test_no_edits_means_no_check(cx: &mut TestAppContext) {
     // After the settings write, which would otherwise drop these overrides.
     always_allow_tools(cx);
     disable_sandboxing(cx);
-    let environment = Rc::new(ScriptedEnvironment::new(&[]));
+    let environment = Rc::new(ScriptedEnvironment::new(&[1]));
 
-    let mut events = thread
+    // The model describes a fix and calls no tool, as gemma4:e4b did on a real
+    // run. The check still runs, and its failure goes back to the model.
+    let _events = thread
         .update(cx, |thread, cx| {
             thread.add_tool(crate::TerminalTool::new(
                 thread.project().clone(),
                 environment.clone(),
             ));
-            thread.send(ClientUserMessageId::new(), ["what does this do?"], cx)
+            thread.send(ClientUserMessageId::new(), ["implement evaluate()"], cx)
         })
         .unwrap();
     cx.run_until_parked();
-    fake.send_last_text(&model, "It parses settings.");
+    fake.send_last_text(&model, "I have implemented evaluate() in calc.py.");
     fake.end_last(&model);
-    let events = collect_events_until_stop(&mut events, cx).await;
+    cx.run_until_parked();
 
-    assert_eq!(stop_events(events), vec![acp::StopReason::EndTurn]);
-    assert!(environment.commands.borrow().is_empty());
+    assert_eq!(environment.commands.borrow().len(), 1);
+    let retry = last_request_text(&fake);
+    assert!(
+        retry.contains("The project check `cargo test` failed"),
+        "unexpected retry message: {retry}"
+    );
 }
 
 #[gpui::test]
@@ -285,7 +286,7 @@ async fn test_escalating_from_the_blocker_switches_model(cx: &mut TestAppContext
     let precise = fake.model("fake-precise");
     let environment = Rc::new(ScriptedEnvironment::new(&[1, 1]));
 
-    let mut events = edited_turn(&thread, &fake, &model, environment, cx).await;
+    let mut events = turn(&thread, &fake, &model, environment, cx).await;
     cx.run_until_parked();
     fake.send_last_text(&model, "Fixed.");
     fake.end_last(&model);

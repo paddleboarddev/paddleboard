@@ -3190,7 +3190,7 @@
     // The command that decides whether the agent's work passed, e.g.
     // { "command": "cargo test -p my_crate", "timeout_seconds": 300 }.
     // It runs in the agent's terminal, with the same sandbox and permission
-    // prompt, after any turn that edited files.
+    // prompt, at the end of every agent turn.
     "check": null,
     // Fix attempts on the same model after a failed check, before stopping.
     "retries_per_tier": 1,

@@ -26,8 +26,8 @@ pub struct PaddleboardTiersContent {
 
     /// The command that decides whether the agent's work passed, for example
     /// `cargo test -p my_crate`. It runs in the agent's terminal, under the same
-    /// sandbox and permissions, after any turn that edited files. Usually set in
-    /// the project's `.zed/settings.json`.
+    /// sandbox and permissions, at the end of every agent turn. Usually set in
+    /// the project's `.paddleboard/settings.json`.
     pub check: Option<PaddleboardTierCheckContent>,
 
     /// How many times the agent may try to fix a failed check on the same tier

@@ -313,7 +313,7 @@ Supported on macOS Apple Silicon and Linux today; other platforms show Local Mod
 
 ### Model tiers — local first, escalate on failure
 
-Let a free local model do the routine work and bring in Claude or Gemini only when the work fails. Name your tiers cheapest first and give the project a check command in `.zed/settings.json`:
+Let a free local model do the routine work and bring in Claude or Gemini only when the work fails. Name your tiers cheapest first and give the project a check command in `.paddleboard/settings.json`:
 
 ```json
 {
@@ -328,7 +328,7 @@ Let a free local model do the routine work and bring in Claude or Gemini only wh
 }
 ```
 
-After any agent turn that edits files, the check runs in the agent's terminal as **Check: `cargo test -p my_crate`**, under the same sandbox and permission prompt as any other command. A failure goes back to the same model once. A second failure stops the run with a card offering the next tier; choose it and the stronger model continues in the same thread with a summary of what failed. Set `"escalation": "auto"` to move up without asking, and `"auto_ceiling"` to cap how far. The thread's current model decides which tier it is on, so start on the local tier with the model picker. Full reference: [docs.paddleboard.dev/model-tiers](https://docs.paddleboard.dev/model-tiers.html).
+At the end of every agent turn, the check runs in the agent's terminal as **Check: `cargo test -p my_crate`**, under the same sandbox and permission prompt as any other command. A failure goes back to the same model once. A second failure stops the run with a card offering the next tier; choose it and the stronger model continues in the same thread with a summary of what failed. Set `"escalation": "auto"` to move up without asking, and `"auto_ceiling"` to cap how far. The thread's current model decides which tier it is on, so start on the local tier with the model picker. Full reference: [docs.paddleboard.dev/model-tiers](https://docs.paddleboard.dev/model-tiers.html).
 
 ### Semantic search — find code by meaning, locally
 

@@ -39,8 +39,6 @@ pub struct TierOffer {
 
 #[derive(Debug, Default)]
 pub(super) struct TierState {
-    /// Set when a tool that edits, deletes or moves files ran this turn.
-    edited_this_turn: bool,
     /// Failed checks on the current model since the last escalation.
     failed_on_current: u32,
     /// Failed checks per model for the current task, for the Blocker Summary.
@@ -62,16 +60,6 @@ pub(super) enum AfterTurn {
 }
 
 impl Thread {
-    /// Called for every tool the model invokes.
-    pub(crate) fn paddleboard_tiers_note_tool(&mut self, kind: acp::ToolKind) {
-        if matches!(
-            kind,
-            acp::ToolKind::Edit | acp::ToolKind::Delete | acp::ToolKind::Move
-        ) {
-            self.paddleboard_tiers.edited_this_turn = true;
-        }
-    }
-
     /// Called when the user sends a message. A fresh request starts a fresh
     /// count; the message an escalation sends keeps the history it summarises.
     pub(super) fn paddleboard_tiers_note_user_message(&mut self) {
@@ -194,13 +182,11 @@ impl Thread {
         cx: &mut AsyncApp,
     ) -> Result<AfterTurn> {
         let prepared = this.update(cx, |this, cx| {
-            let edited = std::mem::take(&mut this.paddleboard_tiers.edited_this_turn);
-            // After a failed check the next end of turn is the model claiming a
-            // fix, so check again even if it changed nothing: otherwise a model
-            // that just says "done" ends the run unverified.
-            let pending_failure = !this.paddleboard_tiers.history.is_empty();
+            // Every turn, not only turns that edited files: a small model will
+            // describe a fix, call no tool and say "done", and that run must not
+            // end unverified (seen with gemma4:e4b, 2026-10-08).
             // Subagents report to a parent thread, which runs its own check.
-            if !(edited || pending_failure) || this.parent_thread_id().is_some() {
+            if this.parent_thread_id().is_some() {
                 return None;
             }
             let settings = this.paddleboard_tier_settings(cx);
