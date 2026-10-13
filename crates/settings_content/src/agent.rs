@@ -632,8 +632,21 @@ fn agent_profile_tools_schema(_: &mut schemars::SchemaGenerator) -> schemars::Sc
         "terminal",
         "write_file",
     ];
+    // PaddleBoard: fork-only agent tools. Upstream's list is closed
+    // (`additionalProperties: false`), so without these the built-in profiles in
+    // default.json — and any user profile toggling them — fail schema validation.
+    // Kept as a separate list so upstream changes to `tool_names` merge cleanly.
+    let paddleboard_tool_names = [
+        "adopt_persona",
+        "install_mcp_server",
+        "sandbox_service_tool",
+        "sandbox_tool",
+        "semantic_search",
+        "spawn_scion_agent",
+    ];
     let properties = tool_names
         .into_iter()
+        .chain(paddleboard_tool_names)
         .map(|name| (name.to_string(), serde_json::json!({ "type": "boolean" })))
         .collect::<serde_json::Map<_, _>>();
     json_schema!({
