@@ -89,8 +89,11 @@ impl<T: InventoryContents> InventoryFor<T> {
         let worktree_dirs = self.worktree.get(&worktree);
         let has_zed_dir = worktree_dirs
             .map(|dirs| {
-                dirs.keys()
-                    .any(|dir| dir.file_name().is_some_and(|name| name == ".zed"))
+                // PaddleBoard: project config lives in `.paddleboard/`, not `.zed/`.
+                dirs.keys().any(|dir| {
+                    dir.file_name()
+                        .is_some_and(|name| name == paths::local_settings_folder_name())
+                })
             })
             .unwrap_or(false);
 
@@ -499,8 +502,11 @@ impl Inventory {
             .worktree
             .iter()
             .filter(|(_, dirs)| {
-                dirs.keys()
-                    .any(|dir| dir.file_name().is_some_and(|name| name == ".zed"))
+                // PaddleBoard: project config lives in `.paddleboard/`, not `.zed/`.
+                dirs.keys().any(|dir| {
+                    dir.file_name()
+                        .is_some_and(|name| name == paths::local_settings_folder_name())
+                })
             })
             .map(|(id, _)| *id)
             .collect();

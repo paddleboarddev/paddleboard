@@ -1068,7 +1068,8 @@ impl DebugDelegate {
                     };
 
                     match path.components().next_back() {
-                        Some(".zed") => {
+                        // PaddleBoard: project config lives in `.paddleboard/`, not `.zed/`.
+                        Some(name) if name == paths::local_settings_folder_name() => {
                             path.push(RelPath::from_unix_str("debug.json").unwrap());
                         }
                         Some(".vscode") => {
@@ -1160,12 +1161,15 @@ impl DebugDelegate {
                 }
 
                 let dap_registry = cx.global::<DapRegistry>();
+                // PaddleBoard: project config lives in `.paddleboard/`, not `.zed/`.
                 let hide_vscode = scenarios.iter().any(|(kind, _)| match kind {
                     TaskSourceKind::Worktree {
                         id: _,
                         directory_in_worktree: dir,
                         id_base: _,
-                    } => dir.ends_with(RelPath::from_unix_str(".zed").unwrap()),
+                    } => dir.ends_with(
+                        RelPath::from_unix_str(paths::local_settings_folder_name()).unwrap(),
+                    ),
                     _ => false,
                 });
 
