@@ -146,7 +146,8 @@ impl MentionUri {
                     })
                 }
             }
-            "zed" => {
+            // PaddleBoard: to_uri() emits paddleboard://; keep zed:// for legacy threads
+            "zed" | "paddleboard" => {
                 if let Some(thread_id) = path.strip_prefix("/agent/thread/") {
                     let name = single_query_param(&url, "name")?.context("Missing thread name")?;
                     Ok(Self::Thread {
