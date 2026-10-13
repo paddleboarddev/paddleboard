@@ -192,9 +192,11 @@ impl Render for SecurityModal {
                                 .color(Color::Muted),
                             )
                             .child(
-                                Label::new(
-                                    "Review .zed/settings.json for any extensions or commands configured by this project.",
-                                )
+                                // PaddleBoard: name the real project settings folder.
+                                Label::new(format!(
+                                    "Review {}/settings.json for any extensions or commands configured by this project.",
+                                    paths::local_settings_folder_name()
+                                ))
                                 .color(Color::Muted),
                             ),
                     )
