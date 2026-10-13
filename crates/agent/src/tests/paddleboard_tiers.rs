@@ -72,7 +72,7 @@ fn enable_tiers(model: &LanguageModel, escalation: &str, cx: &mut TestAppContext
     cx.update(|cx| {
         SettingsStore::update_global(cx, |store, cx| {
             store.update_user_settings(cx, |content| {
-                content.project.paddleboard_tiers = Some(
+                content.project.paddleboard_spotter = Some(
                     serde_json::from_value(json!({
                         "enabled": true,
                         "tiers": [

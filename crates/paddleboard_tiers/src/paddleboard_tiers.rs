@@ -54,7 +54,7 @@ pub struct TiersSettings {
 
 impl Settings for TiersSettings {
     fn from_settings(content: &settings::SettingsContent) -> Self {
-        let Some(content) = content.project.paddleboard_tiers.as_ref() else {
+        let Some(content) = content.project.paddleboard_spotter.as_ref() else {
             return Self {
                 retries_per_tier: DEFAULT_RETRIES_PER_TIER,
                 ..Self::default()
@@ -550,7 +550,7 @@ mod tests {
         store.register_setting::<TiersSettings>();
         store
             .set_user_settings(
-                r#"{ "paddleboard_tiers": { "enabled": true, "tiers": [
+                r#"{ "paddleboard_spotter": { "enabled": true, "tiers": [
                     { "name": "Local", "model": { "provider": "ollama", "model": "gemma3:12b" } }
                 ] } }"#,
                 cx,
@@ -563,7 +563,7 @@ mod tests {
                 worktree_id,
                 LocalSettingsPath::InWorktree(rel_path("").into()),
                 LocalSettingsKind::Settings,
-                Some(r#"{ "paddleboard_tiers": { "check": { "command": "cargo test" } } }"#),
+                Some(r#"{ "paddleboard_spotter": { "check": { "command": "cargo test" } } }"#),
                 cx,
             )
             .unwrap();
