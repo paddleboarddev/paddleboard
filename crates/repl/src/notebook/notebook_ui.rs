@@ -587,19 +587,6 @@ impl NotebookEditor {
     }
 
     fn execute_cell(&mut self, cell_id: CellId, window: &mut Window, cx: &mut Context<Self>) {
-        // PaddleBoard: bail before flipping the cell into "Running..." when
-        // there is no running kernel to reply (Starting / Error / Shutdown),
-        // otherwise the cell wedges in "Running..." forever because nothing
-        // ever calls `finish_execution()`. The kernel-status pill surfaces the
-        // actual state to the user.
-        if !matches!(self.kernel, Kernel::RunningKernel(_)) {
-            log::warn!(
-                "execute_cell({cell_id:?}): kernel not ready ({}); ignoring run request",
-                self.kernel.status().to_string()
-            );
-            return;
-        }
-
         let code = if let Some(Cell::Code(cell)) = self.cell_map.get(&cell_id) {
             let editor = cell.read(cx).editor().clone();
             let buffer = editor.read(cx).buffer().read(cx);

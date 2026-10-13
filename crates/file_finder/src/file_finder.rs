@@ -1181,8 +1181,10 @@ impl FileFinderDelegate {
             // PaddleBoard: upstream's channel-match block is dropped — it reads
             // `self.channel_store` and builds `Match::Channel`, both of which are
             // collaboration features this fork removed. `query_path` below is
-            // still required by the worktree resolution that follows.
-            let query_path = query.raw_query.as_str();
+            // still required by the worktree resolution that follows. It must be
+            // the parsed path, as upstream's is: the raw query keeps a `:row:col`
+            // suffix and would offer to create a file literally named `foo.rs:10`.
+            let query_path = query.path_query();
             if let Ok(mut query_path) = RelPath::new(Path::new(query_path), path_style) {
                 let available_worktree = self
                     .project

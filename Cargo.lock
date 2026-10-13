@@ -6088,7 +6088,6 @@ dependencies = [
  "picker_preview",
  "pretty_assertions",
  "project",
- "project_panel",
  "serde_json",
  "settings",
  "theme",
@@ -13381,9 +13380,9 @@ dependencies = [
 
 [[package]]
 name = "partial-json-fixer"
-version = "0.5.5"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f084e464d66716c43ec8530ab9df0f8fa211f419320f135a4b4291fa62f62956"
+checksum = "35ffd90b3f3b6477db7478016b9efb1b7e9d38eafd095f0542fe0ec2ea884a13"
 
 [[package]]
 name = "password-hash"

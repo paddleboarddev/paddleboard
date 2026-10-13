@@ -759,7 +759,8 @@ mod tests {
         fs.insert_tree(
             path!("/dir"),
             json!({
-                ".zed": {
+                // PaddleBoard: project tasks live in `.paddleboard/`, not `.zed/`.
+                ".paddleboard": {
                     "tasks.json": r#"[
                         {
                             "label": "example task",
@@ -932,7 +933,8 @@ mod tests {
         fs.insert_tree(
             path!("/dir"),
             json!({
-                ".zed": {
+                // PaddleBoard: project tasks live in `.paddleboard/`, not `.zed/`.
+                ".paddleboard": {
                     "tasks.json": r#"[
                         {
                             "label": "hello from $PADDLEBOARD_FILE:$PADDLEBOARD_ROW:$PADDLEBOARD_COLUMN",

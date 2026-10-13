@@ -50117,17 +50117,18 @@ async fn test_soft_wrap_indent_updated_on_file_move_between_directories(
 
     let fs = FakeFs::new(cx.executor());
     let root = Path::new("/root");
+    // PaddleBoard: project settings live in `.paddleboard/`, not `.zed/`.
     fs.insert_tree(
         root,
         serde_json::json!({
             "dir_a": {
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{\n  \"soft_wrap_indent\": \"same\"\n}"
                 },
                 "test.txt": "    let a_long_variable = 123456789;\n"
             },
             "dir_b": {
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": "{\n  \"soft_wrap_indent\": \"none\"\n}"
                 }
             }

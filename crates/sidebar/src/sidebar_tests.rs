@@ -2307,9 +2307,10 @@ async fn test_closing_last_agent_panel_terminal_restores_empty_header(cx: &mut T
     // Closing the terminal drops the user back onto the panel's empty
     // draft. The sidebar mirrors that with a "New {agent} Thread"
     // placeholder row, so the header reports having threads.
+    // PaddleBoard: the native agent is labelled "PaddleBoard Agent", not "Zed Agent".
     assert_eq!(
         visible_entries_as_strings(&sidebar, cx),
-        vec!["v [my-project]", "  New Zed Agent Thread"]
+        vec!["v [my-project]", "  New PaddleBoard Agent Thread"]
     );
     assert_project_header_has_threads(&sidebar, "my-project", true, cx);
 
