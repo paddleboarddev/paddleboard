@@ -125,17 +125,20 @@ jobs:
           ISSUE_TITLE: "Weekly upstream crate tests are failing"
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          # CARGO_TERM_COLOR=always puts ANSI codes between `Summary` and `[`, so
+          # parse a plain copy. The uploaded artifact stays coloured.
+          [ -f nextest.log ] && sed -E 's/\x1b\[[0-9;]*m//g' nextest.log > nextest.plain.log
           {
             echo "The weekly run of tests in fork-touched upstream crates failed on \`main\` ($(git rev-parse --short HEAD))."
             echo
             echo "Run: $RUN_URL (the full log is attached to the run as \`upstream-tests-log\`)."
             echo
-            if grep -q "Summary \[" nextest.log 2>/dev/null; then
-              grep "Summary \[" nextest.log | tail -1 | sed 's/^ *//'
+            if grep -q "Summary \[" nextest.plain.log 2>/dev/null; then
+              grep "Summary \[" nextest.plain.log | tail -1 | sed 's/^ *//'
               echo
               echo "Failing tests:"
               echo
-              sed -n '/Summary \[/,$p' nextest.log \
+              sed -n '/Summary \[/,$p' nextest.plain.log \
                 | grep -E '^ *(FAIL|TIMEOUT|SIGSEGV|SIGABRT) \[' \
                 | sed -E 's/^ *(FAIL|TIMEOUT|SIGSEGV|SIGABRT) \[[^]]*\] (\([^)]*\) )?/- `\1` /' \
                 | sort -u
@@ -143,7 +146,7 @@ jobs:
               echo "No test summary, so the build or setup failed. Last lines of the log:"
               echo
               echo '```'
-              tail -n 60 nextest.log 2>/dev/null || echo "(no log; failed before tests started)"
+              tail -n 60 nextest.plain.log 2>/dev/null || echo "(no log; failed before tests started)"
               echo '```'
             fi
             echo

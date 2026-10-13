@@ -973,7 +973,11 @@ async fn test_extension_store_with_test_extension(cx: &mut TestAppContext) {
     await_or_timeout(
         &executor,
         "awaiting install_dev_extension",
-        60,
+        // PaddleBoard: 60 -> 240. This compiles the test extension to wasm, and a
+        // cold build on the 2-core private-repo ubuntu-latest runner took over 60 s
+        // (weekly upstream-tests run, #327). Kept under nextest's 300 s override for
+        // this test in .config/nextest.toml, which would otherwise kill it first.
+        240,
         extension_store.update(cx, |store, cx| {
             store.install_dev_extension(test_extension_dir.clone(), cx)
         }),
