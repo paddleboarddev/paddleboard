@@ -2,8 +2,9 @@
 
 > **Status:** phase 1 built 2026-10-08 (see [As built](#as-built-2026-10-08)); designed 2026-10-07. Jay's call the same day: this is a differentiator
 > and ships **in the v0.3.0 beta**, even if the launch moves a week to get it right.
-> Working title only; the product name is Jay's to choose (see
-> [Open questions](#open-questions)).
+> **Ships as Spotter** (named 2026-10-12): the settings key is `"paddleboard_spotter"`
+> and user-facing text says Spotter. "Model tiers" stays as the internal name of the
+> crates, modules and this doc.
 
 ## The gap
 
@@ -72,7 +73,7 @@ is that mechanism with a different trigger and a user-chosen target.
 A new top-level setting, `paddleboard_tiers`, in user or project settings:
 
 ```jsonc
-"paddleboard_tiers": {
+"paddleboard_spotter": {
   "enabled": true,
   // Ordered, cheapest first. Each tier is a model the registry already has,
   // optionally paired with an agent profile (tools and instructions).
@@ -283,8 +284,10 @@ Mon 26.
 
 ## Open questions
 
-1. **The name.** "Model tiers" is descriptive, not a product name. Jay's to
-   choose (the naming skill has the shelves).
+1. ~~**The name.**~~ **Decided 2026-10-12: Spotter** (the gym spotter steps in only
+   when the rep fails). Chosen over Tow-In and Tag In; Lifeguard read as a
+   security feature. The settings key was renamed before the v0.3.0 cut, while
+   no release had shipped it; crate and module names stay `paddleboard_tiers`.
 2. **Default `escalation`.** `ask` is proposed. `auto` with a ceiling of a cheap
    tier is the more impressive demo; `ask` is the one that never surprises a bill.
 3. **Where `check` lives long-term.** Project settings now; `harness.toml` once

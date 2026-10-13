@@ -3177,12 +3177,12 @@
     "auto_commit": false
   },
 
-  // Model tiers: run routine agent work on a cheap model and move it to a
+  // Spotter: run routine agent work on a cheap model and move it to a
   // stronger one when the project's check keeps failing. Off until you turn it
   // on and set a check. Usually the check lives in the project's
-  // `.zed/settings.json`. See https://docs.paddleboard.dev/model-tiers.html
-  "paddleboard_tiers": {
-    // Whether model tiers are active.
+  // `.paddleboard/settings.json`. See https://docs.paddleboard.dev/spotter.html
+  "paddleboard_spotter": {
+    // Whether Spotter is active.
     "enabled": false,
     // Cheapest first. Each tier names a model you have configured, e.g.
     // { "name": "Local", "model": { "provider": "ollama", "model": "gemma3:12b" } }

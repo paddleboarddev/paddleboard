@@ -14,7 +14,7 @@ use crate::LanguageModelSelection;
 #[with_fallible_options]
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize, JsonSchema, MergeFrom)]
 pub struct PaddleboardTiersContent {
-    /// Whether model tiers are active. When `false`, nothing runs after a turn
+    /// Whether Spotter is active. When `false`, nothing runs after a turn
     /// and no model is ever switched.
     ///
     /// Default: false
