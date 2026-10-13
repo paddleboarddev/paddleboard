@@ -1168,11 +1168,12 @@ mod tests {
         }
     }
 
+    // PaddleBoard: task variables are `PADDLEBOARD_`-prefixed (no `ZED_` fallback).
     fn greeting_template() -> TaskTemplate {
         TaskTemplate {
-            label: "echo $ZED_CUSTOM_GREETING".to_string(),
+            label: "echo $PADDLEBOARD_CUSTOM_GREETING".to_string(),
             command: "echo".to_string(),
-            args: vec!["$ZED_CUSTOM_GREETING".to_string()],
+            args: vec!["$PADDLEBOARD_CUSTOM_GREETING".to_string()],
             ..TaskTemplate::default()
         }
     }
