@@ -2063,10 +2063,11 @@ async fn test_language_servers_disabled_by_default(cx: &mut gpui::TestAppContext
         cx: &mut gpui::TestAppContext,
     ) -> Vec<LanguageServerName> {
         let fs = FakeFs::new(cx.executor());
+        // PaddleBoard: project settings live in `.paddleboard/`, not upstream's `.zed/`.
         fs.insert_tree(
             path!("/the-root"),
             json!({
-                ".zed": {
+                ".paddleboard": {
                     "settings.json": settings_json_contents.to_string(),
                 },
                 "main.rs": "",
@@ -20780,10 +20781,11 @@ async fn test_read_only_files_splice_project_settings(cx: &mut gpui::TestAppCont
     });
 
     let fs = FakeFs::new(cx.background_executor.clone());
+    // PaddleBoard: project settings live in `.paddleboard/`, not upstream's `.zed/`.
     fs.insert_tree(
         path!("/root"),
         json!({
-            ".zed": {
+            ".paddleboard": {
                 "settings.json": r#"{"read_only_files": ["**/generated/**", "..."]}"#,
             },
             "generated": {"schema.rs": ""},

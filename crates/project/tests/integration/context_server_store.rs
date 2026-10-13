@@ -1562,10 +1562,11 @@ async fn test_multi_worktree_context_server_settings(cx: &mut TestAppContext) {
     let server_b_id = ContextServerId(SERVER_B.into());
 
     let fs = FakeFs::new(cx.executor());
+    // PaddleBoard: project settings live in `.paddleboard/`, not upstream's `.zed/`.
     fs.insert_tree(
         path!("/project_a"),
         json!({
-            ".zed": {
+            ".paddleboard": {
                 "settings.json": serde_json::to_string(&json!({
                     "context_servers": {
                         "server-from-project-a": {
@@ -1582,7 +1583,7 @@ async fn test_multi_worktree_context_server_settings(cx: &mut TestAppContext) {
     fs.insert_tree(
         path!("/project_b"),
         json!({
-            ".zed": {
+            ".paddleboard": {
                 "settings.json": serde_json::to_string(&json!({
                     "context_servers": {
                         "server-from-project-b": {
@@ -1660,10 +1661,11 @@ async fn test_multi_worktree_duplicate_server_first_wins(cx: &mut TestAppContext
     const SHARED_SERVER: &str = "shared-server";
 
     let fs = FakeFs::new(cx.executor());
+    // PaddleBoard: project settings live in `.paddleboard/`, not upstream's `.zed/`.
     fs.insert_tree(
         path!("/project_a"),
         json!({
-            ".zed": {
+            ".paddleboard": {
                 "settings.json": serde_json::to_string(&json!({
                     "context_servers": {
                         "shared-server": {
@@ -1680,7 +1682,7 @@ async fn test_multi_worktree_duplicate_server_first_wins(cx: &mut TestAppContext
     fs.insert_tree(
         path!("/project_b"),
         json!({
-            ".zed": {
+            ".paddleboard": {
                 "settings.json": serde_json::to_string(&json!({
                     "context_servers": {
                         "shared-server": {

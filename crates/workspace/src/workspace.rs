@@ -17990,12 +17990,13 @@ mod tests {
         // this assertion checks theme changed from static to dynamic.
         let settings_text = SettingsStore::load_settings(&settings_fs).await.unwrap();
         let parsed: serde_json::Value = settings::parse_json_with_comments(&settings_text).unwrap();
+        // PaddleBoard: default dynamic themes are PaddleBoard Light/Dark, not One Light/Dark.
         assert_eq!(
             parsed["theme"],
             serde_json::json!({
                 "mode": "system",
-                "light": "One Light",
-                "dark": "One Dark"
+                "light": settings::DEFAULT_LIGHT_THEME,
+                "dark": settings::DEFAULT_DARK_THEME
             })
         );
 
