@@ -10,7 +10,8 @@ name: Tests
 # churn on every weekly merge; a red gate caused by upstream test drift is one
 # nobody here can fix, and a permanently red gate is worth less than no gate.
 # Upstream compile breakage is still caught — `compile-check.yml` covers the full
-# workspace.
+# workspace. Upstream crates the fork has CHANGED get their tests run weekly by
+# `upstream-tests.yml`, which files an issue instead of blocking PRs.
 #
 # Deliberately a separate workflow rather than a job in compile-check.yml: a red
 # "Tests" check should mean tests failed, not that something failed to build.

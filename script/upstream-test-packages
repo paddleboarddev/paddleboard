@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Prints `-p <package>` for every upstream crate this fork has changed, for
+# `.github/workflows/upstream-tests.yml` (and for running the same set locally:
+# `cargo nextest run --features project/test-support $(script/upstream-test-packages)`).
+#
+# "Changed" means a `// PaddleBoard:` tag in the crate's src/ or tests/, the
+# FORK_HYGIENE.md convention for every intentional divergence. paddleboard_*
+# crates are excluded because test.yml already runs them on every PR.
+#
+# Derived on every run rather than hardcoded, so a newly tagged crate is picked up
+# without anyone remembering to edit a list.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+dirs=$(git grep -l "// PaddleBoard:" -- 'crates/*/src/**' 'crates/*/tests/**' \
+  | cut -d/ -f2 | sort -u)
+
+packages=$(cargo metadata --no-deps --format-version 1 --offline 2>/dev/null \
+  || cargo metadata --no-deps --format-version 1)
+
+selected=$(jq -r --arg root "$PWD" --arg dirs "$dirs" '
+  ($dirs | split("\n") | map(select(length > 0))) as $wanted
+  | .packages[]
+  | select(.name | startswith("paddleboard") | not)
+  | select((.manifest_path | ltrimstr($root + "/crates/") | split("/")[0]) as $dir
+      | $wanted | index($dir))
+  | "-p \(.name)"' <<<"$packages")
+
+if [ -z "$selected" ]; then
+  echo "upstream-test-packages: no tagged upstream crates found" >&2
+  exit 1
+fi
+echo $selected

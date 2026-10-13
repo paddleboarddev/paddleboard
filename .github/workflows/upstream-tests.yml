@@ -1,0 +1,173 @@
+name: Upstream crate tests (weekly)
+
+# PaddleBoard: runs the tests of every UPSTREAM crate this fork has changed (any
+# crate with a `// PaddleBoard:` tag, selected by script/upstream-test-packages).
+# test.yml deliberately runs only paddleboard_* crates on PRs, so drift in
+# upstream crates went unseen: on 2026-10-13 ~40 such tests were failing on main,
+# and three of them hid real regressions (#325). See RECAPS.md 2026-10-13.
+#
+# Weekly and NON-BLOCKING by design, costed on 2026-10-13: running this set on
+# every PR would add ~45-55 min per run (~$18/month, over the $50 Actions budget)
+# and push test.yml to its 90-minute timeout. Weekly is ~$2-3/month. A failure
+# opens (or refreshes) one tracking issue instead of reddening anyone's PR, and
+# the next green run closes it.
+
+on:
+  schedule:
+    # Tuesdays 16:00 UTC: the day after the Monday upstream merge (16:00 UTC), so
+    # a merge that landed breaks this run rather than waiting a week.
+    # GitHub may delay scheduled runs by 5-15 minutes during peak load.
+    - cron: "0 16 * * 2"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # Serialize, never cancel: a manual run started during the scheduled one should
+  # wait, not throw away an hour of compiling.
+  group: upstream-tests
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  # Same reason as test.yml: debug info is the bulk of the target dir and fills an
+  # ubuntu-latest disk outright.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+
+jobs:
+  linux:
+    name: Linux (fork-touched upstream crates)
+    runs-on: ubuntu-latest
+    # ~85 min estimated warm from local timings scaled to this runner. Weekly runs
+    # usually start cold, because GitHub evicts caches unused for 7 days and
+    # test.yml's caches live on PR refs this job cannot read.
+    timeout-minutes: 180
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Free disk space
+        # More than test.yml frees: this set links ~3x as many test binaries.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost /usr/local/share/powershell /usr/share/swift \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install Linux build dependencies
+        run: ./script/linux
+
+      - name: Install webview (wry) system dependencies
+        # The `browser` crate is in the set, and its tests will not link without these.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev clang libssl-dev pkg-config
+
+      - name: Set up Rust
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: test-upstream-linux
+          cache-on-failure: true
+
+      - name: Select packages
+        id: select
+        run: |
+          PACKAGES=$(script/upstream-test-packages)
+          echo "Selected: $PACKAGES"
+          echo "packages=$PACKAGES" >> "$GITHUB_OUTPUT"
+
+      - name: cargo nextest run (fork-touched upstream crates)
+        id: test
+        env:
+          CC: clang
+          CXX: clang++
+          PACKAGES: ${{ steps.select.outputs.packages }}
+        # `project/test-support` is what turns on project's integration-test target
+        # (required-features); without it nextest silently skips those tests.
+        # --no-fail-fast so one run reports every failure, not the first.
+        # The repo's .config/nextest.toml kills any test idle for 60 s.
+        run: |
+          set -o pipefail
+          # $PACKAGES is deliberately unquoted: it is a list of `-p <name>` words.
+          cargo nextest run --locked --no-fail-fast --features project/test-support \
+            $PACKAGES 2>&1 | tee nextest.log
+
+      - name: Disk usage
+        if: always()
+        run: |
+          df -h /
+          du -sh target 2>/dev/null || true
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-tests-log
+          path: nextest.log
+          retention-days: 14
+
+      - name: Open or update tracking issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: "Weekly upstream crate tests are failing"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "The weekly run of tests in fork-touched upstream crates failed on \`main\` ($(git rev-parse --short HEAD))."
+            echo
+            echo "Run: $RUN_URL (the full log is attached to the run as \`upstream-tests-log\`)."
+            echo
+            if grep -q "Summary \[" nextest.log 2>/dev/null; then
+              grep "Summary \[" nextest.log | tail -1 | sed 's/^ *//'
+              echo
+              echo "Failing tests:"
+              echo
+              sed -n '/Summary \[/,$p' nextest.log \
+                | grep -E '^ *(FAIL|TIMEOUT|SIGSEGV|SIGABRT) \[' \
+                | sed -E 's/^ *(FAIL|TIMEOUT|SIGSEGV|SIGABRT) \[[^]]*\] (\([^)]*\) )?/- `\1` /' \
+                | sort -u
+            else
+              echo "No test summary, so the build or setup failed. Last lines of the log:"
+              echo
+              echo '```'
+              tail -n 60 nextest.log 2>/dev/null || echo "(no log; failed before tests started)"
+              echo '```'
+            fi
+            echo
+            echo "To compare against upstream, run the same tests at the upstream parent of the latest weekly merge (see RECAPS.md 2026-10-13)."
+          } > report.md
+
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -1)
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file report.md
+            gh issue comment "$existing" --body "Still failing as of $(date -u +%Y-%m-%d): $RUN_URL"
+          else
+            gh issue create --title "$ISSUE_TITLE" --body-file report.md
+          fi
+
+      - name: Close tracking issue when green
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: "Weekly upstream crate tests are failing"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -1)
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --comment "Green again as of $(date -u +%Y-%m-%d): $RUN_URL"
+          fi
