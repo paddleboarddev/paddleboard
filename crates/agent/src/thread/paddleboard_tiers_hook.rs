@@ -249,7 +249,9 @@ impl Thread {
                 event_stream.send_tool_call(
                     &tool_call_id,
                     tool.name().as_ref(),
-                    SharedString::from(format!("Check: {}", check.command)),
+                    // The bare command, as for any terminal call: the card's
+                    // copy button copies this label, so a prefix would not run.
+                    SharedString::from(check.command.clone()),
                     acp::ToolKind::Execute,
                     input.clone(),
                 );

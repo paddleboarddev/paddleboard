@@ -17,7 +17,7 @@ impl ThreadView {
         let blocker = thread.read(cx).paddleboard_tier_blocker()?.clone();
 
         let description = if blocker.offer.is_empty() {
-            "No stronger tier to offer. Read the summary in the thread, then fix it or try again."
+            "No stronger tier to offer. The check's output is in the thread above: fix the failure, or send a message to try again."
                 .to_string()
         } else {
             "Move the task to a stronger model. It gets the full history and a summary of what failed."
@@ -50,7 +50,7 @@ impl ThreadView {
                 .severity(Severity::Warning)
                 .icon(IconName::Warning)
                 .title(format!(
-                    "The project check kept failing on {}",
+                    "Spotter: the check kept failing on {}",
                     blocker.current_label
                 ))
                 .description(description)
@@ -59,7 +59,8 @@ impl ThreadView {
                 .dismiss_action(
                     IconButton::new("paddleboard-dismiss-tier-blocker", IconName::Close)
                         .icon_size(IconSize::Small)
-                        .tooltip(Tooltip::text("Stop here"))
+                        .icon_color(Color::Muted)
+                        .tooltip(Tooltip::text("Dismiss"))
                         .on_click(cx.listener(|this, _, _, cx| {
                             if let Some(thread) = this.as_native_thread(cx) {
                                 thread.update(cx, |thread, cx| {
