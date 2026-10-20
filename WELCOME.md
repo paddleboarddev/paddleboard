@@ -328,7 +328,7 @@ Let a free local model do the routine work and bring in Claude or Gemini only wh
 }
 ```
 
-At the end of every agent turn, the check runs in the agent's terminal as **Check: `cargo test -p my_crate`**, under the same sandbox and permission prompt as any other command. A failure goes back to the same model once. A second failure stops the run with a card offering the next tier; choose it and the stronger model continues in the same thread with a summary of what failed. Set `"escalation": "auto"` to move up without asking, and `"auto_ceiling"` to cap how far. The thread's current model decides which tier it is on, so start on the local tier with the model picker. Full reference: [docs.paddleboard.dev/spotter](https://docs.paddleboard.dev/spotter.html).
+At the end of every agent turn, the check runs in the agent's terminal as an ordinary `cargo test -p my_crate` card, under the same sandbox and permission prompt as any other command. A failure goes back to the same model once. A second failure stops the run with a card offering the next tier; choose it and the stronger model continues in the same thread with a summary of what failed. Set `"escalation": "auto"` to move up without asking, and `"auto_ceiling"` to cap how far. The thread's current model decides which tier it is on, so start on the local tier with the model picker. Full reference: [docs.paddleboard.dev/spotter](https://docs.paddleboard.dev/spotter.html).
 
 ### Semantic search — find code by meaning, locally
 
