@@ -30,7 +30,13 @@ use workspace::{
 use crate::agent_panel::AgentPanel;
 use crate::conversation_view::{ConversationView, ThreadView};
 
-gpui::actions!(orchestration_panel, [ToggleFocus]);
+gpui::actions!(
+    orchestration_panel,
+    [
+        /// Toggles focus on the Agent Threads panel.
+        ToggleFocus
+    ]
+);
 
 const ORCHESTRATION_PANEL_KEY: &str = "OrchestrationPanel";
 
@@ -167,29 +173,32 @@ impl OrchestrationPanel {
             .retain(|id, _| live_ids.contains(id));
     }
 
+    fn render_empty_tree() -> AnyElement {
+        v_flex()
+            .p_3()
+            .gap_1()
+            .child(
+                Label::new("No agent sessions")
+                    .color(Color::Muted)
+                    .size(LabelSize::Small),
+            )
+            .child(
+                Label::new("Start a thread in the Agent Panel and it appears here.")
+                    .color(Color::Muted)
+                    .size(LabelSize::XSmall),
+            )
+            .into_any_element()
+    }
+
     fn render_thread_tree(&self, cx: &mut Context<Self>) -> AnyElement {
         let Some(agent_panel) = &self.agent_panel else {
-            return v_flex()
-                .p_3()
-                .child(
-                    Label::new("No agent sessions")
-                        .color(Color::Muted)
-                        .size(LabelSize::Small),
-                )
-                .into_any_element();
+            return Self::render_empty_tree();
         };
 
         let conversation_views = agent_panel.read(cx).all_conversation_views();
 
         if conversation_views.is_empty() {
-            return v_flex()
-                .p_3()
-                .child(
-                    Label::new("No agent sessions")
-                        .color(Color::Muted)
-                        .size(LabelSize::Small),
-                )
-                .into_any_element();
+            return Self::render_empty_tree();
         }
 
         let mut elements: Vec<AnyElement> = Vec::new();
@@ -230,14 +239,7 @@ impl OrchestrationPanel {
         }
 
         if elements.is_empty() {
-            return v_flex()
-                .p_3()
-                .child(
-                    Label::new("No agent sessions")
-                        .color(Color::Muted)
-                        .size(LabelSize::Small),
-                )
-                .into_any_element();
+            return Self::render_empty_tree();
         }
 
         v_flex().py_1().children(elements).into_any_element()
@@ -255,7 +257,9 @@ impl OrchestrationPanel {
         let thread_data = thread_view.read(cx);
         let session_id = thread_data.session_id.clone();
         let thread = thread_data.thread.read(cx);
-        let title: SharedString = thread.title().unwrap_or_else(|| "Untitled".into());
+        let title: SharedString = thread
+            .title()
+            .unwrap_or_else(|| crate::DEFAULT_THREAD_TITLE.into());
         let node_state = TreeNodeState::from_thread(
             thread.is_waiting_for_confirmation(),
             thread.has_in_progress_tool_calls(),
@@ -502,12 +506,14 @@ impl OrchestrationPanel {
                         .child(
                             Label::new(event.agent.clone())
                                 .size(LabelSize::Small)
-                                .color(Color::Default),
+                                .color(Color::Default)
+                                .truncate(),
                         )
                         .child(
                             Label::new(event.summary.clone())
                                 .size(LabelSize::Small)
-                                .color(summary_color),
+                                .color(summary_color)
+                                .truncate(),
                         )
                         .into_any_element(),
                 );
@@ -545,7 +551,7 @@ impl OrchestrationPanel {
                     ui::Callout::new()
                         .severity(ui::Severity::Info)
                         .icon(IconName::Info)
-                        .title("Scion is enabled, but the CLI isn't installed.")
+                        .title("Scion is enabled, but the CLI isn't installed")
                         .description("Requires the Go toolchain (go.dev/dl).")
                         .actions_slot(
                             Button::new("scion-install-cli", "Install Scion in Terminal")
@@ -620,35 +626,35 @@ impl OrchestrationPanel {
 
         let activity_label: Option<SharedString> = activity.map(|a| {
             let base = match a {
-                paddleboard_scion::AgentActivity::Working => "working",
-                paddleboard_scion::AgentActivity::Thinking => "thinking",
-                paddleboard_scion::AgentActivity::Executing => "executing",
-                paddleboard_scion::AgentActivity::WaitingForInput => "waiting",
-                paddleboard_scion::AgentActivity::Blocked => "blocked",
-                paddleboard_scion::AgentActivity::Completed => "done",
-                paddleboard_scion::AgentActivity::LimitsExceeded => "limits",
-                paddleboard_scion::AgentActivity::Stalled => "stalled",
-                paddleboard_scion::AgentActivity::Offline => "offline",
-                paddleboard_scion::AgentActivity::Crashed => "crashed",
-                paddleboard_scion::AgentActivity::Unknown => "unknown",
+                paddleboard_scion::AgentActivity::Working => "Working",
+                paddleboard_scion::AgentActivity::Thinking => "Thinking",
+                paddleboard_scion::AgentActivity::Executing => "Executing",
+                paddleboard_scion::AgentActivity::WaitingForInput => "Waiting",
+                paddleboard_scion::AgentActivity::Blocked => "Blocked",
+                paddleboard_scion::AgentActivity::Completed => "Done",
+                paddleboard_scion::AgentActivity::LimitsExceeded => "Limits exceeded",
+                paddleboard_scion::AgentActivity::Stalled => "Stalled",
+                paddleboard_scion::AgentActivity::Offline => "Offline",
+                paddleboard_scion::AgentActivity::Crashed => "Crashed",
+                paddleboard_scion::AgentActivity::Unknown => "Unknown",
             };
-            let detail_suffix = agent
-                .detail
-                .as_ref()
-                .and_then(|d| {
-                    if !d.tool_name.is_empty() {
-                        Some(d.tool_name.as_str())
-                    } else if !d.task_summary.is_empty() {
-                        let truncated = if d.task_summary.len() > 20 {
-                            &d.task_summary[..20]
-                        } else {
-                            &d.task_summary
-                        };
-                        Some(truncated)
+            // PaddleBoard: cut by characters, not bytes. A byte slice panics
+            // when a multi-byte character straddles the cut.
+            let detail_suffix: Option<String> = agent.detail.as_ref().and_then(|d| {
+                if !d.tool_name.is_empty() {
+                    Some(d.tool_name.clone())
+                } else if !d.task_summary.is_empty() {
+                    let mut chars = d.task_summary.chars();
+                    let head: String = chars.by_ref().take(20).collect();
+                    Some(if chars.next().is_some() {
+                        format!("{head}…")
                     } else {
-                        None
-                    }
-                });
+                        head
+                    })
+                } else {
+                    None
+                }
+            });
             match detail_suffix {
                 Some(detail) => SharedString::from(format!("{base} · {detail}")),
                 None => SharedString::from(base),
@@ -668,6 +674,7 @@ impl OrchestrationPanel {
             .items_center()
             .cursor_pointer()
             .hover(|style| style.bg(cx.theme().colors().element_hover))
+            .tooltip(Tooltip::text("Right-click for actions"))
             .on_mouse_down(MouseButton::Right, cx.listener(move |this, event: &MouseDownEvent, window, cx| {
                 this.deploy_scion_context_menu(
                     event.position,
@@ -685,6 +692,7 @@ impl OrchestrationPanel {
             .child(
                 Label::new(SharedString::from(agent.name.clone()))
                     .size(LabelSize::Small)
+                    .truncate()
                     .when(phase == AgentPhase::Running, |label| {
                         label.color(Color::Default)
                     })
@@ -696,7 +704,8 @@ impl OrchestrationPanel {
                 el.child(
                     Label::new(label)
                         .size(LabelSize::XSmall)
-                        .color(Color::Muted),
+                        .color(Color::Muted)
+                        .truncate(),
                 )
             })
             .into_any_element()
@@ -983,8 +992,9 @@ impl Render for OrchestrationPanel {
             )
             .child(
                 div()
+                    .id("orchestration-panel-scroll")
                     .flex_1()
-                    .overflow_hidden()
+                    .overflow_y_scroll()
                     .child(self.render_thread_tree(cx))
                     .when_some(scion_section, |el, section| el.child(section)),
             )
