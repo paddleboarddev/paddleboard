@@ -28,7 +28,7 @@ Bring your own model keys — or run the models on your own machine. No telemetr
 
 PaddleBoard keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: a persona system that lets you define *who* your agent should be, one-command serverless deploys, sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
 
-> Status: alpha (0.2.x). Signed, notarized macOS builds (Apple Silicon), a Linux x86_64 tarball and an unsigned Windows x86_64 preview zip are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
+> Status: beta (0.3.x). Signed, notarized macOS builds (Apple Silicon), a Linux x86_64 tarball and an unsigned Windows x86_64 preview zip are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
 
 > ✅ **Signed & notarized.** macOS downloads are code-signed with an Apple Developer ID and notarized by Apple, so they open without a Gatekeeper warning. Linux ships as an x86_64 tarball. Windows ships as an **unsigned preview** zip: SmartScreen warns on first run, there is no installer or in-app update, and managed Local Models are unavailable — see [docs.paddleboard.dev/windows](https://docs.paddleboard.dev/windows.html).
 
