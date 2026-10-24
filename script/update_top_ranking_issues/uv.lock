@@ -264,7 +264,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.15.1" },
     { name = "types-pytz", specifier = ">=2025.1.0.20250204" },
     { name = "types-requests", specifier = ">=2.32.0" },
-    { name = "urllib3", specifier = ">=2.7.0" },
+    { name = "urllib3", specifier = ">=2.8.0" },
 ]
 
 [[package]]
