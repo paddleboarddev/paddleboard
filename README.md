@@ -17,7 +17,7 @@ Bring your own model keys — or run the models on your own machine. No telemetr
      does not move on promotion (see PR #82). A default badge silently sticks on
      an old version. -->
 [![Release](https://img.shields.io/github/v/release/paddleboarddev/paddleboard?sort=semver&display_name=tag&label=release&color=89b4fa&labelColor=1e1e2e)](https://github.com/paddleboarddev/paddleboard/releases/latest)
-[![Platforms](https://img.shields.io/badge/macOS%20·%20Linux-signed%20%26%20notarized-a6e3a1?labelColor=1e1e2e)](#building)
+[![Platforms](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows%20preview-download-a6e3a1?labelColor=1e1e2e)](#building)
 [![Telemetry](https://img.shields.io/badge/telemetry-none-fab387?labelColor=1e1e2e)](#whats-inherited-from-zed)
 [![License](https://img.shields.io/badge/license-GPL--3.0-cba6f7?labelColor=1e1e2e)](LICENSE-GPL)
 
@@ -25,9 +25,9 @@ Bring your own model keys — or run the models on your own machine. No telemetr
 
 PaddleBoard keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, terminal, and git workflow, then layers on the pieces a modern coding agent actually needs: a persona system that lets you define *who* your agent should be, one-command serverless deploys, sandboxed code execution, sandboxed MCP servers, an embedded browser, step-by-step tool approval, and a live view of every agent thread in the workspace.
 
-> Status: alpha (0.2.x). Signed, notarized macOS builds (Apple Silicon) and a Linux x86_64 tarball are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
+> Status: beta (0.3.x). Signed, notarized macOS builds (Apple Silicon), a Linux x86_64 tarball and an unsigned Windows x86_64 preview zip are available on the [Releases page](https://github.com/paddleboarddev/paddleboard/releases/latest) — or build from source (see below).
 
-> ✅ **Signed & notarized.** macOS downloads are code-signed with an Apple Developer ID and notarized by Apple, so they open without a Gatekeeper warning. Linux ships as an x86_64 tarball; Windows builds from source.
+> ✅ **Signed & notarized.** macOS downloads are code-signed with an Apple Developer ID and notarized by Apple, so they open without a Gatekeeper warning. Linux ships as an x86_64 tarball. Windows ships as an **unsigned preview** zip: SmartScreen warns on first run, there is no installer or in-app update, and managed Local Models are unavailable — see [docs.paddleboard.dev/windows](https://docs.paddleboard.dev/windows.html).
 
 ---
 
@@ -36,6 +36,8 @@ PaddleBoard keeps Zed's speed, GPU-accelerated rendering, LSP, debugger, termina
 Everything you rely on still works — and these additions are all reachable from the command palette or panel bar:
 
 - **Personas — tell the agent who to be.** Drop a `PERSONA.md` at your project root describing who the agent should mimic — a Senior Developer, an SRE, a QA Engineer — and every new agent thread adopts that identity automatically: its voice, values, and what it pushes back on. Plain prose works; frontmatter is optional. Keep a library of `<name>.persona.md` files in `.claude/personas/` (project or `~/.claude/personas/` user-wide) and switch per thread with the picker in the agent panel — or just ask mid-conversation ("be my QA tester") and the agent switches itself via its `adopt_persona` tool. Three starter roles ship in the AI Dock's **Personas** tab with one-click install. Personas ride the system prompt, so they work identically with every LLM provider. Skills define what your agent can *do*; a persona defines who it should *be*.
+
+- **Spotter — routine work on a local model, Claude or Gemini only when it's needed.** Name your tiers cheapest first (say Gemma on Ollama, then Gemini Flash, then Claude Sonnet) and give the project a check command such as `cargo test -p my_crate`. At the end of every agent turn, PaddleBoard runs the check in the agent's own terminal, under the same sandbox and permission prompt. A failure goes back to the same model once; a second failure stops the run with a **Blocker Summary** (the command, its output, the files changed, what was tried) and offers the next tier in one click. The stronger model continues in the same thread with the whole history. Escalation asks by default; `"escalation": "auto"` moves up on its own, up to a ceiling you set. Off until you enable it: `"paddleboard_spotter"` in settings, or per project in `.paddleboard/settings.json`. See [docs.paddleboard.dev/spotter](https://docs.paddleboard.dev/spotter.html).
 
 - **Set Sail — serverless-first deploys.** `set sail: Deploy` (command palette, or the ⛵ in the status bar) quick-deploys the current project to **[Cloud Run](https://cloud.run), [AWS Lambda](https://aws.amazon.com/pm/lambda), [Vercel](https://vercel.com), [Azure](https://azure.microsoft.com/products/container-apps) (Container Apps), [Cloudflare](https://workers.cloudflare.com) (Workers), or [Netlify](https://www.netlify.com)**: pick a platform (or describe a **custom target** — Knative on your own cluster, Fly.io, a VPS), a service name, and public/private, and the agent takes the helm. Powered by the open-source [s8sskills](https://s8sskills.com) catalog — PaddleBoard installs the platform's skill pack into `.agents/skills/` and the agent follows that playbook, so platform knowledge lives in a versioned catalog rather than hardcoded in the editor. Interactive steps like `gcloud auth login` / `aws configure` / `vercel login` are handed to you in the terminal; the agent never runs auth flows itself. A **Rig the pipeline** mode does the vendor-agnostic CI/CD groundwork instead of a one-off deploy — least-privilege deploy identity (keyless where supported), the target resource, and the exact deploy command — then optionally scaffolds a starter config for whichever CI tool you use, with every secret left as a labeled placeholder.
 
@@ -100,7 +102,7 @@ PaddleBoard builds with [Cargo](https://doc.rust-lang.org/cargo/), the same tool
    ./script/bundle-mac -o       # release .app + .dmg (what the release pipeline ships)
    ```
 
-Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly.
+Contributing? See [CONTRIBUTING.md](./CONTRIBUTING.md) for coding conventions and the rules around keeping fork divergence merge-friendly. [GOVERNANCE.md](./GOVERNANCE.md) describes how the project is run and how decisions are made; everyone is expected to follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ---
 
@@ -110,7 +112,7 @@ A scheduled workflow merges `zed-industries/zed:main` into this repo every Monda
 
 ## License
 
-PaddleBoard inherits Zed's tri-license (AGPL / Apache 2.0 / GPL). See the `LICENSE-AGPL`, `LICENSE-APACHE`, and `LICENSE-GPL` files in this repo. Code derived from upstream Zed retains its original licensing.
+PaddleBoard is licensed GPL-3.0-or-later. The repository also carries Zed's `LICENSE-AGPL` and `LICENSE-APACHE`, which apply to the upstream code they came with; see the `LICENSE-AGPL`, `LICENSE-APACHE`, and `LICENSE-GPL` files in this repo. Code derived from upstream Zed retains its original licensing.
 
 ## Credits
 

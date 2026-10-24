@@ -6850,6 +6850,8 @@ pub mod tests {
     #[gpui::test]
     async fn test_search_on_type(cx: &mut TestAppContext) {
         init_test(cx);
+        // PaddleBoard: upstream's `init_test` now turns search-on-type off; opt back in.
+        enable_search_on_type(cx);
 
         let fs = FakeFs::new(cx.background_executor.clone());
         fs.insert_tree(

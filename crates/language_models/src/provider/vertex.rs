@@ -13,9 +13,11 @@ use gpui::{App, AsyncApp, Context, Entity, SharedString, Task, Window};
 use http_client::HttpClient;
 use language_model::{
     ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, InlineDescription, LanguageModel,
-    LanguageModelCompletionError, LanguageModelCompletionEvent, LanguageModelId, LanguageModelName,
-    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderName,
-    LanguageModelProviderState, LanguageModelRequest, LanguageModelToolChoice, ProviderSettingsView, RateLimiter, SubPageProviderSettings,
+    LanguageModelClient, LanguageModelCompletionError, LanguageModelCompletionStream,
+    LanguageModelId, LanguageModelName, LanguageModelProvider, LanguageModelProviderId,
+    LanguageModelProviderName, LanguageModelProviderState, LanguageModelRequest,
+    LanguageModelToolChoiceSupport, ModelRateLimiters, ProviderSettingsView,
+    SubPageProviderSettings, unavailable_error,
 };
 use paddleboard_vertex::{
     GcloudTokenProvider, ServiceAccountKey, TokenProvider, VertexAuth, stream_generate_content,
@@ -74,6 +76,7 @@ pub struct VertexSettings {
 pub struct VertexLanguageModelProvider {
     http_client: Arc<dyn HttpClient>,
     state: Entity<State>,
+    request_limiters: ModelRateLimiters,
 }
 
 pub struct State {
@@ -194,17 +197,47 @@ impl VertexLanguageModelProvider {
             }
         });
 
-        Self { http_client, state }
+        Self {
+            http_client,
+            state,
+            request_limiters: ModelRateLimiters::default(),
+        }
     }
 
-    fn create_language_model(&self, model: google_ai::Model) -> Arc<dyn LanguageModel> {
-        Arc::new(VertexLanguageModel {
-            id: LanguageModelId::from(format!("vertex/{}", model.id())),
-            model,
-            state: self.state.clone(),
-            http_client: self.http_client.clone(),
-            request_limiter: RateLimiter::new(4),
-        })
+    /// Every model this provider offers, keyed by the `LanguageModel` id so
+    /// [`Self::config`] can look one up again. Settings entries override a
+    /// built-in of the same name, as they did before.
+    fn vertex_models(&self, cx: &App) -> BTreeMap<String, google_ai::Model> {
+        let mut models = BTreeMap::default();
+
+        for (name, display_name) in VERTEX_MODELS {
+            models.insert(model_id(name), vertex_model(name, display_name));
+        }
+
+        for model in &VertexLanguageModelProvider::settings(cx).available_models {
+            models.insert(
+                model_id(&model.name),
+                google_ai::Model::Custom {
+                    name: model.name.clone(),
+                    display_name: model.display_name.clone(),
+                    max_tokens: model.max_tokens,
+                    mode: model.mode.unwrap_or_default(),
+                },
+            );
+        }
+
+        models
+    }
+
+    /// The Vertex model behind `model`, if this provider still offers it.
+    fn config(
+        &self,
+        model: &LanguageModel,
+        cx: &App,
+    ) -> Result<google_ai::Model, LanguageModelCompletionError> {
+        self.vertex_models(cx)
+            .remove(model.id.0.as_ref())
+            .ok_or_else(|| unavailable_error(model))
     }
 
     fn settings(cx: &App) -> &VertexSettings {
@@ -233,40 +266,22 @@ impl LanguageModelProvider for VertexLanguageModelProvider {
         IconOrSvg::Icon(IconName::AiGoogle)
     }
 
-    fn default_model(&self, _cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        Some(self.create_language_model(vertex_model("gemini-2.5-pro", "Gemini 2.5 Pro")))
+    fn default_model(&self, _cx: &App) -> Option<LanguageModel> {
+        Some(language_model(&vertex_model(
+            "gemini-2.5-pro",
+            "Gemini 2.5 Pro",
+        )))
     }
 
-    fn default_fast_model(&self, _cx: &App) -> Option<Arc<dyn LanguageModel>> {
-        Some(self.create_language_model(vertex_model(
+    fn default_fast_model(&self, _cx: &App) -> Option<LanguageModel> {
+        Some(language_model(&vertex_model(
             "gemini-3-flash-preview",
             "Gemini 3 Flash (Preview)",
         )))
     }
 
-    fn provided_models(&self, cx: &App) -> Vec<Arc<dyn LanguageModel>> {
-        let mut models = BTreeMap::default();
-
-        for (name, display_name) in VERTEX_MODELS {
-            models.insert(name.to_string(), vertex_model(name, display_name));
-        }
-
-        for model in &VertexLanguageModelProvider::settings(cx).available_models {
-            models.insert(
-                model.name.clone(),
-                google_ai::Model::Custom {
-                    name: model.name.clone(),
-                    display_name: model.display_name.clone(),
-                    max_tokens: model.max_tokens,
-                    mode: model.mode.unwrap_or_default(),
-                },
-            );
-        }
-
-        models
-            .into_values()
-            .map(|model| self.create_language_model(model))
-            .collect()
+    fn provided_models(&self, cx: &App) -> Vec<LanguageModel> {
+        self.vertex_models(cx).values().map(language_model).collect()
     }
 
     fn is_authenticated(&self, cx: &App) -> bool {
@@ -298,16 +313,13 @@ impl LanguageModelProvider for VertexLanguageModelProvider {
     }
 }
 
-pub struct VertexLanguageModel {
-    id: LanguageModelId,
-    model: google_ai::Model,
-    state: Entity<State>,
-    http_client: Arc<dyn HttpClient>,
-    request_limiter: RateLimiter,
-}
-
-impl VertexLanguageModel {
-    fn stream_completion(
+impl VertexLanguageModelProvider {
+    /// Unchanged from the pre-merge implementation: resolves auth (service
+    /// account, Express key, or gcloud) and streams a Vertex completion. It
+    /// moved from the old `VertexLanguageModel` to the provider because
+    /// upstream turned `LanguageModel` into a plain struct, leaving the
+    /// provider as the only place that can hold a client.
+    fn stream_vertex_request(
         &self,
         request: google_ai::GenerateContentRequest,
         cx: &AsyncApp,
@@ -348,85 +360,55 @@ impl VertexLanguageModel {
     }
 }
 
-impl LanguageModel for VertexLanguageModel {
-    fn id(&self) -> LanguageModelId {
-        self.id.clone()
-    }
-
-    fn name(&self) -> LanguageModelName {
-        LanguageModelName::from(self.model.display_name().to_string())
-    }
-
-    fn provider_id(&self) -> LanguageModelProviderId {
-        PROVIDER_ID
-    }
-
-    fn provider_name(&self) -> LanguageModelProviderName {
-        PROVIDER_NAME
-    }
-
-    fn supports_tools(&self) -> bool {
-        self.model.supports_tools()
-    }
-
-    fn supports_images(&self) -> bool {
-        self.model.supports_images()
-    }
-
-    fn supports_thinking(&self) -> bool {
-        self.model.supports_thinking()
-    }
-
-    fn supports_tool_choice(&self, choice: LanguageModelToolChoice) -> bool {
-        match choice {
-            LanguageModelToolChoice::Auto
-            | LanguageModelToolChoice::Any
-            | LanguageModelToolChoice::None => true,
-        }
-    }
-
-    fn telemetry_id(&self) -> String {
-        format!("vertex/{}", self.model.request_id())
-    }
-
-    fn max_token_count(&self) -> u64 {
-        self.model.max_token_count()
-    }
-
-    fn max_output_tokens(&self) -> Option<u64> {
-        self.model.max_output_tokens()
-    }
-
+impl LanguageModelClient for VertexLanguageModelProvider {
     fn stream_completion(
         &self,
+        model: &LanguageModel,
         request: LanguageModelRequest,
         cx: &AsyncApp,
-    ) -> BoxFuture<
-        'static,
-        Result<
-            futures::stream::BoxStream<
-                'static,
-                Result<LanguageModelCompletionEvent, LanguageModelCompletionError>,
-            >,
-            LanguageModelCompletionError,
-        >,
-    > {
+    ) -> BoxFuture<'static, Result<LanguageModelCompletionStream, LanguageModelCompletionError>>
+    {
+        let config = match cx.update(|cx| self.config(model, cx)) {
+            Ok(config) => config,
+            Err(error) => return async move { Err(error) }.boxed(),
+        };
+        let request_limiter = self.request_limiters.for_model(&model.id);
         // PaddleBoard: into_google became fallible upstream; fail the stream
         // early like the other providers do.
-        let request = match into_google(
-            request,
-            self.model.request_id().to_string(),
-            self.model.mode(),
-        ) {
+        let request = match into_google(request, config.request_id().to_string(), config.mode()) {
             Ok(request) => request,
             Err(error) => return async move { Err(error.into()) }.boxed(),
         };
-        let request = self.stream_completion(request, cx);
-        let future = self.request_limiter.stream(async move {
+        let request = self.stream_vertex_request(request, cx);
+        let future = request_limiter.stream(async move {
             let response = request.await.map_err(LanguageModelCompletionError::from)?;
             Ok(GoogleEventMapper::new().map_stream(response))
         });
         async move { Ok(future.await?.boxed()) }.boxed()
+    }
+}
+
+/// The `LanguageModel` id for a Vertex model name. Keeps the historical
+/// `vertex/` prefix so existing `default_model` settings keep resolving.
+fn model_id(name: &str) -> String {
+    format!("vertex/{name}")
+}
+
+fn language_model(model: &google_ai::Model) -> LanguageModel {
+    LanguageModel {
+        supports_tools: model.supports_tools(),
+        supports_images: model.supports_images(),
+        supports_thinking: model.supports_thinking(),
+        tool_choice_support: LanguageModelToolChoiceSupport::ALL,
+        max_output_tokens: model.max_output_tokens(),
+        ..LanguageModel::new(
+            LanguageModelId::from(model_id(model.id())),
+            LanguageModelName::from(model.display_name().to_string()),
+            PROVIDER_ID,
+            PROVIDER_NAME,
+            format!("vertex/{}", model.request_id()),
+            model.max_token_count(),
+        )
     }
 }
 

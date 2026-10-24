@@ -162,6 +162,10 @@ fn send_args_to_instance(args: &Args) -> anyhow::Result<()> {
             env: None,
             user_data_dir: args.user_data_dir.clone(),
             dev_container: args.dev_container,
+            // PaddleBoard: forward `--placid` to the running instance, as main.rs does
+            // for the first instance. Windows was never compiled in CI, so this field
+            // was missing here until the first Windows probe (2026-10-05).
+            placid: args.placid,
             cwd: std::env::current_dir().ok(),
         }
     };

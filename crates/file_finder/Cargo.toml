@@ -32,7 +32,6 @@ ui.workspace = true
 util.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true
-project_panel.workspace = true
 
 [dev-dependencies]
 ctor.workspace = true

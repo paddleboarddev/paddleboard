@@ -5,7 +5,7 @@ name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
-version = "0.2.8"
+version = "0.3.0"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -15,11 +15,6 @@ default-run = "paddleboard"
 workspace = true
 
 [features]
-inspector = [
-    "gpui/inspector",
-    "inspector_ui/inspector",
-    "ui/derive_inspector_reflection",
-]
 tracy = ["ztracing/tracy"]
 # LEAK_BACKTRACE=1 cargo run --features zed/track-project-leak --profile release-fast
 track-project-leak = ["gpui/leak-detection"]
@@ -148,7 +143,6 @@ acp_thread.workspace = true
 credentials_provider = { workspace = true, optional = true }
 paddleboard_credentials_provider.workspace = true
 gpui_tokio.workspace = true
-spin = "0.10.0"
 itertools.workspace = true
 rayon.workspace = true
 tabular_data_preview.workspace = true
@@ -172,6 +166,7 @@ language_selector.workspace = true
 language_tools.workspace = true
 languages = { workspace = true, features = ["load-grammars"] }
 line_ending_selector.workspace = true
+lsp_command_selector.workspace = true
 log.workspace = true
 lsp_locations.workspace = true
 markdown.workspace = true
@@ -262,6 +257,7 @@ paddleboard_personas_settings.workspace = true
 paddleboard_rag = { workspace = true, features = ["pgvector"] }
 paddleboard_rag_settings.workspace = true
 paddleboard_scion_settings.workspace = true
+paddleboard_tiers.workspace = true
 paddleboard_scion_ui.workspace = true
 paddleboard_placid.workspace = true
 paddleboard_set_sail.workspace = true

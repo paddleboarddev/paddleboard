@@ -7,6 +7,7 @@ license = "GPL-3.0-or-later"
 
 [lib]
 path = "src/agent.rs"
+doctest = false
 
 [features]
 test-support = ["db/test-support"]
@@ -90,6 +91,7 @@ paddleboard_rag.workspace = true
 paddleboard_rag_settings.workspace = true
 paddleboard_scion.workspace = true
 paddleboard_scion_settings.workspace = true
+paddleboard_tiers.workspace = true
 paddleboard_sandbox_settings.workspace = true
 paddleboard_usage.workspace = true
 zstd.workspace = true

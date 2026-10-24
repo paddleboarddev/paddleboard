@@ -1,0 +1,22 @@
+[package]
+name = "paddleboard_tiers"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license = "GPL-3.0-or-later"
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/paddleboard_tiers.rs"
+
+[dependencies]
+gpui.workspace = true
+settings.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+pretty_assertions.workspace = true
+settings = { workspace = true, features = ["test-support"] }
+util.workspace = true

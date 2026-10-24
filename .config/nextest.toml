@@ -28,6 +28,9 @@ priority = 99
 filter = 'test(test_rainbow_bracket_highlights) or test(test_wrapped_invisibles_drawing) or test(test_basic_following) or test(test_random_diagnostics_blocks)'
 slow-timeout = { period = "300s", terminate-after = 1 }
 
+# PaddleBoard: this test also has its own internal timeout around
+# install_dev_extension (extension_store_test.rs), which fired first at 60 s on the
+# 2-core private-repo runner (#327). It is now 240 s; raise both together.
 [[profile.default.overrides]]
 filter = 'package(extension_host) and test(test_extension_store_with_test_extension)'
 slow-timeout = { period = "300s", terminate-after = 1 }

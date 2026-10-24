@@ -1223,9 +1223,13 @@ impl DebugPanel {
                             .project()
                             .read(cx)
                             .project_path_for_absolute_path(path, cx)
-                            .context(
-                                "Couldn't get project path for .zed/debug.json in active worktree",
-                            )
+                            // PaddleBoard: name the real project debug file.
+                            .with_context(|| {
+                                format!(
+                                    "Couldn't get project path for {} in active worktree",
+                                    paths::local_debug_file_relative_path().as_unix_str()
+                                )
+                            })
                     })??;
 
                     let editor = this

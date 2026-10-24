@@ -1,0 +1,11 @@
+[package]
+name = "block"
+version = "0.1.6"
+authors = ["Steven Sheldon"]
+edition = "2015"
+description = "PaddleBoard-patched block 0.1.6: opaque `Class` type so the extern static is no longer uninhabited (rust-lang/rust#74840)"
+repository = "http://github.com/SSheldon/rust-block"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"

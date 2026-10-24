@@ -45,7 +45,6 @@ pub use path::PathExt;
 pub use path::normalize_path;
 pub use path::rel_path;
 
-pub use take_until::*;
 #[cfg(any(test, feature = "test-support"))]
 pub use util_macros::{line_endings, path, uri};
 
@@ -245,6 +244,39 @@ Error: Running PaddleBoard as root or via sudo is unsupported.
     }
 }
 
+/// Raises the soft limit on open file descriptors without changing the hard limit.
+///
+/// Call during startup, before spawning children that will inherit the limit.
+#[cfg(unix)]
+pub fn increase_open_file_limit() -> Result<()> {
+    use anyhow::Context as _;
+    use nix::sys::resource::{Resource::RLIMIT_NOFILE, getrlimit, setrlimit};
+
+    let (soft_limit, hard_limit) = getrlimit(RLIMIT_NOFILE).context("getrlimit(RLIMIT_NOFILE)")?;
+    // These are startup targets, not OS ceilings. Preserve higher inherited limits.
+    let target = if cfg!(target_os = "macos") {
+        10_240
+    } else {
+        65_536
+    };
+    let mut requested_limit = hard_limit.min(target);
+
+    while requested_limit > soft_limit {
+        let Err(error) = setrlimit(RLIMIT_NOFILE, requested_limit, hard_limit) else {
+            log::info!("raised open file soft limit from {soft_limit} to {requested_limit}");
+            return Ok(());
+        };
+
+        // Some systems enforce a ceiling below the reported hard limit.
+        if error != nix::errno::Errno::EINVAL || requested_limit == soft_limit + 1 {
+            return Err(error).context("setrlimit(RLIMIT_NOFILE)");
+        }
+        requested_limit = soft_limit + (requested_limit - soft_limit) / 2;
+    }
+
+    Ok(())
+}
+
 #[cfg(unix)]
 fn load_shell_from_passwd() -> Result<()> {
     let buflen = match unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) } {
@@ -340,11 +372,15 @@ pub fn get_zed_cli_path() -> Result<PathBuf> {
         // so here ./cli is for both installed and development builds.
         &["./cli"]
     } else if cfg!(target_os = "windows") {
-        // bin/zed.exe is for installed builds, ./cli.exe is for development builds.
-        &["bin/zed.exe", "./cli.exe"]
+        // PaddleBoard: the preview zip ships the CLI as bin\paddleboard.exe
+        // (script/bundle-windows-preview.ps1). Upstream's bin/zed.exe never exists
+        // here, so askpass was never set and Git/SSH password prompts failed.
+        // ./cli.exe is for development builds.
+        &["bin/paddleboard.exe", "./cli.exe"]
     } else if cfg!(target_os = "linux") || cfg!(target_os = "freebsd") {
         // bin is the standard, ./cli is for the target directory in development builds.
-        &["../bin/zed", "./cli"]
+        // PaddleBoard: the Linux tarball ships bin/paddleboard (script/bundle-linux).
+        &["../bin/paddleboard", "./cli"]
     } else {
         anyhow::bail!("unsupported platform for determining zed-cli path");
     };
@@ -682,7 +718,7 @@ pub fn dev_repo_root() -> Option<&'static std::path::Path> {
 /// detail). Hidden from the public API.
 #[doc(hidden)]
 pub mod __rust_embed {
-    pub use rust_embed::{EmbeddedFile, Filenames, Metadata, RustEmbed, utils};
+    pub use rust_embed::{EmbeddedFile, Filenames, Metadata, RustEmbed, flate, utils};
 }
 
 /// Backs the dev arm of [`fs_embed!`]'s `iter`: every file under the root-relative

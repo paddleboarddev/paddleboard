@@ -89,8 +89,11 @@ impl<T: InventoryContents> InventoryFor<T> {
         let worktree_dirs = self.worktree.get(&worktree);
         let has_zed_dir = worktree_dirs
             .map(|dirs| {
-                dirs.keys()
-                    .any(|dir| dir.file_name().is_some_and(|name| name == ".zed"))
+                // PaddleBoard: project config lives in `.paddleboard/`, not `.zed/`.
+                dirs.keys().any(|dir| {
+                    dir.file_name()
+                        .is_some_and(|name| name == paths::local_settings_folder_name())
+                })
             })
             .unwrap_or(false);
 
@@ -328,7 +331,7 @@ impl Inventory {
     }
 
     pub fn last_scheduled_scenario(&self) -> Option<&(DebugScenario, DebugScenarioContext)> {
-        self.last_scheduled_scenarios.back()
+        self.last_scheduled_scenarios.front()
     }
 
     pub fn list_debug_scenarios(
@@ -499,8 +502,11 @@ impl Inventory {
             .worktree
             .iter()
             .filter(|(_, dirs)| {
-                dirs.keys()
-                    .any(|dir| dir.file_name().is_some_and(|name| name == ".zed"))
+                // PaddleBoard: project config lives in `.paddleboard/`, not `.zed/`.
+                dirs.keys().any(|dir| {
+                    dir.file_name()
+                        .is_some_and(|name| name == paths::local_settings_folder_name())
+                })
             })
             .map(|(id, _)| *id)
             .collect();
@@ -1162,11 +1168,12 @@ mod tests {
         }
     }
 
+    // PaddleBoard: task variables are `PADDLEBOARD_`-prefixed (no `ZED_` fallback).
     fn greeting_template() -> TaskTemplate {
         TaskTemplate {
-            label: "echo $ZED_CUSTOM_GREETING".to_string(),
+            label: "echo $PADDLEBOARD_CUSTOM_GREETING".to_string(),
             command: "echo".to_string(),
-            args: vec!["$ZED_CUSTOM_GREETING".to_string()],
+            args: vec!["$PADDLEBOARD_CUSTOM_GREETING".to_string()],
             ..TaskTemplate::default()
         }
     }

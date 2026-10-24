@@ -565,6 +565,7 @@ async fn test_zed_tasks_take_precedence_over_vscode(cx: &mut TestAppContext) {
     init_test(cx);
     let inventory = cx.update(|cx| Inventory::new(cx));
     let worktree_id = WorktreeId::from_usize(0);
+    // PaddleBoard: project tasks live in `.paddleboard/`, which is what hides `.vscode` ones.
 
     inventory.update(cx, |inventory, _| {
         inventory
@@ -588,7 +589,7 @@ async fn test_zed_tasks_take_precedence_over_vscode(cx: &mut TestAppContext) {
             .update_file_based_tasks(
                 TaskSettingsLocation::Worktree(SettingsLocation {
                     worktree_id,
-                    path: rel_path(".zed"),
+                    path: rel_path(".paddleboard"),
                 }),
                 Some(&mock_tasks_from_names(["zed_task"])),
             )
@@ -597,14 +598,14 @@ async fn test_zed_tasks_take_precedence_over_vscode(cx: &mut TestAppContext) {
     assert_eq!(
         task_template_names(&inventory, Some(worktree_id), cx).await,
         vec!["zed_task"],
-        "With both .zed and .vscode tasks, only .zed tasks should appear"
+        "With both .paddleboard and .vscode tasks, only .paddleboard tasks should appear"
     );
 
     register_worktree_task_used(&inventory, worktree_id, "zed_task", cx).await;
     let resolved = resolved_task_names(&inventory, Some(worktree_id), cx).await;
     assert!(
         !resolved.iter().any(|name| name == "vscode_task"),
-        "Previously used .vscode tasks should not appear when .zed tasks exist, got: {resolved:?}"
+        "Previously used .vscode tasks should not appear when .paddleboard tasks exist, got: {resolved:?}"
     );
 }
 

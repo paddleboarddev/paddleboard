@@ -131,7 +131,7 @@ The original `stdio` transport (which runs the binary directly on your host) is 
 
 One place to browse and install everything the agent talks to. Think of it as the marina where every external collaborator your PaddleBoard talks to ties up.
 
-- Open it from the command palette (`ai_dock: Open`) or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Antigravity) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
+- Open it with `Cmd-K Cmd-A` (`Ctrl-K Ctrl-A` on Linux and Windows), **View → AI Dock**, the command palette (`ai_dock: Open`), or the **Open the AI Dock** button on the Welcome screen. The Welcome screen also shows a small **Featured** strip of well-known agents (Claude, Codex, Copilot, Cursor, Antigravity) — clicking any pill opens the Dock so first-run users have something concrete to recognize.
 - Five tabs: **Agents** (Zed, Claude, Codex, Copilot, Cursor, …), **Skills** (slash commands shipped with the project or installed in `~/.claude/commands/`), **Personas** (who the agent should *be* — see below), **MCP Servers** (the absorbed management page plus a catalog of common servers), and **Usage** (local, per-provider token stats — see below).
 - Installed items show a green badge; missing ones show an **Install / Sign In / Set Up / Learn More** action that does the right thing for the category — registry agent installs are a one-click settings write, CLI-based agents (like Google ADK) show a **Set Up** button that opens a terminal with the install command, sign-in flows route to your existing identity, MCP server adds delegate to the existing setup machinery, and bundled skills (`/test`, `/build-mcp`) install with **Add to project** / **Add to user** buttons that drop a markdown file into the right `.claude/commands/` directory, alongside built-in commands (`/verify`, `/review`, `/security-review`) that the agent already provides.
 - The catalog itself is `assets/ai_dock/catalog.json` in this repo — adding an entry is a PR, not a network fetch, so what shows up in the Dock is exactly what the team has reviewed.
@@ -205,13 +205,14 @@ Step mode only applies to the root thread. Subagents spawned from that thread ru
 
 When you have multiple agents running — root threads, subagents spawned mid-task, background threads — it can be hard to track what's active. The Agent Threads panel gives you a live tree view of everything.
 
-**How to open it:** Click the `ListTree` icon in the panel bar, or search for `orchestration_panel: Toggle Focus` in the command palette.
+**How to open it:** Press `Cmd-K Cmd-G` (`Ctrl-K Ctrl-G` on Linux and Windows), choose **View → Agent Threads**, click the **Thread** icon in the panel bar, or search for `orchestration_panel: Toggle Focus` in the command palette. The panel-bar icon can be hidden with the `paddleboard_ui.orchestration_button` setting.
 
 The panel shows:
 
 - Every active agent session across all conversation views
 - Subagents indented under the thread that spawned them
-- A status indicator: accent-colored when generating, muted when idle
+- Each thread's own agent icon, so a tree mixing PaddleBoard's agent with Claude Code or other external agents stays readable at a glance — hover a row for the agent's name
+- What each thread is doing, ranked by how urgently it needs you: **waiting for your confirmation** (in the warning colour, with a warning marker) outranks **running tools** (a hammer marker), which outranks **generating** (accent) and **idle** (muted)
 - Click any row to jump directly to that thread in the Agent Panel
 
 The tree updates in real time as threads start, finish, or spawn subagents.
@@ -310,6 +311,25 @@ Supported on macOS Apple Silicon and Linux today; other platforms show Local Mod
 
 ---
 
+### Spotter — local first, escalate on failure
+
+Let a free local model do the routine work and bring in Claude or Gemini only when the work fails. Name your tiers cheapest first and give the project a check command in `.paddleboard/settings.json`:
+
+```json
+{
+  "paddleboard_spotter": {
+    "enabled": true,
+    "tiers": [
+      { "name": "Local",   "model": { "provider": "ollama",    "model": "gemma3:12b" } },
+      { "name": "Precise", "model": { "provider": "anthropic", "model": "claude-sonnet-5" } }
+    ],
+    "check": { "command": "cargo test -p my_crate" }
+  }
+}
+```
+
+At the end of every agent turn, the check runs in the agent's terminal as an ordinary `cargo test -p my_crate` card, under the same sandbox and permission prompt as any other command. A failure goes back to the same model once. A second failure stops the run with a card offering the next tier; choose it and the stronger model continues in the same thread with a summary of what failed. Set `"escalation": "auto"` to move up without asking, and `"auto_ceiling"` to cap how far. The thread's current model decides which tier it is on, so start on the local tier with the model picker. Full reference: [docs.paddleboard.dev/spotter](https://docs.paddleboard.dev/spotter.html).
+
 ### Semantic search — find code by meaning, locally
 
 Turn on `"paddleboard_rag": { "enabled": true }` (default off) and the native agent gains a **`semantic_search`** tool: it searches the current project by *meaning* rather than exact strings, so it can find where a concept, behavior, or feature lives even when you don't know the keyword to grep for. It complements the literal `grep` tool — reach for semantic search when the search terms are fuzzy.
@@ -393,7 +413,7 @@ A status-bar meter shows how much of the model's context window the active agent
 
 PaddleBoard checks [its GitHub Releases](https://github.com/paddleboarddev/paddleboard/releases) once an hour, downloads a newer build in the background, and applies it when you restart. There's no update server and no account — and because PaddleBoard reports no telemetry, the check carries no install identifier with it.
 
-- **What you get offered** is the highest released version with a build for your platform: macOS on Apple silicon, or Linux on x86_64. Anywhere else — Intel Macs, ARM Linux, Windows — you're building from source, and PaddleBoard says so instead of failing quietly.
+- **What you get offered** is the highest released version with a build for your platform: macOS on Apple silicon, or Linux on x86_64. On Windows the unsigned preview zip doesn't update itself, so Check for Updates points you to the latest zip instead. Anywhere else (Intel Macs, ARM Linux) you're building from source, and PaddleBoard says so instead of failing quietly.
 - **Check now** rather than waiting for the poll: `Cmd-Shift-P` → **`auto update: Check`**. It runs even if you've turned automatic updates off.
 - **Turn it off** with `"auto_update": false`. It takes effect immediately, no restart.
 - **Beta builds** are skipped by default. To ride them as they're cut, set `"paddleboard_auto_update": { "include_prereleases": true }`.

@@ -20,7 +20,8 @@ actions!(
 );
 
 const COMMIT_TAG_LIST_WIDTH_IN_REMS: Rems = rems(10.);
-const CUSTOM_GIT_COMMANDS_DOCS_SLUG: &str = "tasks#custom-git-commands";
+// PaddleBoard: `pub`, not `pub(crate)` — the git graph lives in its own crate here.
+pub const CUSTOM_GIT_COMMANDS_DOCS_SLUG: &str = "tasks#custom-git-commands";
 
 // PaddleBoard: widened from pub(crate) — git_graph is a separate crate in this fork.
 pub struct CommitContextMenuData {
@@ -182,7 +183,8 @@ pub fn commit_context_menu(
     })
 }
 
-fn git_task_context(
+// PaddleBoard: `pub` for paddleboard_git_graph (see the slug above).
+pub fn git_task_context(
     repository: &Option<WeakEntity<Repository>>,
     commit_sha: git::Oid,
     ref_name: Option<&str>,
@@ -221,7 +223,8 @@ fn git_task_context(
     })
 }
 
-fn git_context_menu_tasks(
+// PaddleBoard: `pub` for paddleboard_git_graph (see the slug above).
+pub fn git_context_menu_tasks(
     task_context: Option<TaskContext>,
     workspace: &WeakEntity<Workspace>,
     cx: &App,

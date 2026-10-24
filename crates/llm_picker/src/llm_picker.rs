@@ -4,7 +4,7 @@ use gpui::{
     IntoElement, Pixels, Render, WeakEntity, Window, prelude::*, px,
 };
 use language_model::{
-    ConfiguredModel, IconOrSvg, LanguageModelProviderId, LanguageModelRegistry,
+    IconOrSvg, LanguageModelProviderId, LanguageModelRegistry,
     PADDLEBOARD_CLOUD_PROVIDER_ID,
 };
 use ui::{ButtonSize, ButtonStyle, prelude::*};
@@ -38,7 +38,7 @@ impl LlmPicker {
 
         let initial_provider_id = LanguageModelRegistry::read_global(cx)
             .default_model()
-            .map(|m| m.provider.id())
+            .map(|m| m.provider_id)
             .filter(|id| id != &PADDLEBOARD_CLOUD_PROVIDER_ID);
 
         Self {
@@ -78,7 +78,7 @@ impl LlmPicker {
             let Some(model) = provider.default_model(cx) else {
                 return;
             };
-            registry.set_default_model(Some(ConfiguredModel { provider, model }), cx);
+            registry.set_default_model(Some(model), cx);
         });
     }
 }
@@ -166,7 +166,7 @@ impl Render for LlmPicker {
                     (id, name, icon, is_authenticated)
                 })
                 .collect::<Vec<_>>();
-            let default_id = registry.default_model().map(|m| m.provider.id());
+            let default_id = registry.default_model().map(|m| m.provider_id);
             (rows, default_id)
         };
 

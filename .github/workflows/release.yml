@@ -1,11 +1,11 @@
 name: Release
 
 # PaddleBoard: on a version tag, builds release artifacts and attaches them to the
-# Release publish-public.sh created — a signed + notarized macOS (Apple Silicon) DMG
-# and a Linux x86_64 tarball. The two jobs are INDEPENDENT: a Linux failure never
-# blocks the macOS build (or vice versa). macOS signing is driven by repo secrets
-# (below); if they're absent the bundle falls back to an ad-hoc signature. Linux
-# needs no secrets.
+# Release publish-public.sh created — a signed + notarized macOS (Apple Silicon) DMG,
+# a Linux x86_64 tarball, and (since v0.3.0, 2026-10-05) an UNSIGNED Windows x86_64
+# preview zip. The three jobs are INDEPENDENT: a failure in one never blocks the
+# others. macOS signing is driven by repo secrets (below); if they're absent the
+# bundle falls back to an ad-hoc signature. Linux and Windows need no secrets.
 #
 # Required repo secrets for a signed + notarized build:
 #   MACOS_SIGNING_IDENTITY        - e.g. "Developer ID Application: Your Name (TEAMID)"
@@ -50,6 +50,17 @@ jobs:
     # libc++ fails to compile the inherited webrtc-sys cxx bridge under C++20
     # (rust::Slice iterator not treated as a contiguous_iterator). Local builds
     # on a newer Xcode compile it fine, so match the runner toolchain to that.
+    #
+    # PaddleBoard: staying on macos-15 is now also a product decision, reviewed
+    # 2026-09-29 and deliberately deferred past the v0.3.0 beta. macOS 26+ only
+    # applies its new design language to apps compiled against the 26+ SDK
+    # (there is an opt-OUT plist key, `UIDesignRequiresCompatibility`, but no
+    # opt-in), so shipping from this runner means release builds keep the legacy
+    # native chrome — titlebar, traffic lights, menus, file dialogs — on macOS
+    # 26 and 27. gpui draws the app body itself, so only that chrome is affected.
+    # Moving to macos-26 is the ONLY way to change it, and it re-validates the
+    # webrtc-sys C++20 bridge plus a 110-190 min notarized build, so it is a
+    # post-beta change. The compile-check gate already runs on macos-26.
     runs-on: macos-15
     # RELEASING.md observes 110-190 min for this build, so 240 is headroom rather
     # than a target. It exists because the DEFAULT is 360: a job wedged on a
@@ -259,3 +270,97 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --clobber \
             "${tarball}#PaddleBoard (Linux x86_64).tar.gz"
+
+  windows:
+    # PaddleBoard: the unsigned Windows PREVIEW, decided 2026-10-05 for the v0.3.0
+    # beta. Independent of the other two jobs, like Linux. What "preview" means
+    # (unsigned, zip not installer, no auto-update, no managed Local Models) is
+    # written in script/bundle-windows-preview.ps1 and on /beta; the asset name
+    # says it too, so nobody mistakes it for a signed build.
+    #
+    # Hosted windows-2022: 4 vCPU / 16 GB, and the roomiest drive is chosen at
+    # run time — the first compile probe (2026-10-05) lost the runner mid-build
+    # with no log, the hosted-Windows disk/RAM signature, so this job keeps the
+    # same hedges the probe grew: target dir on the biggest drive, no debuginfo
+    # beyond the profile's "limited", and a log captured to a file that is
+    # uploaded on failure even when GitHub drops the job-log blob.
+    #
+    # windows-2022, NOT windows-latest: the image fixes the MSVC/SDK the binary
+    # is linked against; a silent image bump is a silent change to what ships.
+    runs-on: windows-2022
+    timeout-minutes: 240
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_NET_RETRY: "5"
+      CARGO_BUILD_JOBS: "4"
+      PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID: ${{ vars.PADDLEBOARD_GITHUB_OAUTH_CLIENT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build the public stable channel
+        shell: bash
+        run: echo "stable" > crates/paddleboard/RELEASE_CHANNEL
+
+      # Same guard as the other two jobs, run under the runner's Git Bash: a tag
+      # that does not match the crate version fails here in seconds, not after
+      # a two-hour build.
+      - name: Validate tag against crate version
+        shell: bash
+        run: script/determine-release-channel
+
+      - name: Pick the roomiest drive
+        shell: pwsh
+        run: |
+          Get-PSDrive -PSProvider FileSystem | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table | Out-String | Write-Host
+          $best = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Free -gt 0 } | Sort-Object Free -Descending | Select-Object -First 1
+          $target = "$($best.Name):\pb-target"
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          "CARGO_TARGET_DIR=$target" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "CARGO_TARGET_DIR=$target"
+
+      - name: Build the Windows preview bundle (x86_64)
+        shell: pwsh
+        run: |
+          # *>&1, not 2>&1: Write-Host goes to pwsh's information stream, which 2>&1
+          # does not capture, so the probe logs ended at cargo's "Finished" with no
+          # bundle size or checksum line in them.
+          script/bundle-windows-preview.ps1 -Architecture x86_64 *>&1 | Tee-Object -FilePath bundle-windows.log
+          exit $LASTEXITCODE
+
+      - name: Upload Windows build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: bundle-windows.log
+          if-no-files-found: warn
+
+      - name: Disk after build
+        if: always()
+        shell: pwsh
+        run: Get-PSDrive -PSProvider FileSystem | Select-Object Name,@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table | Out-String | Write-Host
+
+      - name: Attach the Windows preview zip to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Same create-if-missing + --clobber pattern as the other jobs. The
+          # .sha256 goes up too, so the README-PREVIEW's "verify the download"
+          # line has something to verify against.
+          zip="$(ls "${CARGO_TARGET_DIR}"/PaddleBoard-x86_64-windows-preview.zip | head -1)"
+          if ! gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "PaddleBoard ${GITHUB_REF_NAME}" \
+              --prerelease \
+              --generate-notes
+          fi
+          gh release upload "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber \
+            "${zip}#PaddleBoard (Windows x86_64, unsigned preview).zip" \
+            "${zip}.sha256#PaddleBoard (Windows x86_64, unsigned preview).zip.sha256"

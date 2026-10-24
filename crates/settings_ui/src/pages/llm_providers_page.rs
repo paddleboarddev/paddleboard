@@ -1385,10 +1385,8 @@ mod tests {
                 configuration_bounds.right() <= provider_row_bounds.right(),
                 "young account configuration extends past the provider row at {width}px"
             );
-            assert!(
-                configuration_bounds.size.height >= px(80.),
-                "young account warning does not wrap at {width}px"
-            );
+            // PaddleBoard: no "young account wraps" check. `YoungAccountBanner` renders
+            // nothing here (no Zed Pro trial in this fork), so there is no text to wrap.
             assert!(
                 description_bounds.size.width >= px(width / 3.),
                 "provider description collapsed at {width}px"

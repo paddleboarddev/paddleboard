@@ -65,7 +65,7 @@ use language::{
     language_settings::{AllLanguageSettings, EditPredictionProvider},
 };
 use language_model::{
-    ConfiguredModel, LanguageModelId, LanguageModelProviderId, LanguageModelRegistry,
+    LanguageModel, LanguageModelId, LanguageModelProviderId, LanguageModelRegistry,
 };
 use project::{AgentId, DisableAiSettings};
 use prompt_store::{PromptBuilder, rules_to_skills_migration};
@@ -80,8 +80,7 @@ use workspace::{OpenOptions, Workspace};
 use crate::agent_configuration::ManageProfilesModal;
 pub use crate::agent_connection_store::{ActiveAcpConnection, AgentConnectionStore};
 pub use crate::agent_panel::{
-    AgentPanel, AgentPanelEvent, AgentPanelTerminalInfo, MaxIdleRetainedThreads, TerminalId,
-    ThreadTitleRegenerationResult,
+    AgentPanel, AgentPanelEvent, AgentPanelTerminalInfo, TerminalId, ThreadTitleRegenerationResult,
 };
 use crate::agent_registry_ui::AgentRegistryPage;
 // PaddleBoard: orchestration panel, MCP status/servers UI, and the status-bar usage gauge.
@@ -369,6 +368,11 @@ actions!(
 pub struct AuthorizeToolCall {
     /// The tool call ID to authorize.
     pub tool_call_id: String,
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    pub request_id: Option<acp_thread::PermissionRequestId>,
+    #[serde(default)]
+    pub session_id: Option<String>,
     /// The permission option ID to use.
     pub option_id: String,
     /// The kind of permission option (serialized as string).
@@ -383,6 +387,11 @@ pub struct AuthorizeToolCall {
 pub struct SelectPermissionGranularity {
     /// The tool call ID for which to select the granularity.
     pub tool_call_id: String,
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    pub request_id: Option<acp_thread::PermissionRequestId>,
+    #[serde(default)]
+    pub session_id: Option<String>,
     /// The index of the selected granularity option.
     pub index: usize,
 }
@@ -394,6 +403,11 @@ pub struct SelectPermissionGranularity {
 pub struct ToggleCommandPattern {
     /// The tool call ID for which to toggle the pattern.
     pub tool_call_id: String,
+    #[serde(default)]
+    #[schemars(with = "Option<String>")]
+    pub request_id: Option<acp_thread::PermissionRequestId>,
+    #[serde(default)]
+    pub session_id: Option<String>,
     /// The index of the command pattern to toggle.
     pub pattern_index: usize,
 }
@@ -573,7 +587,7 @@ pub(crate) enum ModelUsageContext {
 }
 
 impl ModelUsageContext {
-    pub fn configured_model(&self, cx: &App) -> Option<ConfiguredModel> {
+    pub fn model(&self, cx: &App) -> Option<LanguageModel> {
         match self {
             Self::InlineAssistant => {
                 LanguageModelRegistry::read_global(cx).inline_assistant_model()
@@ -1043,6 +1057,7 @@ mod tests {
             profiles: Default::default(),
             notify_when_agent_waiting: NotifyWhenAgentWaiting::default(),
             play_sound_when_agent_done: PlaySoundWhenAgentDone::Never,
+            prevent_idle_sleep: true,
             single_file_review: false,
             model_parameters: vec![],
             auto_compact: agent_settings::AutoCompactSettings {
@@ -1060,7 +1075,12 @@ mod tests {
             sandbox_permissions: Default::default(),
             show_turn_stats: false,
             show_merge_conflict_indicator: true,
-            sidebar_side: Default::default(),
+            max_idle_retained_threads: 5,
+            threads_sidebar: agent_settings::ThreadsSidebarSettings {
+                auto_open: true,
+                default_width: px(300.),
+                position: settings::SidebarDockPosition::Left,
+            },
             thinking_display: Default::default(),
         };
 

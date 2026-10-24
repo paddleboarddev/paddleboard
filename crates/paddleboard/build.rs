@@ -102,7 +102,8 @@ fn main() {
             let conpty_dll_target = target_dir.join("conpty.dll");
             let open_console_target = target_dir.join("OpenConsole.exe");
 
-            let conpty_url = "https://github.com/microsoft/terminal/releases/download/v1.24.10621.0/Microsoft.Windows.Console.ConPTY.1.24.260303001.nupkg";
+            // TODO: Switch back to the stable channel once Microsoft finally decides to publish v1.26
+            let conpty_url = "https://github.com/microsoft/terminal/releases/download/v1.25.1912.0/Microsoft.Windows.Console.ConPTY.1.25.260710002-preview.nupkg";
             let nupkg_path = out_dir.join("conpty.nupkg.zip");
             let extract_dir = out_dir.join("conpty");
 
@@ -209,25 +210,14 @@ fn main() {
 
         #[cfg(windows)]
         {
-            // PaddleBoard: keep inline winresource setup so we control PaddleBoard branding
-            // and the PADDLEBOARD_RC_TOOLKIT_PATH env var name. Upstream refactored this into
-            // a `windows_resources` helper crate that hardcodes Zed branding.
-            let mut res = winresource::WindowsResource::new();
-
-            // Depending on the security applied to the computer, winresource might fail
-            // fetching the RC path. Therefore, we add a way to explicitly specify the
-            // toolkit path, allowing winresource to use a valid RC path.
-            if let Some(explicit_rc_toolkit_path) = std::env::var("PADDLEBOARD_RC_TOOLKIT_PATH").ok() {
-                res.set_toolkit_path(explicit_rc_toolkit_path.as_str());
-            }
-            res.set_icon(icon.to_str().unwrap());
-            res.set("FileDescription", "PaddleBoard");
-            res.set("ProductName", "PaddleBoard");
-
-            if let Err(e) = res.compile() {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
+            // PaddleBoard: this used to be an inline `winresource` block that carried
+            // the fork's branding, but the upstream merge that moved Zed onto the
+            // `windows_resources` helper also swapped this crate's build-dependency,
+            // so the inline block referenced a crate that was no longer declared.
+            // Nothing compiled Windows in CI, so it sat broken until the first Windows
+            // probe (2026-10-05). The helper is now ported to the fork's paths and
+            // names (`crates/windows_resources`), so call it like upstream does.
+            windows_resources::compile(false).expect("failed to compile Windows resources");
         }
     }
 

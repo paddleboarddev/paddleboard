@@ -5,8 +5,8 @@ use crate::{
 use fs::Fs;
 use gpui::{Entity, FontWeight, Subscription};
 use ui::{
-    Chip, ContextMenu, DropdownMenu, DropdownStyle, IconPosition, ProgressBar, Switch, ToggleState,
-    prelude::*,
+    Chip, CommonAnimationExt as _, ContextMenu, DropdownMenu, DropdownStyle, IconPosition,
+    ProgressBar, Switch, ToggleState, prelude::*,
 };
 
 /// The "Local Models" panel embedded at the top of the llama.cpp provider's
@@ -172,8 +172,7 @@ impl LocalModelsView {
                 }
             }
             ManagerStatus::Preparing => {
-                status_row(IconName::Download, Color::Muted, "Preparing the local runtime…")
-                    .into_any_element()
+                spinner_row("Preparing the local runtime…").into_any_element()
             }
             ManagerStatus::Downloading {
                 model,
@@ -207,12 +206,9 @@ impl LocalModelsView {
                     ))
                     .into_any_element()
             }
-            ManagerStatus::Starting { model } => status_row(
-                IconName::Download,
-                Color::Muted,
-                format!("Starting {}…", display_name(&model)),
-            )
-            .into_any_element(),
+            ManagerStatus::Starting { model } => {
+                spinner_row(format!("Starting {}…", display_name(&model))).into_any_element()
+            }
             ManagerStatus::Ready { model, port } => status_row(
                 IconName::Check,
                 Color::Success,
@@ -221,11 +217,21 @@ impl LocalModelsView {
             .into_any_element(),
             ManagerStatus::Error { message } => v_flex()
                 .gap_1p5()
-                .child(status_row(
-                    IconName::Warning,
-                    Color::Error,
-                    format!("Error: {message}"),
-                ))
+                .child(
+                    h_flex()
+                        .gap_1p5()
+                        .items_center()
+                        .child(
+                            Icon::new(IconName::Warning)
+                                .size(IconSize::Small)
+                                .color(Color::Error),
+                        )
+                        .child(
+                            Label::new(format!("Error: {message}"))
+                                .size(LabelSize::Small)
+                                .color(Color::Error),
+                        ),
+                )
                 .child(
                     Button::new("local-models-retry", "Retry")
                         .style(ButtonStyle::Outlined)
@@ -315,6 +321,7 @@ impl Render for LocalModelsView {
                                 ToggleState::Unselected
                             },
                         )
+                        .aria_label("Run local models")
                         .disabled(!supported)
                         .on_click(cx.listener(|this, state: &ToggleState, _window, cx| {
                             this.set_enabled(*state == ToggleState::Selected, cx);
@@ -353,6 +360,21 @@ fn status_row(icon: IconName, color: Color, text: impl Into<SharedString>) -> im
         .gap_1p5()
         .items_center()
         .child(Icon::new(icon).size(IconSize::Small).color(color))
+        .child(Label::new(text).size(LabelSize::Small).color(Color::Muted))
+}
+
+/// The shared loading treatment (GLOWUP.md): a rotating arrow, as the AI Dock
+/// uses while MCP servers load.
+fn spinner_row(text: impl Into<SharedString>) -> impl IntoElement {
+    h_flex()
+        .gap_1p5()
+        .items_center()
+        .child(
+            Icon::new(IconName::ArrowCircle)
+                .size(IconSize::Small)
+                .color(Color::Muted)
+                .with_rotate_animation(2),
+        )
         .child(Label::new(text).size(LabelSize::Small).color(Color::Muted))
 }
 

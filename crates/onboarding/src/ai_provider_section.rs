@@ -199,14 +199,20 @@ impl AiProviderSection {
         match &row.config {
             RowConfig::ApiKey(config) if config.has_key => {
                 let label = if config.is_from_env_var {
-                    "API Key set from environment variable"
+                    format!("API key set in {} environment variable", config.env_var_name)
                 } else {
-                    "API Key configured"
+                    "API key configured".to_string()
                 };
                 let id = row.id.clone();
                 let card = ConfiguredApiCard::new(format!("reset-{}", row.id.0), label)
                     .button_label("Reset Key")
                     .disabled(config.is_from_env_var)
+                    .when(config.is_from_env_var, |card| {
+                        card.tooltip_label(format!(
+                            "To reset your API key, unset the {} environment variable.",
+                            config.env_var_name
+                        ))
+                    })
                     .on_click(cx.listener(move |_, _, _, cx| {
                         if let Some(provider) =
                             LanguageModelRegistry::read_global(cx).provider(&id)
@@ -272,6 +278,9 @@ impl AiProviderSection {
         let surface = cx.theme().colors().elevated_surface_background;
         let id = row.id.clone();
         let expanded = row.expanded;
+        // A provider with nothing to configure here gets no chevron and no
+        // pointer: clicking it would open nothing.
+        let expandable = !matches!(row.config, RowConfig::None);
         let expanded_config = if expanded {
             self.render_expanded_config(&row, cx)
         } else {
@@ -291,10 +300,12 @@ impl AiProviderSection {
                     .w_full()
                     .justify_between()
                     .gap_2()
-                    .cursor_pointer()
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.toggle_provider(id.clone(), window, cx);
-                    }))
+                    .when(expandable, |this| {
+                        this.cursor_pointer()
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.toggle_provider(id.clone(), window, cx);
+                            }))
+                    })
                     .child(
                         h_flex()
                             .gap_2()
@@ -315,15 +326,17 @@ impl AiProviderSection {
                                         .color(Color::Success),
                                 )
                             })
-                            .child(
-                                Icon::new(if expanded {
-                                    IconName::ChevronUp
-                                } else {
-                                    IconName::ChevronDown
-                                })
-                                .size(IconSize::Small)
-                                .color(Color::Muted),
-                            ),
+                            .when(expandable, |this| {
+                                this.child(
+                                    Icon::new(if expanded {
+                                        IconName::ChevronUp
+                                    } else {
+                                        IconName::ChevronDown
+                                    })
+                                    .size(IconSize::Small)
+                                    .color(Color::Muted),
+                                )
+                            }),
                     ),
             )
             .when_some(expanded_config, |this, config| this.child(config))

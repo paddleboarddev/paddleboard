@@ -391,20 +391,14 @@ fn terminal_initial_title(input: Result<String, serde_json::Value>) -> SharedStr
 /// running version (stripped of pre-release/build metadata, which the release
 /// API doesn't key on).
 #[cfg(target_os = "windows")]
-fn wsl_zed_release(cx: &App) -> Option<(String, String)> {
-    use release_channel::{AppVersion, ReleaseChannel};
-    match *release_channel::RELEASE_CHANNEL {
-        ReleaseChannel::Dev | ReleaseChannel::Nightly => {
-            Some(("nightly".to_string(), "latest".to_string()))
-        }
-        channel => {
-            let version = AppVersion::global(cx);
-            Some((
-                channel.dev_name().to_string(),
-                format!("{}.{}.{}", version.major, version.minor, version.patch),
-            ))
-        }
-    }
+fn wsl_zed_release(_cx: &App) -> Option<(String, String)> {
+    // PaddleBoard: upstream provisions the WSL sandbox helper by downloading Zed's
+    // own Linux build from cloud.zed.dev, keyed on the running channel and version.
+    // PaddleBoard's versions don't exist there (a stable 0.3.0 request 404s), and
+    // dev builds would run upstream Zed's nightly as the helper. Until a PaddleBoard
+    // Linux asset is wired in, select no release, so sandboxed agent terminals on
+    // Windows fail with the explicit message below instead of fetching Zed.
+    None
 }
 
 /// Non-Windows platforms don't route through WSL, so there's no helper to fetch.
@@ -597,7 +591,13 @@ async fn run_terminal_tool(
     #[cfg(target_os = "windows")]
     let write_paths: Vec<settings::GrantedWritePath> = {
         let Some(release) = wsl_zed_release.clone() else {
-            return Err("Could not select a Linux Zed release for WSL sandboxing".to_string());
+            // PaddleBoard: see `wsl_zed_release`; the Windows preview has no WSL helper.
+            return Err(
+                "Sandboxed agent terminals aren't available in the PaddleBoard \
+                        Windows preview yet. Run the Linux build inside WSL for \
+                        sandboxing, or turn agent sandboxing off for this project."
+                    .to_string(),
+            );
         };
         let mut resolved_paths = Vec::with_capacity(write_paths.len());
         for requested in write_paths {
@@ -1244,6 +1244,25 @@ genuinely need to run a Windows program, re-run with `unsandboxed: true`.";
 #[cfg(target_os = "windows")]
 fn wsl_interop_blocked(content: &str) -> bool {
     content.contains("UtilGetPpid") || content.contains("Failed to parse: /proc/1/stat")
+}
+
+// PaddleBoard: lets the model-tiers hook test its classifier against the real
+// wording below, so a change here fails a test instead of turning failed checks
+// into passes.
+#[cfg(test)]
+pub(crate) fn paddleboard_process_content_for_tests(
+    output: acp::TerminalOutputResponse,
+    command: &str,
+    timed_out: bool,
+    user_stopped: bool,
+) -> String {
+    process_content(
+        output,
+        command,
+        timed_out,
+        user_stopped,
+        TerminalOutputSelection::default(),
+    )
 }
 
 fn process_content(

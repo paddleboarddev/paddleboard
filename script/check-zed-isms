@@ -15,6 +15,8 @@
 #                                         ZED_BUNDLE so the bundled git went unused)
 #   - half-renamed prose                 (a "Zed" line within 5 lines of a PADDLEBOARD_*
 #                                         token — see the half-rename check below)
+#   - renamed crate paths                (`zed_actions::…` in Rust, or a `zed_actions`
+#                                         dependency — see the renamed-crate check below)
 #
 # Files that legitimately keep Zed names are allowlisted below — they are
 # upstream packaging/CI for formats PaddleBoard does not ship. If you PORT one
@@ -67,7 +69,7 @@ allowlisted() {
 # rename. sentry-cli's `-p zed` is its project flag, not a cargo package ref.
 mapfile -t hits < <(
   {
-    grep -rnE 'crates/zed/' script/ .github/ crates/ assets/ 2>/dev/null \
+    grep -rnE 'crates/zed/|\.\./zed/' script/ .github/ crates/ assets/ 2>/dev/null \
       | grep -v 'zed-industries/zed' || true
     grep -rnE '(--package|-p) zed([^-_a-zA-Z0-9]|$)|get-crate-version zed([^-_a-zA-Z0-9]|$)' script/ .github/ 2>/dev/null \
       | grep -v 'sentry-cli' || true
@@ -235,6 +237,7 @@ PROSE_OK=(
   'sharing a project in Zed'   # collab component preview, collab is removed
   "Zed's agent with any ACP"   # component preview string
   "author: Zed"                # markdown parser test data in a non-test file
+  'expected Zed upgrade prompt'  # test assertion on Zed Cloud's payment-required path
   "name: 'Zed'"                # vim surround test data in a non-test file
   'Zed task variables'         # doc comment on a test helper
   # --- Zed Cloud update path: renaming these would make them WRONG -----------
@@ -393,6 +396,68 @@ done < <(
     ' || true
 )
 
+# --- renamed-crate check ----------------------------------------------------
+# A path through a crate the fork renamed (`zed_actions::agent::Chat`), or a
+# manifest dependency on one (`zed_actions.workspace = true`). Upstream adds
+# these in new files and in lines the fork never edited, so they merge with no
+# conflict marker and fail only when compiled, and only for the targets that
+# compile them. The 2026-09-18 merge brought `zed_actions::agent::Chat` into a
+# new test module that only `clippy --all-targets` built; the ZED_ symbol check
+# above cannot see crate paths.
+#
+# The crate list is read from RENAME_MAP in check-dropped-upstream-files, which
+# a rename already has to update, so the two guards cannot drift apart. The
+# bare `zed` crate is skipped: `zed::` is also crates/paddleboard's own `zed`
+# module and the extension WIT namespace (`zed::extension::…`), both legitimate.
+#
+# No `\b` in these patterns: `git grep -E '\bzed_actions\b'` returned zero while
+# the reference existed. Explicit character classes behave the same under the
+# BSD tools on a Mac and the GNU tools in CI.
+renamed_crates=()
+while IFS= read -r crate; do
+  [ "$crate" = "zed" ] && continue
+  renamed_crates+=("$crate")
+done < <(
+  sed -n '/^RENAME_MAP=(/,/^)/p' script/check-dropped-upstream-files \
+    | sed -nE 's|^[[:space:]]*"crates/([a-z_]+):crates/[a-z_]+".*|\1|p'
+)
+if [ "${#renamed_crates[@]}" -eq 0 ]; then
+  echo "check-zed-isms: could not read RENAME_MAP from script/check-dropped-upstream-files." >&2
+  exit 1
+fi
+crate_pattern="$(IFS='|'; echo "${renamed_crates[*]}")"
+crate_fixed_strings=()
+for crate in "${renamed_crates[@]}"; do
+  crate_fixed_strings+=(-e "${crate}::")
+done
+
+crate_failures=0
+while IFS= read -r hit; do
+  [ -z "$hit" ] && continue
+  file="${hit%%:*}"
+  file="${file#./}"
+  allowlisted "$file" && continue
+  echo "ZED-CRATE: $hit" >&2
+  crate_failures=$((crate_failures + 1))
+done < <(
+  {
+    # Fixed-string grep first: a regex with alternation over every .rs file
+    # roughly doubled this script's runtime. The boundary and comment checks
+    # then run only on matching lines. A match counts only if no `//` comment
+    # starts before it on the line.
+    grep -rnF "${crate_fixed_strings[@]}" crates --include=*.rs 2>/dev/null \
+      | awk -v pattern="(^|[^A-Za-z0-9_])(${crate_pattern})::" '{
+          prefix_length = index($0, ":")
+          rest = substr($0, prefix_length + 1)
+          prefix_length += index(rest, ":")
+          code = substr($0, prefix_length + 1)
+          if (match(code, pattern) && index(substr(code, 1, RSTART), "//") == 0) print
+        }'
+    grep -rnE "^[[:space:]]*(${crate_pattern})([[:space:]]*=|\.workspace)" crates --include=Cargo.toml 2>/dev/null
+    grep -nHE "^[[:space:]]*(${crate_pattern})([[:space:]]*=|\.workspace)" Cargo.toml 2>/dev/null
+  } || true
+)
+
 if [ "$failures" -gt 0 ]; then
   echo "check-zed-isms: $failures reference(s) to renamed Zed paths/packages outside the allowlist." >&2
   echo "Fix the reference (crates/zed -> crates/paddleboard, package zed -> paddleboard)," >&2
@@ -415,6 +480,13 @@ if [ "$symbol_failures" -gt 0 ]; then
   echo "script/check-zed-isms with a reason." >&2
 fi
 
+if [ "$crate_failures" -gt 0 ]; then
+  echo "check-zed-isms: $crate_failures reference(s) to a crate this fork renamed." >&2
+  echo "Use the renamed crate: zed_actions -> paddleboard_actions, zed_env_vars ->" >&2
+  echo "paddleboard_env_vars, zed_credentials_provider -> paddleboard_credentials_provider." >&2
+  echo "RENAME_MAP in script/check-dropped-upstream-files has the full list." >&2
+fi
+
 if [ "$prose_failures" -gt 0 ]; then
   echo "check-zed-isms: $prose_failures user-facing string(s) say \"Zed\"." >&2
   echo "These are sentences a user reads — UI labels, errors, tooltips, clap help." >&2
@@ -423,7 +495,7 @@ if [ "$prose_failures" -gt 0 ]; then
   echo "content pattern to PROSE_OK in script/check-zed-isms with a reason." >&2
 fi
 
-if [ "$((failures + half_failures + symbol_failures + prose_failures))" -gt 0 ]; then
+if [ "$((failures + half_failures + symbol_failures + crate_failures + prose_failures))" -gt 0 ]; then
   exit 1
 fi
 echo "check-zed-isms: clean."

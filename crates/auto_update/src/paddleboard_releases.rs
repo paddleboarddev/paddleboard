@@ -126,6 +126,14 @@ pub async fn fetch_latest_release(
     os: &str,
     arch: &str,
 ) -> Result<ReleaseAsset> {
+    // PaddleBoard: Windows does get a release asset now (an unsigned preview zip),
+    // but not one the updater can install, so say that instead of claiming no
+    // Windows build exists.
+    anyhow::ensure!(
+        os != "windows",
+        "PaddleBoard can't update itself on Windows yet. Download the latest \
+         preview zip from https://github.com/{RELEASES_REPO}/releases/latest"
+    );
     anyhow::ensure!(
         asset_name(os, arch).is_some(),
         "PaddleBoard does not publish a build for {os} {arch}; \

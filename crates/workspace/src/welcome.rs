@@ -519,6 +519,7 @@ impl Render for WelcomePage {
                                         .tab_index(tour_tab_index as isize)
                                         .full_width()
                                         .style(ButtonStyle::Filled)
+                                        .label_size(LabelSize::Small)
                                         .on_click(|_, window, cx| {
                                             window.dispatch_action(
                                                 crate::OpenPaddleBoardTour.boxed_clone(),

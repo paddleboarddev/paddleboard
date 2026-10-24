@@ -214,9 +214,10 @@ impl Component for AlertModal {
                                             .child(Label::new("~/projects/my-project").color(Color::Muted))
                                     )
                             )
+                            // PaddleBoard: preview copy; `ui` has no `paths` dep, so a literal.
                             .child(
                                 "Untrusted workspaces are opened in Restricted Mode to protect your system.
-Review .zed/settings.json for any extensions or commands configured by this project.",
+Review .paddleboard/settings.json for any extensions or commands configured by this project.",
                             )
                             .child(
                                 v_flex()

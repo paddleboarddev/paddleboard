@@ -3,6 +3,7 @@
 
 mod reliability;
 mod tour; // PaddleBoard: first-launch tour (materialize + preview + re-surface).
+mod watcher_debug;
 mod zed;
 
 // Ensure the binary name stays in sync with APP_NAME so that the paths used
@@ -313,6 +314,9 @@ fn main() {
     }
     ztracing::init();
 
+    #[cfg(unix)]
+    util::increase_open_file_limit().log_err();
+
     let version = option_env!("PADDLEBOARD_BUILD_ID");
     let app_commit_sha =
         option_env!("PADDLEBOARD_COMMIT_SHA").map(|commit_sha| AppCommitSha::new(commit_sha.to_string()));
@@ -519,6 +523,7 @@ fn main() {
         paddleboard_personas_settings::init(cx);
         paddleboard_rag_settings::init(cx);
         paddleboard_scion_settings::init(cx);
+        paddleboard_tiers::init(cx);
         // PaddleBoard: force-link the usage-tracker settings before
         // `settings::init` collects registrations; real setup runs below.
         paddleboard_usage::init_settings(cx);
@@ -696,6 +701,7 @@ fn main() {
         });
         AppState::set_global(app_state.clone(), cx);
 
+        watcher_debug::init(app_state.clone(), cx);
         auto_update::init(client.clone(), cx);
         dap_adapters::init(cx);
         auto_update_ui::init(cx);
@@ -717,9 +723,7 @@ fn main() {
         );
         command_palette::init(cx);
         let copilot_chat_configuration = copilot_chat::CopilotChatConfiguration {
-            enterprise_uri: language::language_settings::all_language_settings(None, cx)
-                .edit_predictions
-                .copilot
+            enterprise_uri: settings::CopilotSettings::get_global(cx)
                 .enterprise_uri
                 .clone(),
         };
@@ -815,6 +819,7 @@ fn main() {
         encoding_selector::init(cx);
         language_selector::init(cx);
         line_ending_selector::init(cx);
+        lsp_command_selector::init(cx);
         toolchain_selector::init(cx);
         theme_selector::init(cx);
         settings_profile_selector::init(cx);

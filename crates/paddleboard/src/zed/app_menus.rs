@@ -61,6 +61,15 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
             "AI Dock",
             paddleboard_actions::ai_dock::Open,
         ));
+        // PaddleBoard: the orchestration panel's agent tree had no menu entry and no
+        // binding, so it was reachable only by typing its action into the palette.
+        // Labelled to match the panel's own icon tooltip, so the menu and the panel
+        // agree on what it is called. Same gate: it lists agent sessions, which a
+        // build configured without AI does not have.
+        view_items.push(MenuItem::action(
+            "Agent Threads",
+            agent_ui::orchestration_panel::ToggleFocus,
+        ));
     }
 
     view_items.extend([

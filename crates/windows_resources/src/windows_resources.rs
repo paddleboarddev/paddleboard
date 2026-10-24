@@ -7,7 +7,8 @@
 use std::process::Command;
 
 fn git_sha() -> Option<String> {
-    if let Ok(sha) = std::env::var("ZED_COMMIT_SHA") {
+    // PaddleBoard: the fork's build scripts export PADDLEBOARD_COMMIT_SHA.
+    if let Ok(sha) = std::env::var("PADDLEBOARD_COMMIT_SHA") {
         return Some(sha);
     }
 
@@ -38,7 +39,11 @@ fn product_version() -> String {
     format!("{pkg_version}+{metadata}")
 }
 
-const ICON_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../zed/resources/windows");
+// PaddleBoard: the main crate's directory was renamed in this fork. This path is
+// only ever evaluated on Windows, which no CI job compiled until 2026-10-05, so
+// the rename miss sat for months unseen (check-zed-isms matched the absolute
+// form of the old path, not the relative one used here; it matches both now).
+const ICON_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../paddleboard/resources/windows");
 const MANIFEST_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/manifest.xml");
 
 pub fn compile(manifest: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -74,8 +79,14 @@ pub fn compile(manifest: bool) -> Result<(), Box<dyn std::error::Error>> {
         version_parts.next().unwrap_or(0),
     );
 
+    // The resource paths can contain non-ASCII characters (e.g. when the
+    // repository lives under a path with such characters). Rust Strings are
+    // encoded using UTF-8, but rc.exe decodes the .rc file using the ANSI code
+    // page by default, which mangles those paths and makes it fail to find the
+    // referenced files, so specify UTF-8 decoding.
     let rc_content = format!(
-        r#"1 ICON "{icon_escaped}"
+        r#"#pragma code_page(65001)
+1 ICON "{icon_escaped}"
 {manifest_line}
 
 1 VERSIONINFO
@@ -95,8 +106,10 @@ BEGIN
             VALUE "FileVersion", "{pkg_version}\0"
             VALUE "ProductName", "{product_name}\0"
             VALUE "ProductVersion", "{product_version}\0"
-            VALUE "CompanyName", "Zed Industries, Inc.\0"
-            VALUE "LegalCopyright", "Copyright 2022 - 2025 Zed Industries, Inc.\0"
+            VALUE "CompanyName", "PaddleBoard (paddleboarddev)\0"
+            // PaddleBoard: a literal sign, not an escape; this is a raw string and the
+            // file is UTF-8 (code_page 65001), so rc.exe takes the character as is.
+            VALUE "LegalCopyright", "Copyright 2022 - 2025 Zed Industries, Inc.; PaddleBoard additions © 2026 Jason Smith. GPL-3.0-or-later.\0"
         END
     END
     BLOCK "VarFileInfo"
@@ -108,19 +121,22 @@ END
     );
 
     let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
-    let rc_path = out_dir.join("zed_resources.rc");
+    // PaddleBoard: renamed for grep-ability; rc.exe does not care.
+    let rc_path = out_dir.join("paddleboard_resources.rc");
     std::fs::write(&rc_path, rc_content)?;
 
-    if let Ok(toolkit_path) = std::env::var("ZED_RC_TOOLKIT_PATH") {
+    // PaddleBoard: same override crates/paddleboard/build.rs honours.
+    if let Ok(toolkit_path) = std::env::var("PADDLEBOARD_RC_TOOLKIT_PATH") {
         let rc_exe = std::path::Path::new(&toolkit_path).join("rc.exe");
         unsafe {
             std::env::set_var("RC", rc_exe);
         }
     }
 
-    embed_resource::compile(&rc_path, embed_resource::NONE)
-        .manifest_optional()
-        .unwrap();
+    // PaddleBoard: propagate instead of panicking, so a missing icon reads as a
+    // build error with a path in it rather than a backtrace (what the first
+    // Windows probe produced).
+    embed_resource::compile(&rc_path, embed_resource::NONE).manifest_optional()?;
 
     Ok(())
 }

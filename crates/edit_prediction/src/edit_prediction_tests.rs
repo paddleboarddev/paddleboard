@@ -17,7 +17,7 @@ use cloud_llm_client::{
 };
 use db::AppDatabase;
 use edit_prediction_types::EditPredictionRequestTrigger;
-use feature_flags::{FeatureFlag as _, FeatureFlagAppExt as _, FeatureFlagsSettings};
+use feature_flags::FeatureFlagsSettings;
 use futures::{
     AsyncReadExt, FutureExt, StreamExt,
     channel::{mpsc, oneshot},
@@ -58,6 +58,9 @@ use crate::{
 use super::*;
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_current_state(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     cx.update(|cx| set_jumps_feature_flag_override(cx, "on"));
@@ -134,6 +137,9 @@ async fn test_current_state(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_refresh_prediction_from_buffer_honors_debounce_duration(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     cx.update(|cx| set_jumps_feature_flag_override(cx, "on"));
@@ -256,6 +262,9 @@ async fn test_refresh_prediction_from_buffer_suppressed_while_following(cx: &mut
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_simple_request(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -329,6 +338,9 @@ async fn test_simple_request(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_zeta_request_sends_settled_body_when_data_collection_is_disabled(
     cx: &mut TestAppContext,
 ) {
@@ -391,6 +403,9 @@ async fn test_zeta_request_sends_settled_body_when_data_collection_is_disabled(
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_request_events(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1330,6 +1345,9 @@ async fn test_predicted_flag_coalescing(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_empty_prediction(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1418,6 +1436,9 @@ async fn test_empty_prediction(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_interpolated_empty(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1492,6 +1513,9 @@ async fn test_interpolated_empty(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_interpolate_failed(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1572,6 +1596,9 @@ const SIMPLE_DIFF: &str = indoc! { r"
 "};
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_replace_current(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1670,6 +1697,9 @@ async fn test_replace_current(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_current_preferred(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1786,6 +1816,9 @@ async fn test_current_preferred(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_cancel_earlier_pending_requests(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -1894,6 +1927,9 @@ async fn test_cancel_earlier_pending_requests(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_cancel_second_on_third_request(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -2058,6 +2094,9 @@ async fn test_cancel_second_on_third_request(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_cloud_timeout_backs_off_zeta_requests(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -2136,6 +2175,9 @@ async fn test_cloud_timeout_backs_off_zeta_requests(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_same_frame_duplicate_requests_deduplicated(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -2196,6 +2238,9 @@ async fn test_same_frame_duplicate_requests_deduplicated(cx: &mut TestAppContext
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_rejections_flushing(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
 
@@ -2984,6 +3029,9 @@ async fn test_edit_prediction_basic_interpolation(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_clean_up_diff(cx: &mut TestAppContext) {
     init_test(cx);
 
@@ -3036,6 +3084,9 @@ async fn test_clean_up_diff(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_edit_prediction_end_of_buffer(cx: &mut TestAppContext) {
     init_test(cx);
 
@@ -3049,6 +3100,9 @@ async fn test_edit_prediction_end_of_buffer(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_edit_prediction_v4_end_of_buffer(cx: &mut TestAppContext) {
     init_test(cx);
 
@@ -3107,6 +3161,9 @@ async fn test_edit_prediction_v4_end_of_buffer(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_edit_prediction_no_spurious_trailing_newline(cx: &mut TestAppContext) {
     // Test that zeta2's newline normalization logic doesn't insert spurious newlines.
     // When the buffer ends without a trailing newline, but the model returns output
@@ -3183,6 +3240,9 @@ async fn test_edit_prediction_no_spurious_trailing_newline(cx: &mut TestAppConte
 }
 
 #[gpui::test]
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_v3_prediction_strips_cursor_marker_from_edit_text(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
