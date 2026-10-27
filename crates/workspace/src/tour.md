@@ -4,7 +4,7 @@ PaddleBoard is an agentic, high-performance IDE built for AI-driven development 
 code natively, let the agent act on your workspace, browse the web, and run
 tests in secure sandboxes, all from one window.
 
-This is a short guided tour: **six stops** to get you productive. The full
+This is a short guided tour: **seven stops** to get you productive. The full
 feature list lives in `WELCOME.md` and at [docs.paddleboard.dev](https://docs.paddleboard.dev).
 
 ---
@@ -20,7 +20,20 @@ onboarding, you're ready; if not, no problem.
   for OpenAI, Anthropic, Google, and more.
 - Switch models any time from the **LLM Provider** picker without opening settings.
 
-## 2. Manifest — your git state at a glance 🗂️
+## 2. Spotter — local first, stronger model only on failure 🏋️
+
+Let a free local model do the routine work, and bring in Claude or Gemini only
+when your project's own check actually fails.
+
+- Name your tiers cheapest first and give the project a check command, such as
+  `cargo test` — both under `"paddleboard_spotter"` in settings. It's off until you do.
+- After every agent turn PaddleBoard runs the check, with the same sandbox and
+  permission prompt as any other command.
+- Two failures stop the run with a **Blocker card**: one click moves the thread to
+  the next tier, with the whole history.
+- More at [docs.paddleboard.dev/spotter](https://docs.paddleboard.dev/spotter.html).
+
+## 3. Manifest — your git state at a glance 🗂️
 
 One dockable tree for the whole git picture — the ship's manifest.
 
@@ -30,7 +43,7 @@ One dockable tree for the whole git picture — the ship's manifest.
   tracks, so it's instant.
 - The **Git Graph** stays the deep-history view; Manifest is the overview.
 
-## 3. Secure Sandboxing — the agent runs code safely 🛡️
+## 4. Secure Sandboxing — the agent runs code safely 🛡️
 
 When the agent runs untrusted code, compiles, or runs tests, it uses the
 integrated **Sandbox** — your project mounts in, permission prompts still gate
@@ -41,7 +54,7 @@ every command, and the sandbox is discarded when done.
   KVM on Linux); **Podman + gVisor** is the strongest tier.
 - Each option stages its install in a fresh Terminal — nothing runs inside the app.
 
-## 4. Set Sail — deploy to serverless ⛵
+## 5. Set Sail — deploy to serverless ⛵
 
 Quick-deploy the current project to Cloud Run, AWS Lambda, Vercel, Azure,
 Cloudflare, or Netlify — no YAML safari.
@@ -52,7 +65,7 @@ Cloudflare, or Netlify — no YAML safari.
   in the terminal — the agent never runs auth flows itself.
 - Flip to **Rig the Pipeline** mode to set up CI/CD groundwork instead.
 
-## 5. Personas — tell the agent who to be 🎭
+## 6. Personas — tell the agent who to be 🎭
 
 A **persona** describes who the agent should mimic — a Senior Developer, an SRE,
 a QA Engineer.
@@ -62,7 +75,7 @@ a QA Engineer.
   picker, or just ask mid-conversation: *"be my QA tester."*
 - Works with every provider, and with container-isolated **Scion** agents too.
 
-## 6. The AI Dock — your next stop 🛟
+## 7. The AI Dock — your next stop 🛟
 
 One place to browse and install everything the agent talks to — the marina where
 every external collaborator ties up.
