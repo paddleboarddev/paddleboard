@@ -31,3 +31,5 @@ Then reset this file back to an empty `## Next` section.
 - Fixed the bundled fallback certificate store still trusting the emSign ECC Root CA - G3,
   whose intermediate CAs had their private keys compromised. It is only used when the
   system's certificate store cannot be loaded.
+- Fixed a crash when an extension receives a component-model stream with a different
+  payload type than it expects (wasmtime 48.0.7, GHSA-9pvw-hwfg-92h5).
