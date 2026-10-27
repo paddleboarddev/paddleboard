@@ -3572,12 +3572,23 @@ impl Pane {
         // bar renders under the window buttons. Inset the tab bar so its leading
         // content clears the buttons. Only the top-left pane is affected, and only
         // when no left sidebar already covers that space.
+        //
+        // The inset is its own element with a bottom border, so the tab bar's
+        // bottom line runs the full width instead of stopping short under the
+        // window buttons.
         if self.should_reserve_traffic_light_space(window, cx) {
             h_flex()
                 .flex_none()
                 .w_full()
                 .bg(cx.theme().colors().tab_bar_background)
-                .pl(px(ui::utils::TRAFFIC_LIGHT_PADDING))
+                .child(
+                    div()
+                        .flex_none()
+                        .w(ui::utils::traffic_light_padding(window))
+                        .h(Tab::container_height(cx))
+                        .border_b_1()
+                        .border_color(cx.theme().colors().border),
+                )
                 .child(tab_bar)
                 .into_any_element()
         } else {

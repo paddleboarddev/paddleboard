@@ -12,6 +12,8 @@ Then reset this file back to an empty `## Next` section.
 
 ## Next
 
+- Fixed the macOS window buttons overlapping the tab bar's back and forward arrows on some
+  macOS versions, and the tab bar's bottom line stopping short under the window buttons.
 - Fixed the bundled fallback certificate store still trusting the emSign ECC Root CA - G3,
   whose intermediate CAs had their private keys compromised. It is only used when the
   system's certificate store cannot be loaded.

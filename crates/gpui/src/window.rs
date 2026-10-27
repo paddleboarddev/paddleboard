@@ -2954,6 +2954,12 @@ impl Window {
         self.platform_window.window_controls()
     }
 
+    /// PaddleBoard: where the macOS traffic lights end, measured live. `None`
+    /// on other platforms, or when AppKit has no standard buttons to measure.
+    pub fn traffic_light_trailing_edge(&self) -> Option<Pixels> {
+        self.platform_window.traffic_light_trailing_edge()
+    }
+
     /// Updates the window's title at the platform level.
     pub fn set_window_title(&mut self, title: &str) {
         self.platform_window.set_title(title);

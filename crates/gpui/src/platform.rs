@@ -1250,6 +1250,13 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     }
     #[cfg(target_os = "macos")]
     fn set_traffic_light_position(&self, _position: Point<Pixels>) {}
+    /// PaddleBoard: the x coordinate, in window points, where the rightmost
+    /// standard window button (zoom) ends. Measured from AppKit rather than
+    /// assumed, because the buttons' size and spacing depend on both the
+    /// running macOS version and the SDK the app was linked against.
+    fn traffic_light_trailing_edge(&self) -> Option<Pixels> {
+        None
+    }
     fn show_character_palette(&self) {}
     fn titlebar_double_click(&self, _is_resizable: bool, _is_minimizable: bool) {}
     fn on_move_tab_to_new_window(&self, _callback: Box<dyn FnMut()>) {}
