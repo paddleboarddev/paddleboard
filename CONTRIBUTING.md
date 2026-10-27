@@ -1,6 +1,6 @@
 # Contributing to PaddleBoard
 
-PaddleBoard is a small, alpha-stage fork of [Zed](https://github.com/zed-industries/zed). Issues and PRs are welcome, but please scope-check anything bigger than a small fix before you spend a lot of time on it.
+PaddleBoard is a small, beta-stage fork of [Zed](https://github.com/zed-industries/zed). Issues and PRs are welcome, but please scope-check anything bigger than a small fix before you spend a lot of time on it.
 
 ## Before you start
 
