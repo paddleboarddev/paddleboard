@@ -237,6 +237,22 @@ tree as it is then, not now.
    worktree behaviour into `spawn_agent` and leave it alone?
 7. **Worktree location.** Next to the repo (`../<repo>-<swarm>-<child>`), under
    `.paddleboard/worktrees/`, or under the data dir?
+8. **The shared board, or a task graph.** Phase 3's board is a flat store of
+   findings, claims and questions. A task graph (tasks with dependencies, a "ready"
+   query for tasks nothing blocks, an atomic claim so two workers never take the same
+   one) is the stronger version: the orchestrator's plan becomes something each
+   worker can check, and Spotter's check can mark a step done. Raised 2026-10-27 after
+   reading [farmtable](https://github.com/scion-frontiers/farmtable) (Scion Frontiers'
+   task runtime for agents: Go, Apache 2.0, SQLite store, an MCP server via
+   `ft mcp serve`). Three options: keep the flat board; a graph in our own
+   `paddleboard_swarm*` crate; or an external runtime such as farmtable reached over
+   MCP. Two rules hold either way: the graph is planned by the strong orchestrator,
+   never rewritten by a small worker (principle 5), and nothing here comes before
+   phase 1 (principle 1). As of 2026-10-27 farmtable calls itself early and
+   experimental, last pushed 12 August, and asks contributors to sign a CLA, so it is
+   a reference, not a dependency. A cheap first test needs no code: add
+   `ft mcp serve` as an MCP server and see whether agents use ready tasks and claims
+   well.
 
 ## Reference
 
@@ -252,3 +268,5 @@ tree as it is then, not now.
   `CreateThreadToolFeatureFlag` in `crates/feature_flags/src/flags.rs`.
 - Related designs: `MODEL_TIERS.md` (Spotter; the price table in "Cost (phase 2)"),
   `AGENT_SCAFFOLDING.md` (defining a single agent).
+- External reference: [scion-frontiers/farmtable](https://github.com/scion-frontiers/farmtable),
+  a dependency-graph task runtime for agents (open question 8).
