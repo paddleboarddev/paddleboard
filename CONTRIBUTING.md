@@ -1,6 +1,6 @@
 # Contributing to PaddleBoard
 
-PaddleBoard is a small, alpha-stage fork of [Zed](https://github.com/zed-industries/zed). Issues and PRs are welcome, but please scope-check anything bigger than a small fix before you spend a lot of time on it.
+PaddleBoard is a small, beta-stage fork of [Zed](https://github.com/zed-industries/zed). Issues and PRs are welcome, but please scope-check anything bigger than a small fix before you spend a lot of time on it.
 
 ## Before you start
 
@@ -29,6 +29,19 @@ A few conventions encode most of how the project works:
 - Branch off `main`, push to a topic branch, open a PR. Title is a clear imperative sentence — no `feat:` / `fix:` prefixes, no trailing punctuation.
 - Include a `Release Notes:` section at the bottom of the PR body. Either one bullet (`- Added …` / `- Fixed …` / `- Improved …`) for user-facing changes, or `- N/A` for everything else.
 - For UI changes, attach a screenshot or short screen recording.
+- Sign off every commit (see below).
+
+## Sign off your commits
+
+PaddleBoard uses the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) instead of a contributor license agreement. By adding a `Signed-off-by` line to a commit, you certify that you wrote the change, or otherwise have the right to submit it, under the project's license (GPL-3.0-or-later). You keep the copyright to your work; nothing is assigned.
+
+Add the line with `git commit -s`, which uses your `user.name` and `user.email`:
+
+```
+Signed-off-by: Your Name <you@example.com>
+```
+
+Use your real name or a name you're known by. To sign off commits you've already made, run `git rebase --signoff main` and force-push the branch.
 
 ## Working on the upstream surface area
 
