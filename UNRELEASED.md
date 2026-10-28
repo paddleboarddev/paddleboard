@@ -12,6 +12,8 @@ Then reset this file back to an empty `## Next` section.
 
 ## Next
 
+- Fixed four security issues in the TLS library (rustls 0.23.46), including TLS session
+  secrets that could appear in debug output.
 - Fixed the macOS window buttons overlapping the tab bar's back and forward arrows on some
   macOS versions, and the tab bar's bottom line stopping short under the window buttons.
 - Fixed the bundled fallback certificate store still trusting the emSign ECC Root CA - G3,
