@@ -255,6 +255,7 @@ members = [
     "crates/paddleboard_sandbox_prereqs",
     "crates/paddleboard_sandbox_prereqs_state",
     "crates/paddleboard_sandbox_prereqs_ui",
+    "crates/paddleboard_sandbox_recovery",
     "crates/paddleboard_sandbox_settings",
     "crates/paddleboard_otel",
     "crates/paddleboard_otel_settings",
@@ -556,6 +557,7 @@ paddleboard_git_login = { path = "crates/paddleboard_git_login" }
 paddleboard_sandbox_prereqs = { path = "crates/paddleboard_sandbox_prereqs" }
 paddleboard_sandbox_prereqs_state = { path = "crates/paddleboard_sandbox_prereqs_state" }
 paddleboard_sandbox_prereqs_ui = { path = "crates/paddleboard_sandbox_prereqs_ui" }
+paddleboard_sandbox_recovery = { path = "crates/paddleboard_sandbox_recovery" }
 paddleboard_sandbox_settings = { path = "crates/paddleboard_sandbox_settings" }
 paddleboard_otel = { path = "crates/paddleboard_otel" }
 paddleboard_otel_settings = { path = "crates/paddleboard_otel_settings" }

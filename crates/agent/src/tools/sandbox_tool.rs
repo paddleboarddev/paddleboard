@@ -12,6 +12,7 @@ use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use settings::Settings;
+use util::ResultExt as _;
 use std::{
     path::PathBuf,
     rc::Rc,
@@ -220,6 +221,15 @@ impl AgentTool for SandboxTool {
                     prepared.shell_command
                 }
             };
+
+            // The workspace is mounted live, so a command cut off by a crash can
+            // leave it half-written. This record lets the next launch say so; it
+            // is removed when this task finishes or is dropped, and a crash is
+            // the one way to leave it behind. Interrupted commands are reported,
+            // never re-run.
+            let _in_flight =
+                paddleboard_sandbox_recovery::begin_command(&input.command, &working_dir)
+                    .log_err();
 
             let terminal = self
                 .environment

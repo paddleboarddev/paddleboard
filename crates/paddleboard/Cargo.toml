@@ -5,7 +5,7 @@ name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
-version = "0.3.0"
+version = "0.3.1"
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -241,8 +241,10 @@ which_key.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true
 paddleboard_env_vars.workspace = true
+paddleboard_container_engine.workspace = true
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_ui.workspace = true
+paddleboard_sandbox_recovery.workspace = true
 paddleboard_sandbox_settings.workspace = true
 paddleboard_otel.workspace = true
 paddleboard_otel_settings.workspace = true

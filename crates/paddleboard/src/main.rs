@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod reliability;
+mod sandbox_recovery; // PaddleBoard: cleanup and notice after a crash mid sandboxed command.
 mod tour; // PaddleBoard: first-launch tour (materialize + preview + re-surface).
 mod watcher_debug;
 mod zed;
@@ -474,10 +475,14 @@ fn main() {
                 #[cfg(unix)]
                 paddleboard_sandbox_prereqs::ensure_podman_on_path();
                 shell_env_loaded_tx.send(()).ok();
+                sandbox_recovery::remove_orphans().await;
             })
             .detach();
     } else {
-        drop(shell_env_loaded_tx)
+        drop(shell_env_loaded_tx);
+        app.background_executor()
+            .spawn(sandbox_recovery::remove_orphans())
+            .detach();
     }
 
     app.on_open_urls({
@@ -830,6 +835,7 @@ fn main() {
         feedback::init(cx);
         markdown_preview::init(cx);
         tour::init(cx); // PaddleBoard: registers the tour action + first-launch check.
+        sandbox_recovery::init(cx);
         tabular_data_preview::init(cx);
         svg_preview::init(cx);
         onboarding::init(cx);

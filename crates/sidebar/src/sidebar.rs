@@ -7388,7 +7388,8 @@ impl Sidebar {
             })
             .map(|this| {
                 if traffic_lights {
-                    this.pl(px(ui::utils::TRAFFIC_LIGHT_PADDING))
+                    // PaddleBoard: measured, not the build-time constant.
+                    this.pl(ui::utils::traffic_light_padding(window))
                 } else if !left_window_controls {
                     this.pl_1p5()
                 } else {

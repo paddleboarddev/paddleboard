@@ -12,19 +12,20 @@ Then reset this file back to an empty `## Next` section.
 
 ## Next
 
-<!-- Check before building v0.3.0's notes: #227 "Open the AI Dock instead of toggling it"
-     merged 2026-09-09T16:01Z, twelve hours AFTER v0.2.8 was tagged (03:27Z), so by timing
-     it is unreleased. But v0.2.8's published notes already list "The AI Dock sometimes
-     doing nothing when opened from the command palette" under Fixed, and this file's own
-     post-release placeholder (2026-09-10) recorded the AI Dock palette fix as shipped.
-     Either it was included and needs no bullet, or it was missed and needs one. -->
-
-- Added Spotter: run routine agent work on a local model and move it to a stronger
-  one when the project's check fails twice. Off by default; enable with
-  `"paddleboard_spotter"` in settings and a check command per project. Escalation asks
-  first unless set to `"auto"`.
-- Added a keybinding and a View menu entry for the Agent Threads panel, which shows
-  multi-agent sessions as a tree (`cmd-k cmd-g` on macOS, `ctrl-k ctrl-g` on Linux and
-  Windows).
-- Improved the Agent Threads tree: each row now shows its agent's own icon and name, flags
-  a thread that is waiting for your confirmation, and marks threads that are running tools.
+- Fixed four security issues in the TLS library (rustls 0.23.46), including TLS session
+  secrets that could appear in debug output.
+- Fixed the macOS window buttons overlapping the tab bar's back and forward arrows on some
+  macOS versions, and the tab bar's bottom line stopping short under the window buttons.
+- Fixed the bundled fallback certificate store still trusting the emSign ECC Root CA - G3,
+  whose intermediate CAs had their private keys compromised. It is only used when the
+  system's certificate store cannot be loaded.
+- Fixed a crash when an extension receives a component-model stream with a different
+  payload type than it expects (wasmtime 48.0.7, GHSA-9pvw-hwfg-92h5).
+- Fixed Vim and Helix mode loading none of their key bindings, because one binding pointed
+  at an action that no longer exists.
+- Added Spotter to the first-launch tour. Existing users see a "tour has new sections" notice.
+- Fixed sandboxed commands, services, MCP servers and notebook kernels that kept running,
+  and kept their ports, after PaddleBoard crashed or was force-quit. PaddleBoard now
+  removes them the next time it starts.
+- Added a notice after a crash in the middle of a sandboxed command, naming the command and
+  its folder so you can check for half-written files. The command is never re-run.

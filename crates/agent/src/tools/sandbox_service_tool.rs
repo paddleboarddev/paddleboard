@@ -261,6 +261,12 @@ impl AgentTool for SandboxServiceTool {
                     async move {
                         let mut cmd = new_command("podman");
                         cmd.args(["run", "-d", "--rm", "--runtime=runsc"]);
+                        // A detached service outlives PaddleBoard by design, so
+                        // the owner labels are what lets the next launch stop
+                        // it and free its port if this process dies first.
+                        cmd.args(paddleboard_sandbox_recovery::podman_label_args(
+                            paddleboard_sandbox_recovery::ContainerKind::Service,
+                        ));
                         for env_arg in &env_args {
                             cmd.args(["-e", env_arg]);
                         }
@@ -414,7 +420,9 @@ fn stop_container(cx: &mut gpui::AsyncApp, container_id: &str) {
 /// optional credential. We also reject names with `=` in them so a malicious agent can't
 /// smuggle extra env vars through a single entry.
 fn resolve_forward_env(names: Option<&[String]>) -> Vec<String> {
-    let Some(names) = names else { return Vec::new() };
+    let Some(names) = names else {
+        return Vec::new();
+    };
     let mut args = Vec::with_capacity(names.len());
     for name in names {
         if name.is_empty() || name.contains('=') {

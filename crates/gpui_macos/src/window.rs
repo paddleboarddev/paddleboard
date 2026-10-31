@@ -774,6 +774,15 @@ impl MacWindowState {
         }
     }
 
+    // PaddleBoard: see `PlatformWindow::traffic_light_trailing_edge`. Converting
+    // to window coordinates makes this independent of how AppKit nests the
+    // buttons inside the titlebar container.
+    fn traffic_light_trailing_edge(&self) -> Option<Pixels> {
+        let zoom = self.native_window().standardWindowButton(Objc2NSWindowButton::ZoomButton)?;
+        let frame = zoom.convertRect_toView(zoom.bounds(), None);
+        Some(Pixels::from(frame.origin.x + frame.size.width))
+    }
+
     fn capture_traffic_light_frames(&self) -> Option<TrafficLightFrames> {
         let buttons = self.traffic_light_buttons()?;
         let titlebar_container = Self::titlebar_container(&buttons.close)?;
@@ -1626,6 +1635,10 @@ impl PlatformWindow for MacWindow {
         let mut state = self.0.lock();
         state.traffic_light_position = Some(position);
         state.move_traffic_light();
+    }
+
+    fn traffic_light_trailing_edge(&self) -> Option<Pixels> {
+        self.0.lock().traffic_light_trailing_edge()
     }
 
     fn scale_factor(&self) -> f32 {

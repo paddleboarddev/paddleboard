@@ -44,6 +44,7 @@ nbformat.workspace = true
 # probe + status from these crates.
 paddleboard_sandbox_prereqs.workspace = true
 paddleboard_sandbox_prereqs_state.workspace = true
+paddleboard_sandbox_recovery.workspace = true
 project.workspace = true
 remote.workspace = true
 runtimelib.workspace = true

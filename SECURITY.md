@@ -1,6 +1,6 @@
 # Security Policy
 
-PaddleBoard is an alpha-stage fork of [Zed](https://github.com/zed-industries/zed).
+PaddleBoard is a beta-stage fork of [Zed](https://github.com/zed-industries/zed).
 
 ## Reporting a vulnerability
 
@@ -8,7 +8,7 @@ Please report security vulnerabilities **privately** through GitHub's
 [private vulnerability reporting](https://github.com/paddleboarddev/paddleboard/security/advisories/new).
 **Do not open a public issue** for security problems.
 
-PaddleBoard is alpha software maintained by a small team, so responses are best-effort —
+PaddleBoard is beta software maintained by a small team, so responses are best-effort —
 we aim to acknowledge reports within a few days.
 
 ## Scope

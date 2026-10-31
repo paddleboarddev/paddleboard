@@ -9246,6 +9246,89 @@ mod tests {
         );
     }
 
+    // PaddleBoard: a tool call cut off by a crash is saved without a result.
+    // Restoring the thread must show it as failed and never run it again, nor
+    // start a new completion that could re-issue it.
+    struct RunCountingTool(Arc<std::sync::atomic::AtomicUsize>);
+
+    impl AgentTool for RunCountingTool {
+        type Input = ();
+        type Output = String;
+
+        const NAME: &'static str = "run_counting_tool";
+
+        fn kind() -> acp::ToolKind {
+            acp::ToolKind::Execute
+        }
+
+        fn initial_title(
+            &self,
+            _input: Result<Self::Input, serde_json::Value>,
+            _cx: &mut App,
+        ) -> SharedString {
+            "Run Counting Tool".into()
+        }
+
+        fn run(
+            self: Arc<Self>,
+            _input: ToolInput<Self::Input>,
+            _event_stream: ToolCallEventStream,
+            _cx: &mut App,
+        ) -> Task<Result<Self::Output, Self::Output>> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Task::ready(Ok(String::new()))
+        }
+    }
+
+    #[gpui::test]
+    async fn test_replay_never_reruns_an_interrupted_tool_call(cx: &mut TestAppContext) {
+        let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;
+        let runs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let tool_use_id = LanguageModelToolUseId::from("interrupted_tool_id");
+
+        let mut replay_events = cx.update(|cx| {
+            thread.update(cx, |thread, cx| {
+                thread.add_tool(RunCountingTool(runs.clone()));
+                thread.messages.push(Arc::new(Message::Agent(AgentMessage {
+                    content: vec![AgentMessageContent::ToolUse(LanguageModelToolUse {
+                        id: tool_use_id.clone(),
+                        name: RunCountingTool::NAME.into(),
+                        raw_input: "null".to_string(),
+                        input: language_model::LanguageModelToolUseInput::Json(json!(null)),
+                        is_input_complete: true,
+                        thought_signature: None,
+                    })],
+                    tool_results: IndexMap::default(),
+                    reasoning_details: None,
+                })));
+                thread.replay(cx)
+            })
+        });
+
+        let tool_call_id = scoped_tool_call_id(0, &tool_use_id).to_string();
+        let mut statuses = Vec::new();
+        while let Some(event) = replay_events.next().await {
+            match event.unwrap() {
+                ThreadEvent::ToolCall(tool_call)
+                    if tool_call.tool_call_id.to_string() == tool_call_id =>
+                {
+                    statuses.push(tool_call.status);
+                }
+                ThreadEvent::ToolCallUpdate(acp_thread::ToolCallUpdate::UpdateFields(update))
+                    if update.tool_call_id.to_string() == tool_call_id =>
+                {
+                    statuses.extend(update.fields.status);
+                }
+                _ => {}
+            }
+        }
+        cx.run_until_parked();
+
+        assert_eq!(statuses.last(), Some(&acp::ToolCallStatus::Failed));
+        assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(fake.pending_completions().is_empty());
+    }
+
     #[gpui::test]
     async fn test_refresh_model_picks_up_provider_capability_changes(cx: &mut TestAppContext) {
         let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;

@@ -4,7 +4,7 @@ mod system_window_tabs;
 use gpui::{
     Action, AnyElement, App, Context, Decorations, Entity, Hsla, InteractiveElement, IntoElement,
     MouseButton, ParentElement, StatefulInteractiveElement, Styled, WeakEntity, Window,
-    WindowButtonLayout, WindowControlArea, div, px,
+    WindowButtonLayout, WindowControlArea, div,
 };
 use project::DisableAiSettings;
 use settings::Settings;
@@ -12,7 +12,7 @@ use smallvec::SmallVec;
 use std::mem;
 use ui::{
     prelude::*,
-    utils::{TRAFFIC_LIGHT_PADDING, platform_title_bar_height},
+    utils::{platform_title_bar_height, traffic_light_padding},
 };
 use workspace::{MultiWorkspace, SidebarRenderState, SidebarSide};
 
@@ -271,7 +271,8 @@ impl Render for PlatformTitleBar {
                 if window.is_fullscreen() || window.is_simple_fullscreen() {
                     this.pl_2()
                 } else if self.platform_style == PlatformStyle::Mac && show_left_controls {
-                    this.pl(px(TRAFFIC_LIGHT_PADDING))
+                    // PaddleBoard: measured, not the build-time constant.
+                    this.pl(traffic_light_padding(window))
                 } else if let Some(controls) = show_left_controls
                     .then(|| {
                         render_left_window_controls(
