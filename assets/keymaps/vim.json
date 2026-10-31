@@ -214,8 +214,10 @@
       "[ space": "vim::InsertEmptyLineAbove",
       "[ e": "editor::MoveLineUp",
       "] e": "editor::MoveLineDown",
-      "[ f": "workspace::FollowNextCollaborator",
-      "] f": "workspace::FollowNextCollaborator",
+      // PaddleBoard: `[ f` / `] f` (workspace::FollowNextCollaborator) are dropped with
+      // the collab crates. One unknown action fails this whole file, which left Vim mode
+      // with no Vim bindings at all. Upstream merges re-add them; test_all_bundled_keymaps_load
+      // catches that now.
       "] }": ["vim::UnmatchedForward", { "char": "}" }],
       "[ {": ["vim::UnmatchedBackward", { "char": "{" }],
       "] )": ["vim::UnmatchedForward", { "char": ")" }],

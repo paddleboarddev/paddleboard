@@ -5927,6 +5927,9 @@ mod tests {
     // dangling `collab_panel::` and `channel_modal::` bindings in the Linux and
     // Windows keymaps, and since `load_asset` fails wholesale on a single
     // unknown action, both platforms silently lost their ENTIRE default keymap.
+    // The Vim keymap and the base keymaps load the same way, and `vim.json` shipped
+    // v0.3.0 with a dangling `workspace::FollowNextCollaborator`, so they are
+    // checked here too, for both platforms' base-keymap sets.
     #[gpui::test]
     async fn test_all_bundled_keymaps_load(cx: &mut gpui::TestAppContext) {
         init_keymap_test(cx);
@@ -5935,6 +5938,20 @@ mod tests {
                 "keymaps/default-macos.json",
                 "keymaps/default-linux.json",
                 "keymaps/default-windows.json",
+                "keymaps/vim.json",
+                "keymaps/macos/atom.json",
+                "keymaps/macos/cursor.json",
+                "keymaps/macos/emacs.json",
+                "keymaps/macos/jetbrains.json",
+                "keymaps/macos/sublime_text.json",
+                "keymaps/macos/textmate.json",
+                "keymaps/macos/vscode.json",
+                "keymaps/linux/atom.json",
+                "keymaps/linux/cursor.json",
+                "keymaps/linux/emacs.json",
+                "keymaps/linux/jetbrains.json",
+                "keymaps/linux/sublime_text.json",
+                "keymaps/linux/vscode.json",
             ] {
                 if let Err(error) = KeymapFile::load_asset(path, None, cx) {
                     panic!("bundled keymap {path} failed to load: {error}");
