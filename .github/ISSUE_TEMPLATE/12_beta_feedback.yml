@@ -74,6 +74,6 @@ body:
     attributes:
       label: PaddleBoard version
       description: Command palette → **`copy system specs into clipboard`**, or just the release tag.
-      placeholder: v0.3.0
+      placeholder: v0.3.1
     validations:
       required: false
