@@ -21,4 +21,6 @@ Then reset this file back to an empty `## Next` section.
   system's certificate store cannot be loaded.
 - Fixed a crash when an extension receives a component-model stream with a different
   payload type than it expects (wasmtime 48.0.7, GHSA-9pvw-hwfg-92h5).
+- Fixed Vim and Helix mode loading none of their key bindings, because one binding pointed
+  at an action that no longer exists.
 - Added Spotter to the first-launch tour. Existing users see a "tour has new sections" notice.
