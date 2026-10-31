@@ -236,20 +236,26 @@ impl ImageStore {
     }
 
     /// Best-effort removal of per-run directories that outlived their run
-    /// (crashed helper, killed terminal). Anything under `tmp/` older than a
-    /// day is fair game — live runs are minutes, not days.
+    /// (crashed helper, killed terminal). A directory whose owning PaddleBoard
+    /// process has exited is removed at once; anything else under `tmp/`
+    /// older than a day is fair game — live runs are minutes, not days.
     pub fn remove_stale_ephemerals(&self) {
         let Ok(entries) = fs::read_dir(self.tmp_dir()) else {
             return;
         };
         let now = SystemTime::now();
         for entry in entries.flatten() {
-            let stale = entry
-                .metadata()
-                .and_then(|metadata| metadata.modified())
-                .ok()
-                .and_then(|modified| now.duration_since(modified).ok())
-                .is_some_and(|age| age > EPHEMERAL_MAX_AGE);
+            let orphaned = entry
+                .file_name()
+                .to_str()
+                .is_some_and(paddleboard_sandbox_recovery::run_dir_is_orphaned);
+            let stale = orphaned
+                || entry
+                    .metadata()
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
+                    .and_then(|modified| now.duration_since(modified).ok())
+                    .is_some_and(|age| age > EPHEMERAL_MAX_AGE);
             if stale {
                 if let Err(err) = fs::remove_dir_all(entry.path()) {
                     log::warn!("failed to remove stale sandbox dir {:?}: {err}", entry.path());

@@ -169,6 +169,9 @@ fn build_podman_argv(binary: &ModelContextServerBinary, sandbox: &SandboxConfig)
         "--security-opt".into(),
         "label=disable".into(),
     ];
+    args.extend(paddleboard_sandbox_recovery::podman_label_args(
+        paddleboard_sandbox_recovery::ContainerKind::McpServer,
+    ));
 
     if let Some(env) = &binary.env {
         // Iterate in a stable order so tests and `podman inspect` output are predictable.
@@ -244,6 +247,7 @@ mod tests {
         let binary = make_binary("mcp-server", &["--port", "stdio"]);
         let sandbox = make_sandbox("python:3.12-slim");
         let argv = build_podman_argv(&binary, &sandbox);
+        let owner = format!("paddleboard.owner={}", std::process::id());
         assert_eq!(
             argv,
             vec![
@@ -253,6 +257,12 @@ mod tests {
                 "--runtime=runsc",
                 "--security-opt",
                 "label=disable",
+                "--label",
+                "paddleboard.managed=true",
+                "--label",
+                owner.as_str(),
+                "--label",
+                "paddleboard.kind=mcp",
                 "python:3.12-slim",
                 "mcp-server",
                 "--port",

@@ -119,8 +119,18 @@ fn podman_exec_command(request: &ExecRequest) -> String {
     let container_wd = shell_single_quote(CONTAINER_WORKDIR);
     let image = shell_single_quote(&request.image);
     let user_command = shell_single_quote(&request.command);
+    // The owner labels let the next launch remove this container if the
+    // terminal running `podman run` dies with PaddleBoard: the container
+    // itself outlives its attached client.
+    let labels = paddleboard_sandbox_recovery::podman_label_args(
+        paddleboard_sandbox_recovery::ContainerKind::OneShot,
+    )
+    .iter()
+    .map(|arg| shell_single_quote(arg))
+    .collect::<Vec<_>>()
+    .join(" ");
     format!(
-        "podman run --rm --runtime=runsc -v {host_wd}:{container_wd} -w {container_wd} {image} bash -c {user_command}",
+        "podman run --rm --runtime=runsc {labels} -v {host_wd}:{container_wd} -w {container_wd} {image} bash -c {user_command}",
     )
 }
 
@@ -342,12 +352,18 @@ mod tests {
     #[test]
     fn podman_command_matches_the_historical_invocation() {
         // This string is load-bearing: it must stay identical to what
-        // sandbox_tool issued before the engine abstraction existed.
+        // sandbox_tool issued before the engine abstraction existed, plus the
+        // owner labels crash recovery relies on.
         let command = podman_exec_command(&request());
         assert_eq!(
             command,
-            "podman run --rm --runtime=runsc -v '/Users/jay/my project':'/workspace' \
-             -w '/workspace' 'ubuntu:latest' bash -c 'echo \"it'\\''s alive\" && uname -a'"
+            format!(
+                "podman run --rm --runtime=runsc '--label' 'paddleboard.managed=true' \
+                 '--label' 'paddleboard.owner={}' '--label' 'paddleboard.kind=oneshot' \
+                 -v '/Users/jay/my project':'/workspace' \
+                 -w '/workspace' 'ubuntu:latest' bash -c 'echo \"it'\\''s alive\" && uname -a'",
+                std::process::id()
+            )
         );
     }
 

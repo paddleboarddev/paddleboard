@@ -292,6 +292,12 @@ impl PodmanRunningKernel {
             let mut cmd = util::command::new_command("podman");
             cmd.arg("run").arg("--rm");
             cmd.arg("--name").arg(&container_name);
+            // PaddleBoard: owner labels let the next launch remove this
+            // kernel's container, and free its published ports, if PaddleBoard
+            // dies without stopping it.
+            cmd.args(paddleboard_sandbox_recovery::podman_label_args(
+                paddleboard_sandbox_recovery::ContainerKind::Kernel,
+            ));
 
             for &port in &ports {
                 cmd.arg("-p").arg(format!("{port}:{port}"));

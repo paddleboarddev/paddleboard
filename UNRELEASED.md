@@ -24,3 +24,8 @@ Then reset this file back to an empty `## Next` section.
 - Fixed Vim and Helix mode loading none of their key bindings, because one binding pointed
   at an action that no longer exists.
 - Added Spotter to the first-launch tour. Existing users see a "tour has new sections" notice.
+- Fixed sandboxed commands, services, MCP servers and notebook kernels that kept running,
+  and kept their ports, after PaddleBoard crashed or was force-quit. PaddleBoard now
+  removes them the next time it starts.
+- Added a notice after a crash in the middle of a sandboxed command, naming the command and
+  its folder so you can check for half-written files. The command is never re-run.
