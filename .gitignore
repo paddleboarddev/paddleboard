@@ -71,3 +71,10 @@ aidock-*.png
 
 .local*
 .cache
+
+# PaddleBoard: personal files. Anything in `.private/` stays on your machine, and
+# the project ships no Claude config, so `.claude/` is yours too. See
+# CONTRIBUTING.md, "Keeping your own files". The Fork guards workflow fails a PR
+# that adds either with `git add -f`.
+/.private/
+/.claude/

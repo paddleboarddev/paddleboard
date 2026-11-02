@@ -2,9 +2,7 @@
 #
 # PaddleBoard: rewritten from Zed's version, which routed reporters to
 # zed-industries' discussions and Discord. This whole directory is PB-owned —
-# resolve upstream merge conflicts in favor of ours. It also has to be listed in
-# PUBLIC_GITHUB_FILES in script/publish-public.sh, or it never reaches the public
-# repo where users actually file issues.
+# resolve upstream merge conflicts in favor of ours.
 blank_issues_enabled: false
 contact_links:
   - name: Question or discussion

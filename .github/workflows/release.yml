@@ -1,13 +1,18 @@
 name: Release
 
 # PaddleBoard: on a version tag, builds release artifacts and attaches them to the
-# Release publish-public.sh created — a signed + notarized macOS (Apple Silicon) DMG,
+# tag's GitHub Release — a signed + notarized macOS (Apple Silicon) DMG,
 # a Linux x86_64 tarball, and (since v0.3.0, 2026-10-05) an UNSIGNED Windows x86_64
 # preview zip. The three jobs are INDEPENDENT: a failure in one never blocks the
-# others. macOS signing is driven by repo secrets (below); if they're absent the
-# bundle falls back to an ad-hoc signature. Linux and Windows need no secrets.
+# others. macOS signing is driven by secrets in the `release` environment (below);
+# if they're absent the bundle falls back to an ad-hoc signature. Linux and Windows
+# need no secrets.
 #
-# Required repo secrets for a signed + notarized build:
+# The macOS job runs in the `release` environment, which only `v*` tags may use and
+# which waits for a maintainer's approval. That keeps the signing keys out of reach
+# of every other workflow, including ones a fork PR could change.
+#
+# Required `release` environment secrets for a signed + notarized build:
 #   MACOS_SIGNING_IDENTITY        - e.g. "Developer ID Application: Your Name (TEAMID)"
 #   MACOS_CERTIFICATE             - base64 of the exported Developer ID .p12
 #   MACOS_CERTIFICATE_PASSWORD    - password for that .p12
@@ -16,9 +21,9 @@ name: Release
 #   APPLE_NOTARIZATION_ISSUER_ID  - the API key's Issuer ID
 #
 # The git tag must match the paddleboard crate version, i.e. `v<version>`
-# (currently v0.1.14). publish-public.sh owns the Release shell (notes, tag, site
-# bump) and creates it as a prerelease; this workflow builds the signed DMG and
-# ATTACHES it to that Release, then a human promotes it after review with:
+# (see RELEASING.md). Each job creates the Release as a prerelease if it doesn't
+# exist yet and ATTACHES its artifact; a maintainer writes the notes and promotes
+# it after review with:
 #
 #   gh release edit vX.Y.Z --prerelease=false --latest
 #
@@ -62,6 +67,7 @@ jobs:
     # webrtc-sys C++20 bridge plus a 110-190 min notarized build, so it is a
     # post-beta change. The compile-check gate already runs on macos-26.
     runs-on: macos-15
+    environment: release
     # RELEASING.md observes 110-190 min for this build, so 240 is headroom rather
     # than a target. It exists because the DEFAULT is 360: a job wedged on a
     # notarization that never returns would bill 3,600 minutes at the macOS 10x
@@ -105,10 +111,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # publish-public.sh creates the Release (as a prerelease, with notes)
-          # right after pushing this tag, so normally it already exists by the time
-          # this ~25-min build finishes. Create-if-missing guards the unlikely race
-          # where CI beats the publish script; --clobber makes re-runs idempotent.
+          # Whichever job finishes first creates the Release as a prerelease; the
+          # others find it and attach. --clobber makes re-runs idempotent.
           dmg="target/aarch64-apple-darwin/release/PaddleBoard-aarch64.dmg"
           if ! gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create "${GITHUB_REF_NAME}" \
@@ -130,9 +134,8 @@ jobs:
     # 488c2f30ae. That commit moved this to `blacksmith-8vcpu-ubuntu-2204` because
     # "the stock GitHub ubuntu runner OOM-killed the release link phase twice
     # (7GB RAM)" — which was true, and was measured in the PRIVATE dev repo, where
-    # standard runners are 2 vCPU / 8 GB. This workflow does not actually run
-    # there: `publish-public.sh` ships it to `paddleboarddev/paddleboard`, and
-    # every real release (v0.2.1 onward) has run in that PUBLIC repo, where
+    # standard runners are 2 vCPU / 8 GB. Every real release (v0.2.1 onward) has
+    # run in the PUBLIC repo, `paddleboarddev/paddleboard`, where
     # standard runners are **4 vCPU / 16 GB and free and unlimited**. So the fix
     # was applied against the wrong tier's limits: Blacksmith is billed, while the
     # runner that replaced it has more than double the RAM that OOM'd, for free.

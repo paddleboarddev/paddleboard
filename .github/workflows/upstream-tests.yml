@@ -4,7 +4,7 @@ name: Upstream crate tests (weekly)
 # crate with a `// PaddleBoard:` tag, selected by script/upstream-test-packages).
 # test.yml deliberately runs only paddleboard_* crates on PRs, so drift in
 # upstream crates went unseen: on 2026-10-13 ~40 such tests were failing on main,
-# and three of them hid real regressions (#325). See RECAPS.md 2026-10-13.
+# and three of them hid real regressions.
 #
 # Weekly and NON-BLOCKING by design, costed on 2026-10-13: running this set on
 # every PR would add ~45-55 min per run (~$18/month, over the $50 Actions budget)
@@ -150,7 +150,7 @@ jobs:
               echo '```'
             fi
             echo
-            echo "To compare against upstream, run the same tests at the upstream parent of the latest weekly merge (see RECAPS.md 2026-10-13)."
+            echo "To compare against upstream, run the same tests at the upstream parent of the latest weekly merge."
           } > report.md
 
           existing=$(gh issue list --state open --limit 100 --json number,title \

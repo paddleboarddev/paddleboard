@@ -1,4 +1,2 @@
 # Maintainers of PaddleBoard. GOVERNANCE.md describes how people are added.
-# This file lives at the repository root so the public snapshot carries it;
-# `.github/` files reach the public repo only through the publish allowlist.
 * @jasonsmithio

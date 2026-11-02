@@ -1,5 +1,5 @@
 // PaddleBoard: dead-code allows until the per-agent history feature is rewired
-// (see cluster #7 followup in RECAPS.md).
+// (the per-agent history followup).
 #![allow(dead_code)]
 
 use crate::thread_history::ThreadHistory;
@@ -749,8 +749,7 @@ impl RenderOnce for HistoryEntryElement {
                 move |_event, _window, _cx| {
                     let _ = (&conversation_view, &entry);
                     log::warn!(
-                        "Opening a thread from per-agent history is currently disabled — see \
-                         cluster #7 in RECAPS.md."
+                        "Opening a thread from per-agent history is currently disabled."
                     );
                 }
             })

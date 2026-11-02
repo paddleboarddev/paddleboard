@@ -847,7 +847,7 @@ impl ConversationView {
     ) {
         // History-entry deletion via AgentConnectionEntry::history() is currently
         // disabled (returns None) — left as a stub for the per-agent history
-        // followup. See cluster #7 in RECAPS.md.
+        // followup.
     }
 
     pub fn navigate_to_session(
@@ -858,7 +858,6 @@ impl ConversationView {
     ) {
         // Per-session navigation through orchestration panel is currently
         // unsupported — left as a stub for the per-agent history followup.
-        // See cluster #7 in RECAPS.md.
     }
 
     pub fn has_auth_methods(&self) -> bool {

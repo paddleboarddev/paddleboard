@@ -1,12 +1,8 @@
-# Releasing PaddleBoard (internal)
+# Releasing PaddleBoard
 
-Internal process doc. Excluded from the public snapshot via `script/publish-public.sh`.
-
-PaddleBoard develops in the **private** repo (`jasonsmithio/paddleboard`, remote `origin`)
-and publishes clean squashed snapshots to the **public** repo
-(`paddleboarddev/paddleboard`, remote `public`). The public repo shares no history with
-private — every release is authored fresh by `script/publish-public.sh`, so internal
-files and history never leak.
+PaddleBoard is developed in [`paddleboarddev/paddleboard`](https://github.com/paddleboarddev/paddleboard).
+Every change lands on its `main` through a PR, and a release is a version tag on that
+`main`. The tag starts `release.yml`, which builds, signs and attaches the downloads.
 
 ## Versioning
 
@@ -41,8 +37,8 @@ treat versions as monotonic. Never number downward.
 happens at cut time carrying everything accumulated since the last one.**
 
 The distinction matters because the two costs are wildly different. A version number is
-free. A release costs a ~2-hour signed-and-notarized pipeline, a manual publish (the
-classifier blocks agents from running `publish-public.sh`), and a promotion step. Cutting
+free. A release costs a ~2-hour signed-and-notarized pipeline, a maintainer's approval
+of the signing job, and a promotion step. Cutting
 one release per fix spends that repeatedly for no user-visible benefit — on 2026-08-03
 v0.2.4 and v0.2.5 each carried a single fix, and the following day produced four more
 fixes that would have been four more releases at that rate.
@@ -65,7 +61,7 @@ case. "Finished" and "released" are deliberately decoupled.
 
 ## Cutting a release
 
-1. Land the changes on private `main` (merge upstream and/or your own work).
+1. Land the changes on `main` (merge upstream and/or your own work).
 2. Run the visual regression suite — `script/visual-test` (macOS only, ~45s). This is
    **not** in CI and nothing else will run it for you: a macOS GitHub runner bills at
    the 10x multiplier for a job that links the whole app, which costs more per run than
@@ -89,54 +85,36 @@ case. "Finished" and "released" are deliberately decoupled.
    against `target/visual_tests/<t>.png`. An exact 2:1 ratio across unrelated tests is a
    display mismatch, never a code regression; a real regression does not resize
    `breakpoint_hover_none` and `git_login_modal` by the same factor at once.
-3. Bump `crates/paddleboard/Cargo.toml` `version` to the next number; commit on `main`.
-4. Publish the source snapshot to the public repo (note: **no** `FIRST_PUBLISH` — this
-   *appends* a new commit onto the public history rather than replacing it):
+3. Bump `crates/paddleboard/Cargo.toml` `version` to the next number, through a PR like
+   any other change, and merge it.
+4. Tag that commit on `main` and push the tag. Run this from an up-to-date `main`; the tag
+   marks whatever commit you're on, not `main` itself:
 
    ```bash
-   bash script/publish-public.sh v0.X.0 "Short release notes"
+   git switch main && git pull
+   git tag v0.X.Y
+   git push upstream v0.X.Y
    ```
 
-   This builds a clean full-tree snapshot as a child of the current `public/main`, stamps
-   it with the noreply identity, force-free-pushes it, pushes the `v0.X.0` tag, **and
-   creates/updates the GitHub Release** for that tag in one go. The public repo grows a
-   linear release history (`v0.3.0 → v0.4.0 → …`).
+   (`upstream` is `paddleboarddev/paddleboard`; use whatever your remote for it is called.)
+5. **Approve the signing job.** The tag starts `release.yml`. Its Linux and Windows jobs
+   run straight away; the macOS job runs in the `release` environment and waits for a
+   maintainer to approve it on the run's page (*Review deployments*). Only `v*` tags can
+   use that environment, and only it holds the signing secrets.
+6. Whichever job finishes first creates the GitHub Release as a prerelease, with
+   generated notes, and each job attaches its download. Replace the notes with the real
+   ones, built from `UNRELEASED.md`:
 
-   Release notes default to your message + an auto Full-Changelog compare link to the
-   previous tag. For richer notes: `RELEASE_NOTES_FILE=notes.md bash script/publish-public.sh …`
-   — build them from `UNRELEASED.md`. To push source + tag only (no Release):
-   `SKIP_RELEASE=1 …`.
-
-   ⚠️ **`SKIP_RELEASE=1` does not skip the release *build*.** It skips only the GitHub
-   Release metadata. The script still force-pushes the tag, and the tag is what triggers
-   `release.yml` — so a "source-only" publish costs a full signed-and-notarized run
-   (~2.5-3 h) and **replaces the artifacts already attached to that Release**. On
-   2026-09-10 a source-only publish to correct the public README rebuilt and replaced
-   v0.2.8's DMG. That happened to be an improvement, because the rebuild picked up four
-   PRs that had landed since the original cut — but the general case is that the binary
-   users download changes underneath a published Release without anyone asking for it.
-   If you only want to correct source and keep the artifacts, re-point the tag by hand
-   rather than through this script.
-5. The tag triggers `release.yml`, which builds, signs, notarizes and attaches the DMG and
-   Linux tarball to that same Release (see [The binary](#the-binary)).
-6. **Promote it.** Releases are created as prereleases; until promoted, the updater skips
+   ```bash
+   gh release edit v0.X.Y --repo paddleboarddev/paddleboard --notes-file notes.md
+   ```
+7. **Promote it.** Releases are created as prereleases; until promoted, the updater skips
    them and users are offered nothing. Verify afterwards that `isPrerelease` is `false`.
-7. Reset `UNRELEASED.md` to an empty `## Next` section for the following cycle.
+8. Reset `UNRELEASED.md` to an empty `## Next` section for the following cycle.
 
-**Run the publish from `main`, with a clean checkout.** `publish-public.sh` snapshots
-`git archive HEAD` — whatever branch is checked out, not `origin/main`. On both v0.2.4 and
-v0.2.5 it ran while the working copy still sat on the release branch, and the public repo
-briefly carried a version `main` had not recorded. Merge the bump first, then publish.
-
-## First publish / resetting public history
-
-`FIRST_PUBLISH=1` makes the publish a single orphan root commit and **force-replaces** all
-public history. Use it only to (re)initialise the public repo or to renumber the version
-line before there's an installed base. It prompts for `replace public history` to confirm.
-
-```bash
-FIRST_PUBLISH=1 bash script/publish-public.sh v0.3.0 "PaddleBoard v0.3.0"
-```
+**A tag is a release.** Pushing a `v*` tag, or moving one, starts a full signed build
+(~2.5-3 h) and `--clobber` replaces any downloads already attached to that Release. To
+correct something after a release, ship the next patch version rather than re-tagging.
 
 ## The binary
 
@@ -155,12 +133,4 @@ Two things the updater cares about, both worth checking after a cut:
   finds a release it cannot install and skips it.
 
 Expect the build to take roughly 110–190 minutes; the long runs track CI contention, not
-trouble. Failures arrive fast, so a *long* run is the healthy signal. See
-`~/.claude/plans/auto-update-phase-2-github-releases.md` for how in-app auto-update
-consumes these releases.
-
-## Identity / privacy
-
-`publish-public.sh` stamps public commits with `PUBLIC_AUTHOR_NAME` /
-`PUBLIC_AUTHOR_EMAIL` (default: name + GitHub noreply address) so the personal email never
-lands on a public commit while attribution is preserved. Override via those env vars.
+trouble. Failures arrive fast, so a *long* run is the healthy signal.

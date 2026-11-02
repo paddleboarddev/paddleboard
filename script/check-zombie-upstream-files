@@ -48,6 +48,8 @@ DELETED_DIRS=(
     "crates/collab_ui"
     "crates/livekit_api"
     "crates/livekit_client"
+    ".factory"
+    ".github/DISCUSSION_TEMPLATE"
 )
 
 DO_FIX=0

@@ -18,8 +18,7 @@ use std::sync::Arc;
 
 use crate::ReleaseAsset;
 
-/// The repository whose Releases are the update source. This is the *public*
-/// repo — the private dev repo has no published binaries.
+/// The repository whose Releases are the update source.
 pub const RELEASES_REPO: &str = "paddleboarddev/paddleboard";
 
 const GITHUB_API_URL: &str = "https://api.github.com";

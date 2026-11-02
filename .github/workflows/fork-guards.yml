@@ -1,0 +1,47 @@
+name: Fork guards
+
+# Cheap checks (seconds, no compile) for mistakes that build fine and only show
+# up later: "Zed" strings reaching the UI after an upstream merge, the two
+# llama.cpp pin copies drifting apart, upstream files resurrected inside
+# directories this fork deleted, and personal files committed by accident.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cheap, so it keeps both triggers. This just stops superseded runs on a
+# re-pushed branch.
+concurrency:
+  group: fork-guards-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check for fork-rename breakage (zed-isms)
+        run: bash script/check-zed-isms
+      - name: Check llama.cpp pins are in sync
+        run: bash script/check-llama-pins
+      - name: Check for zombie files in deleted upstream dirs
+        # Covers hand-resolved merges that skip the weekly merge workflow.
+        run: bash script/check-zombie-upstream-files
+      - name: Check no personal files are committed
+        # `.private/` and `.claude/` are gitignored (see CONTRIBUTING.md,
+        # "Keeping your own files"); this catches the one way past that, `git add -f`.
+        run: |
+          tracked="$(git ls-files -- .private .claude)"
+          if [ -n "$tracked" ]; then
+            echo "These are personal files and must not be committed:" >&2
+            echo "$tracked" >&2
+            exit 1
+          fi

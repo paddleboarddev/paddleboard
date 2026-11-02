@@ -7,7 +7,7 @@ PaddleBoard is a small, beta-stage fork of [Zed](https://github.com/zed-industri
 A few conventions encode most of how the project works:
 
 - **Code style.** Prioritize correctness and clarity. Avoid panics (`unwrap()`, out-of-bounds indexing) — propagate errors with `?`, and never silently discard them with `let _ =`. Use full words for names, and don't add comments that just restate the code.
-- **Fork hygiene.** Net-new features go in their own `paddleboard_*` crate so upstream can't conflict on a file it doesn't have. When you must edit a shared/upstream-shaped file, keep the diff minimal and tag the change with a `// PaddleBoard: <reason>` comment so future weekly merges stay mechanical. Watch for silent drift in `assets/` (settings, keymaps, icons).
+- **Fork hygiene.** Net-new features go in their own `paddleboard_*` crate so upstream can't conflict on a file it doesn't have. When you must edit a shared/upstream-shaped file, keep the diff minimal and tag the change with a `// PaddleBoard: <reason>` comment so future weekly merges stay mechanical. Watch for silent drift in `assets/` (settings, keymaps, icons). The full playbook is [`FORK_HYGIENE.md`](./FORK_HYGIENE.md).
 - [`WELCOME.md`](./WELCOME.md) — what features PaddleBoard adds on top of Zed, and which subsystems are fork-specific vs. inherited from upstream.
 
 ## What's likely to land
@@ -26,10 +26,11 @@ A few conventions encode most of how the project works:
 
 ## Sending a PR
 
-- Branch off `main`, push to a topic branch, open a PR. Title is a clear imperative sentence — no `feat:` / `fix:` prefixes, no trailing punctuation.
+- Fork [`paddleboarddev/paddleboard`](https://github.com/paddleboarddev/paddleboard), branch off `main` in your fork, and open a PR against `paddleboarddev/paddleboard`'s `main`. Maintainers work the same way, from their own forks. Title is a clear imperative sentence — no `feat:` / `fix:` prefixes, no trailing punctuation.
 - Include a `Release Notes:` section at the bottom of the PR body. Either one bullet (`- Added …` / `- Fixed …` / `- Improved …`) for user-facing changes, or `- N/A` for everything else.
 - For UI changes, attach a screenshot or short screen recording.
 - Sign off every commit (see below).
+- Workflows on PRs from first-time and outside contributors wait for a maintainer to approve them before they run, so the checks may sit at "waiting" for a while.
 
 ## Sign off your commits
 
@@ -48,3 +49,11 @@ Use your real name or a name you're known by. To sign off commits you've already
 The bulk of the codebase — editor, LSP, debugger, GPUI, terminal, vim mode, language tooling, extensions — is inherited from Zed and merged in weekly. For anything in that surface area, [Zed's documentation](https://zed.dev/docs) and the [upstream `CONTRIBUTING.md`](https://github.com/zed-industries/zed/blob/main/CONTRIBUTING.md) are the canonical references. PaddleBoard inherits Zed's UI/UX standards by default; the upstream UI/UX checklist applies here too.
 
 When you edit a shared file, keep the diff minimal and tag the change with a `// PaddleBoard:` comment so future merge resolution stays mechanical.
+
+## Keeping your own files
+
+Notes, to-do lists and agent instructions you keep next to the code belong in `.private/` at the root of your clone. The repo ignores that folder, so nothing in it can be committed by accident, and the Fork guards check fails a PR that forces one in with `git add -f`. `.claude/` is ignored the same way: the project ships no Claude config, so yours stays yours.
+
+- **To keep a history of them,** run `git init` inside `.private/` and add a private remote if you want a backup. It's a separate repository, so pushing it never touches PaddleBoard.
+- **For a file that has to live somewhere else in the tree,** add its path to `.git/info/exclude`, git's per-clone ignore list. It's never committed or shared.
+- **For ignores you want in every repository** (editor files, OS clutter), use your global gitignore (`git config --global core.excludesFile ~/.gitignore_global`) rather than this project's `.gitignore`.

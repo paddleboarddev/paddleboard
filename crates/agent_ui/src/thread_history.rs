@@ -1,5 +1,5 @@
 // PaddleBoard: dead-code allows until the per-agent history feature is rewired
-// (see cluster #7 followup in RECAPS.md).
+// (the per-agent history followup).
 #![allow(dead_code)]
 
 use acp_thread::{AgentSessionInfo, AgentSessionList, AgentSessionListRequest, SessionListUpdate};
