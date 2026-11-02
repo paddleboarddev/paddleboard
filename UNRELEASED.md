@@ -11,3 +11,5 @@ RELEASE_NOTES_FILE=<clean-notes.md> bash script/publish-public.sh v0.X.Y "…"
 Then reset this file back to an empty `## Next` section.
 
 ## Next
+
+- Changed: PaddleBoard now needs macOS 12 Monterey or later (was 10.15), following Zed.
