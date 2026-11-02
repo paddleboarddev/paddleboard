@@ -7266,7 +7266,7 @@ exec cat >/dev/null
                         }
                         _ => None,
                     })
-                    .expect("Zed's initialize request is logged");
+                    .expect("PaddleBoard's initialize request is logged");
                 assert_eq!(
                     initialize.pointer("/clientCapabilities/subagents"),
                     enabled.then(|| serde_json::json!({})).as_ref(),
@@ -10321,7 +10321,7 @@ fn handle_session_notification(
     ) && !ctx.accepts_subagent_updates
     {
         log::warn!(
-            "Ignoring a subagents update for {session_id:?}: Zed did not advertise the subagents capability"
+            "Ignoring a subagents update for {session_id:?}: PaddleBoard did not advertise the subagents capability"
         );
         return;
     }
