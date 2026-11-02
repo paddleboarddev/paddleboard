@@ -8,13 +8,8 @@
 //! alongside the storage so the sidebar's preview rendering can't drift from
 //! the format we persist.
 
-<<<<<<< HEAD
 use agent::PADDLEBOARD_AGENT_ID;
-use agent_client_protocol::schema::v1 as acp;
-=======
-use agent::ZED_AGENT_ID;
 use agent_client_protocol::v2::schema as acp_v2;
->>>>>>> zed/main
 use anyhow::Context as _;
 use db::kvp::KeyValueStore;
 use gpui::{App, AppContext as _, Entity, Task};

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use agent_client_protocol::schema::v1 as acp;
+use agent_client_protocol::v2::schema as acp;
 use anyhow::Result;
 use gpui::{App, Entity, SharedString, Task};
 use gpui_tokio::Tokio;
@@ -269,7 +269,11 @@ impl AgentTool for SpawnScionAgentTool {
                         Some(name),
                         format!(
                             "No persona named '{requested}'. Available: {}",
-                            if available.is_empty() { "(none)" } else { &available }
+                            if available.is_empty() {
+                                "(none)"
+                            } else {
+                                &available
+                            }
                         ),
                     ));
                 };
@@ -317,10 +321,9 @@ impl AgentTool for SpawnScionAgentTool {
                 ));
             }
 
-            event_stream.update_fields(
-                acp::ToolCallUpdateFields::new()
-                    .content(vec![format!("Started Scion agent '{name}'.").into()]),
-            );
+            event_stream.update_fields(|update| {
+                update.content(vec![format!("Started Scion agent '{name}'.").into()])
+            });
 
             let mut last_phase = AgentPhase::Created;
             let mut completed = false;
@@ -421,9 +424,7 @@ impl AgentTool for SpawnScionAgentTool {
 
             let output = format!("{summary}\n\nRecent logs:\n{logs}");
 
-            event_stream.update_fields(
-                acp::ToolCallUpdateFields::new().content(vec![output.clone().into()]),
-            );
+            event_stream.update_fields(|update| update.content(vec![output.clone().into()]));
 
             Ok(SpawnScionAgentToolOutput::Success {
                 name,

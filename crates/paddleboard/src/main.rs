@@ -1511,10 +1511,6 @@ pub(crate) async fn restore_or_create_workspace(
         let mut tasks = Vec::new();
 
         for multi_workspace in multi_workspaces {
-<<<<<<< HEAD:crates/paddleboard/src/main.rs
-            if let Err(error) = restore_multiworkspace(multi_workspace, app_state.clone(), cx).await
-            {
-=======
             let result = match &multi_workspace.active_workspace.location {
                 SerializedWorkspaceLocation::Local => {
                     restore_multiworkspace(multi_workspace, app_state.clone(), cx)
@@ -1566,7 +1562,6 @@ pub(crate) async fn restore_or_create_workspace(
             };
 
             if let Err(error) = result {
->>>>>>> zed/main:crates/zed/src/main.rs
                 log::error!("Failed to restore workspace: {error:#}");
                 results.push(Err(error));
             }

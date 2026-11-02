@@ -34,17 +34,7 @@ impl EditPredictionOnboarding {
 // surface Copilot configuration through the regular settings UI
 // instead. Constructor stays so call sites compile.
 impl Render for EditPredictionOnboarding {
-<<<<<<< HEAD
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div()
-=======
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        ZedAiOnboarding::new(
-            self.client.clone(),
-            &self.user_store,
-            self.continue_with_zed_ai.clone(),
-            cx,
-        )
->>>>>>> zed/main
     }
 }

@@ -675,7 +675,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![
                 (parse_keystrokes("cmd-o"), "workspace: open", false),
-                (parse_keystrokes("cmd-s"), "zed: open keymap", false),
+                (parse_keystrokes("cmd-s"), "paddleboard: open keymap", false),
                 (
                     parse_keystrokes("cmd-o cmd-p"),
                     "workspace: reopen last picker",
@@ -716,13 +716,13 @@ mod tests {
             KeyContext::parse("Editor").expect("valid context"),
         ];
         let keymap = Keymap::new(vec![
-            KeyBinding::new("cmd-k cmd-s", zed_actions::OpenKeymap, Some("Workspace")),
+            KeyBinding::new("cmd-k cmd-s", paddleboard_actions::OpenKeymap, Some("Workspace")),
             KeyBinding::new(
                 "cmd-k cmd-s cmd-,",
-                zed_actions::OpenKeymapFile,
+                paddleboard_actions::OpenKeymapFile,
                 Some("Workspace"),
             ),
-            KeyBinding::new("cmd-k cmd-s", zed_actions::OpenSettings, Some("Editor")),
+            KeyBinding::new("cmd-k cmd-s", paddleboard_actions::OpenSettings, Some("Editor")),
         ]);
         let input = [
             Keystroke::parse("cmd-k").expect("valid keystroke"),
@@ -733,7 +733,7 @@ mod tests {
         let first_match = matches.first().expect("matching binding");
         assert_eq!(
             first_match.action().name(),
-            zed_actions::OpenSettings.name()
+            paddleboard_actions::OpenSettings.name()
         );
 
         // The longer chord comes between the two cmd-k cmd-s bindings, so they aren't adjacent.
@@ -744,9 +744,9 @@ mod tests {
                 .map(|binding| binding.action().name())
                 .collect::<Vec<_>>(),
             vec![
-                zed_actions::OpenSettings.name(),
-                zed_actions::OpenKeymapFile.name(),
-                zed_actions::OpenKeymap.name(),
+                paddleboard_actions::OpenSettings.name(),
+                paddleboard_actions::OpenKeymapFile.name(),
+                paddleboard_actions::OpenKeymap.name(),
             ],
         );
 
@@ -774,7 +774,7 @@ mod tests {
                 ),
                 (
                     parse_keystrokes("cmd-s cmd-,"),
-                    command_palette::humanize_action_name(zed_actions::OpenKeymapFile.name()),
+                    command_palette::humanize_action_name(paddleboard_actions::OpenKeymapFile.name()),
                     false,
                 ),
             ],

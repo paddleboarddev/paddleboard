@@ -6,13 +6,7 @@ mod multi_select_tests;
 use futures::future::join_all;
 pub use open_path_prompt::OpenPathDelegate;
 
-<<<<<<< HEAD
-use collections::HashMap;
-=======
-use channel::ChannelStore;
-use client::ChannelId;
 use collections::{HashMap, HashSet};
->>>>>>> zed/main
 use editor::Editor;
 use file_icons::FileIcons;
 use fuzzy_nucleo::{PathMatch, PathMatchCandidate};
@@ -1094,7 +1088,7 @@ impl FileFinderDelegate {
                             let absolute = project.absolute_path(&path, cx)?;
                             Some(FoundPath::new(path, absolute))
                         }
-                        Match::Channel { .. } | Match::CreateNew(_) => None,
+                        Match::CreateNew(_) => None,
                     }),
             )
             .filter(|path| {
@@ -1151,7 +1145,7 @@ impl FileFinderDelegate {
             Match::Search(path_match) => {
                 retain_path(&project_path_for_search_match(project, &path_match.0, cx))
             }
-            Match::Channel { .. } | Match::CreateNew(_) => true,
+            Match::CreateNew(_) => true,
         };
         self.selected_matches.retain(|entry| retain_match(&entry.0));
 

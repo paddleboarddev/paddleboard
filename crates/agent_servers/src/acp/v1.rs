@@ -9885,14 +9885,14 @@ exit 7
 fn mcp_servers_for_project(project: &Entity<Project>, cx: &App) -> Vec<acp::McpServer> {
     mcp_configurations_for_project(project, cx)
         .into_iter()
-        .map(|(name, configuration)| match &*configuration {
+        .filter_map(|(name, configuration)| match &*configuration {
             project::context_server_store::ContextServerConfiguration::Custom {
                 command, ..
             }
             | project::context_server_store::ContextServerConfiguration::Extension {
                 command,
                 ..
-            } => acp::McpServer::Stdio(
+            } => Some(acp::McpServer::Stdio(
                 acp::McpServerStdio::new(name, &command.path)
                     .args(command.args.clone())
                     .env(if let Some(env) = command.env.as_ref() {
@@ -9902,20 +9902,22 @@ fn mcp_servers_for_project(project: &Entity<Project>, cx: &App) -> Vec<acp::McpS
                     } else {
                         vec![]
                     }),
-            ),
+            )),
             project::context_server_store::ContextServerConfiguration::Http {
                 url,
                 headers,
                 timeout: _,
                 oauth: _,
-            } => acp::McpServer::Http(
+            } => Some(acp::McpServer::Http(
                 acp::McpServerHttp::new(name, url.to_string()).headers(
                     headers
                         .iter()
                         .map(|(name, value)| acp::HttpHeader::new(name, value))
                         .collect(),
                 ),
-            ),
+            )),
+            // PaddleBoard: already filtered out by `mcp_configurations_for_project`.
+            project::context_server_store::ContextServerConfiguration::Sandboxed { .. } => None,
         })
         .collect()
 }

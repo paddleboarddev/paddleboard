@@ -1,16 +1,11 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
 version = "0.3.1"
-=======
-name = "zed"
-version = "1.28.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -44,12 +39,9 @@ visual-tests = [
     "dep:tempfile",
     "dep:action_log",
     "dep:agent_servers",
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
     # PaddleBoard: stub credentials provider for the git-login modal visual test
     "dep:credentials_provider",
-=======
     "dep:env_logger",
->>>>>>> zed/main:crates/zed/Cargo.toml
     "workspace/test-support",
     "project/test-support",
     "editor/test-support",
@@ -331,61 +323,37 @@ repl = { workspace = true, features = ["test-support"] }
 
 [package.metadata.bundle-dev]
 icon = ["resources/app-icon-dev@2x.png", "resources/app-icon-dev.png"]
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard-Dev"
 name = "PaddleBoard Dev"
-osx_minimum_system_version = "10.15.7"
-=======
-identifier = "dev.zed.Zed-Dev"
-name = "Zed Dev"
 category = "Developer Tool"
 osx_minimum_system_version = "12.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-nightly]
 icon = ["resources/app-icon-nightly@2x.png", "resources/app-icon-nightly.png"]
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard-Nightly"
 name = "PaddleBoard Nightly"
-osx_minimum_system_version = "10.15.7"
-=======
-identifier = "dev.zed.Zed-Nightly"
-name = "Zed Nightly"
 category = "Developer Tool"
 osx_minimum_system_version = "12.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-preview]
 icon = ["resources/app-icon-preview@2x.png", "resources/app-icon-preview.png"]
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard-Preview"
 name = "PaddleBoard Preview"
-osx_minimum_system_version = "10.15.7"
-=======
-identifier = "dev.zed.Zed-Preview"
-name = "Zed Preview"
 category = "Developer Tool"
 osx_minimum_system_version = "12.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-stable]
 icon = ["resources/app-icon@2x.png", "resources/app-icon.png"]
-<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard"
 name = "PaddleBoard"
-osx_minimum_system_version = "10.15.7"
-=======
-identifier = "dev.zed.Zed"
-name = "Zed"
 category = "Developer Tool"
 osx_minimum_system_version = "12.0"
->>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 

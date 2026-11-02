@@ -2,13 +2,8 @@ mod thread_switcher;
 
 use acp_thread::ThreadStatus;
 use action_log::DiffStats;
-<<<<<<< HEAD
 use agent::{PADDLEBOARD_AGENT_ID, ThreadStore};
-use agent_client_protocol::schema::v1 as acp;
-=======
-use agent::{ThreadStore, ZED_AGENT_ID};
 use agent_client_protocol::v2::schema as acp;
->>>>>>> zed/main
 use agent_settings::{AgentSettings, THREADS_LIST_MAX_WIDTH, THREADS_LIST_MIN_WIDTH};
 use agent_ui::terminal_thread_metadata_store::{
     TerminalThreadMetadata, TerminalThreadMetadataStore, terminal_title_prefix,

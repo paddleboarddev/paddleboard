@@ -2259,11 +2259,9 @@ async fn test_cloud_timeout_backs_off_zeta_requests(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-<<<<<<< HEAD
 // PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
 // the default model is FIM against the user's own provider instead.
 #[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
-=======
 async fn test_zed_cloud_predictions_skip_organizations_without_subscriptions(
     cx: &mut TestAppContext,
 ) {
@@ -2396,7 +2394,9 @@ async fn test_zed_cloud_predictions_skip_organizations_without_subscriptions(
 }
 
 #[gpui::test]
->>>>>>> zed/main
+// PaddleBoard: exercises Zeta (Zed's hosted edit prediction), which this fork removed;
+// the default model is FIM against the user's own provider instead.
+#[ignore = "PaddleBoard: Zeta edit prediction is disabled in this fork"]
 async fn test_same_frame_duplicate_requests_deduplicated(cx: &mut TestAppContext) {
     let (ep_store, mut requests) = init_test_with_fake_client(cx);
     let fs = FakeFs::new(cx.executor());
@@ -3127,6 +3127,9 @@ fn set_test_organization(user_store: &Entity<UserStore>, cx: &mut TestAppContext
 }
 
 #[gpui::test]
+// PaddleBoard: the default provider is not Zed's hosted one, so with no provider set
+// nothing is excluded by a Zed plan; the remaining assertions cover Zed accounts.
+#[ignore = "PaddleBoard: Zed-hosted edit prediction plans don't apply in this fork"]
 async fn test_free_plan_edit_predictions_ended_for_zed_provider(cx: &mut TestAppContext) {
     let (ep_store, _requests) = init_test_with_fake_client(cx);
     let user_store = ep_store.read_with(cx, |ep_store, _| ep_store.user_store.clone());

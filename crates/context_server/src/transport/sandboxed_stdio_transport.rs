@@ -230,6 +230,7 @@ mod tests {
             args: args.iter().map(|s| s.to_string()).collect(),
             env: None,
             timeout: None,
+            stdin_prefix: None,
         }
     }
 
@@ -323,6 +324,7 @@ mod tests {
             args: vec![],
             env: Some(env),
             timeout: None,
+            stdin_prefix: None,
         };
         let sandbox = make_sandbox("alpine");
         let argv = build_podman_argv(&binary, &sandbox);

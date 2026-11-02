@@ -8,13 +8,8 @@ use editor::{CurrentLineHighlight, Editor, EditorElement, EditorEvent, EditorSty
 use fs::Fs;
 use futures::AsyncReadExt;
 use gpui::{
-<<<<<<< HEAD
-    App, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle, Subscription, Task, TextStyle,
-    WeakEntity, WindowHandle,
-=======
     App, AsyncApp, Entity, EventEmitter, FocusHandle, Focusable, ScrollHandle, Subscription, Task,
-    TextStyle, WeakEntity, WindowHandle, actions,
->>>>>>> zed/main
+    TextStyle, WeakEntity, WindowHandle,
 };
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Request, StatusCode, Url};
 use language::{Buffer, language_settings::SoftWrap};
@@ -1891,7 +1886,7 @@ mod tests {
         let existing_content = "---\nname: draft-pr\ndescription: existing\n---\nbody\n";
         let (fs, project, worktree) = init_worktree_test(
             serde_json::json!({
-                ".zed": { "settings.json": r#"{ "file_scan_exclusions": [".agents"] }"# },
+                ".paddleboard": { "settings.json": r#"{ "file_scan_exclusions": [".agents"] }"# },
                 ".agents": { "skills": { "draft-pr": { "SKILL.md": existing_content } } },
             }),
             cx,

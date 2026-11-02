@@ -69,13 +69,8 @@ use language::{
 use language_model::{
     LanguageModel, LanguageModelId, LanguageModelProviderId, LanguageModelRegistry,
 };
-<<<<<<< HEAD
-use project::{AgentId, DisableAiSettings};
-use prompt_store::{PromptBuilder, rules_to_skills_migration};
-=======
 use project::{AgentId, DisableAiSettings, Project, ProjectPath};
 use prompt_store::{self, PromptBuilder, rules_to_skills_migration};
->>>>>>> zed/main
 use rope::Point;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

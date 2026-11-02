@@ -8,15 +8,11 @@ use crate::{
     SystemPromptTemplate, Template, Templates, TerminalTool, ToolPermissionDecision, WebSearchTool,
     WriteFileTool, decide_permission_from_settings,
 };
-<<<<<<< HEAD
-use acp_thread::{AgentModelId, ClientUserMessageId, MentionUri};
+use acp_thread::{AgentModelId, ClientUserMessageId, MentionUri, ProcessOutput};
 // PaddleBoard: model tiers (MODEL_TIERS.md). A child module so it can use this
 // file's private event-stream helpers without widening their visibility.
 mod paddleboard_tiers_hook;
 pub use paddleboard_tiers_hook::{TierBlocker, TierOffer};
-=======
-use acp_thread::{AgentModelId, ClientUserMessageId, MentionUri, ProcessOutput};
->>>>>>> zed/main
 use action_log::ActionLog;
 use agent_settings::UserAgentsMd;
 
@@ -2753,15 +2749,9 @@ impl Thread {
         let content = content.into_iter().map(Into::into).collect::<Arc<_>>();
         log::debug!("Thread::send content: {:?}", content);
 
-<<<<<<< HEAD
-        self.messages
-            .push(Arc::new(Message::User(UserMessage { id, content })));
+        self.upsert_user_message(id, content, cx);
         // PaddleBoard: model tiers count failed checks per user request.
         self.paddleboard_tiers_note_user_message();
-        cx.notify();
-=======
-        self.upsert_user_message(id, content, cx);
->>>>>>> zed/main
 
         self.send_existing(cx)
     }
@@ -4056,31 +4046,12 @@ impl Thread {
             ));
         }
 
-<<<<<<< HEAD
         // PaddleBoard: shared by the step-mode and direct paths below.
         fn finish_tool_result(
             result: Result<AgentToolOutput, AgentToolOutput>,
             supports_images: bool,
         ) -> (bool, AgentToolOutput) {
             match result {
-=======
-        let fs = self.project.read(cx).fs().clone();
-        let tool_call_id = scoped_tool_call_id(owning_message_ix, &tool_use_id);
-        let tool_event_stream = ToolCallEventStream::new(
-            tool_use_id.clone(),
-            tool_call_id,
-            event_stream.clone(),
-            Some(fs),
-            cancellation_rx,
-            self.sandbox_grants.clone(),
-            Some(cx.weak_entity()),
-        );
-        tool_event_stream.update_fields(|update| update.status(acp_v2::ToolCallStatus::InProgress));
-        let supports_images = self.model().is_some_and(|model| model.supports_images());
-        let tool_result = tool.run(tool_input, tool_event_stream, cx);
-        cx.foreground_executor().spawn(async move {
-            let (is_error, output) = match tool_result.await {
->>>>>>> zed/main
                 Ok(mut output) => {
                     let contains_image = output
                         .llm_output
@@ -4128,7 +4099,7 @@ impl Thread {
         let tool_call_id = scoped_tool_call_id(owning_message_ix, &tool_use_id);
         let tool_event_stream = ToolCallEventStream::new(
             tool_use_id.clone(),
-            tool_call_id,
+            tool_call_id.clone(),
             event_stream.clone(),
             Some(fs),
             cancellation_rx,
@@ -4141,18 +4112,24 @@ impl Thread {
         // the user approves the step, so each branch below updates the status itself.
         if self.step_mode {
             let options = acp_thread::PermissionOptions::Flat(vec![
-                acp::PermissionOption::new("allow", "Step", acp::PermissionOptionKind::AllowOnce),
-                acp::PermissionOption::new("deny", "Skip", acp::PermissionOptionKind::RejectOnce),
+                acp_v2::PermissionOption::new(
+                    acp_v2::PermissionOptionId::new("allow"),
+                    "Step",
+                    acp_v2::PermissionOptionKind::AllowOnce,
+                ),
+                acp_v2::PermissionOption::new(
+                    acp_v2::PermissionOptionId::new("deny"),
+                    "Skip",
+                    acp_v2::PermissionOptionKind::RejectOnce,
+                ),
             ]);
             let (response_tx, response_rx) = oneshot::channel();
             event_stream
                 .sender
                 .unbounded_send(Ok(ThreadEvent::ToolCallAuthorization(
                     ToolCallAuthorization {
-                        tool_call: acp::ToolCallUpdate::new(
-                            tool_use_id.to_string(),
-                            acp::ToolCallUpdateFields::new().title(format!("Step: {}", tool_name)),
-                        ),
+                        tool_call: acp_v2::ToolCallUpdate::new(tool_call_id)
+                            .title(format!("Step: {}", tool_name)),
                         options,
                         response: response_tx,
                         context: None,
@@ -4182,7 +4159,7 @@ impl Thread {
 
                 let is_allowed = matches!(
                     outcome.option_kind,
-                    acp::PermissionOptionKind::AllowOnce | acp::PermissionOptionKind::AllowAlways
+                    acp_v2::PermissionOptionKind::AllowOnce | acp_v2::PermissionOptionKind::AllowAlways
                 );
 
                 if !is_allowed {
@@ -4200,9 +4177,8 @@ impl Thread {
                     );
                 }
 
-                tool_event_stream.update_fields(
-                    acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
-                );
+                tool_event_stream
+                    .update_fields(|update| update.status(acp_v2::ToolCallStatus::InProgress));
 
                 let tool_result = cx.update(|cx| tool.run(tool_input, tool_event_stream, cx));
 
@@ -4220,9 +4196,8 @@ impl Thread {
                 )
             })
         } else {
-            tool_event_stream.update_fields(
-                acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
-            );
+            tool_event_stream
+                .update_fields(|update| update.status(acp_v2::ToolCallStatus::InProgress));
             let tool_result = tool.run(tool_input, tool_event_stream, cx);
             cx.foreground_executor().spawn(async move {
                 let (is_error, output) = finish_tool_result(tool_result.await, supports_images);
@@ -10201,8 +10176,8 @@ mod tests {
 
         const NAME: &'static str = "run_counting_tool";
 
-        fn kind() -> acp::ToolKind {
-            acp::ToolKind::Execute
+        fn kind() -> acp_v2::ToolKind {
+            acp_v2::ToolKind::Execute
         }
 
         fn initial_title(
@@ -10252,23 +10227,17 @@ mod tests {
         let tool_call_id = scoped_tool_call_id(0, &tool_use_id).to_string();
         let mut statuses = Vec::new();
         while let Some(event) = replay_events.next().await {
-            match event.unwrap() {
-                ThreadEvent::ToolCall(tool_call)
-                    if tool_call.tool_call_id.to_string() == tool_call_id =>
-                {
-                    statuses.push(tool_call.status);
-                }
-                ThreadEvent::ToolCallUpdate(acp_thread::ToolCallUpdate::UpdateFields(update))
-                    if update.tool_call_id.to_string() == tool_call_id =>
-                {
-                    statuses.extend(update.fields.status);
-                }
-                _ => {}
+            if let ThreadEvent::ToolCallUpdate(acp_thread::ToolCallUpdate::V2(update)) =
+                event.unwrap()
+                && update.tool_call_id.to_string() == tool_call_id
+                && let agent_client_protocol::schema::MaybeUndefined::Value(status) = update.status
+            {
+                statuses.push(status);
             }
         }
         cx.run_until_parked();
 
-        assert_eq!(statuses.last(), Some(&acp::ToolCallStatus::Failed));
+        assert_eq!(statuses.last(), Some(&acp_v2::ToolCallStatus::Failed));
         assert_eq!(runs.load(std::sync::atomic::Ordering::SeqCst), 0);
         assert!(fake.pending_completions().is_empty());
     }

@@ -1362,10 +1362,11 @@ async fn test_project_tasks_and_debug_scenarios_require_trust(cx: &mut gpui::Tes
     cx.update(|cx| trusted_worktrees::init(DbTrustedPaths::default(), cx));
 
     let fs = FakeFs::new(cx.executor());
+    // PaddleBoard: project settings live in `.paddleboard/`, not upstream's `.zed/`.
     fs.insert_tree(
         path!("/dir"),
         json!({
-            ".zed": {
+            ".paddleboard": {
                 "settings.json": r#"{ "tab_size": 8 }"#,
                 "tasks.json": r#"[{ "label": "initial", "command": "echo initial", "hooks": ["create_worktree"] }]"#,
                 "debug.json": r#"[{ "label": "debug", "adapter": "Debugpy", "request": "launch" }]"#,
@@ -1408,7 +1409,7 @@ async fn test_project_tasks_and_debug_scenarios_require_trust(cx: &mut gpui::Tes
     assert!(scenarios.is_empty());
 
     fs.save(
-        path!("/dir/.zed/tasks.json").as_ref(),
+        path!("/dir/.paddleboard/tasks.json").as_ref(),
         &r#"[{ "label": "updated", "command": "echo updated", "hooks": ["create_worktree"] }]"#
             .into(),
         Default::default(),

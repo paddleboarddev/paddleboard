@@ -51,16 +51,12 @@ pub struct SpawnAgentToolInput {
     pub message: String,
     /// Session ID of an existing agent session to continue instead of creating a new one. Omit to create a new agent.
     #[serde(default, deserialize_with = "deserialize_session_id")]
-<<<<<<< HEAD
-    pub session_id: Option<acp::SessionId>,
+    pub session_id: Option<acp_v2::SessionId>,
     /// Optional persona for the sub-agent, by name from the "Available
     /// Personas" list (e.g. give a review subtask the `qa-engineer` persona).
     /// The sub-agent holds that identity for its whole session.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub persona: Option<String>,
-=======
-    pub session_id: Option<acp_v2::SessionId>,
->>>>>>> zed/main
     /// Optional model override. Pass the exact `models[].id` returned for the
     /// native Zed agent (`is_native: true`) by `list_agents_and_models`.
     /// Omit to preserve default behavior.

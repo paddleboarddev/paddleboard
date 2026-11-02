@@ -55,11 +55,14 @@ const VERTEX_MODELS: &[(&str, &str)] = &[
 const VERTEX_MODEL_MAX_TOKENS: u64 = 1_048_576;
 
 fn vertex_model(name: &str, display_name: &str) -> google_ai::Model {
-    google_ai::Model::Custom {
-        name: name.to_string(),
-        display_name: Some(display_name.to_string()),
-        max_tokens: VERTEX_MODEL_MAX_TOKENS,
+    google_ai::Model {
+        id: name.to_string(),
+        display_name: display_name.to_string(),
+        max_input_tokens: VERTEX_MODEL_MAX_TOKENS,
+        max_output_tokens: None,
         mode: Default::default(),
+        supported_thinking_levels: Vec::new(),
+        default_thinking_level: None,
     }
 }
 
@@ -217,11 +220,17 @@ impl VertexLanguageModelProvider {
         for model in &VertexLanguageModelProvider::settings(cx).available_models {
             models.insert(
                 model_id(&model.name),
-                google_ai::Model::Custom {
-                    name: model.name.clone(),
-                    display_name: model.display_name.clone(),
-                    max_tokens: model.max_tokens,
+                google_ai::Model {
+                    id: model.name.clone(),
+                    display_name: model
+                        .display_name
+                        .clone()
+                        .unwrap_or_else(|| model.name.clone()),
+                    max_input_tokens: model.max_tokens,
+                    max_output_tokens: None,
                     mode: model.mode.unwrap_or_default(),
+                    supported_thinking_levels: Vec::new(),
+                    default_thinking_level: None,
                 },
             );
         }
@@ -375,13 +384,17 @@ impl LanguageModelClient for VertexLanguageModelProvider {
         let request_limiter = self.request_limiters.for_model(&model.id);
         // PaddleBoard: into_google became fallible upstream; fail the stream
         // early like the other providers do.
-        let request = match into_google(request, config.request_id().to_string(), config.mode()) {
+        let request = match into_google(request, config.id.clone(), config.mode) {
             Ok(request) => request,
             Err(error) => return async move { Err(error.into()) }.boxed(),
         };
         let request = self.stream_vertex_request(request, cx);
         let future = request_limiter.stream(async move {
-            let response = request.await.map_err(LanguageModelCompletionError::from)?;
+            let response = request
+                .await
+                .map_err(LanguageModelCompletionError::from)?
+                .map(|event| event.map_err(LanguageModelCompletionError::from))
+                .boxed();
             Ok(GoogleEventMapper::new().map_stream(response))
         });
         async move { Ok(future.await?.boxed()) }.boxed()
@@ -396,18 +409,18 @@ fn model_id(name: &str) -> String {
 
 fn language_model(model: &google_ai::Model) -> LanguageModel {
     LanguageModel {
-        supports_tools: model.supports_tools(),
-        supports_images: model.supports_images(),
+        supports_tools: true,
+        supports_images: true,
         supports_thinking: model.supports_thinking(),
         tool_choice_support: LanguageModelToolChoiceSupport::ALL,
-        max_output_tokens: model.max_output_tokens(),
+        max_output_tokens: model.max_output_tokens,
         ..LanguageModel::new(
-            LanguageModelId::from(model_id(model.id())),
-            LanguageModelName::from(model.display_name().to_string()),
+            LanguageModelId::from(model_id(&model.id)),
+            LanguageModelName::from(model.display_name.clone()),
             PROVIDER_ID,
             PROVIDER_NAME,
-            format!("vertex/{}", model.request_id()),
-            model.max_token_count(),
+            format!("vertex/{}", model.id),
+            model.max_input_tokens,
         )
     }
 }

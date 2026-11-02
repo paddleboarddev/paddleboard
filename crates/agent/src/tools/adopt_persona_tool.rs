@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use agent_client_protocol::schema::v1 as acp;
+use agent_client_protocol::v2::schema as acp;
 use anyhow::Result;
 use gpui::{App, AppContext as _, Entity, SharedString, Task, WeakEntity};
 use language_model::LanguageModelToolResultContent;

@@ -1,12 +1,6 @@
 use crate::{
-<<<<<<< HEAD
-    LanguageModel, LanguageModelCompletionError, LanguageModelId, LanguageModelProvider,
-    LanguageModelProviderId, LanguageModelProviderState, unavailable_error,
-=======
     AuthenticateError, LanguageModel, LanguageModelCompletionError, LanguageModelId,
-    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderState,
-    ZED_CLOUD_PROVIDER_ID, unavailable_error,
->>>>>>> zed/main
+    LanguageModelProvider, LanguageModelProviderId, LanguageModelProviderState, unavailable_error,
 };
 use collections::{BTreeMap, HashSet};
 use gpui::{App, Context, Entity, EventEmitter, Global, Task, prelude::*};

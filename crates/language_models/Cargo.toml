@@ -56,15 +56,11 @@ ollama = { workspace = true, features = ["schemars"] }
 open_ai = { workspace = true, features = ["schemars"] }
 openai_subscribed.workspace = true
 opencode = { workspace = true, features = ["schemars"] }
-<<<<<<< HEAD
-open_router = { workspace = true, features = ["schemars"] }
+open_router.workspace = true
 # PaddleBoard: Google Vertex AI provider
 paddleboard_vertex.workspace = true
 # PaddleBoard: managed "Local Models" (llama.cpp) runtime manager
 paddleboard_llama_manager.workspace = true
-=======
-open_router.workspace = true
->>>>>>> zed/main
 paths.workspace = true
 rand.workspace = true
 release_channel.workspace = true

@@ -240,8 +240,11 @@ impl ContextServerConfiguration {
                 enabled: _,
                 command,
                 remote,
-<<<<<<< HEAD
-            } => Some(ContextServerConfiguration::Custom { command, remote }),
+            } => Some(ContextServerConfiguration::Custom {
+                command,
+                remote,
+                launcher: None,
+            }),
             ContextServerSettings::SandboxedStdio {
                 enabled: _,
                 command,
@@ -253,12 +256,6 @@ impl ContextServerConfiguration {
                 image,
                 forward_env,
                 mount_worktree,
-=======
-            } => Some(ContextServerConfiguration::Custom {
-                command,
-                remote,
-                launcher: None,
->>>>>>> zed/main
             }),
             ContextServerSettings::Extension {
                 enabled: _,
@@ -1177,6 +1174,7 @@ impl ContextServerStore {
                                 id,
                                 command,
                                 working_directory,
+                                None,
                             )))
                         }
                         SandboxGateDecision::WarnOnce { reason } => {

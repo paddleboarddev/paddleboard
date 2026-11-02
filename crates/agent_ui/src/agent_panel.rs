@@ -3657,7 +3657,7 @@ impl AgentPanel {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let blocks = vec![acp::ContentBlock::Text(acp::TextContent::new(prompt))];
+        let blocks = vec![acp_v2::ContentBlock::Text(acp_v2::TextContent::new(prompt))];
         let agent_choice = if force_native {
             Some(Agent::NativeAgent)
         } else {

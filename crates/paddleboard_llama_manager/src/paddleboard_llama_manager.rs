@@ -14,7 +14,9 @@ pub mod ui;
 use anyhow::{Context as _, Result};
 use download::download_file_with_progress;
 use futures::AsyncReadExt as _;
-use gpui::{App, AppContext as _, AsyncApp, Context, Entity, Global, Task, WeakEntity};
+use gpui::{
+    App, AppContext as _, AsyncApp, BackgroundExecutor, Context, Entity, Global, Task, WeakEntity,
+};
 use http_client::HttpClient;
 use server::{READINESS_POLL_INTERVAL, READINESS_TIMEOUT, ServerHandle};
 use sha2::{Digest as _, Sha256};
@@ -275,7 +277,10 @@ fn bundled_server_path() -> Option<PathBuf> {
 /// Resolve the `llama-server` binary, installing the pinned release into the data
 /// directory when the app is not bundled (so `cargo run` works). The download is
 /// SHA-256 verified against the pin before it is used.
-pub async fn resolve_or_install_server(http_client: &dyn HttpClient) -> Result<PathBuf> {
+pub async fn resolve_or_install_server(
+    executor: &BackgroundExecutor,
+    http_client: Arc<dyn HttpClient>,
+) -> Result<PathBuf> {
     if let Some(path) = bundled_server_path() {
         return Ok(path);
     }
@@ -296,12 +301,13 @@ pub async fn resolve_or_install_server(http_client: &dyn HttpClient) -> Result<P
         .await
         .with_context(|| format!("creating {containing_dir:?}"))?;
     log::info!("installing llama.cpp {LLAMA_CPP_VERSION} into {install_dir:?}");
-    http_client::github_download::download_server_binary(
+    github_releases::download_server_binary(
+        executor,
         http_client,
         asset.url,
         Some(asset.sha256),
         &install_dir,
-        http_client::github::AssetKind::TarGz,
+        github_releases::AssetKind::TarGz,
     )
     .await
     .context("downloading the llama.cpp server release")?;
@@ -717,7 +723,7 @@ async fn run(
     generation: usize,
     cx: &mut AsyncApp,
 ) -> Result<()> {
-    let binary = resolve_or_install_server(http_client.as_ref())
+    let binary = resolve_or_install_server(cx.background_executor(), http_client.clone())
         .await
         .context("preparing the local model runtime")?;
     if !is_current(&this, slot, generation, cx) {

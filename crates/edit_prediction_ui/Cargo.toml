@@ -54,6 +54,6 @@ indoc.workspace = true
 language_model.workspace = true
 project = { workspace = true, features = ["test-support"] }
 workspace = { workspace = true, features = ["test-support"] }
-zed_credentials_provider.workspace = true
+paddleboard_credentials_provider.workspace = true
 
 

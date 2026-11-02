@@ -61,10 +61,9 @@ use super::subagent_card::{
 };
 use super::*;
 
-<<<<<<< HEAD
 // PaddleBoard: model tiers Blocker card (MODEL_TIERS.md).
 mod paddleboard_tiers_callout;
-=======
+
 /// How a parent's view names a subagent. An ACP parent's own title for the subagent
 /// describes it in that view, so it wins over the subagent's title for itself.
 pub(super) fn subagent_label(thread: &AcpThread) -> SharedString {
@@ -78,7 +77,6 @@ pub(super) fn subagent_label(thread: &AcpThread) -> SharedString {
 /// Most agents echo an accepted prompt almost immediately, so the in-flight status row
 /// only appears for submissions that stay unsettled long enough to be worth reporting.
 pub(crate) const UNSETTLED_SUBMISSION_REVEAL_DELAY: Duration = Duration::from_secs(1);
->>>>>>> zed/main
 
 const DATA_RETENTION_LEARN_MORE_URL: &str = "https://support.claude.com/en/articles/15425996-data-retention-practices-for-mythos-class-models";
 

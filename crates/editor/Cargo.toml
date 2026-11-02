@@ -105,12 +105,7 @@ util.workspace = true
 uuid.workspace = true
 vim_mode_setting.workspace = true
 workspace.workspace = true
-<<<<<<< HEAD
 paddleboard_actions.workspace = true
-zlog.workspace = true
-=======
-zed_actions.workspace = true
->>>>>>> zed/main
 
 [dev-dependencies]
 assets.workspace = true

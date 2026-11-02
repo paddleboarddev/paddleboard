@@ -13,13 +13,6 @@ impl PlanDefinitions {
 
     pub fn free_plan(&self) -> impl IntoElement {
         List::new()
-<<<<<<< HEAD
-=======
-            .child(ListBulletItem::new(
-                "Unlimited prompts with your AI API keys",
-            ))
-            .child(ListBulletItem::new("Unlimited use of external agents"))
->>>>>>> zed/main
     }
 
     pub fn pro_trial(&self, _period: bool) -> impl IntoElement {

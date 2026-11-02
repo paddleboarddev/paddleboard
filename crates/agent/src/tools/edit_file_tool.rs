@@ -1495,13 +1495,8 @@ mod tests {
 
         let event = stream_rx.expect_authorization().await;
         assert_eq!(
-<<<<<<< HEAD
-            event.tool_call.fields.title,
-            Some("Edit `.paddleboard/settings.json` (local settings)".into())
-=======
             event.tool_call.title,
-            MaybeUndefined::Value("Edit `.zed/settings.json` (local settings)".into())
->>>>>>> zed/main
+            MaybeUndefined::Value("Edit `.paddleboard/settings.json` (local settings)".into())
         );
 
         // Test 2: Path outside project should require confirmation
@@ -1529,13 +1524,8 @@ mod tests {
         });
         let event = stream_rx.expect_authorization().await;
         assert_eq!(
-<<<<<<< HEAD
-            event.tool_call.fields.title,
-            Some("Edit `root/.paddleboard/tasks.json` (local settings)".into())
-=======
             event.tool_call.title,
-            MaybeUndefined::Value("Edit `root/.zed/tasks.json` (local settings)".into())
->>>>>>> zed/main
+            MaybeUndefined::Value("Edit `root/.paddleboard/tasks.json` (local settings)".into())
         );
 
         // Test 5: When global default is allow, sensitive and outside-project
@@ -1552,13 +1542,8 @@ mod tests {
             .update(|cx| edit_tool.authorize(&PathBuf::from(".paddleboard/settings.json"), &stream_tx, cx));
         let event = stream_rx.expect_authorization().await;
         assert_eq!(
-<<<<<<< HEAD
-            event.tool_call.fields.title,
-            Some("Edit `.paddleboard/settings.json` (local settings)".into())
-=======
             event.tool_call.title,
-            MaybeUndefined::Value("Edit `.zed/settings.json` (local settings)".into())
->>>>>>> zed/main
+            MaybeUndefined::Value("Edit `.paddleboard/settings.json` (local settings)".into())
         );
 
         // 5.2: /etc/hosts is outside the project, but Allow auto-approves

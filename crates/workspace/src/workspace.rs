@@ -11451,7 +11451,7 @@ mod tests {
         },
         persistence::model::DockData,
     };
-    use fs::{FakeFs, RemoveOptions};
+    use fs::{FakeFs, Fs as _, RemoveOptions};
     use gpui::{
         DismissEvent, Empty, EventEmitter, FocusHandle, Focusable, Modifiers, Render,
         TestAppContext, UpdateGlobal, VisualTestContext, px,

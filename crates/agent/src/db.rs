@@ -18,13 +18,8 @@ use sqlez::{
 };
 use std::{io::ErrorKind, path::PathBuf, sync::Arc};
 use ui::{App, SharedString};
-<<<<<<< HEAD
-use util::path_list::PathList;
-use paddleboard_env_vars::PADDLEBOARD_STATELESS;
-=======
 use util::{ResultExt, path_list::PathList};
-use zed_env_vars::ZED_STATELESS;
->>>>>>> zed/main
+use paddleboard_env_vars::PADDLEBOARD_STATELESS;
 
 pub type DbMessage = crate::Message;
 pub type DbSummary = crate::legacy_thread::DetailedSummaryState;

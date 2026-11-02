@@ -651,16 +651,10 @@ struct MacWindowState {
     handle: AnyWindowHandle,
     foreground_executor: ForegroundExecutor,
     background_executor: BackgroundExecutor,
-<<<<<<< HEAD
-    native_window: id,
-    native_view: NonNull<Object>,
-    webview: Option<wry::WebView>,
-    blurred_view: Option<id>,
-=======
     native_window: *mut AnyObject,
     native_view: NonNull<AnyObject>,
+    webview: Option<wry::WebView>,
     blurred_view: Option<*mut AnyObject>,
->>>>>>> zed/main
     background_appearance: WindowBackgroundAppearance,
     cursor_style: CursorStyle,
     cursor_visible: Arc<AtomicBool>,
@@ -778,7 +772,7 @@ impl MacWindowState {
     // to window coordinates makes this independent of how AppKit nests the
     // buttons inside the titlebar container.
     fn traffic_light_trailing_edge(&self) -> Option<Pixels> {
-        let zoom = self.native_window().standardWindowButton(Objc2NSWindowButton::ZoomButton)?;
+        let zoom = self.native_window().standardWindowButton(NSWindowButton::ZoomButton)?;
         let frame = zoom.convertRect_toView(zoom.bounds(), None);
         Some(Pixels::from(frame.origin.x + frame.size.width))
     }

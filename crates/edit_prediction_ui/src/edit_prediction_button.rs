@@ -1789,7 +1789,7 @@ mod tests {
     use language_model::{ApiKeyState, EnvVar};
     use settings::RootUserSettings;
     use workspace::AppState;
-    use zed_credentials_provider::ZedCredentialsProvider;
+    use paddleboard_credentials_provider::ZedCredentialsProvider;
 
     #[gpui::test]
     async fn test_credentials_survive_button_recreation(cx: &mut TestAppContext) {

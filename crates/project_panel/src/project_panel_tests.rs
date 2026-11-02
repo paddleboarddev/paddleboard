@@ -2320,7 +2320,7 @@ async fn test_duplicate_preserves_clipboards(cx: &mut gpui::TestAppContext) {
     });
 
     let system_clipboard = ClipboardItem {
-        entries: vec![GpuiClipboardEntry::ExternalPaths(ExternalPaths(smallvec![
+        entries: vec![GpuiClipboardEntry::ExternalPaths(ExternalPaths(smallvec::smallvec![
             PathBuf::from(path!("/external/external.txt"))
         ]))],
     };
@@ -2420,7 +2420,7 @@ async fn test_duplicate_with_only_root_selected_does_nothing(cx: &mut gpui::Test
     );
 
     cx.write_to_clipboard(ClipboardItem {
-        entries: vec![GpuiClipboardEntry::ExternalPaths(ExternalPaths(smallvec![
+        entries: vec![GpuiClipboardEntry::ExternalPaths(ExternalPaths(smallvec::smallvec![
             PathBuf::from(path!("/external/external.txt"))
         ]))],
     });

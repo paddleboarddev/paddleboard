@@ -107,20 +107,15 @@ script/generate-licenses
 
 rustup target add $target_triple
 
-<<<<<<< HEAD
 echo "Compiling paddleboard binaries"
 # PaddleBoard: paddleboard_krun_helper is the built-in container sandbox's microVM
 # runner; it ships in Contents/MacOS next to the main binary.
-cargo --config .cargo/bundle-config.toml build ${build_flag} ${zed_features} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
-=======
-echo "Compiling zed binaries"
 if [[ "$target_dir" = "release" ]]; then
-    cargo --config .cargo/bundle-config.toml rustc ${build_flag} ${zed_features} --package zed --bin zed --target $target_triple -- -C 'link-arg=-Wl,-unexported_symbol,__R*'
-    cargo --config .cargo/bundle-config.toml build ${build_flag} --package cli --target $target_triple
+    cargo --config .cargo/bundle-config.toml rustc ${build_flag} ${zed_features} --package paddleboard --bin paddleboard --target $target_triple -- -C 'link-arg=-Wl,-unexported_symbol,__R*'
+    cargo --config .cargo/bundle-config.toml build ${build_flag} --package cli --package paddleboard_krun_helper --target $target_triple
 else
-    cargo --config .cargo/bundle-config.toml build ${build_flag} ${zed_features} --package zed --package cli --target $target_triple
+    cargo --config .cargo/bundle-config.toml build ${build_flag} ${zed_features} --package paddleboard --package cli --package paddleboard_krun_helper --target $target_triple
 fi
->>>>>>> zed/main
 # Build remote_server in separate invocation to prevent feature unification from other crates
 # from influencing dynamic libraries required by it.
 cargo --config .cargo/bundle-config.toml build ${build_flag} ${remote_server_features} --package remote_server --target $target_triple
@@ -425,13 +420,8 @@ function upload_debug_symbols() {
         for attempt in 1 2 3; do
             echo "Sentry upload attempt $attempt..."
             if sentry-cli debug-files upload --include-sources --wait -p zed -o zed-dev \
-<<<<<<< HEAD
                 "target/${target_triple}/${target_dir}/paddleboard.dwarf" \
-                "target/${target_triple}/${target_dir}/remote_server.dwarf"; then
-=======
-                "target/${target_triple}/${target_dir}/zed.dwarf" \
                 "target/${target_triple}/${target_dir}/remote-server.dwarf"; then
->>>>>>> zed/main
                 break
             else
                 echo "Sentry upload failed on attempt $attempt"
@@ -486,13 +476,8 @@ if [[ "$target_triple" = "aarch64-apple-darwin" ]]; then
 fi
 sign_app_binaries
 
-<<<<<<< HEAD
 # PaddleBoard: use ${target_dir} instead of a hardcoded release/ so `bundle-mac -d`
-# works — in a debug build remote_server lives in debug/, matching the paddleboard/cli
+# works — in a debug build remote-server lives in debug/, matching the paddleboard/cli
 # copies above. Upstream only ever bundles release, so this path was never exercised.
-sign_binary "target/$target_triple/${target_dir}/remote_server"
-gzip -f --stdout --best target/$target_triple/${target_dir}/remote_server > target/zed-remote-server-macos-$arch_suffix.gz
-=======
-sign_binary "target/$target_triple/release/remote-server"
-gzip -f --stdout --best target/$target_triple/release/remote-server > target/zed-remote-server-macos-$arch_suffix.gz
->>>>>>> zed/main
+sign_binary "target/$target_triple/${target_dir}/remote-server"
+gzip -f --stdout --best target/$target_triple/${target_dir}/remote-server > target/zed-remote-server-macos-$arch_suffix.gz

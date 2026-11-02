@@ -465,13 +465,8 @@ mod tests {
     }
 
     /// Binds each keystroke sequence to the action the test view counts.
-<<<<<<< HEAD
-    fn counted_bindings<const N: usize>(keystrokes: [&str; N]) -> [KeyBinding; N] {
-        keystrokes.map(|keystrokes| binding(keystrokes, paddleboard_actions::dev::OpenKeyContextView))
-=======
     fn counted_bindings<const N: usize>(keystrokes: [&'static str; N]) -> [KeyBinding; N] {
-        keystrokes.map(|keystrokes| binding(keystrokes, zed_actions::dev::OpenKeyContextView))
->>>>>>> zed/main
+        keystrokes.map(|keystrokes| binding(keystrokes, paddleboard_actions::dev::OpenKeyContextView))
     }
 
     struct TestView {

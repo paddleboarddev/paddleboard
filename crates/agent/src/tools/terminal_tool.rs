@@ -1250,7 +1250,7 @@ fn wsl_interop_blocked(content: &str) -> bool {
 // into passes.
 #[cfg(test)]
 pub(crate) fn paddleboard_process_content_for_tests(
-    output: acp::TerminalOutputResponse,
+    output: ProcessOutput,
     command: &str,
     timed_out: bool,
     user_stopped: bool,

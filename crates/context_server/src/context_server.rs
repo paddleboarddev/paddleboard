@@ -34,12 +34,8 @@ impl Display for ContextServerId {
 }
 
 enum ContextServerTransport {
-<<<<<<< HEAD
-    Stdio(ContextServerCommand, Option<PathBuf>),
-    SandboxedStdio(ContextServerCommand, SandboxConfig),
-=======
     Stdio(ContextServerCommand, Option<PathBuf>, Option<StdinPrefix>),
->>>>>>> zed/main
+    SandboxedStdio(ContextServerCommand, SandboxConfig),
     Custom(Arc<dyn crate::transport::Transport>),
 }
 
@@ -203,34 +199,6 @@ impl ContextServer {
         cx: &AsyncApp,
     ) -> Result<Client> {
         Ok(match &self.configuration {
-<<<<<<< HEAD
-            ContextServerTransport::Stdio(command, working_directory) => Client::stdio(
-                client::ContextServerId(self.id.0.clone()),
-                client::ModelContextServerBinary {
-                    executable: Path::new(&command.path).to_path_buf(),
-                    args: command.args.clone(),
-                    env: command.env.clone(),
-                    timeout: command.timeout,
-                },
-                working_directory,
-                log,
-                sender,
-                cx.clone(),
-            )?,
-            ContextServerTransport::SandboxedStdio(command, sandbox) => Client::sandboxed_stdio(
-                client::ContextServerId(self.id.0.clone()),
-                client::ModelContextServerBinary {
-                    executable: Path::new(&command.path).to_path_buf(),
-                    args: command.args.clone(),
-                    env: command.env.clone(),
-                    timeout: command.timeout,
-                },
-                sandbox,
-                log,
-                sender,
-                cx.clone(),
-            )?,
-=======
             ContextServerTransport::Stdio(command, working_directory, stdin_prefix) => {
                 Client::stdio(
                     client::ContextServerId(self.id.0.clone()),
@@ -242,10 +210,25 @@ impl ContextServer {
                         stdin_prefix: stdin_prefix.clone(),
                     },
                     working_directory,
+                    log,
+                    sender,
                     cx.clone(),
                 )?
             }
->>>>>>> zed/main
+            ContextServerTransport::SandboxedStdio(command, sandbox) => Client::sandboxed_stdio(
+                client::ContextServerId(self.id.0.clone()),
+                client::ModelContextServerBinary {
+                    executable: Path::new(&command.path).to_path_buf(),
+                    args: command.args.clone(),
+                    env: command.env.clone(),
+                    timeout: command.timeout,
+                    stdin_prefix: None,
+                },
+                sandbox,
+                log,
+                sender,
+                cx.clone(),
+            )?,
             ContextServerTransport::Custom(transport) => Client::new(
                 client::ContextServerId(self.id.0.clone()),
                 self.id().0,

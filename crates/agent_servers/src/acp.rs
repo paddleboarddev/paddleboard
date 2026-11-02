@@ -60,6 +60,9 @@ fn mcp_configurations_for_project(
                 {
                     None
                 }
+                // PaddleBoard: an external agent would launch a sandboxed server's
+                // command on the host, outside the sandbox, so those are never forwarded.
+                ContextServerConfiguration::Sandboxed { .. } => None,
                 _ => Some((id.0.to_string(), configuration)),
             }
         })
