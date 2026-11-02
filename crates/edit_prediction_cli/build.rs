@@ -1,4 +1,5 @@
 fn main() {
+    println!("cargo:rerun-if-changed=../zed/Cargo.toml");
     let cargo_toml =
         std::fs::read_to_string("../paddleboard/Cargo.toml").expect("Failed to read crates/paddleboard/Cargo.toml");
     let version = cargo_toml

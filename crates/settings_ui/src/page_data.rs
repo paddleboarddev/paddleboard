@@ -175,7 +175,7 @@ fn general_page(cx: &App) -> SettingsPage {
             }),
             SettingsPageItem::SettingItem(SettingItem {
                 title: "On New Window",
-                description: "What to show when opening a new window.",
+                description: "What to show when opening a new window; Readme opens a project's README when no items are open, leaving the pane empty if none is found.",
                 field: Box::new(SettingField {
                     organization_override: None,
                     json_path: Some("on_new_window"),
@@ -519,6 +519,26 @@ fn general_page(cx: &App) -> SettingsPage {
         ]
     }
 
+    fn extensions_section() -> [SettingsPageItem; 2] {
+        [
+            SettingsPageItem::SectionHeader("Extensions"),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Suggest Extensions",
+                description: "Whether to suggest installing extensions based on the files you open.",
+                field: Box::new(SettingField {
+                    organization_override: None,
+                    json_path: Some("suggest_extensions"),
+                    pick: |settings_content| Some(&settings_content.extension.suggest_extensions),
+                    write: |settings_content, value, _| {
+                        settings_content.extension.suggest_extensions = value.unwrap_or(true);
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+        ]
+    }
+
     SettingsPage {
         title: "General",
         items: concat_sections!(
@@ -529,6 +549,7 @@ fn general_page(cx: &App) -> SettingsPage {
             scoped_settings_section(),
             privacy_section(),
             auto_update_section(),
+            extensions_section(),
         )
         .into(),
     }
@@ -1263,6 +1284,7 @@ fn appearance_page() -> SettingsPage {
                             .as_ref()?
                             .font_family
                             .as_ref()
+                            .or(settings_content.theme.ui_font_family.as_ref())
                     },
                     write: |settings_content, value, _| {
                         settings_content
@@ -1286,6 +1308,7 @@ fn appearance_page() -> SettingsPage {
                             .as_ref()?
                             .code_font_family
                             .as_ref()
+                            .or(settings_content.theme.buffer_font_family.as_ref())
                     },
                     write: |settings_content, value, _| {
                         settings_content
@@ -1346,7 +1369,33 @@ fn appearance_page() -> SettingsPage {
         ]
     }
 
-    fn text_rendering_section() -> [SettingsPageItem; 2] {
+    fn mermaid_font_section() -> [SettingsPageItem; 2] {
+        [
+            SettingsPageItem::SectionHeader("Mermaid Font"),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Font Family",
+                description: "Font family for Mermaid diagrams in the agent panel and markdown preview. Falls back to the UI font family.",
+                field: Box::new(SettingField {
+                    organization_override: None,
+                    json_path: Some("mermaid_font_family"),
+                    pick: |settings_content| {
+                        settings_content
+                            .theme
+                            .mermaid_font_family
+                            .as_ref()
+                            .or(settings_content.theme.ui_font_family.as_ref())
+                    },
+                    write: |settings_content, value, _| {
+                        settings_content.theme.mermaid_font_family = value;
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+        ]
+    }
+
+    fn text_rendering_section() -> [SettingsPageItem; 3] {
         [
             SettingsPageItem::SectionHeader("Text Rendering"),
             SettingsPageItem::SettingItem(SettingItem {
@@ -1360,6 +1409,20 @@ fn appearance_page() -> SettingsPage {
                     },
                     write: |settings_content, value, _| {
                         settings_content.workspace.text_rendering_mode = value;
+                    },
+                }),
+                metadata: None,
+                files: USER,
+            }),
+            SettingsPageItem::SettingItem(SettingItem {
+                title: "Display P3",
+                description: "(macOS only) render windows using the Display P3 color space.",
+                field: Box::new(SettingField {
+                    organization_override: None,
+                    json_path: Some("use_display_p3"),
+                    pick: |settings_content| settings_content.workspace.use_display_p3.as_ref(),
+                    write: |settings_content, value, _| {
+                        settings_content.workspace.use_display_p3 = value;
                     },
                 }),
                 metadata: None,
@@ -1614,6 +1677,7 @@ fn appearance_page() -> SettingsPage {
         ui_font_section(),
         agent_panel_font_section(),
         markdown_preview_font_section(),
+        mermaid_font_section(),
         text_rendering_section(),
         cursor_section(),
         highlighting_section(),
@@ -8066,7 +8130,7 @@ fn terminal_page() -> SettingsPage {
 }
 
 fn version_control_page() -> SettingsPage {
-    fn git_integration_section() -> [SettingsPageItem; 2] {
+    fn git_integration_section() -> [SettingsPageItem; 3] {
         [
             SettingsPageItem::SectionHeader("Git Integration"),
             SettingsPageItem::DynamicItem(DynamicItem {
@@ -8165,6 +8229,76 @@ fn version_control_page() -> SettingsPage {
                             metadata: None,
                         },
                     ],
+                ],
+            }),
+            SettingsPageItem::DynamicItem(DynamicItem {
+                discriminant: SettingItem {
+                    files: USER,
+                    title: "Auto Fetch",
+                    description: "Automatically fetch the default branch's remote and the current branch's upstream remote.",
+                    field: Box::new(SettingField::<bool> {
+                        organization_override: None,
+                        json_path: Some("git.auto_fetch.enabled"),
+                        pick: |settings_content| {
+                            settings_content
+                                .git
+                                .as_ref()?
+                                .auto_fetch
+                                .as_ref()?
+                                .enabled
+                                .as_ref()
+                        },
+                        write: |settings_content, value, _| {
+                            settings_content
+                                .git
+                                .get_or_insert_default()
+                                .auto_fetch
+                                .get_or_insert_default()
+                                .enabled = value;
+                        },
+                    }),
+                    metadata: None,
+                },
+                pick_discriminant: |settings_content| {
+                    Some(
+                        *settings_content
+                            .git
+                            .as_ref()?
+                            .auto_fetch
+                            .as_ref()?
+                            .enabled
+                            .as_ref()? as usize,
+                    )
+                },
+                fields: vec![
+                    vec![],
+                    vec![SettingItem {
+                        files: USER,
+                        title: "Auto Fetch Interval",
+                        description: "How long to wait between automatic fetches, in seconds. (min: 15)",
+                        field: Box::new(SettingField::<u64> {
+                            organization_override: None,
+                            json_path: Some("git.auto_fetch.interval_secs"),
+                            pick: |settings_content| {
+                                settings_content
+                                    .git
+                                    .as_ref()?
+                                    .auto_fetch
+                                    .as_ref()?
+                                    .interval_secs
+                                    .as_ref()
+                            },
+                            write: |settings_content, value, _| {
+                                settings_content
+                                    .git
+                                    .get_or_insert_default()
+                                    .auto_fetch
+                                    .get_or_insert_default()
+                                    .interval_secs = value;
+                            },
+                        }),
+                        metadata: None,
+                    }],
                 ],
             }),
         ]

@@ -18,6 +18,7 @@ multi_buffer.workspace = true
 file_icons.workspace = true
 gpui.workspace = true
 language.workspace = true
+project.workspace = true
 ui.workspace = true
 workspace.workspace = true
 paddleboard_actions.workspace = true

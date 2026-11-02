@@ -1,11 +1,16 @@
 [package]
 description = "The fast, collaborative code editor."
 edition.workspace = true
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 name = "paddleboard"
 # PaddleBoard: own version line, decoupled from upstream Zed's number. Only ever
 # increment — keep-ours on the weekly merge if upstream tries to reset it.
 # Must match the release tag `v<version>` — release.yml validates this on a signed cut.
 version = "0.3.1"
+=======
+name = "zed"
+version = "1.28.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 publish.workspace = true
 license = "GPL-3.0-or-later"
 authors = ["Zed Team <hi@zed.dev>"]
@@ -39,8 +44,12 @@ visual-tests = [
     "dep:tempfile",
     "dep:action_log",
     "dep:agent_servers",
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
     # PaddleBoard: stub credentials provider for the git-login modal visual test
     "dep:credentials_provider",
+=======
+    "dep:env_logger",
+>>>>>>> zed/main:crates/zed/Cargo.toml
     "workspace/test-support",
     "project/test-support",
     "editor/test-support",
@@ -63,7 +72,7 @@ name = "paddleboard"
 path = "src/main.rs"
 
 [[bin]]
-name = "zed_visual_test_runner"
+name = "zed-visual-test-runner"
 path = "src/visual_test_runner.rs"
 required-features = ["visual-tests"]
 
@@ -110,7 +119,7 @@ dev_container.workspace = true
 diagnostics.workspace = true
 editor.workspace = true
 encoding_selector.workspace = true
-env_logger.workspace = true
+env_logger = { workspace = true, optional = true }
 extension.workspace = true
 extension_host.workspace = true
 extensions_ui.workspace = true
@@ -194,7 +203,7 @@ recent_projects.workspace = true
 release_channel.workspace = true
 remote.workspace = true
 repl.workspace = true
-reqwest.workspace = true
+reqwest = { workspace = true, features = ["multipart"] }
 reqwest_client.workspace = true
 rope.workspace = true
 sandbox.workspace = true
@@ -271,17 +280,20 @@ zlog.workspace = true
 zlog_settings.workspace = true
 ztracing.workspace = true
 
+[target.'cfg(target_os = "macos")'.dependencies]
+nix = { workspace = true, features = ["user"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 etw_tracing.workspace = true
-windows.workspace = true
+windows = { workspace = true, features = ["Win32_System_Console", "Win32_System_Pipes"] }
 gpui = { workspace = true, features = ["profiler", "windows-manifest"] }
 
-[build-dependencies]
-windows_resources = { path = "../windows_resources" }
+[target.'cfg(target_os = "windows")'.build-dependencies]
+windows_resources.workspace = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
 gpui = { workspace = true, features = ["profiler", "wayland", "x11"] }
-ashpd.workspace = true
+ashpd = { workspace = true, features = ["notification"] }
 image.workspace = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.build-dependencies]
@@ -297,6 +309,7 @@ activity_indicator = { workspace = true, features = ["test-support"] }
 # (collaborative calls are unsupported — see the tag at src/zed.rs:6341), and no
 # test references it.
 editor = { workspace = true, features = ["test-support"] }
+env_logger.workspace = true
 fs = { workspace = true, features = ["test-support"] }
 gpui = { workspace = true, features = ["profiler", "test-support"] }
 image_viewer = { workspace = true, features = ["test-support"] }
@@ -318,33 +331,61 @@ repl = { workspace = true, features = ["test-support"] }
 
 [package.metadata.bundle-dev]
 icon = ["resources/app-icon-dev@2x.png", "resources/app-icon-dev.png"]
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard-Dev"
 name = "PaddleBoard Dev"
 osx_minimum_system_version = "10.15.7"
+=======
+identifier = "dev.zed.Zed-Dev"
+name = "Zed Dev"
+category = "Developer Tool"
+osx_minimum_system_version = "12.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-nightly]
 icon = ["resources/app-icon-nightly@2x.png", "resources/app-icon-nightly.png"]
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard-Nightly"
 name = "PaddleBoard Nightly"
 osx_minimum_system_version = "10.15.7"
+=======
+identifier = "dev.zed.Zed-Nightly"
+name = "Zed Nightly"
+category = "Developer Tool"
+osx_minimum_system_version = "12.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-preview]
 icon = ["resources/app-icon-preview@2x.png", "resources/app-icon-preview.png"]
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard-Preview"
 name = "PaddleBoard Preview"
 osx_minimum_system_version = "10.15.7"
+=======
+identifier = "dev.zed.Zed-Preview"
+name = "Zed Preview"
+category = "Developer Tool"
+osx_minimum_system_version = "12.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 
 [package.metadata.bundle-stable]
 icon = ["resources/app-icon@2x.png", "resources/app-icon.png"]
+<<<<<<< HEAD:crates/paddleboard/Cargo.toml
 identifier = "dev.paddleboard.PaddleBoard"
 name = "PaddleBoard"
 osx_minimum_system_version = "10.15.7"
+=======
+identifier = "dev.zed.Zed"
+name = "Zed"
+category = "Developer Tool"
+osx_minimum_system_version = "12.0"
+>>>>>>> zed/main:crates/zed/Cargo.toml
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["paddleboard"] # PaddleBoard: app rename — matches the paddleboard:// parser
 

@@ -26,8 +26,13 @@ release_channel.workspace = true
 sqlez.workspace = true
 sqlez_macros.workspace = true
 util.workspace = true
+<<<<<<< HEAD
 uuid.workspace = true
 paddleboard_env_vars.workspace = true
+=======
+uuid = { workspace = true, features = ["v5", "v7"] }
+zed_env_vars.workspace = true
+>>>>>>> zed/main
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }

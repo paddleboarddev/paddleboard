@@ -42,7 +42,12 @@ db.workspace = true
 git_ui_core.workspace = true
 gpui = { workspace = true, features = ["screen-capture"] }
 icons.workspace = true
+<<<<<<< HEAD
 notifications.workspace = true
+=======
+livekit_client.workspace = true
+path.workspace = true
+>>>>>>> zed/main
 project.workspace = true
 recent_projects.workspace = true
 remote.workspace = true
