@@ -1,4 +1,4 @@
-use agent_client_protocol::schema::v1 as acp;
+use agent_client_protocol::v2::schema as acp;
 use agent_settings::AgentSettings;
 use anyhow::Result;
 use browser::{ForwardedPort, ForwardedPorts};

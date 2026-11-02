@@ -15,7 +15,7 @@ use std::time::Duration;
 use std::{fmt::Display, path::PathBuf};
 
 use anyhow::Result;
-use client::Client;
+use client::{Client, StdinPrefix};
 use gpui::AsyncApp;
 use parking_lot::RwLock;
 pub use settings::ContextServerCommand;
@@ -34,7 +34,7 @@ impl Display for ContextServerId {
 }
 
 enum ContextServerTransport {
-    Stdio(ContextServerCommand, Option<PathBuf>),
+    Stdio(ContextServerCommand, Option<PathBuf>, Option<StdinPrefix>),
     SandboxedStdio(ContextServerCommand, SandboxConfig),
     Custom(Arc<dyn crate::transport::Transport>),
 }
@@ -74,6 +74,7 @@ impl ContextServer {
         id: ContextServerId,
         command: ContextServerCommand,
         working_directory: Option<Arc<Path>>,
+        stdin_prefix: Option<StdinPrefix>,
     ) -> Self {
         Self {
             id,
@@ -81,6 +82,7 @@ impl ContextServer {
             configuration: ContextServerTransport::Stdio(
                 command,
                 working_directory.map(|directory| directory.to_path_buf()),
+                stdin_prefix,
             ),
             request_timeout: None,
             stderr_log: None,
@@ -197,19 +199,22 @@ impl ContextServer {
         cx: &AsyncApp,
     ) -> Result<Client> {
         Ok(match &self.configuration {
-            ContextServerTransport::Stdio(command, working_directory) => Client::stdio(
-                client::ContextServerId(self.id.0.clone()),
-                client::ModelContextServerBinary {
-                    executable: Path::new(&command.path).to_path_buf(),
-                    args: command.args.clone(),
-                    env: command.env.clone(),
-                    timeout: command.timeout,
-                },
-                working_directory,
-                log,
-                sender,
-                cx.clone(),
-            )?,
+            ContextServerTransport::Stdio(command, working_directory, stdin_prefix) => {
+                Client::stdio(
+                    client::ContextServerId(self.id.0.clone()),
+                    client::ModelContextServerBinary {
+                        executable: Path::new(&command.path).to_path_buf(),
+                        args: command.args.clone(),
+                        env: command.env.clone(),
+                        timeout: command.timeout,
+                        stdin_prefix: stdin_prefix.clone(),
+                    },
+                    working_directory,
+                    log,
+                    sender,
+                    cx.clone(),
+                )?
+            }
             ContextServerTransport::SandboxedStdio(command, sandbox) => Client::sandboxed_stdio(
                 client::ContextServerId(self.id.0.clone()),
                 client::ModelContextServerBinary {
@@ -217,6 +222,7 @@ impl ContextServer {
                     args: command.args.clone(),
                     env: command.env.clone(),
                     timeout: command.timeout,
+                    stdin_prefix: None,
                 },
                 sandbox,
                 log,

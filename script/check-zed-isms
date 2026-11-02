@@ -219,6 +219,7 @@ PROSE_OK=(
   'fork of Zed'                # crediting upstream, on purpose
   'managed by Zed'             # Zed Cloud manages the header
   "Zed's built-in Zeta"        # Zeta is Zed's model
+  "Zed's edit predictions"     # Zed Cloud's hosted predictions and their Free plan
   'Zed Plex'                   # real font family names
   'Zed Industries'             # upstream copyright string, legally theirs
   'Zed Keybind Context'        # names upstream's keymap-context concept

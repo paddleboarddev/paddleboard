@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use acp_thread::{AgentSessionInfo, AgentSessionList, AgentSessionListRequest, SessionListUpdate};
-use agent_client_protocol::schema::{MaybeUndefined, v1 as acp};
+use agent_client_protocol::v2::schema as acp;
 use gpui::{App, Task};
 use std::rc::Rc;
 use ui::prelude::*;
@@ -86,7 +86,7 @@ impl ThreadHistory {
     fn apply_info_update(
         &mut self,
         session_id: acp::SessionId,
-        info_update: acp::SessionInfoUpdate,
+        info_update: acp_thread::AgentSessionInfoUpdate,
         cx: &mut Context<Self>,
     ) {
         let Some(session) = self
@@ -96,31 +96,9 @@ impl ThreadHistory {
         else {
             return;
         };
-
-        match info_update.title {
-            MaybeUndefined::Value(title) => {
-                session.title = Some(title.into());
-            }
-            MaybeUndefined::Null => {
-                session.title = None;
-            }
-            MaybeUndefined::Undefined => {}
-        }
-        match info_update.updated_at {
-            MaybeUndefined::Value(date_str) => {
-                if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&date_str) {
-                    session.updated_at = Some(dt.with_timezone(&chrono::Utc));
-                }
-            }
-            MaybeUndefined::Null => {
-                session.updated_at = None;
-            }
-            MaybeUndefined::Undefined => {}
-        }
-        if let Some(meta) = info_update.meta {
-            session.meta = Some(meta);
-        }
-
+        // PaddleBoard: upstream's `AgentSessionInfo::apply_update` now handles both
+        // protocol versions, so this defers to it instead of matching fields itself.
+        session.apply_update(info_update);
         cx.notify();
     }
 
@@ -525,7 +503,7 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: second_page_session_id.clone(),
-            update: acp::SessionInfoUpdate::new().title("Updated Second"),
+            update: acp::SessionInfoUpdate::new().title("Updated Second").into(),
         });
         session_list.send_update(SessionListUpdate::Refresh);
         cx.run_until_parked();
@@ -594,7 +572,7 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: session_id.clone(),
-            update: acp::SessionInfoUpdate::new().title("New Title"),
+            update: acp::SessionInfoUpdate::new().title("New Title").into(),
         });
         cx.run_until_parked();
 
@@ -627,7 +605,7 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: session_id.clone(),
-            update: acp::SessionInfoUpdate::new().title(None::<String>),
+            update: acp::SessionInfoUpdate::new().title(None::<String>).into(),
         });
         cx.run_until_parked();
 
@@ -657,7 +635,7 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: session_id.clone(),
-            update: acp::SessionInfoUpdate::new(),
+            update: acp::SessionInfoUpdate::new().into(),
         });
         cx.run_until_parked();
 
@@ -690,11 +668,11 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: session_id.clone(),
-            update: acp::SessionInfoUpdate::new().title("First Title"),
+            update: acp::SessionInfoUpdate::new().title("First Title").into(),
         });
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: session_id.clone(),
-            update: acp::SessionInfoUpdate::new().title("Second Title"),
+            update: acp::SessionInfoUpdate::new().title("Second Title").into(),
         });
         cx.run_until_parked();
 
@@ -727,7 +705,7 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: session_id.clone(),
-            update: acp::SessionInfoUpdate::new().title("Local Update"),
+            update: acp::SessionInfoUpdate::new().title("Local Update").into(),
         });
         session_list.send_update(SessionListUpdate::Refresh);
         cx.run_until_parked();
@@ -761,7 +739,7 @@ mod tests {
 
         session_list.send_update(SessionListUpdate::SessionInfo {
             session_id: acp::SessionId::new("unknown-session"),
-            update: acp::SessionInfoUpdate::new().title("Should Be Ignored"),
+            update: acp::SessionInfoUpdate::new().title("Should Be Ignored").into(),
         });
         cx.run_until_parked();
 

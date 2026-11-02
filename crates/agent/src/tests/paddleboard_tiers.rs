@@ -3,18 +3,19 @@
 // exits with a scripted code per check.
 
 use super::*;
+use agent_client_protocol::v2::schema as acp;
 use pretty_assertions::assert_eq;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
 /// Returns a terminal exiting with the next scripted code on each call.
 struct ScriptedEnvironment {
-    exit_codes: RefCell<VecDeque<u32>>,
+    exit_codes: RefCell<VecDeque<i64>>,
     commands: RefCell<Vec<String>>,
 }
 
 impl ScriptedEnvironment {
-    fn new(exit_codes: &[u32]) -> Self {
+    fn new(exit_codes: &[i64]) -> Self {
         Self {
             exit_codes: RefCell::new(exit_codes.iter().copied().collect()),
             commands: RefCell::new(Vec::new()),
@@ -26,7 +27,7 @@ impl crate::ThreadEnvironment for ScriptedEnvironment {
     fn create_terminal(
         &self,
         command: String,
-        _extra_env: Vec<acp::EnvVariable>,
+        _extra_env: Vec<(String, String)>,
         _cwd: Option<std::path::PathBuf>,
         _output_byte_limit: Option<u64>,
         _sandbox_wrap: Option<acp_thread::SandboxWrap>,
@@ -40,7 +41,7 @@ impl crate::ThreadEnvironment for ScriptedEnvironment {
             .expect("the test scripted fewer checks than ran");
         let handle = cx.update(|cx| {
             FakeTerminalHandle::new_with_immediate_exit(cx, exit_code).with_output(
-                acp::TerminalOutputResponse::new(
+                ProcessOutput::new(
                     if exit_code == 0 {
                         "test result: ok".to_string()
                     } else {

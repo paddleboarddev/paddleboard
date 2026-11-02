@@ -1,4 +1,4 @@
-use agent_client_protocol::schema::v1 as acp;
+use agent_client_protocol::v2::schema as acp;
 use agent_settings::AgentSettings;
 use anyhow::Result;
 use futures::FutureExt as _;
@@ -12,13 +12,8 @@ use project::Project;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use settings::Settings;
+use std::{path::PathBuf, rc::Rc, sync::Arc, time::Duration};
 use util::ResultExt as _;
-use std::{
-    path::PathBuf,
-    rc::Rc,
-    sync::Arc,
-    time::Duration,
-};
 
 use crate::{
     AgentTool, ThreadEnvironment, ToolCallEventStream, ToolInput, ToolPermissionDecision,
@@ -201,8 +196,7 @@ impl AgentTool for SandboxTool {
                     // First use of the built-in tier downloads the image; tell the
                     // user what the wait is.
                     if !engine.is_image_ready(&image) {
-                        event_stream.update_fields(
-                            acp::ToolCallUpdateFields::new()
+                        event_stream.update_fields(|update| update
                                 .title(format!("Sandbox: pulling {image}…")),
                         );
                     }
@@ -214,8 +208,7 @@ impl AgentTool for SandboxTool {
                         })
                         .await
                         .map_err(|e| format!("failed to prepare sandbox: {e:#}"))?;
-                    event_stream.update_fields(
-                        acp::ToolCallUpdateFields::new()
+                    event_stream.update_fields(|update| update
                             .title(format!("Sandbox: {}", input.command)),
                     );
                     prepared.shell_command
@@ -248,7 +241,7 @@ impl AgentTool for SandboxTool {
                 .map_err(|e| e.to_string())?;
 
             let terminal_id = terminal.id(cx).map_err(|e| e.to_string())?;
-            event_stream.update_fields(acp::ToolCallUpdateFields::new().content(vec![
+            event_stream.update_fields(|update| update.content(vec![
                 acp::ToolCallContent::Terminal(acp::Terminal::new(terminal_id)),
             ]));
 
@@ -305,7 +298,7 @@ impl AgentTool for SandboxTool {
 }
 
 fn process_content(
-    output: acp::TerminalOutputResponse,
+    output: acp_thread::ProcessOutput,
     command: &str,
     timed_out: bool,
     user_stopped: bool,
@@ -329,7 +322,9 @@ fn process_content(
             Since the user intentionally interrupted this command, ask them what they would like to do next \
             rather than automatically retrying or assuming something went wrong.".to_string()
         } else {
-            format!("The user stopped this command, here is what it output before stopping:\n\n{content}")
+            format!(
+                "The user stopped this command, here is what it output before stopping:\n\n{content}"
+            )
         }
     } else if timed_out {
         if is_empty {
@@ -351,14 +346,18 @@ fn process_content(
                 if is_empty {
                     format!("The command failed with exit code {exit_code} and produced no output.")
                 } else {
-                    format!("The command failed with exit code {exit_code} and produced the following output:\n\n{content}")
+                    format!(
+                        "The command failed with exit code {exit_code} and produced the following output:\n\n{content}"
+                    )
                 }
             }
             None => {
                 if is_empty {
                     "The command did not produce any output and returned no exit code.".to_string()
                 } else {
-                    format!("The command returned no exit code, but produced the following output:\n\n{content}")
+                    format!(
+                        "The command returned no exit code, but produced the following output:\n\n{content}"
+                    )
                 }
             }
         }

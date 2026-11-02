@@ -369,11 +369,6 @@ fn main() {
     let installation_id = app
         .background_executor()
         .spawn(installation_id(KeyValueStore::from_app_db(&app_db)));
-    let session_id = Uuid::new_v4().to_string();
-    let session = app.background_executor().spawn(Session::new(
-        session_id.clone(),
-        KeyValueStore::from_app_db(&app_db),
-    ));
     let background_executor = app.background_executor();
 
     let (open_listener, mut open_rx) = OpenListener::new();
@@ -404,6 +399,12 @@ fn main() {
         println!("paddleboard is already running");
         return;
     }
+
+    let session_id = Uuid::new_v4().to_string();
+    let session = app.background_executor().spawn(Session::new(
+        session_id.clone(),
+        KeyValueStore::from_app_db(&app_db),
+    ));
 
     let should_install_crash_handler =
         client::telemetry::should_install_crash_handler(*release_channel::RELEASE_CHANNEL);
@@ -606,7 +607,7 @@ fn main() {
             tx.send(Some(options)).log_err();
         })
         .detach();
-        ui::on_new_scrollbars::<SettingsStore>(cx);
+        ui::observe_scrollbar_settings::<SettingsStore>(cx);
 
         let node_runtime = NodeRuntime::new(client.http_client(), Some(shell_env_loaded_rx), rx);
 
@@ -1510,8 +1511,57 @@ pub(crate) async fn restore_or_create_workspace(
         let mut tasks = Vec::new();
 
         for multi_workspace in multi_workspaces {
-            if let Err(error) = restore_multiworkspace(multi_workspace, app_state.clone(), cx).await
-            {
+            let result = match &multi_workspace.active_workspace.location {
+                SerializedWorkspaceLocation::Local => {
+                    restore_multiworkspace(multi_workspace, app_state.clone(), cx)
+                        .await
+                        .map(|_| ())
+                }
+                SerializedWorkspaceLocation::Remote(connection_options) => {
+                    let mut connection_options = connection_options.clone();
+                    if let RemoteConnectionOptions::Ssh(options) = &mut connection_options {
+                        cx.update(|cx| {
+                            RemoteSettings::get_global(cx)
+                                .fill_connection_options_from_settings(options)
+                        });
+                    }
+
+                    let paths = multi_workspace
+                        .active_workspace
+                        .paths
+                        .paths()
+                        .iter()
+                        .map(PathBuf::from)
+                        .collect::<Vec<_>>();
+                    let state = multi_workspace.state.clone();
+                    async {
+                        let window = open_remote_project(
+                            connection_options,
+                            paths,
+                            app_state.clone(),
+                            workspace::OpenOptions {
+                                // Each saved window must retain its own project roots,
+                                // even when some roots also appear in another window.
+                                workspace_matching: workspace::WorkspaceMatching::None,
+                                ..Default::default()
+                            },
+                            cx,
+                        )
+                        .await?;
+                        workspace::apply_restored_multiworkspace_state(
+                            window,
+                            &state,
+                            app_state.fs.clone(),
+                            cx,
+                        )
+                        .await;
+                        Ok::<(), anyhow::Error>(())
+                    }
+                    .await
+                }
+            };
+
+            if let Err(error) = result {
                 log::error!("Failed to restore workspace: {error:#}");
                 results.push(Err(error));
             }
@@ -2042,7 +2092,12 @@ fn load_user_themes_in_background(fs: Arc<dyn fs::Fs>, cx: &mut App) {
                 let Some(theme_path) = theme_path.log_err() else {
                     continue;
                 };
-                let Some(bytes) = fs.load_bytes(&theme_path).await.log_err() else {
+                let Some(bytes) = fs
+                    .load_bytes(&theme_path)
+                    .await
+                    .with_context(|| format!("loading theme bytes from {theme_path:?}"))
+                    .log_err()
+                else {
                     continue;
                 };
 
@@ -2074,7 +2129,11 @@ fn watch_themes(fs: Arc<dyn fs::Fs>, cx: &mut App) {
                     .is_some_and(|m| !m.is_dir)
                 {
                     let theme_registry = cx.update(|cx| ThemeRegistry::global(cx));
-                    if let Some(bytes) = fs.load_bytes(&event.path).await.log_err()
+                    if let Some(bytes) = fs
+                        .load_bytes(&event.path)
+                        .await
+                        .with_context(|| format!("loading theme bytes from {:?}", event.path))
+                        .log_err()
                         && load_user_theme(&theme_registry, &bytes).log_err().is_some()
                     {
                         cx.update(theme_settings::reload_theme);

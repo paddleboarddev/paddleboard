@@ -16,7 +16,10 @@ anyhow.workspace = true
 futures.workspace = true
 google_ai.workspace = true
 http_client.workspace = true
-jsonwebtoken.workspace = true
+# The workspace entry turns default features off (upstream, 2026-11). PEM parsing
+# reads the service-account key, and jsonwebtoken 10 panics at signing time unless
+# a crypto backend is enabled; aws_lc_rs is the one this crate already used.
+jsonwebtoken = { workspace = true, features = ["use_pem", "aws_lc_rs"] }
 log.workspace = true
 serde.workspace = true
 serde_json.workspace = true

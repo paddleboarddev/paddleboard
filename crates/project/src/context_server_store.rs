@@ -1,12 +1,13 @@
 pub mod extension;
 pub mod registry;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context as _, Result};
 use collections::{HashMap, HashSet};
+use context_server::client::StdinPrefix;
 use context_server::oauth::{self, McpOAuthTokenProvider, OAuthDiscovery, OAuthSession};
 use context_server::transport::HttpTransport;
 use context_server::{ContextServer, ContextServerCommand, ContextServerId};
@@ -27,7 +28,7 @@ use paddleboard_sandbox_settings::{
 use itertools::Itertools;
 use rand::Rng as _;
 use registry::ContextServerDescriptorRegistry;
-use remote::{Interactive, RemoteClient};
+use remote::{RemoteClient, command::RemoteCommand};
 use rpc::{AnyProtoClient, TypedEnvelope, proto};
 use settings::{Settings as _, SettingsLocation, SettingsStore, WorktreeId};
 use util::{ResultExt as _, rel_path::RelPath};
@@ -168,6 +169,7 @@ pub enum ContextServerConfiguration {
     Custom {
         command: ContextServerCommand,
         remote: bool,
+        launcher: Option<RemoteStdioLauncher>,
     },
     Sandboxed {
         command: ContextServerCommand,
@@ -186,6 +188,12 @@ pub enum ContextServerConfiguration {
         timeout: Option<u64>,
         oauth: Option<OAuthClientSettings>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteStdioLauncher {
+    pub command: ContextServerCommand,
+    pub stdin_prefix: StdinPrefix,
 }
 
 impl ContextServerConfiguration {
@@ -232,7 +240,11 @@ impl ContextServerConfiguration {
                 enabled: _,
                 command,
                 remote,
-            } => Some(ContextServerConfiguration::Custom { command, remote }),
+            } => Some(ContextServerConfiguration::Custom {
+                command,
+                remote,
+                launcher: None,
+            }),
             ContextServerSettings::SandboxedStdio {
                 enabled: _,
                 command,
@@ -477,6 +489,7 @@ impl ContextServerStore {
                 timeout: None,
             },
             remote: false,
+            launcher: None,
         });
         self.run_server(server, configuration, cx);
     }
@@ -1010,25 +1023,35 @@ impl ContextServerStore {
                 })
                 .await?;
 
-            let remote_command = upstream_client.update(cx, |client, _| {
-                client.build_command(
-                    Some(response.path),
-                    &response.args,
-                    &response.env.into_iter().collect(),
-                    root_dir,
-                    None,
-                    Interactive::Yes,
-                )
-            })?;
-
             let command = ContextServerCommand {
-                path: remote_command.program.into(),
-                args: remote_command.args,
-                env: Some(remote_command.env.into_iter().collect()),
+                path: PathBuf::from(&response.path),
+                args: response.args.clone(),
+                env: Some(response.env.clone().into_iter().collect()),
                 timeout: None,
             };
 
-            Arc::new(ContextServerConfiguration::Custom { command, remote })
+            let (launcher_command, stdin_prefix) = upstream_client.update(cx, |client, _| {
+                client.build_stdio_command(RemoteCommand {
+                    program: response.path,
+                    args: response.args,
+                    env: response.env.into_iter().collect(),
+                    working_dir: root_dir,
+                })
+            })?;
+
+            Arc::new(ContextServerConfiguration::Custom {
+                command,
+                remote,
+                launcher: Some(RemoteStdioLauncher {
+                    command: ContextServerCommand {
+                        path: launcher_command.program.into(),
+                        args: launcher_command.args,
+                        env: Some(launcher_command.env.into_iter().collect()),
+                        timeout: None,
+                    },
+                    stdin_prefix: StdinPrefix(stdin_prefix),
+                }),
+            })
         } else {
             configuration
         };
@@ -1151,6 +1174,7 @@ impl ContextServerStore {
                                 id,
                                 command,
                                 working_directory,
+                                None,
                             )))
                         }
                         SandboxGateDecision::WarnOnce { reason } => {
@@ -1182,10 +1206,22 @@ impl ContextServerStore {
                     }
                 }
                 _ => {
-                    let mut command = configuration
-                        .command()
-                        .context("Missing command configuration for stdio context server")?
-                        .clone();
+                    let (mut command, stdin_prefix) = match configuration.as_ref() {
+                        ContextServerConfiguration::Custom {
+                            launcher: Some(launcher),
+                            ..
+                        } => (
+                            launcher.command.clone(),
+                            Some(launcher.stdin_prefix.clone()),
+                        ),
+                        _ => (
+                            configuration
+                                .command()
+                                .context("Missing command configuration for stdio context server")?
+                                .clone(),
+                            None,
+                        ),
+                    };
                     command.timeout = Some(
                         command
                             .timeout
@@ -1199,6 +1235,7 @@ impl ContextServerStore {
                         id,
                         command,
                         working_directory,
+                        stdin_prefix,
                     )))
                 }
             }
@@ -1269,13 +1306,29 @@ impl ContextServerStore {
     }
 
     /// Merges context server settings from all visible worktrees so that servers defined
-    /// in any project folder in a multi-root workspace are picked up.
+    /// in any project folder in a multi-root workspace are picked up. With no visible
+    /// worktrees, falls back to user settings.
     fn resolve_all_context_server_settings(
         worktree_store: &Entity<WorktreeStore>,
         cx: &App,
     ) -> HashMap<Arc<str>, ContextServerSettingsEntry> {
         let mut merged = HashMap::default();
-        for worktree in worktree_store.read(cx).visible_worktrees(cx) {
+        let mut visible_worktrees = worktree_store.read(cx).visible_worktrees(cx).peekable();
+        if visible_worktrees.peek().is_none() {
+            // Without this, user servers are missing until the first worktree is added,
+            // and never appear in a window that has no folder.
+            for (id, settings) in &ProjectSettings::get(None, cx).context_servers {
+                merged.insert(
+                    id.clone(),
+                    ContextServerSettingsEntry {
+                        worktree_id: None,
+                        settings: settings.clone(),
+                    },
+                );
+            }
+            return merged;
+        }
+        for worktree in visible_worktrees {
             let worktree_id = worktree.read(cx).id();
             let location = settings::SettingsLocation {
                 worktree_id,

@@ -80,6 +80,7 @@ paddleboard_actions.workspace = true
 paddleboard_credentials_provider.workspace = true
 
 [dev-dependencies]
+credentials_provider = { workspace = true, features = ["test-support"] }
 fs = { workspace = true, features = ["test-support"] }
 futures.workspace = true
 gpui = { workspace = true, features = ["test-support"] }

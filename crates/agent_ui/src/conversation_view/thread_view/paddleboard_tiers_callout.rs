@@ -90,7 +90,7 @@ impl ThreadView {
         // Sent like a typed message, so the conversation view, history and
         // persistence all see it the same way.
         let contents = Task::ready(Ok(Some((
-            vec![acp_v1::ContentBlock::Text(acp_v1::TextContent::new(
+            vec![acp_v2::ContentBlock::Text(acp_v2::TextContent::new(
                 message,
             ))],
             Vec::new(),

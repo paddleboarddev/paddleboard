@@ -10,6 +10,7 @@
 
 use super::*;
 use paddleboard_tiers::{CheckOutcome, Decision, TierAttempts, TiersSettings};
+use agent_client_protocol::v2::schema as acp;
 use settings::SettingsLocation;
 
 /// Output lines the terminal tool returns to us. The tail is what matters for
@@ -264,8 +265,7 @@ impl Thread {
                     grants,
                     Some(weak),
                 );
-                tool_event_stream.update_fields(
-                    acp::ToolCallUpdateFields::new().status(acp::ToolCallStatus::InProgress),
+                tool_event_stream.update_fields(|update| update.status(acp::ToolCallStatus::InProgress),
                 );
                 let result = cx
                     .update(|cx| tool.run(ToolInput::ready(input), tool_event_stream, cx))
@@ -274,17 +274,15 @@ impl Thread {
                 let output = match &result {
                     Ok(output) | Err(output) => output,
                 };
-                event_stream.update_tool_call_fields(
-                    &tool_call_id,
-                    acp::ToolCallUpdateFields::new()
+                event_stream.update_tool_call_fields(&tool_call_id, |update| {
+                    update
                         .status(if is_error {
                             acp::ToolCallStatus::Failed
                         } else {
                             acp::ToolCallStatus::Completed
                         })
-                        .raw_output(output.raw_output.clone()),
-                    None,
-                );
+                        .raw_output(output.raw_output.clone())
+                });
                 let text = tool_output_text(output);
                 paddleboard_tiers::classify_terminal_result(
                     &check.command,
@@ -431,10 +429,10 @@ mod tests {
     /// turning every failed check into a pass.
     #[test]
     fn classifier_agrees_with_the_terminal_tool() {
-        let outcome = |exit_code: Option<u32>, output: &str, timed_out, user_stopped| {
-            let mut response = acp::TerminalOutputResponse::new(output.to_string(), false);
+        let outcome = |exit_code: Option<i64>, output: &str, timed_out, user_stopped| {
+            let mut response = acp_thread::ProcessOutput::new(output.to_string(), false);
             if let Some(code) = exit_code {
-                response = response.exit_status(acp::TerminalExitStatus::new().exit_code(code));
+                response = response.exit_status(acp_v2::TerminalExitStatus::new().exit_code(code));
             }
             let text = crate::tools::paddleboard_process_content_for_tests(
                 response,
