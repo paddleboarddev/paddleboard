@@ -70,6 +70,13 @@ fn main() {
     let project_path = canonical_temp.join("project");
     std::fs::create_dir_all(&project_path).expect("Failed to create project directory");
 
+    // PaddleBoard: keep the app's data directory inside the temp dir too.
+    // PADDLEBOARD_STATELESS doesn't cover every reader: the sidebar checks the
+    // other release channels' thread databases, so an installed PaddleBoard
+    // with saved threads made the "Threads found from other channels" banner
+    // appear in sidebar screenshots.
+    paths::set_custom_data_dir(&canonical_temp.join("data").to_string_lossy());
+
     // Create test files in the real filesystem
     create_test_files(&project_path);
 
@@ -2601,18 +2608,22 @@ fn run_tool_permissions_visual_tests(
         cx.run_until_parked();
     }
 
-    // Find the settings window - it should be the newest window (last in the list)
+    // PaddleBoard: search for the settings window by type. It is not always
+    // the last entry in `cx.windows()`, because a new window can take a slot
+    // freed by an earlier test's closed window.
     let all_windows = cx.update(|cx| cx.windows());
-    let settings_window = all_windows.last().copied().context("No windows found")?;
 
     let output_dir = std::env::var("VISUAL_TEST_OUTPUT_DIR")
         .unwrap_or_else(|_| "target/visual_tests".to_string());
     std::fs::create_dir_all(&output_dir).log_err();
 
     // Navigate to the tool permissions sub-page using the public API
-    let settings_window_handle = settings_window
-        .downcast::<settings_ui::SettingsWindow>()
-        .context("Failed to downcast to SettingsWindow")?;
+    let settings_window_handle = all_windows
+        .iter()
+        .rev()
+        .find_map(|window| window.downcast::<settings_ui::SettingsWindow>())
+        .context("No SettingsWindow found")?;
+    let settings_window: gpui::AnyWindowHandle = settings_window_handle.into();
 
     settings_window_handle
         .update(cx, |settings_window, window, cx| {
