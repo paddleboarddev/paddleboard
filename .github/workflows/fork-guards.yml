@@ -3,7 +3,8 @@ name: Fork guards
 # Cheap checks (seconds, no compile) for mistakes that build fine and only show
 # up later: "Zed" strings reaching the UI after an upstream merge, the two
 # llama.cpp pin copies drifting apart, upstream files resurrected inside
-# directories this fork deleted, and personal files committed by accident.
+# directories this fork deleted, personal files committed by accident, and a PR
+# whose author hasn't yet confirmed reviewing what an agent wrote.
 
 on:
   pull_request:
@@ -43,5 +44,14 @@ jobs:
           if [ -n "$tracked" ]; then
             echo "These are personal files and must not be committed:" >&2
             echo "$tracked" >&2
+            exit 1
+          fi
+      - name: Check the review banner has been removed
+        # Agents put a two-line banner at the top of README.md when they change
+        # source files (`.rules`), and only the PR's author removes it. This
+        # fails until they have, so it can't be merged by mistake.
+        run: |
+          if [ "$(head -n 2 README.md)" = "$(printf '%s\n%s' '> [!IMPORTANT]' "> Remove this line to confirm you've reviewed this PR before submitting.")" ]; then
+            echo "::error file=README.md,line=1::An agent wrote part of this PR. Review its changes, then remove the two banner lines at the top of README.md to confirm you have. See CONTRIBUTING.md, \"Agent-written changes\"."
             exit 1
           fi
