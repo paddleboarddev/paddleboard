@@ -5,6 +5,7 @@ mod reliability;
 mod sandbox_recovery; // PaddleBoard: cleanup and notice after a crash mid sandboxed command.
 mod tour; // PaddleBoard: first-launch tour (materialize + preview + re-surface).
 mod watcher_debug;
+mod windows_title_bar; // PaddleBoard: drag area and caption buttons on Windows.
 mod zed;
 
 // Ensure the binary name stays in sync with APP_NAME so that the paths used
@@ -347,8 +348,9 @@ fn main() {
         .build_global()
         .unwrap();
 
+    // PaddleBoard: was "starting zed"; reporters read this line as Zed's log.
     log::info!(
-        "========== starting zed version {}, sha {} ==========",
+        "========== starting PaddleBoard version {}, sha {} ==========",
         app_version,
         app_commit_sha
             .as_ref()
@@ -540,6 +542,8 @@ fn main() {
         paddleboard_scion_ui::init(cx);
         // PaddleBoard: Set Sail — serverless quick-deploy via s8sskills.
         paddleboard_set_sail::init(cx);
+        // PaddleBoard: Windows has no title bar to move the window by without this.
+        windows_title_bar::init(cx);
         if let Some(app_commit_sha) = app_commit_sha {
             AppCommitSha::set_global(app_commit_sha, cx);
         }

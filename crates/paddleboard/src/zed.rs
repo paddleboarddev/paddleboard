@@ -416,6 +416,7 @@ pub fn build_window_options(display_uuid: Option<Uuid>, cx: &mut App) -> WindowO
         // call both live inside `PlatformTitleBar`, which the main window never renders.
         // Setting this `true` therefore switched AppKit's dragging off and replaced it
         // with nothing, leaving the window impossible to move by its title area.
+        // (Windows has no AppKit to fall back on; `windows_title_bar` gives it a title bar.)
         app_owns_titlebar_drag: false,
         display_id: display.map(|display| display.id()),
         window_background: cx.theme().window_background_appearance(),

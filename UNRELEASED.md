@@ -8,3 +8,4 @@ section.
 ## Next
 
 - Changed: PaddleBoard now needs macOS 12 Monterey or later (was 10.15), following Zed.
+- Fixed: on Windows, the main window can now be moved, maximised by double-clicking, minimised and closed. It gains a title bar for this.
