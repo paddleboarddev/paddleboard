@@ -1,0 +1,85 @@
+name: Windows check
+
+# PaddleBoard: until this existed, NOTHING compiled Windows code before release
+# day. compile-check.yml covers Linux (the whole workspace) and macOS (a crate
+# list), and `#[cfg(target_os = "windows")]` code is false on both, so it was
+# first compiled by release.yml's Windows job, after the tag was pushed. A
+# Windows-only break then cost a missing download and a second release.
+#
+# `cargo check -p paddleboard` compiles the app and everything it pulls in on
+# Windows: `paddleboard_actions` (the only other PaddleBoard-owned crate with
+# Windows-gated code, checked 2026-11-04), `platform_title_bar` (the Windows
+# title bar since #113) and `gpui_windows`. A new `paddleboard_*` crate with
+# Windows-gated code is covered as long as the app depends on it; add its path
+# below so changing it triggers this check. Find them with:
+#   grep -rlE 'target_os = "windows"|cfg\(windows\)' crates/paddleboard*/src
+#
+# Free: this repo is public, so hosted Windows runners cost nothing. The
+# `paths:` filter is about wall time, not money, and it is safe because no check
+# is required for merge (a skipped required check would block the PR).
+# `cargo check` never links, so the release job's memory hedges (fewer jobs,
+# more codegen units, the roomiest drive) aren't needed here.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "crates/paddleboard/**"
+      - "crates/paddleboard_actions/**"
+      - "crates/platform_title_bar/**"
+      - "crates/gpui_windows/**"
+      # A dependency bump can break Windows-only code paths in any crate.
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/windows-check.yml"
+
+concurrency:
+  group: windows-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_NET_RETRY: "5"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  windows:
+    name: Windows (paddleboard)
+    # windows-2022 to match release.yml, so this checks against the same MSVC and
+    # SDK the preview zip is built with.
+    runs-on: windows-2022
+    # The release build takes ~80 min; a cold debug check should be well under
+    # half that. Raise this if cold runs get close.
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust
+        shell: bash
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: windows-check
+
+      - name: cargo check -p paddleboard
+        shell: pwsh
+        run: |
+          # Same as script/bundle-windows-preview.ps1: a VS developer shell gives
+          # the cmake-based dependencies (aws-lc-sys, zstd, ...) the MSVC toolchain.
+          # It only lasts for this step's shell, so cargo runs in the same step.
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Push-Location
+          & "$vsPath\Common7\Tools\Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          Pop-Location
+          cargo check --locked -p paddleboard
+          exit $LASTEXITCODE
