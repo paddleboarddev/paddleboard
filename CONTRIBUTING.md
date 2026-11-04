@@ -32,6 +32,19 @@ A few conventions encode most of how the project works:
 - Sign off every commit (see below).
 - Workflows on PRs from first-time and outside contributors wait for a maintainer to approve them before they run, so the checks may sit at "waiting" for a while.
 
+## Agent-written changes
+
+Using a coding agent is fine, as long as you've read and understood what it wrote. The project's agent instructions (`.rules`, which `CLAUDE.md` and `AGENTS.md` point to) make an agent put this banner at the top of `README.md` whenever it changes source files:
+
+```
+> [!IMPORTANT]
+> Remove this line to confirm you've reviewed this PR before submitting.
+```
+
+Removing it is your confirmation that you've reviewed the changes, so agents are told never to remove it themselves. The Fork guards check fails while it's there.
+
+To remove it, delete those two lines and commit, or run `script/clear-review-banner`, which does it safely even if you run it twice. GitHub's web editor on your branch works too. Maintainers can clear it on a PR with `script/clear-review-banner <PR number>`, which commits with a sign-off and pushes to the PR's branch.
+
 ## Sign off your commits
 
 PaddleBoard uses the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) instead of a contributor license agreement. By adding a `Signed-off-by` line to a commit, you certify that you wrote the change, or otherwise have the right to submit it, under the project's license (GPL-3.0-or-later). You keep the copyright to your work; nothing is assigned.

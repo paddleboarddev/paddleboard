@@ -13,8 +13,54 @@
 # the banner is absent, and safe to run twice in a row.
 #
 # Exit 0 whether or not the banner was there; the point is the end state.
+#
+# Usage:
+#   script/clear-review-banner          clear it in this checkout's README.md
+#   script/clear-review-banner <PR>     clear it on that PR's branch: commit
+#                                       (signed off as you) and push, in a
+#                                       temporary worktree, so the branch you
+#                                       have checked out is never touched
+#
+# The PR form pushes to wherever the PR's branch lives: a branch in
+# paddleboarddev/paddleboard, or one on your own fork. It refuses anyone else's
+# fork; a contributor clears the banner on their own branch (or in GitHub's web
+# editor).
 
 set -euo pipefail
+
+REPO="paddleboarddev/paddleboard"
+
+if [ $# -gt 0 ]; then
+  pr="$1"
+  if ! [[ "$pr" =~ ^[0-9]+$ ]]; then
+    echo "usage: script/clear-review-banner [PR number]" >&2
+    exit 2
+  fi
+  root="$(cd "$(dirname "$0")/.." && pwd)"
+  read -r branch head_owner head_name < <(
+    gh pr view "$pr" --repo "$REPO" \
+      --json headRefName,headRepositoryOwner,headRepository \
+      --jq '"\(.headRefName) \(.headRepositoryOwner.login) \(.headRepository.name)"'
+  )
+  me="$(gh api user --jq .login)"
+  if [ "$head_owner" != "${REPO%%/*}" ] && [ "$head_owner" != "$me" ]; then
+    echo "clear-review-banner: #$pr is on $head_owner's fork; they clear it on their branch." >&2
+    exit 1
+  fi
+  head_url="git@github.com:$head_owner/$head_name.git"
+  worktree="$(mktemp -d)/pr-$pr"
+  git -C "$root" fetch --quiet "$head_url" "refs/heads/$branch"
+  git -C "$root" worktree add --quiet --detach "$worktree" FETCH_HEAD
+  trap 'git -C "$root" worktree remove --force "$worktree"' EXIT
+  "$worktree/script/clear-review-banner"
+  if git -C "$worktree" diff --quiet -- README.md; then
+    exit 0
+  fi
+  git -C "$worktree" commit --quiet --signoff -m "Remove review banner" -- README.md
+  git -C "$worktree" push --quiet "$head_url" "HEAD:refs/heads/$branch"
+  echo "clear-review-banner: pushed to $head_owner:$branch (#$pr)."
+  exit 0
+fi
 
 README="$(cd "$(dirname "$0")/.." && pwd)/README.md"
 
