@@ -46,7 +46,7 @@ When the agent needs to run untrusted code, compile binaries, or execute tests, 
 
 **Choose how it's sandboxed.** Click the status-bar shield icon to open the **Sandbox Backend** picker and pick the tier you want:
 
-- **Native** — the zero-install, OS-native tier. On macOS 26+ it uses Apple's first-party **`container`** tool (sub-second microVMs, no daemon); on older Apple silicon Macs it falls back to PaddleBoard's bundled **libkrun** microVM; on Linux it's libkrun over **KVM**. The picker names the exact runtime it will use on *your* machine.
+- **Native** — the OS-native tier. On macOS 26+ it uses Apple's first-party **`container`** tool (sub-second microVMs, no daemon), which you install from Apple and start once with `container system start`; on older Apple silicon Macs it uses PaddleBoard's **libkrun** microVM; on Linux it's libkrun over **KVM**. PaddleBoard ships the microVM helper, but not libkrun itself yet, so the libkrun tiers need a one-time install of `libkrun` and `libkrunfw` (bundling them is tracked in [#107](https://github.com/paddleboarddev/paddleboard/issues/107)). The picker names the exact runtime it will use on *your* machine, and its **Set up in Terminal** button stages the install.
 - **Podman** — the **Podman + gVisor (`runsc`)** tier, PaddleBoard's strongest isolation. Native and rootless on Linux; a small Linux VM on macOS; a WSL2 backend on Windows (the only container path there).
 
 Each option carries a **"Set up in Terminal"** button that stages the right install command in a fresh Terminal window — nothing runs inside the app.

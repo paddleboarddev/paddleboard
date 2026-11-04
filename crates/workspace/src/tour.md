@@ -50,7 +50,7 @@ integrated **Sandbox** — your project mounts in, permission prompts still gate
 every command, and the sandbox is discarded when done.
 
 - Click the **shield icon** in the status bar to pick your backend tier.
-- **Native** is zero-install (Apple `container`, bundled libkrun microVM, or
+- **Native** is the OS-native tier (Apple `container`, a libkrun microVM, or
   KVM on Linux); **Podman + gVisor** is the strongest tier.
 - Each option stages its install in a fresh Terminal — nothing runs inside the app.
 

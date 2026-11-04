@@ -1098,8 +1098,8 @@ fn libkrun_option_macos(status: &SandboxStatus) -> BackendOption {
         backend: PreferredBackend::Native,
         title: "Native",
         runtime_label: "Built-in microVM (libkrun)".to_string(),
-        summary: "PaddleBoard's bundled libkrun microVM runner: zero-install strong isolation on \
-                  macOS 13–25 and Apple silicon."
+        summary: "PaddleBoard's libkrun microVM runner: strong isolation on Apple silicon \
+                  (macOS 13+), with a one-time libkrun install."
             .to_string(),
         availability,
         coverage_note: Some(NATIVE_ONE_SHOT_NOTE),
@@ -1144,8 +1144,8 @@ fn native_option_linux(status: &SandboxStatus) -> BackendOption {
         backend: PreferredBackend::Native,
         title: "Native",
         runtime_label: "Built-in microVM (libkrun/KVM)".to_string(),
-        summary: "PaddleBoard's bundled libkrun microVM runner over KVM: strong isolation with \
-                  no podman-machine VM."
+        summary: "PaddleBoard's libkrun microVM runner over KVM: strong isolation with no \
+                  podman-machine VM, once libkrun is installed."
             .to_string(),
         availability,
         coverage_note: Some(NATIVE_ONE_SHOT_NOTE),
