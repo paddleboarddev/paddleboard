@@ -28,9 +28,9 @@ pub struct PaddleboardSandboxContent {
 
     /// Which sandbox backend PaddleBoard should use, chosen at setup time.
     ///
-    /// - `"native"`: the OS-native, zero-install tier — Apple `container` on
-    ///   macOS 26+ (else the bundled libkrun microVM), or libkrun over KVM on
-    ///   Linux. Not available on Windows.
+    /// - `"native"`: the OS-native tier — Apple `container` on macOS 26+ (else
+    ///   the libkrun microVM), or libkrun over KVM on Linux. Apple `container`
+    ///   and libkrun are installed separately. Not available on Windows.
     /// - `"podman"`: the Podman + gVisor (`runsc`) tier.
     ///
     /// The gate honors this explicitly: a machine that picks `"native"` uses
