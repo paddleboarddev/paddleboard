@@ -186,6 +186,7 @@ parking_lot.workspace = true
 paths.workspace = true
 picker.workspace = true
 profiling.workspace = true
+platform_title_bar.workspace = true
 project.workspace = true
 project_panel.workspace = true
 project_symbols.workspace = true
