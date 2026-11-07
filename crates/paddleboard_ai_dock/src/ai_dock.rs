@@ -79,6 +79,13 @@ impl AiDock {
             usage_summary: None,
             expanded: false,
         });
+
+        // PaddleBoard: one silent path remains. If another modal is active and
+        // declines to close, `toggle_modal` returns without opening the dock. Say
+        // so in the log, so a future "the dock didn't open" report has a cause.
+        if workspace.active_modal::<AiDock>(cx).is_none() {
+            log::warn!("AI Dock did not open on {tab:?}: the active modal declined to close");
+        }
     }
 
     fn refresh_usage(&mut self, cx: &mut Context<Self>) {
@@ -293,5 +300,130 @@ impl Render for AiDock {
                     .overflow_hidden()
                     .child(body),
             )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui::{TestAppContext, VisualTestContext};
+    use paddleboard_actions::{McpServers, ai_dock};
+    use project::Project;
+    use workspace::{AppState, MultiWorkspace};
+
+    use super::*;
+
+    fn init_test(cx: &mut TestAppContext) -> Arc<AppState> {
+        cx.update(|cx| {
+            let app_state = AppState::test(cx);
+            theme_settings::init(theme::LoadThemes::JustBase, cx);
+            workspace::init(app_state.clone(), cx);
+            // The Agents tab reads the global client when it renders.
+            client::Client::set_global(app_state.client.clone(), cx);
+            crate::init(cx);
+            app_state
+        })
+    }
+
+    async fn open_workspace(
+        cx: &mut TestAppContext,
+    ) -> (Entity<Workspace>, &mut VisualTestContext) {
+        let app_state = init_test(cx);
+        let project = Project::test(app_state.fs.clone(), [], cx).await;
+        let (multi_workspace, cx) =
+            cx.add_window_view(|window, cx| MultiWorkspace::test_new(project, window, cx));
+        let workspace = multi_workspace.read_with(cx, |mw, _| mw.workspace().clone());
+        (workspace, cx)
+    }
+
+    fn dock_tab(workspace: &Entity<Workspace>, cx: &mut VisualTestContext) -> Option<AiDockTab> {
+        workspace.update(cx, |workspace, cx| {
+            workspace
+                .active_modal::<AiDock>(cx)
+                .map(|dock| dock.read(cx).tab)
+        })
+    }
+
+    /// A stand-in for the command palette: some other modal that is active when
+    /// a dock action runs, and that closes when asked.
+    struct OtherModal(FocusHandle);
+
+    impl EventEmitter<DismissEvent> for OtherModal {}
+    impl ModalView for OtherModal {}
+
+    impl Focusable for OtherModal {
+        fn focus_handle(&self, _cx: &App) -> FocusHandle {
+            self.0.clone()
+        }
+    }
+
+    impl Render for OtherModal {
+        fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            div().track_focus(&self.focus_handle(cx))
+        }
+    }
+
+    // #112 (was #200): running a dock action while the dock was already the
+    // active modal dismissed it, so `ai dock: open` looked like it did nothing.
+    #[gpui::test]
+    async fn test_dock_actions_never_dismiss_an_open_dock(cx: &mut TestAppContext) {
+        let (workspace, cx) = open_workspace(cx).await;
+
+        cx.dispatch_action(ai_dock::Open);
+        cx.run_until_parked();
+        assert_eq!(dock_tab(&workspace, cx), Some(AiDockTab::Agents));
+
+        // The same action again keeps the dock open.
+        cx.dispatch_action(ai_dock::Open);
+        cx.run_until_parked();
+        assert_eq!(dock_tab(&workspace, cx), Some(AiDockTab::Agents));
+
+        // A different dock action switches the tab instead of closing.
+        cx.dispatch_action(ai_dock::OpenPersonas);
+        cx.run_until_parked();
+        assert_eq!(dock_tab(&workspace, cx), Some(AiDockTab::Personas));
+
+        cx.dispatch_action(ai_dock::Open);
+        cx.run_until_parked();
+        assert_eq!(dock_tab(&workspace, cx), Some(AiDockTab::Agents));
+    }
+
+    // The path from the command palette: another modal is active when the action
+    // runs, and the dock replaces it.
+    #[gpui::test]
+    async fn test_dock_opens_over_another_modal(cx: &mut TestAppContext) {
+        let (workspace, cx) = open_workspace(cx).await;
+
+        workspace.update_in(cx, |workspace, window, cx| {
+            workspace.toggle_modal(window, cx, |_window, cx| OtherModal(cx.focus_handle()));
+        });
+        cx.run_until_parked();
+        workspace.update(cx, |workspace, cx| {
+            assert!(workspace.active_modal::<OtherModal>(cx).is_some());
+        });
+
+        cx.dispatch_action(McpServers);
+        cx.run_until_parked();
+        assert_eq!(dock_tab(&workspace, cx), Some(AiDockTab::Mcp));
+        workspace.update(cx, |workspace, cx| {
+            assert!(workspace.active_modal::<OtherModal>(cx).is_none());
+        });
+    }
+
+    // Closing the dock and opening it again works, however many times.
+    #[gpui::test]
+    async fn test_dock_reopens_after_dismiss(cx: &mut TestAppContext) {
+        let (workspace, cx) = open_workspace(cx).await;
+
+        for _ in 0..3 {
+            cx.dispatch_action(ai_dock::OpenPersonas);
+            cx.run_until_parked();
+            assert_eq!(dock_tab(&workspace, cx), Some(AiDockTab::Personas));
+
+            workspace.update_in(cx, |workspace, window, cx| {
+                workspace.hide_modal(window, cx);
+            });
+            cx.run_until_parked();
+            assert_eq!(dock_tab(&workspace, cx), None);
+        }
     }
 }

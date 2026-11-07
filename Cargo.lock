@@ -12518,6 +12518,8 @@ dependencies = [
  "serde_json",
  "settings",
  "task",
+ "theme",
+ "theme_settings",
  "ui",
  "ui_input",
  "util",
