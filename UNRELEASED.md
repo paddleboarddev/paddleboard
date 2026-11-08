@@ -8,3 +8,4 @@ section.
 ## Next
 
 - Changed: PaddleBoard now needs macOS 12 Monterey or later (was 10.15), following Zed.
+- Fixed: the welcome guide, the tour and the sandbox picker no longer call the libkrun sandbox "bundled" or "zero-install". libkrun and libkrunfw, or Apple's `container` tool, are a one-time install for now.
