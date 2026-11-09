@@ -343,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "agent-client-protocol"
-version = "5.0.0"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80ce60ce096020c2d0aa10445bc27b8856109e288abaf564ab517031ae819d69"
+checksum = "c60cfd8cddbb23d9e30f51dca5316b4cea769ba55900db1fa8951dca4f28d02d"
 dependencies = [
  "agent-client-protocol-derive",
  "agent-client-protocol-schema",
@@ -362,9 +362,9 @@ dependencies = [
 
 [[package]]
 name = "agent-client-protocol-derive"
-version = "5.0.0"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a12951a4e9a163a9384dec4e5681bd774c0fdb3871c5ed1deb7b44bc630df17a"
+checksum = "b296716e42d77d38aef7f645cbe0765287b0e0a84722cb9f8ac39e6cdcecdb2a"
 dependencies = [
  "quote",
  "syn 3.0.3",
@@ -372,9 +372,9 @@ dependencies = [
 
 [[package]]
 name = "agent-client-protocol-schema"
-version = "1.15.1"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b2316d2cd561917bc2c16e3c64771c77e24363b56d40b58fdad091d02059992"
+checksum = "e20d2c4af6eb08f6a4f562520bdd939a4af803255fec461dd523638c22f5b265"
 dependencies = [
  "anyhow",
  "derive_more",
@@ -3750,6 +3750,56 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "crates_io_client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "derive_more",
+ "futures 0.3.34",
+ "http_client",
+ "itertools 0.14.0",
+ "parking_lot",
+ "semver",
+ "serde",
+ "serde_json",
+ "smol",
+ "thiserror 2.0.17",
+ "url",
+]
+
+[[package]]
+name = "crc"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9710d3b3739c2e349eb44fe848ad0b7c8cb1e42bd87ee49371df2f7acaf3e675"
+dependencies = [
+ "crc-catalog",
+]
+
+[[package]]
+name = "crc-catalog"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
+
+[[package]]
+name = "crc-fast"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fd92aca2c6001b1bf5ba0ff84ee74ec8501b52bbef0cac80bf25a6c1d87a83d"
+dependencies = [
+ "crc",
+ "digest",
+ "rustversion",
+ "spin 0.10.0",
+]
+
+[[package]]
+>>>>>>> zed/main
 name = "crc32fast"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6819,6 +6869,7 @@ dependencies = [
  "tree-sitter-md",
  "ui",
  "ui_input",
+ "unicode-width 0.2.2",
  "unindent",
  "util",
  "watch",
@@ -11968,6 +12019,7 @@ dependencies = [
  "futures 0.3.34",
  "fuzzy",
  "gpui",
+ "menu",
  "picker",
  "project",
  "serde",
@@ -13896,8 +13948,11 @@ dependencies = [
  "project",
  "rope",
  "settings",
+ "theme",
+ "theme_settings",
  "ui",
  "util",
+ "workspace",
 ]
 
 [[package]]
@@ -14492,6 +14547,7 @@ dependencies = [
  "tempfile",
  "terminal",
  "text",
+ "time",
  "toml 0.9.8",
  "tracing",
  "unindent",
@@ -14528,6 +14584,29 @@ dependencies = [
  "semver",
  "settings",
  "watch",
+]
+
+[[package]]
+name = "project_bookmarks"
+version = "0.1.0"
+dependencies = [
+ "editor",
+ "futures 0.3.34",
+ "fuzzy_nucleo",
+ "gpui",
+ "language",
+ "menu",
+ "picker",
+ "picker_preview",
+ "project",
+ "serde_json",
+ "text",
+ "theme",
+ "theme_settings",
+ "ui",
+ "util",
+ "workspace",
+ "zlog",
 ]
 
 [[package]]
@@ -18166,11 +18245,17 @@ dependencies = [
  "gpui",
  "itertools 0.14.0",
  "language",
+ "languages",
  "menu",
+<<<<<<< HEAD
  "paddleboard_actions",
+=======
+ "node_runtime",
+>>>>>>> zed/main
  "picker",
  "project",
  "serde_json",
+ "settings",
  "task",
  "tree-sitter",
  "tree-sitter-json",
@@ -22843,6 +22928,189 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "zed"
+version = "1.29.0"
+dependencies = [
+ "acp_thread",
+ "acp_tools",
+ "action_log",
+ "activity_indicator",
+ "agent",
+ "agent-client-protocol",
+ "agent_servers",
+ "agent_settings",
+ "agent_skills",
+ "agent_ui",
+ "anyhow",
+ "ashpd",
+ "askpass",
+ "assets",
+ "audio",
+ "auto_update",
+ "auto_update_ui",
+ "breadcrumbs",
+ "call",
+ "call_hierarchy",
+ "channel",
+ "chrono",
+ "clap",
+ "cli",
+ "client",
+ "clock",
+ "codestral",
+ "collab_ui",
+ "collections",
+ "command_palette",
+ "component_preview",
+ "copilot",
+ "copilot_chat",
+ "copilot_ui",
+ "crashes",
+ "dap_adapters",
+ "db",
+ "debug_adapter_extension",
+ "debugger_tools",
+ "debugger_ui",
+ "dev_container",
+ "diagnostics",
+ "edit_prediction",
+ "edit_prediction_ui",
+ "editor",
+ "encoding_selector",
+ "env_logger 0.11.8",
+ "etw_tracing",
+ "extension",
+ "extension_host",
+ "extensions_ui",
+ "feature_flags",
+ "feedback",
+ "file_finder",
+ "fs",
+ "futures 0.3.34",
+ "git",
+ "git_hosting_providers",
+ "git_ui",
+ "git_ui_core",
+ "go_to_line",
+ "gpui",
+ "gpui_platform",
+ "gpui_tokio",
+ "hang_telemetry",
+ "http_client",
+ "image",
+ "image_viewer",
+ "input_latency_ui",
+ "inspector_ui",
+ "install_cli",
+ "itertools 0.14.0",
+ "journal",
+ "json_schema_store",
+ "keymap_editor",
+ "language",
+ "language_extension",
+ "language_model",
+ "language_models",
+ "language_onboarding",
+ "language_selector",
+ "language_tools",
+ "languages",
+ "line_ending_selector",
+ "log",
+ "lsp_command_selector",
+ "lsp_locations",
+ "markdown",
+ "markdown_preview",
+ "menu",
+ "migrator",
+ "mimalloc",
+ "miniprofiler_ui",
+ "nix 0.30.1",
+ "node_runtime",
+ "notifications",
+ "onboarding",
+ "outline",
+ "outline_panel",
+ "parking_lot",
+ "paths",
+ "picker",
+ "pkg-config",
+ "pretty_assertions",
+ "profiling",
+ "project",
+ "project_bookmarks",
+ "project_panel",
+ "project_symbols",
+ "prompt_store",
+ "proto",
+ "rayon",
+ "recent_projects",
+ "release_channel",
+ "remote",
+ "remote_server",
+ "repl",
+ "reqwest_client",
+ "rope",
+ "sandbox",
+ "search",
+ "semver",
+ "serde",
+ "serde_json",
+ "session",
+ "settings",
+ "settings_profile_selector",
+ "settings_ui",
+ "shellexpand",
+ "sidebar",
+ "smol",
+ "snippet_provider",
+ "snippets_ui",
+ "svg_preview",
+ "sysinfo 0.39.6",
+ "system_specs",
+ "tab_switcher",
+ "tabular_data_preview",
+ "tasks_ui",
+ "telemetry",
+ "telemetry_events",
+ "tempfile",
+ "terminal_view",
+ "theme",
+ "theme_extension",
+ "theme_selector",
+ "theme_settings",
+ "time",
+ "time_format",
+ "title_bar",
+ "toolchain_selector",
+ "tracing",
+ "ui",
+ "ui_prompt",
+ "url",
+ "urlencoding",
+ "util",
+ "uuid",
+ "vim",
+ "vim_mode_setting",
+ "watch",
+ "web_search",
+ "web_search_providers",
+ "which_key",
+ "windows 0.62.2",
+ "windows_resources",
+ "workspace",
+ "zed-reqwest",
+ "zed_actions",
+ "zed_credentials_provider",
+ "zed_env_vars",
+ "zlog",
+ "zlog_settings",
+ "ztracing",
+]
+
+[[package]]
+>>>>>>> zed/main
 name = "zed-font-kit"
 version = "0.14.1-zed"
 source = "git+https://github.com/zed-industries/font-kit?rev=94b0f28166665e8fd2f53ff6d268a14955c82269#94b0f28166665e8fd2f53ff6d268a14955c82269"
