@@ -43,8 +43,19 @@ slow-timeout = { period = "300s", terminate-after = 1 }
 filter = 'package(vim) and (test(test_command_read) or test(test_capital_f_and_capital_t) or test(test_f_and_t) or test(test_change_paragraph_object) or test(test_change_surrounding_character_objects) or test(test_change_word_object) or test(test_delete_paragraph_object) or test(test_delete_surrounding_character_objects) or test(test_delete_word_object))'
 slow-timeout = { period = "300s", terminate-after = 1 }
 
+# PaddleBoard: upstream gives this 300s; on the 4-core ubuntu-latest runner, in
+# the weekly upstream-tests run alongside ~7,300 other tests, it was killed at
+# 300s (#116). It passes in ~53s on its own locally, so this is runner speed,
+# not a hang. If upstream changes its limit, keep the larger of the two.
 [[profile.default.overrides]]
 filter =  'package(editor) and test(test_random_split_editor)'
+slow-timeout = { period = "600s", terminate-after = 1 }
+
+# PaddleBoard: upstream has no override for this randomised test (100
+# iterations, added in zed#63723). It was killed at the 60s default in the
+# weekly upstream-tests run (#116) and passes in ~19s on its own locally.
+[[profile.default.overrides]]
+filter =  'package(editor) and test(test_random_columnar_selections)'
 slow-timeout = { period = "300s", terminate-after = 1 }
 
 [[profile.default.overrides]]
