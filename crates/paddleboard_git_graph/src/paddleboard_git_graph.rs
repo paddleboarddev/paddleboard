@@ -1,3 +1,4 @@
+<<<<<<< HEAD:crates/paddleboard_git_graph/src/paddleboard_git_graph.rs
 // PaddleBoard: git_graph lives in its own crate in this fork, so upstream's
 // `crate::commit_context_menu` imports resolve through git_ui instead. The
 // commit-menu actions are re-exported from there so dispatch stays shared with
@@ -8,6 +9,18 @@ pub use git_ui::commit_context_menu::{CopyCommitSha, CopyCommitTag, OpenCommitVi
 use git_ui::commit_context_menu::{
     CUSTOM_GIT_COMMANDS_DOCS_SLUG, CommitContextMenuData, CommitContextMenuSource,
     commit_context_menu, git_context_menu_tasks, git_task_context,
+=======
+pub use crate::commit_context_menu::{CopyCommitSha, CopyCommitTag, OpenCommitView};
+use crate::{
+    commit_context_menu::{
+        CUSTOM_GIT_COMMANDS_DOCS_SLUG, CommitContextMenuData, CommitContextMenuSource,
+        commit_context_menu, git_context_menu_tasks, git_task_context,
+    },
+    commit_tooltip::CommitAvatar,
+    commit_view::{CommitView, CommitViewOptions},
+    git_status_icon,
+    git_timestamp::format_git_timestamp,
+>>>>>>> zed/main:crates/git_ui/src/git_graph.rs
 };
 use collections::{BTreeMap, HashMap, IndexSet};
 use editor::Editor;
@@ -35,6 +48,7 @@ use file_icons::FileIcons;
 use markdown::{Markdown, MarkdownElement};
 use menu::{Cancel, SelectFirst, SelectLast, SelectNext, SelectPrevious};
 use picker::{Picker, PickerDelegate};
+use project::project_settings::ProjectSettings;
 use project::{
     ProjectPath, TaskSourceKind,
     git_store::{
@@ -42,6 +56,7 @@ use project::{
         GraphDataResponse, Repository, RepositoryEvent, RepositoryId,
     },
 };
+<<<<<<< HEAD:crates/paddleboard_git_graph/src/paddleboard_git_graph.rs
 use project_panel::ProjectPanel;
 // PaddleBoard: these come from `search` here, not from upstream's `zed_actions`
 // crate, which this fork replaced with `paddleboard_actions`. Upstream's
@@ -51,6 +66,9 @@ use project_panel::ProjectPanel;
 // `SearchOption`, `SearchOptions` and `SearchSource` were dropped from this list:
 // upstream's rework of the search bar in this merge removed their last uses here.
 use search::{SelectNextMatch, SelectPreviousMatch, ToggleCaseSensitive, buffer_search};
+=======
+use settings::{GitDateStyle, RegisterSetting, Settings};
+>>>>>>> zed/main:crates/git_ui/src/git_graph.rs
 use smallvec::{SmallVec, smallvec};
 use std::{
     cell::Cell,
@@ -276,8 +294,10 @@ impl ChangedFileEntry {
             commit_sha.to_string(),
             repository.clone(),
             workspace.clone(),
-            None,
-            Some(self.repo_path.clone()),
+            CommitViewOptions {
+                file_filter: Some(self.repo_path.clone()),
+                ..Default::default()
+            },
             window,
             cx,
         );
@@ -623,17 +643,39 @@ fn timestamp_format() -> &'static [BorrowedFormatItem<'static>] {
     })
 }
 
-fn format_timestamp(timestamp: i64) -> String {
+#[derive(Clone, Debug, RegisterSetting)]
+pub(crate) struct GitGraphSettings {
+    pub date_style: GitDateStyle,
+}
+
+impl Settings for GitGraphSettings {
+    fn from_settings(content: &settings::SettingsContent) -> Self {
+        Self {
+            date_style: content.git_graph.as_ref().unwrap().date_style.unwrap(),
+        }
+    }
+}
+
+fn format_timestamp(timestamp: i64, date_style: GitDateStyle, cx: &App) -> String {
     let Ok(datetime) = OffsetDateTime::from_unix_timestamp(timestamp) else {
         return "Unknown".to_string();
     };
 
+    if date_style == GitDateStyle::Relative {
+        return format_git_timestamp(datetime, time_format::TimestampFormat::Relative, cx);
+    }
     let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
     let local_datetime = datetime.to_offset(local_offset);
 
-    local_datetime
-        .format(timestamp_format())
-        .unwrap_or_default()
+    ProjectSettings::get_global(cx)
+        .git
+        .date_format
+        .format(local_datetime)
+        .unwrap_or_else(|| {
+            local_datetime
+                .format(timestamp_format())
+                .unwrap_or_default()
+        })
 }
 
 fn accent_colors_count(accents: &AccentColors) -> usize {
@@ -1710,8 +1752,17 @@ impl GitGraph {
             },
         );
         let mut row_height = Self::row_height(window, cx);
+        let mut was_date_style = GitGraphSettings::get_global(cx).date_style;
+        let mut was_date_format = ProjectSettings::get_global(cx).git.date_format.clone();
 
         cx.observe_global_in::<settings::SettingsStore>(window, move |this, window, cx| {
+            let date_style = GitGraphSettings::get_global(cx).date_style;
+            let date_format = &ProjectSettings::get_global(cx).git.date_format;
+            if date_style != was_date_style || *date_format != was_date_format {
+                was_date_style = date_style;
+                was_date_format = date_format.clone();
+                cx.notify();
+            }
             let new_row_height = Self::row_height(window, cx);
             if new_row_height != row_height {
                 // The `uniform_list` powering the table caches the item size
@@ -2085,7 +2136,11 @@ impl GitGraph {
                     author_name = data.author_name.clone();
                     author_email =
                         (!data.author_email.is_empty()).then(|| data.author_email.clone());
-                    formatted_time = format_timestamp(data.commit_timestamp);
+                    formatted_time = format_timestamp(
+                        data.commit_timestamp,
+                        GitGraphSettings::get_global(cx).date_style,
+                        cx,
+                    );
                 } else {
                     subject = "Loading…".into();
                     author_name = SharedString::default();
@@ -2580,12 +2635,19 @@ impl GitGraph {
             return;
         };
 
+        let commit_view_options = CommitViewOptions {
+            reveal_file: match &self.log_source {
+                LogSource::Path(path) => Some(path.clone()),
+                _ => None,
+            },
+            ..Default::default()
+        };
+
         CommitView::open(
             commit_entry.data.sha.to_string(),
             repository.downgrade(),
             self.workspace.clone(),
-            None,
-            None,
+            commit_view_options,
             window,
             cx,
         );
@@ -3089,7 +3151,9 @@ impl GitGraph {
             CommitDataState::Loading(_) => ("Loading…".into(), "".into(), None),
         };
 
-        let date_string = commit_timestamp.map(format_timestamp).unwrap_or_default();
+        let date_string = commit_timestamp
+            .map(|timestamp| format_timestamp(timestamp, GitDateStyle::Absolute, cx))
+            .unwrap_or_default();
 
         let remote = repository.update(cx, |repo, cx| self.get_remote(repo, window, cx));
 
@@ -3627,7 +3691,7 @@ impl GitGraph {
             move |bounds: Bounds<Pixels>, _: (), window: &mut Window, cx: &mut App| {
                 graph_canvas_bounds.set(Some(bounds));
 
-                window.paint_layer(bounds, |window| {
+                window.paint_layer(|window| {
                     let theme = cx.theme();
                     let accent_colors = theme.accents();
                     let background = theme.colors().editor_background;
@@ -3664,6 +3728,48 @@ impl GitGraph {
                             };
                             window.paint_quad(gpui::fill(row_bounds, bg_color));
                         }
+                    }
+
+                    // Commit nodes are painted before the lines, which are drawn
+                    // over the nodes' halos to meet their rings.
+                    for (row_idx, row) in rows.into_iter().enumerate() {
+                        let absolute_row_idx = first_visible_row + row_idx;
+                        let row_color = accent_colors.color_for_index(row.color_idx as u32);
+                        let row_y_center =
+                            bounds.origin.y + row_idx as f32 * row_height + row_height / 2.0
+                                - vertical_scroll_offset;
+
+                        let commit_x = lane_center_x(bounds, row.lane as f32);
+
+                        if paint_ref_connectors && !row.data.ref_names.is_empty() {
+                            paint_dashed_connector(
+                                bounds.origin.x,
+                                commit_x - COMMIT_CIRCLE_RADIUS,
+                                row_y_center,
+                                row_color.opacity(0.5),
+                                window,
+                            );
+                        }
+
+                        // Match the node halo to the row's effective background so
+                        // the ring blends seamlessly on hovered/selected rows.
+                        let node_background = if selected_entry_idx == Some(absolute_row_idx)
+                            || context_menu_target_index == Some(absolute_row_idx)
+                        {
+                            background.blend(selected_bg)
+                        } else if hovered_entry_idx == Some(absolute_row_idx) {
+                            background.blend(hover_bg)
+                        } else {
+                            background
+                        };
+
+                        draw_commit_circle(
+                            commit_x,
+                            row_y_center,
+                            row_color,
+                            node_background,
+                            window,
+                        );
                     }
 
                     for line in commit_lines {
@@ -3821,55 +3927,9 @@ impl GitGraph {
 
                         for builder in builders {
                             if let Ok(path) = builder.build() {
-                                // we paint each color on it's own layer to stop overlapping lines
-                                // of different colors changing the color of a line
-                                window.paint_layer(bounds, |window| {
-                                    window.paint_path(path, line_color);
-                                });
+                                window.paint_path(path, line_color);
                             }
                         }
-                    }
-
-                    // Commit nodes are painted last so they sit on top of the
-                    // connector lines, keeping each commit a clear, distinct point.
-                    for (row_idx, row) in rows.into_iter().enumerate() {
-                        let absolute_row_idx = first_visible_row + row_idx;
-                        let row_color = accent_colors.color_for_index(row.color_idx as u32);
-                        let row_y_center =
-                            bounds.origin.y + row_idx as f32 * row_height + row_height / 2.0
-                                - vertical_scroll_offset;
-
-                        let commit_x = lane_center_x(bounds, row.lane as f32);
-
-                        if paint_ref_connectors && !row.data.ref_names.is_empty() {
-                            paint_dashed_connector(
-                                bounds.origin.x,
-                                commit_x - COMMIT_CIRCLE_RADIUS,
-                                row_y_center,
-                                row_color.opacity(0.5),
-                                window,
-                            );
-                        }
-
-                        // Match the node halo to the row's effective background so
-                        // the ring blends seamlessly on hovered/selected rows.
-                        let node_background = if selected_entry_idx == Some(absolute_row_idx)
-                            || context_menu_target_index == Some(absolute_row_idx)
-                        {
-                            background.blend(selected_bg)
-                        } else if hovered_entry_idx == Some(absolute_row_idx) {
-                            background.blend(hover_bg)
-                        } else {
-                            background
-                        };
-
-                        draw_commit_circle(
-                            commit_x,
-                            row_y_center,
-                            row_color,
-                            node_background,
-                            window,
-                        );
                     }
                 })
             },
@@ -5426,6 +5486,24 @@ mod tests {
     use smallvec::{SmallVec, smallvec};
     use std::path::Path;
     use std::sync::{Arc, Mutex};
+
+    #[gpui::test]
+    fn test_graph_dates_use_date_format(cx: &mut App) {
+        let store = SettingsStore::test(cx);
+        cx.set_global(store);
+        ProjectSettings::register(cx);
+        SettingsStore::update_global(cx, |store, cx| {
+            store.update_user_settings(cx, |content| {
+                content.git.get_or_insert_default().date_format = Some("%Y".into());
+            });
+        });
+        let timestamp = time::macros::datetime!(2024-06-08 12:34 UTC).unix_timestamp();
+        assert!(format_timestamp(timestamp, GitDateStyle::Relative, cx).ends_with(" ago"));
+        assert_eq!(
+            format_timestamp(timestamp, GitDateStyle::Absolute, cx),
+            "2024"
+        );
+    }
 
     fn init_test(cx: &mut TestAppContext) {
         cx.update(|cx| {

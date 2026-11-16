@@ -39,8 +39,8 @@ pub fn init(cx: &mut App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
         workspace
             .register_action(|_, _: &CopySystemSpecsIntoClipboard, window, cx| {
-                let specs =
-                    SystemSpecs::new(window, cx, telemetry::os_name(), telemetry::os_version());
+                let os_name = telemetry::os_name(cx);
+                let specs = SystemSpecs::new(window, cx, os_name, telemetry::os_version());
 
                 cx.spawn_in(window, async move |_, cx| {
                     let specs = specs.await.to_string();
@@ -75,8 +75,8 @@ pub fn init(cx: &mut App) {
                 cx.open_url(REQUEST_FEATURE_URL);
             })
             .register_action(move |_, _: &FileBugReport, window, cx| {
-                let specs =
-                    SystemSpecs::new(window, cx, telemetry::os_name(), telemetry::os_version());
+                let os_name = telemetry::os_name(cx);
+                let specs = SystemSpecs::new(window, cx, os_name, telemetry::os_version());
                 cx.spawn_in(window, async move |_, cx| {
                     let specs = specs.await;
                     cx.update(|_, cx| {
@@ -86,8 +86,23 @@ pub fn init(cx: &mut App) {
                 })
                 .detach();
             })
+<<<<<<< HEAD
             // PaddleBoard: removed the "Email Us" action — it mailed hi@zed.dev
             // (Zed Industries), and there is no PaddleBoard support inbox to repoint it to.
+=======
+            .register_action(move |_, _: &EmailZed, window, cx| {
+                let os_name = telemetry::os_name(cx);
+                let specs = SystemSpecs::new(window, cx, os_name, telemetry::os_version());
+                cx.spawn_in(window, async move |_, cx| {
+                    let specs = specs.await;
+                    cx.update(|_, cx| {
+                        cx.open_url(&email_zed_url(&specs));
+                    })
+                    .log_err();
+                })
+                .detach();
+            })
+>>>>>>> zed/main
             .register_action(move |_, _: &OpenZedRepo, _, cx| {
                 cx.open_url(PADDLEBOARD_REPO_URL);
             });
