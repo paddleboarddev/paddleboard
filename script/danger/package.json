@@ -10,7 +10,7 @@
     "@types/node": "24.13.4",
     "danger": "13.0.8",
     "danger-plugin-pr-hygiene": "0.7.1",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "pnpm": {
     "overrides": {
