@@ -59,12 +59,17 @@ pub struct SystemPromptTemplate<'a> {
     /// section describes the right one rather than advertising a `$TMPDIR`
     /// that doesn't behave as stated.
     pub is_linux: bool,
-    /// Whether sandboxed terminal commands run through WSL on Windows.
+    /// Whether the host is Windows.
     pub is_windows: bool,
+<<<<<<< HEAD
     // PaddleBoard: persona system — a pre-assembled identity overlay
     // (awareness preamble + persona body) selected for this thread, or None
     // when no persona is active. Assembled by `paddleboard_personas`.
     pub persona_overlay: Option<String>,
+=======
+    /// The shell terminal commands run in.
+    pub shell: String,
+>>>>>>> zed/main
 }
 
 impl Template for SystemPromptTemplate<'_> {
@@ -112,7 +117,11 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -216,7 +225,11 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -246,7 +259,11 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -280,7 +297,11 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -324,7 +345,11 @@ mod tests {
             sandboxing: true,
             is_linux: true,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -358,15 +383,18 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: true,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "powershell".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
 
-        assert!(rendered.contains("commands run inside WSL under Bubblewrap"));
-        assert!(rendered.contains("Protected Git metadata remains read-only"));
-        assert!(rendered.contains("do not use this on Windows"));
-        assert!(rendered.contains("such requests are rejected"));
+        assert!(rendered.contains("inside a Windows AppContainer sandbox"));
+        assert!(rendered.contains("`.git` directories remain protected"));
+        assert!(rendered.contains("Host-scoped network access works through an HTTP/HTTPS proxy"));
         assert!(rendered.contains("allow_all_hosts: true"));
         assert!(rendered.contains("git --no-optional-locks status"));
         // Out-of-project `create_directory` grants aren't supported on Windows,
@@ -389,8 +417,12 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             // PaddleBoard: persona system field, absent from upstream's new test.
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -413,7 +445,11 @@ mod tests {
             sandboxing: true,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -434,7 +470,11 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();
@@ -453,7 +493,11 @@ mod tests {
             sandboxing: false,
             is_linux: false,
             is_windows: false,
+<<<<<<< HEAD
             persona_overlay: None,
+=======
+            shell: "bash".to_string(),
+>>>>>>> zed/main
         };
         let templates = Templates::new();
         let rendered = template.render(&templates).unwrap();

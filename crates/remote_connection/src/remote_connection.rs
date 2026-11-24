@@ -257,11 +257,16 @@ impl RemoteConnectionModal {
             RemoteConnectionOptions::Mock(options) => {
                 (format!("mock-{}", options.id), None, false, false)
             }
+<<<<<<< HEAD
             // PaddleBoard: scoped builds can enable remote/test-support (adding the
             // Mock variant) while this crate's own test-support is off, cfg'ing out
             // the arm above; this fallback keeps the match exhaustive (E0004).
             #[allow(unreachable_patterns)]
             _ => (String::new(), None, false, false),
+=======
+            #[allow(unreachable_patterns)]
+            _ => unreachable!(),
+>>>>>>> zed/main
         };
         Self {
             prompt: cx.new(|cx| {

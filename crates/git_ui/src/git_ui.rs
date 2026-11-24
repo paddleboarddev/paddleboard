@@ -8,13 +8,13 @@ mod blame_ui;
 pub mod clone;
 
 use git::{
-    Oid,
+    Oid, normalize_branch_name,
     repository::{Branch, CommitDetails, Upstream, UpstreamTracking, UpstreamTrackingStatus},
     status::{FileStatus, StatusCode, UnmergedStatus, UnmergedStatusCode},
 };
 use gpui::{
     App, ClipboardItem, Context, DismissEvent, Entity, EventEmitter, FocusHandle, Focusable,
-    SharedString, Subscription, Task, TaskExt, WeakEntity, Window,
+    SharedString, Subscription, Task, WeakEntity, Window,
 };
 use menu::{Cancel, Confirm};
 use notifications::status_toast::StatusToast;
@@ -24,10 +24,13 @@ use time::OffsetDateTime;
 use ui::{ButtonLike, ContextMenu, ElevationIndex, PopoverMenuHandle, TintColor, prelude::*};
 use util::ResultExt as _;
 use workspace::{
-    ModalView, OpenMode, Workspace,
+    ModalView, Workspace,
     notifications::{DetachAndPromptErr, NotifyTaskExt},
 };
+<<<<<<< HEAD
 use paddleboard_actions;
+=======
+>>>>>>> zed/main
 
 use crate::{
     commit_view::CommitView,
@@ -54,6 +57,7 @@ pub mod git_panel;
 mod git_panel_settings;
 pub mod git_picker;
 mod git_runtime_diagnostics;
+mod git_timestamp;
 pub mod multi_diff_view;
 pub mod picker_prompt;
 pub mod project_diff;
@@ -152,6 +156,7 @@ pub fn init(cx: &mut App) {
         });
 
         workspace.register_action(
+<<<<<<< HEAD
             |workspace, action: &paddleboard_actions::OpenWorktreeInNewWindow, window, cx| {
                 let path = action.path.clone();
                 let is_remote = !workspace.project().read(cx).is_local();
@@ -183,6 +188,15 @@ pub fn init(cx: &mut App) {
                         .open_workspace_for_paths(OpenMode::NewWindow, vec![path], window, cx)
                         .detach_and_log_err(cx);
                 }
+=======
+            |workspace, action: &zed_actions::OpenWorktreeInNewWindow, window, cx| {
+                git_ui_core::worktree_picker::open_worktree_paths_in_new_window(
+                    workspace,
+                    vec![action.path.clone()],
+                    window,
+                    cx,
+                );
+>>>>>>> zed/main
             },
         );
 
@@ -456,6 +470,7 @@ struct RenameBranchModal {
     current_branch: SharedString,
     editor: Entity<Editor>,
     repo: Entity<Repository>,
+    _editor_subscription: Subscription,
 }
 
 impl RenameBranchModal {
@@ -470,10 +485,16 @@ impl RenameBranchModal {
             editor.set_text(current_branch.clone(), window, cx);
             editor
         });
+        let editor_subscription = cx.subscribe(&editor, |_, _, event, cx| {
+            if let editor::EditorEvent::BufferEdited = event {
+                cx.notify();
+            }
+        });
         Self {
             current_branch: current_branch.into(),
             editor,
             repo,
+            _editor_subscription: editor_subscription,
         }
     }
 
@@ -482,7 +503,7 @@ impl RenameBranchModal {
     }
 
     fn confirm(&mut self, _: &Confirm, window: &mut Window, cx: &mut Context<Self>) {
-        let new_name = self.editor.read(cx).text(cx);
+        let new_name = normalize_branch_name(&self.editor.read(cx).text(cx));
         if new_name.is_empty() || new_name == self.current_branch.as_ref() {
             cx.emit(DismissEvent);
             return;
@@ -517,6 +538,7 @@ impl Focusable for RenameBranchModal {
 
 impl Render for RenameBranchModal {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let new_name = normalize_branch_name(&self.editor.read(cx).text(cx));
         v_flex()
             .key_context("RenameBranchModal")
             .on_action(cx.listener(Self::cancel))
@@ -536,7 +558,21 @@ impl Render for RenameBranchModal {
                             .size(HeadlineSize::XSmall),
                     ),
             )
-            .child(div().px_3().pb_3().w_full().child(self.editor.clone()))
+            .child(
+                v_flex()
+                    .px_3()
+                    .pb_3()
+                    .w_full()
+                    .gap_2()
+                    .child(self.editor.clone())
+                    .child(
+                        Label::new(new_name)
+                            .size(LabelSize::Small)
+                            .color(Color::Muted)
+                            .single_line()
+                            .truncate(),
+                    ),
+            )
     }
 }
 
@@ -830,8 +866,7 @@ impl RefPickerModal {
                                 details.sha.to_string(),
                                 repo.downgrade(),
                                 workspace.weak_handle(),
-                                None,
-                                None,
+                                Default::default(),
                                 window,
                                 cx,
                             );
@@ -1226,7 +1261,6 @@ mod remote_button {
             })
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn split_button(
         id: SharedString,
         left_label: impl Into<SharedString>,

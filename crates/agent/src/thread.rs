@@ -48,9 +48,16 @@ use language_model::{
     CompletionIntent, LanguageModel, LanguageModelCompletionError, LanguageModelCompletionEvent,
     LanguageModelId, LanguageModelImage, LanguageModelProviderId, LanguageModelRegistry,
     LanguageModelRequest, LanguageModelRequestMessage, LanguageModelRequestTool,
+<<<<<<< HEAD
     LanguageModelToolResult, LanguageModelToolResultContent, LanguageModelToolUse,
     LanguageModelToolUseId, MessageContent, PADDLEBOARD_CLOUD_PROVIDER_ID,
     ProviderErrorCategory, Role, SelectedModel, Speed, StopReason, TokenUsage,
+=======
+    LanguageModelToolChoice, LanguageModelToolResult, LanguageModelToolResultContent,
+    LanguageModelToolUse, LanguageModelToolUseId, MessageContent, PromptCompactionStrategy,
+    ProviderErrorCategory, Role, SelectedModel, Speed, StopReason, TokenUsage,
+    ZED_CLOUD_PROVIDER_ID,
+>>>>>>> zed/main
 };
 use project::{Project, trusted_worktrees::TrustedWorktrees};
 use prompt_store::ProjectContext;
@@ -1252,7 +1259,7 @@ enum CompletionError {
     #[error("max tokens")]
     MaxTokens,
     #[error("refusal")]
-    Refusal,
+    Refusal(Option<language_model::RefusalDetails>),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -1340,7 +1347,6 @@ pub struct Thread {
     /// the start of each request.
     current_request_token_usage: TokenUsage,
     pending_compaction_telemetry: Option<CompactionTelemetry>,
-    #[allow(unused)]
     initial_project_snapshot: Shared<Task<Option<Arc<ProjectSnapshot>>>>,
     pub(crate) context_server_registry: Entity<ContextServerRegistry>,
     profile_id: AgentProfileId,
@@ -1571,7 +1577,7 @@ impl Thread {
 
         self.thinking_enabled = selection.enable_thinking && model.supports_thinking();
         self.thinking_effort = selection.effort.clone();
-        self.speed = selection.speed.filter(|_| model.supports_fast_mode());
+        self.speed = selection.speed.filter(|speed| model.supports_speed(*speed));
         self.prompt_capabilities_tx
             .send(Self::prompt_capabilities(Some(&model)))
             .log_err();
@@ -1583,8 +1589,8 @@ impl Thread {
     }
 
     // Only used by Seatbelt-style sandboxes (macOS); Linux relies on bwrap's
-    // tmpfs `/tmp` and Windows on the WSL bwrap tmpfs, so neither needs a
-    // per-thread temp directory.
+    // tmpfs `/tmp` and Windows on the sandbox's own `%TEMP%`, so neither needs
+    // a per-thread temp directory.
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     pub(crate) fn sandboxed_terminal_temp_dir(
         &mut self,
@@ -1650,7 +1656,7 @@ impl Thread {
                                 compaction_id.clone(),
                                 acp_thread::ContextCompactionStatus::Completed,
                             );
-                            stream.send_context_compaction_update(compaction_id.clone(), summary);
+                            stream.send_context_compaction_update(compaction_id, summary);
                         }
                         CompactionInfo::ProviderNative { .. } => {
                             stream.send_context_compaction(
@@ -3017,7 +3023,7 @@ impl Thread {
                     Err(error) => {
                         log::error!("Turn execution failed: {:?}", error);
                         match error.downcast::<CompletionError>() {
-                            Ok(CompletionError::Refusal) => {
+                            Ok(CompletionError::Refusal(_)) => {
                                 event_stream.send_stop(acp_v2::StopReason::Refusal);
                                 _ = this
                                     .update(cx, |this, _| this.remove_messages_from(message_ix));
@@ -3189,7 +3195,7 @@ impl Thread {
                 FuturesUnordered::new();
             let mut early_tool_results: Vec<(usize, LanguageModelToolResult)> = Vec::new();
             let mut cancelled = false;
-            let mut had_refusal = false;
+            let mut refusal_error = None;
             loop {
                 // Race between getting the first event, tool completion, and cancellation.
                 let first_event = futures::select_biased! {
@@ -3274,10 +3280,10 @@ impl Thread {
                 if let Some(err) = batch_result.1 {
                     let is_refusal = err
                         .downcast_ref::<CompletionError>()
-                        .is_some_and(|e| matches!(e, CompletionError::Refusal));
+                        .is_some_and(|e| matches!(e, CompletionError::Refusal(_)));
                     if is_refusal {
                         log::info!("Model refused request; checking for fallback model");
-                        had_refusal = true;
+                        refusal_error = Some(err);
                         break;
                     }
                     error = Some(err.downcast()?);
@@ -3308,7 +3314,7 @@ impl Thread {
                 }
             })?;
 
-            if had_refusal {
+            if let Some(refusal_error) = refusal_error {
                 let maybe_fallback = this.update(cx, |this, cx| -> Option<LanguageModel> {
                     let current_model = refusal_fallback_model
                         .as_ref()
@@ -3343,7 +3349,7 @@ impl Thread {
 
                 if let Some(fallback) = maybe_fallback {
                     log::info!("Refusal fallback: retrying with {}", fallback.id().0);
-                    let fallback_name = fallback.name().0.clone();
+                    let fallback_name = fallback.name().0;
                     this.update(cx, |this, cx| {
                         this.pending_message = None;
                         this.set_model(fallback.clone(), cx);
@@ -3360,7 +3366,7 @@ impl Thread {
                     continue;
                 }
                 log::info!("Request refused with no fallback model available");
-                return Err(CompletionError::Refusal.into());
+                return Err(refusal_error);
             }
 
             let end_turn = tool_results.is_empty() && early_tool_results.is_empty();
@@ -3391,7 +3397,9 @@ impl Thread {
             this.update(cx, |this, cx| {
                 if &this.prompt_id == prompt_id {
                     this.flush_pending_message(cx);
-                    if this.title.is_none() {
+                    if this.title.is_none()
+                        && AgentSettings::get_global(cx).auto_generate_thread_titles
+                    {
                         this.generate_title(cx);
                     }
                 }
@@ -3596,6 +3604,7 @@ impl Thread {
                     | LanguageModelCompletionEvent::Thinking { .. }
                     | LanguageModelCompletionEvent::RedactedThinking { .. }
                     | LanguageModelCompletionEvent::ReasoningDetails(_)
+                    | LanguageModelCompletionEvent::InputTransformations(_)
                     | LanguageModelCompletionEvent::ToolUse(_)
                     | LanguageModelCompletionEvent::ToolUseJsonParseError { .. }
                     | LanguageModelCompletionEvent::StartMessage { .. }
@@ -3850,10 +3859,12 @@ impl Thread {
                 }
                 self.update_token_usage(usage, cx);
             }
-            Stop(StopReason::Refusal) => return Err(CompletionError::Refusal.into()),
+            Stop(StopReason::Refusal(details)) => {
+                return Err(CompletionError::Refusal(details).into());
+            }
             Stop(StopReason::MaxTokens) => return Err(CompletionError::MaxTokens.into()),
             Stop(StopReason::ToolUse | StopReason::EndTurn) => {}
-            Started | Queued { .. } | Compaction(_) => {}
+            Started | Queued { .. } | Compaction(_) | InputTransformations(_) => {}
         }
 
         Ok(None)
@@ -4334,10 +4345,6 @@ impl Thread {
         self.title.clone()
     }
 
-    pub fn is_generating_summary(&self) -> bool {
-        self.pending_summary_generation.is_some()
-    }
-
     pub fn is_generating_title(&self) -> bool {
         self.pending_title_generation.is_some()
     }
@@ -4577,51 +4584,8 @@ impl Thread {
         let model = self
             .model()
             .ok_or_else(|| anyhow!(NoModelConfiguredError))?;
-        let sandboxing_enabled = crate::sandboxing::sandboxing_enabled(cx);
         let tools = if let Some(turn) = self.running_turn.as_ref() {
-            turn.tools
-                .iter()
-                .map(|(tool_name, tool)| {
-                    log::trace!("Including tool: {}", tool_name);
-                    let mut description = tool.description().to_string();
-                    let mut schema = tool.input_schema();
-                    // TEMPORARY (sandboxing feature flag): with the flag off,
-                    // the fetch and create_directory descriptions/schemas must
-                    // not advertise sandbox-dependent behavior (host grants,
-                    // out-of-project creation via the `reason` field), since
-                    // the corresponding runtime paths are disabled. Restore
-                    // the pre-sandboxing model-facing surface here rather than
-                    // forking the tools; delete this when the flag is removed
-                    // again.
-                    if !sandboxing_enabled {
-                        if tool_name.as_ref() == FetchTool::NAME {
-                            description =
-                                "Fetches a URL and returns the content as Markdown.".to_string();
-                        } else if tool_name.as_ref() == CreateDirectoryTool::NAME {
-                            description = "Creates a new directory at the specified path within \
-                                the project. Returns confirmation that the directory was \
-                                created.\n\nThis tool creates a directory and all necessary \
-                                parent directories. It should be used whenever you need to \
-                                create new directories within the project.\nThe only supported \
-                                path outside the project is `~/.agents/skills` or a descendant, \
-                                for global agent skills."
-                                .to_string();
-                            if let Some(properties) = schema
-                                .get_mut("properties")
-                                .and_then(|value| value.as_object_mut())
-                            {
-                                properties.remove("reason");
-                            }
-                        }
-                    }
-                    LanguageModelRequestTool::function(
-                        tool_name.to_string(),
-                        description,
-                        schema,
-                        tool.supports_input_streaming(),
-                    )
-                })
-                .collect::<Vec<_>>()
+            build_request_tools(&turn.tools, cx)
         } else {
             Vec::new()
         };
@@ -4655,7 +4619,7 @@ impl Thread {
             thinking_allowed: self.thinking_enabled
                 || !model.supports_disabling_thinking_at_effort(self.thinking_effort.as_deref()),
             thinking_effort: self.thinking_effort.clone(),
-            speed: self.speed(),
+            speed: self.speed().filter(|speed| model.supports_speed(*speed)),
             compact_at_tokens: None,
             max_output_tokens: None,
         };
@@ -4742,7 +4706,7 @@ impl Thread {
                 let available = MAX_TOOL_NAME_LENGTH.saturating_sub(tool_name.len());
                 if available >= 2 {
                     let mut disambiguated =
-                        provider_compatible_tool_name(&server_id.0.to_snake_case()).to_string();
+                        provider_compatible_tool_name(&server_id.0.to_snake_case());
                     disambiguated.truncate(available - 1);
                     disambiguated.push('_');
                     disambiguated.push_str(&tool_name);
@@ -4767,12 +4731,6 @@ impl Thread {
 
     fn tool(&self, name: &str) -> Option<Arc<dyn AnyAgentTool>> {
         self.running_turn.as_ref()?.tools.get(name).cloned()
-    }
-
-    pub fn has_tool(&self, name: &str) -> bool {
-        self.running_turn
-            .as_ref()
-            .is_some_and(|turn| turn.tools.contains_key(name))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -4911,7 +4869,11 @@ impl Thread {
             ),
             is_linux: cfg!(target_os = "linux"),
             is_windows: cfg!(target_os = "windows"),
+<<<<<<< HEAD
             persona_overlay,
+=======
+            shell: crate::sandboxing::terminal_shell_name(self.project.read(cx), cx),
+>>>>>>> zed/main
         }
         .render(&self.templates)
         .context("failed to build system prompt")
@@ -5050,13 +5012,53 @@ impl Thread {
         model: &LanguageModel,
         cx: &App,
     ) -> LanguageModelRequest {
+        let uses_thread_model = self.model().is_some_and(|thread_model| {
+            thread_model.provider_id == model.provider_id && thread_model.id == model.id
+        });
+        let preserves_request_prefix = uses_thread_model
+            && model.prompt_compaction_strategy()
+                == PromptCompactionStrategy::PreserveRequestPrefix;
+        let enabled_tools = if preserves_request_prefix
+            && model.supports_tools()
+            && model.supports_tool_choice(LanguageModelToolChoice::None)
+        {
+            self.enabled_tools(cx)
+        } else {
+            BTreeMap::new()
+        };
+        let available_tools = enabled_tools.keys().cloned().collect();
+        let tools = build_request_tools(&enabled_tools, cx);
+        // Keeping the tool definitions preserves the cached prefix, but
+        // compaction can't execute or retain tool calls.
+        let tool_choice = (!tools.is_empty()).then_some(LanguageModelToolChoice::None);
+        let (thinking_allowed, thinking_effort) = if preserves_request_prefix {
+            (
+                self.thinking_enabled || !model.supports_disabling_thinking(),
+                self.thinking_effort.clone(),
+            )
+        } else {
+            (false, None)
+        };
+
         let mut request = LanguageModelRequest {
             thread_id: Some(self.id.to_string()),
+            prompt_cache_key: None,
             prompt_id: Some(self.prompt_id.to_string()),
             intent: Some(CompletionIntent::ThreadContextSummarization),
+            messages: self.build_request_messages_until(available_tools, insertion_ix, cx),
+            tools,
+            tool_choice,
+            stop: Vec::new(),
             temperature: AgentSettings::temperature_for_model(&model, cx),
-            messages: self.build_request_messages_until(Vec::new(), insertion_ix, cx),
-            ..Default::default()
+            thinking_allowed,
+            thinking_effort,
+            speed: if preserves_request_prefix {
+                self.speed().filter(|speed| model.supports_speed(*speed))
+            } else {
+                None
+            },
+            compact_at_tokens: None,
+            max_output_tokens: None,
         };
 
         request.messages.push(LanguageModelRequestMessage {
@@ -5188,6 +5190,55 @@ fn total_input_tokens(usage: language_model::TokenUsage) -> u64 {
         .saturating_add(usage.cache_read_input_tokens)
 }
 
+fn build_request_tools(
+    tools: &BTreeMap<SharedString, Arc<dyn AnyAgentTool>>,
+    cx: &App,
+) -> Vec<LanguageModelRequestTool> {
+    let sandboxing_enabled = crate::sandboxing::sandboxing_enabled(cx);
+    tools
+        .iter()
+        .map(|(tool_name, tool)| {
+            log::trace!("Including tool: {}", tool_name);
+            let mut description = tool.description().to_string();
+            let mut schema = tool.input_schema();
+            // TEMPORARY (sandboxing feature flag): with the flag off,
+            // the fetch and create_directory descriptions/schemas must
+            // not advertise sandbox-dependent behavior (host grants,
+            // out-of-project creation via the `reason` field), since
+            // the corresponding runtime paths are disabled. Restore
+            // the pre-sandboxing model-facing surface here rather than
+            // forking the tools; delete this when the flag is removed
+            // again.
+            if !sandboxing_enabled {
+                if tool_name.as_ref() == FetchTool::NAME {
+                    description = "Fetches a URL and returns the content as Markdown.".to_string();
+                } else if tool_name.as_ref() == CreateDirectoryTool::NAME {
+                    description = "Creates a new directory at the specified path within \
+                        the project. Returns confirmation that the directory was \
+                        created.\n\nThis tool creates a directory and all necessary \
+                        parent directories. It should be used whenever you need to \
+                        create new directories within the project.\nThe only supported \
+                        path outside the project is `~/.agents/skills` or a descendant, \
+                        for global agent skills."
+                        .to_string();
+                    if let Some(properties) = schema
+                        .get_mut("properties")
+                        .and_then(|value| value.as_object_mut())
+                    {
+                        properties.remove("reason");
+                    }
+                }
+            }
+            LanguageModelRequestTool::function(
+                tool_name.to_string(),
+                description,
+                schema,
+                tool.supports_input_streaming(),
+            )
+        })
+        .collect()
+}
+
 /// Reserves output without subtracting it from an independent input ceiling.
 fn compaction_input_capacity(
     input_limit: u64,
@@ -5272,7 +5323,8 @@ fn user_message_byte_len(message: &LanguageModelRequestMessage) -> usize {
             | MessageContent::RedactedThinking(_)
             | MessageContent::ToolResult(_)
             | MessageContent::ToolUse(_)
-            | MessageContent::Compaction(_) => 0,
+            | MessageContent::Compaction(_)
+            | MessageContent::ReasoningEffort { .. } => 0,
         })
         .sum()
 }
@@ -5309,7 +5361,8 @@ fn truncate_user_message_to_byte_budget(
             | MessageContent::RedactedThinking(_)
             | MessageContent::ToolResult(_)
             | MessageContent::ToolUse(_)
-            | MessageContent::Compaction(_) => {}
+            | MessageContent::Compaction(_)
+            | MessageContent::ReasoningEffort { .. } => {}
         }
     }
 
@@ -6107,9 +6160,9 @@ impl ThreadEventStream {
 }
 
 /// The user's choice when the OS sandbox could not be created for a command
-/// (see [`ToolCallEventStream::authorize_sandbox_fallback`]). Only the
-/// Bubblewrap sandboxes (Linux directly, Windows via WSL) can fail to create a
-/// sandbox, so this is gated to those platforms.
+/// (see [`ToolCallEventStream::authorize_sandbox_fallback`]). Only the Linux
+/// and Windows sandboxes can fail to create a sandbox, so this is gated to
+/// those platforms.
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SandboxFallbackDecision {
@@ -6449,10 +6502,6 @@ impl ToolCallEventStream {
             allow_fs_write_all: request.allow_fs_write_all,
             unsandboxed: request.unsandboxed,
             write_paths: request.write_paths.clone(),
-            // The Windows-drive warning is a separate pre-prompt
-            // (`authorize_windows_fs_warning`), never part of the escalation
-            // prompt, so this stays off here.
-            warn_windows_fs: false,
             reason,
         };
         let allow_thread_label = if self.is_subagent(cx) {
@@ -6556,80 +6605,6 @@ impl ToolCallEventStream {
                         }
                     }
                 }
-            }
-        })
-    }
-
-    /// Confirm, before running a command whose sandbox will contain a Windows
-    /// drive (DrvFs) path, that the user accepts the weaker integrity
-    /// guarantees. This is a transient gate *in front of* the normal sandbox
-    /// flow — it is never persisted or recorded as a grant; the only way to
-    /// stop it recurring is to disable `warn_ntfs_grants` in settings (offered
-    /// via the banner's gear). Returns `Ok(())` on "Continue" (after which the
-    /// caller proceeds to any escalation prompt) and `Err` on "Abort".
-    pub(crate) fn authorize_windows_fs_warning(&self, cx: &mut App) -> Task<Result<()>> {
-        // If the warning is already disabled, don't prompt.
-        if !AgentSettings::get_global(cx)
-            .sandbox_permissions
-            .warn_ntfs_grants
-        {
-            return Task::ready(Ok(()));
-        }
-
-        let details = acp_thread::SandboxAuthorizationDetails {
-            command: None,
-            network_hosts: Vec::new(),
-            network_all_hosts: false,
-            allow_fs_write_all: false,
-            unsandboxed: false,
-            write_paths: Vec::new(),
-            warn_windows_fs: true,
-            reason: String::new(),
-        };
-        let options = acp_thread::PermissionOptions::Flat(vec![
-            acp_v2::PermissionOption::new(
-                acp_v2::PermissionOptionId::new(acp_thread::SandboxPermission::AllowOnce.as_id()),
-                "Continue",
-                acp_v2::PermissionOptionKind::AllowOnce,
-            ),
-            acp_v2::PermissionOption::new(
-                acp_v2::PermissionOptionId::new(acp_thread::SandboxPermission::Deny.as_id()),
-                "Abort",
-                acp_v2::PermissionOptionKind::RejectOnce,
-            ),
-        ]);
-
-        let stream = self.stream.clone();
-        let tool_call_id = self.tool_call_id.clone();
-        cx.spawn(async move |_cx| {
-            let (response_tx, response_rx) = oneshot::channel();
-            if let Err(error) =
-                stream
-                    .sender
-                    .unbounded_send(Ok(ThreadEvent::ToolCallAuthorization(
-                        ToolCallAuthorization {
-                            tool_call: acp_v2::ToolCallUpdate::new(tool_call_id)
-                                .meta(acp_thread::meta_with_sandbox_authorization(details)),
-                            options,
-                            response: response_tx,
-                            context: None,
-                            kind: acp_thread::AuthorizationKind::PermissionGrant,
-                        },
-                    )))
-            {
-                log::error!("Failed to send Windows-drive sandbox warning: {error}");
-                return Err(anyhow!(
-                    "Failed to send Windows-drive sandbox warning: {error}"
-                ));
-            }
-
-            let outcome = response_rx
-                .await
-                .map_err(|_| anyhow!("authorization channel closed"))?;
-            ensure_tool_call_authorization_not_interrupted(&outcome)?;
-            match acp_thread::SandboxPermission::from_id(outcome.option_id.0.as_ref()) {
-                Some(acp_thread::SandboxPermission::AllowOnce) => Ok(()),
-                _ => Err(anyhow!("Windows-drive write aborted by user")),
             }
         })
     }
@@ -6739,7 +6714,6 @@ impl ToolCallEventStream {
                     agent.add_sandbox_write_path(settings::GrantedWritePathContent {
                         requested: granted.requested,
                         resolved: granted.resolved,
-                        on_windows_fs: granted.on_windows_fs,
                     });
                 }
             });
@@ -6799,9 +6773,9 @@ impl ToolCallEventStream {
     /// so the prompt explains why (`reason`) and lets the user retry, run the
     /// command unsandboxed (once / for this thread / always), or deny it. The
     /// "for this thread" choice is recorded in the in-memory thread grants and
-    /// "always" is persisted as the `allow_unsandboxed` setting. Only the
-    /// Bubblewrap sandboxes (Linux directly, Windows via WSL) can fail to
-    /// create a sandbox, so this is gated to those platforms.
+    /// "always" is persisted as the `allow_unsandboxed` setting. Only the Linux
+    /// and Windows sandboxes can fail to create a sandbox, so this is gated to
+    /// those platforms.
     ///
     /// `retries` is how many times the user has already pressed Retry for this
     /// command; it's shown on the button so repeated presses visibly advance
@@ -6933,7 +6907,7 @@ impl ToolCallEventStream {
     /// Persist the `allow_unsandboxed` setting. Going forward this turns
     /// sandboxing off for the model-facing surface: later turns expose the
     /// plain `terminal` tool (with no sandbox prompt section) and commands run
-    /// without an OS sandbox. On Windows, WSL sandbox setup is skipped.
+    /// without an OS sandbox.
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     fn persist_sandbox_unsandboxed_permission(fs: Option<Arc<dyn Fs>>, cx: &AsyncApp) {
         let Some(fs) = fs else {
@@ -7342,18 +7316,6 @@ impl ToolCallEventStreamReceiver {
             update.diff
         } else {
             panic!("Expected diff but got: {:?}", event);
-        }
-    }
-
-    pub async fn expect_terminal(&mut self) -> Entity<acp_thread::Terminal> {
-        let event = self.0.next().await;
-        if let Some(Ok(ThreadEvent::ToolCallUpdate(acp_thread::ToolCallUpdate::UpdateTerminal(
-            update,
-        )))) = event
-        {
-            update.terminal
-        } else {
-            panic!("Expected terminal but got: {:?}", event);
         }
     }
 }
@@ -8817,6 +8779,217 @@ mod tests {
         );
     }
 
+    fn enable_replay_image_tool(thread: &Entity<Thread>, cx: &mut App) {
+        let profile_id = thread.read(cx).profile().clone();
+        let mut settings = AgentSettings::get_global(cx).clone();
+        settings
+            .profiles
+            .get_mut(&profile_id)
+            .expect("thread profile should exist")
+            .tools
+            .insert(ReplayImageTool::NAME.into(), true);
+        AgentSettings::override_global(settings, cx);
+        thread.update(cx, |thread, _cx| thread.add_tool(ReplayImageTool));
+    }
+
+    fn supports_tools_and_tool_choice(model: &mut LanguageModel) {
+        model.supports_tools = true;
+        model.tool_choice_support = language_model::LanguageModelToolChoiceSupport::ALL;
+    }
+
+    #[gpui::test]
+    async fn test_prompt_compaction_uses_default_strategy_without_opt_in(cx: &mut TestAppContext) {
+        let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;
+        let model = fake.update_model("fake", |model| {
+            supports_tools_and_tool_choice(model);
+            model.supports_thinking = true;
+        });
+
+        let request = cx.update(|cx| {
+            enable_replay_image_tool(&thread, cx);
+            thread.update(cx, |thread, cx| {
+                thread.set_model(model.clone(), cx);
+                thread.set_thinking_enabled(true, cx);
+                thread.set_thinking_effort(Some("high".to_string()), cx);
+                thread.set_speed(Speed::Fast, cx);
+                assert_eq!(thread.enabled_tools(cx).len(), 1);
+                thread
+                    .messages
+                    .push(user_text_message(ClientUserMessageId::new(), "old user"));
+                thread.build_compaction_request(thread.messages.len(), &model, cx)
+            })
+        });
+
+        assert!(request.tools.is_empty());
+        assert_eq!(request.tool_choice, None);
+        assert!(!request.thinking_allowed);
+        assert_eq!(request.thinking_effort, None);
+        assert_eq!(request.speed, None);
+    }
+
+    #[gpui::test]
+    async fn test_prompt_compaction_reuses_request_prefix_when_enabled(cx: &mut TestAppContext) {
+        let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;
+        let model = fake.update_model("fake", |model| {
+            supports_tools_and_tool_choice(model);
+            model.supports_thinking = true;
+            model.supports_ultrafast_mode = true;
+            model.prompt_compaction_strategy = PromptCompactionStrategy::PreserveRequestPrefix;
+        });
+
+        cx.update(|cx| {
+            enable_replay_image_tool(&thread, cx);
+            thread.update(cx, |thread, cx| {
+                thread.set_model(model.clone(), cx);
+                thread.set_thinking_enabled(true, cx);
+                thread.set_thinking_effort(Some("high".to_string()), cx);
+                thread.set_speed(Speed::Ultrafast, cx);
+            });
+        });
+
+        let _events = cx
+            .update(|cx| {
+                thread.update(cx, |thread, cx| {
+                    thread.send(ClientUserMessageId::new(), vec!["context to compact"], cx)
+                })
+            })
+            .unwrap();
+        cx.run_until_parked();
+
+        let completion_request = fake.pending_completions().pop().unwrap();
+        assert_eq!(completion_request.tools.len(), 1);
+        fake.send_text(&model, &completion_request, "assistant response");
+        fake.end_stream(&model, &completion_request);
+        cx.run_until_parked();
+
+        let _events = cx
+            .update(|cx| {
+                thread.update(cx, |thread, cx| {
+                    thread.compact(ClientUserMessageId::new(), cx)
+                })
+            })
+            .unwrap();
+        cx.run_until_parked();
+
+        let compaction_request = fake.pending_completions().pop().unwrap();
+        assert_eq!(
+            compaction_request.intent,
+            Some(CompletionIntent::ThreadContextSummarization)
+        );
+        assert_eq!(compaction_request.tools, completion_request.tools);
+        assert_eq!(
+            compaction_request.tool_choice,
+            Some(LanguageModelToolChoice::None)
+        );
+        assert_eq!(
+            compaction_request.thinking_allowed,
+            completion_request.thinking_allowed
+        );
+        assert_eq!(
+            compaction_request.thinking_effort,
+            completion_request.thinking_effort
+        );
+        assert_eq!(completion_request.speed, Some(Speed::Ultrafast));
+        assert_eq!(compaction_request.speed, completion_request.speed);
+        // The compaction request extends the previous request with the
+        // assistant response and the compaction prompt.
+        assert_eq!(
+            compaction_request.messages.len(),
+            completion_request.messages.len() + 2
+        );
+        for (compaction_message, completion_message) in compaction_request
+            .messages
+            .iter()
+            .zip(&completion_request.messages)
+        {
+            assert_eq!(compaction_message.role, completion_message.role);
+            assert_eq!(compaction_message.content, completion_message.content);
+            assert_eq!(
+                compaction_message.reasoning_details,
+                completion_message.reasoning_details
+            );
+        }
+    }
+
+    #[gpui::test]
+    async fn test_prompt_compaction_omits_tool_choice_without_tools(cx: &mut TestAppContext) {
+        let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;
+        let model = fake.update_model("fake", |model| {
+            supports_tools_and_tool_choice(model);
+            model.prompt_compaction_strategy = PromptCompactionStrategy::PreserveRequestPrefix;
+        });
+
+        let request = cx.update(|cx| {
+            thread.update(cx, |thread, cx| {
+                thread.set_model(model.clone(), cx);
+                thread
+                    .messages
+                    .push(user_text_message(ClientUserMessageId::new(), "old user"));
+                thread.build_compaction_request(thread.messages.len(), &model, cx)
+            })
+        });
+
+        assert!(request.tools.is_empty());
+        assert_eq!(request.tool_choice, None);
+    }
+
+    #[gpui::test]
+    async fn test_prompt_compaction_omits_tools_without_tool_choice_support(
+        cx: &mut TestAppContext,
+    ) {
+        let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;
+        let model = fake.update_model("fake", |model| {
+            model.supports_tools = true;
+            model.prompt_compaction_strategy = PromptCompactionStrategy::PreserveRequestPrefix;
+        });
+
+        let request = cx.update(|cx| {
+            enable_replay_image_tool(&thread, cx);
+            thread.update(cx, |thread, cx| {
+                thread.set_model(model.clone(), cx);
+                assert_eq!(thread.enabled_tools(cx).len(), 1);
+                thread
+                    .messages
+                    .push(user_text_message(ClientUserMessageId::new(), "old user"));
+                thread.build_compaction_request(thread.messages.len(), &model, cx)
+            })
+        });
+
+        assert!(request.tools.is_empty());
+        assert_eq!(request.tool_choice, None);
+    }
+
+    #[gpui::test]
+    async fn test_prompt_compaction_rebuilds_prompt_for_different_model(cx: &mut TestAppContext) {
+        let (thread, _event_stream, fake) = setup_thread_for_test(cx).await;
+        let thread_model = fake.update_model("fake", |model| model.supports_thinking = true);
+        let compaction_model = fake.update_model("compaction", |model| {
+            supports_tools_and_tool_choice(model);
+            model.supports_thinking = true;
+            model.prompt_compaction_strategy = PromptCompactionStrategy::PreserveRequestPrefix;
+        });
+
+        let request = cx.update(|cx| {
+            enable_replay_image_tool(&thread, cx);
+            thread.update(cx, |thread, cx| {
+                thread.set_model(thread_model.clone(), cx);
+                thread.set_thinking_enabled(true, cx);
+                thread.set_thinking_effort(Some("high".to_string()), cx);
+                thread.set_speed(Speed::Fast, cx);
+                thread
+                    .messages
+                    .push(user_text_message(ClientUserMessageId::new(), "old user"));
+                thread.build_compaction_request(thread.messages.len(), &compaction_model, cx)
+            })
+        });
+
+        assert!(request.tools.is_empty());
+        assert_eq!(request.tool_choice, None);
+        assert!(!request.thinking_allowed);
+        assert_eq!(request.thinking_effort, None);
+        assert_eq!(request.speed, None);
+    }
+
     /// When `agent.compaction_model` is configured, manual `/compact` streams
     /// to the configured model rather than the thread's primary model.
     #[gpui::test]
@@ -9283,7 +9456,7 @@ mod tests {
 
         fake.send_last_event(
             &model,
-            LanguageModelCompletionEvent::Stop(StopReason::Refusal),
+            LanguageModelCompletionEvent::Stop(StopReason::Refusal(None)),
         );
         fake.end_last(&model);
         cx.run_until_parked();
@@ -9811,46 +9984,6 @@ mod tests {
             .unwrap();
         assert_eq!(authorize.await.unwrap(), SandboxFallbackDecision::Deny);
         assert!(!event_stream.sandbox_fallback_granted_for_thread());
-    }
-
-    /// Regression test: the Windows-drive (DrvFs) warning prompt must target
-    /// the ACP-facing *scoped* tool-call id. When it used the raw provider id,
-    /// the update matched no existing tool call, the ACP layer rejected the
-    /// resulting title-less insert ("title is required for a tool call"), the
-    /// event stream was torn down, and every terminal command was auto-declined
-    /// without the user ever seeing a prompt.
-    #[gpui::test]
-    async fn test_windows_fs_warning_targets_scoped_tool_call_id(cx: &mut TestAppContext) {
-        crate::tests::init_test(cx);
-
-        let (event_stream, mut receiver) = ToolCallEventStream::test();
-        let authorize = cx.update(|cx| event_stream.authorize_windows_fs_warning(cx));
-
-        let authorization = receiver.expect_authorization().await;
-        assert_eq!(
-            &authorization.tool_call.tool_call_id.0,
-            &event_stream.tool_call_id().0,
-            "the warning prompt must reference the scoped ACP tool-call id, \
-             not the raw provider id"
-        );
-        assert!(Arc::ptr_eq(
-            &authorization.tool_call.tool_call_id.0,
-            &event_stream.tool_call_id().0,
-        ));
-        let details = acp_thread::sandbox_authorization_details_from_meta(
-            &authorization.tool_call.meta.value().cloned(),
-        )
-        .expect("warning authorization should include sandbox details");
-        assert!(details.warn_windows_fs);
-
-        authorization
-            .response
-            .send(acp_thread::SelectedPermissionOutcome::new(
-                acp_v2::PermissionOptionId::new(acp_thread::SandboxPermission::AllowOnce.as_id()),
-                acp_v2::PermissionOptionKind::AllowOnce,
-            ))
-            .unwrap();
-        authorize.await.unwrap();
     }
 
     #[test]
