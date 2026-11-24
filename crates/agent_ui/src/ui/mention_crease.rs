@@ -218,6 +218,62 @@ fn open_mention_uri(
     });
 }
 
+<<<<<<< HEAD
+=======
+/// Notify the user that rules became skills and open the skill the rule was
+/// migrated into. Migrated skills live in the local global skills dir, so the
+/// file is always resolved against the local filesystem (local, SSH, or
+/// collab). Does nothing else when no matching skill exists.
+pub(crate) fn open_migrated_rule(
+    workspace: &mut Workspace,
+    name: &str,
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+) {
+    struct RulesMigratedToSkillsToast;
+    workspace.show_toast(
+        workspace::Toast::new(
+            workspace::notifications::NotificationId::unique::<RulesMigratedToSkillsToast>(),
+            "Rules have been migrated to Skills.",
+        )
+        .on_click("View docs", |_, cx| {
+            cx.open_url("https://zed.dev/docs/ai/skills");
+        })
+        .autohide(),
+        cx,
+    );
+
+    let Some(slug) = agent_skills::slugify_skill_name(name) else {
+        return;
+    };
+    let skill_file_path = agent_skills::global_skills_dir()
+        .join(slug)
+        .join(agent_skills::SKILL_FILE_NAME);
+
+    if workspace.project().read(cx).is_local() {
+        // Local project: open the editable on-disk file if it exists.
+        if skill_file_path.exists() {
+            open_skill_file(workspace, skill_file_path, window, cx);
+        }
+        return;
+    }
+
+    // Remote/collab: `open_abs_path` targets the remote project, where this
+    // local file doesn't exist, so read it locally and show it read-only.
+    let fs = workspace.app_state().fs.clone();
+    cx.spawn_in(window, async move |workspace, cx| {
+        let Ok(content) = fs.load(&skill_file_path).await else {
+            return Ok(()); // No readable migrated skill: do nothing.
+        };
+        let title = skill_content_buffer_title(&skill_file_path);
+        workspace.update_in(cx, |workspace, window, cx| {
+            open_read_only_markdown_buffer(workspace, title, content, window, cx);
+        })
+    })
+    .detach_and_log_err(cx);
+}
+
+>>>>>>> zed/main
 fn open_skill_file(
     workspace: &mut Workspace,
     skill_file_path: PathBuf,
@@ -228,7 +284,7 @@ fn open_skill_file(
     // embedded content in a local buffer instead.
     if let Some(content) = agent_skills::builtin_skill_content(&skill_file_path) {
         let title = skill_content_buffer_title(&skill_file_path);
-        open_skill_content_buffer(workspace, title, content, window, cx);
+        open_read_only_markdown_buffer(workspace, title, content, window, cx);
         return;
     }
 
@@ -253,12 +309,12 @@ fn skill_content_buffer_title(skill_file_path: &std::path::Path) -> String {
         .unwrap_or_else(|| "skill".into())
 }
 
-/// Open `content` as a local, read-only Markdown buffer, for skills with no
-/// openable file in the active project (built-in skills, and migrated rules on
-/// remote/collab projects). It's deliberately not registered with the project's
-/// buffer store: that keeps it out of search and avoids
-/// `Project::create_local_buffer` panicking on remote projects.
-fn open_skill_content_buffer(
+/// Open `content` as a local, read-only Markdown buffer, for files with no
+/// openable path in the active project (built-in skills, and migrated rules and
+/// this machine's global rules on remote/collab projects). It's deliberately
+/// not registered with the project's buffer store: that keeps it out of search
+/// and avoids `Project::create_local_buffer` panicking on remote projects.
+pub(crate) fn open_read_only_markdown_buffer(
     workspace: &mut Workspace,
     title: String,
     content: impl Into<String>,

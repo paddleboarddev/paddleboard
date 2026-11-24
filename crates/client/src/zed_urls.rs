@@ -54,6 +54,7 @@ pub fn upgrade_to_zed_pro_url(_cx: &App) -> String {
     "about:blank".to_string()
 }
 
+<<<<<<< HEAD
 /// Returns the URL to Zed's terms of service.
 pub fn terms_of_service(cx: &App) -> String {
     format!("{server_url}/terms-of-service", server_url = server_url(cx))
@@ -67,13 +68,11 @@ pub fn ai_privacy_and_security(cx: &App) -> String {
     )
 }
 
+=======
+>>>>>>> zed/main
 /// Returns the URL to Zed's edit prediction documentation.
 pub fn edit_prediction_docs(cx: &App) -> String {
     format!("{docs_url}/ai/edit-prediction", docs_url = docs_url(cx))
-}
-
-pub fn skills_docs(cx: &App) -> String {
-    format!("{docs_url}/ai/skills", docs_url = docs_url(cx))
 }
 
 /// Returns the URL to Zed's Agent sandboxing documentation.
@@ -104,7 +103,10 @@ pub fn acp_registry_blog(cx: &App) -> String {
         server_url = server_url(cx)
     )
 }
+<<<<<<< HEAD
 
 pub fn shared_agent_thread_url(session_id: &str) -> String {
     format!("paddleboard://agent/shared/{}", session_id)
 }
+=======
+>>>>>>> zed/main

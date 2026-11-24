@@ -316,7 +316,6 @@ pub struct WrapBoundary {
 
 impl WrappedLineLayout {
     /// The length of the underlying text, in utf8 bytes.
-    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.unwrapped_layout.len
     }
@@ -858,7 +857,25 @@ impl AsCacheKeyRef for CacheKeyRef<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::GlyphId;
+    use crate::{GlyphId, NoopTextSystem, TextRun, TextSystem, WindowTextSystem, font};
+
+    #[test]
+    fn shape_line_shares_its_text_with_the_layout_cache() {
+        let text_system =
+            WindowTextSystem::new(Arc::new(TextSystem::new(Arc::new(NoopTextSystem::new()))));
+        // Long enough to be stored on the heap rather than inline.
+        let text = SharedString::from("let value = compute_something(argument_one, argument_two);");
+        let runs = [TextRun {
+            len: text.len(),
+            font: font(".ZedMono"),
+            ..Default::default()
+        }];
+
+        text_system.shape_line(text.clone(), px(14.), &runs, None);
+        let state = text_system.line_layout_cache.state.borrow();
+        let (key, _) = state.current_frame.lines.iter().next().unwrap();
+        assert_eq!(key.text.as_ptr(), text.as_ptr());
+    }
 
     fn glyph_at(x: f32, index: usize) -> ShapedGlyph {
         ShapedGlyph {
@@ -1053,5 +1070,22 @@ mod tests {
 
         let positions = glyph_x_positions(&layout);
         assert_eq!(positions, vec![0.5, 0.5]);
+    }
+
+    #[test]
+    fn test_wrap_ignores_the_sign_of_a_zero_wrap_width_in_the_cache() {
+        let runs = [FontRun {
+            len: 2,
+            font_id: FontId(1),
+        }];
+
+        let cold_cache = LineLayoutCache::new(Arc::new(NoopTextSystem::new()), Arc::default());
+        let cold = cold_cache.layout_wrapped_line("ab", px(0.), &runs, Some(px(0.)), None);
+
+        let warm_cache = LineLayoutCache::new(Arc::new(NoopTextSystem::new()), Arc::default());
+        warm_cache.layout_wrapped_line("ab", px(0.), &runs, Some(-px(0.)), None);
+        let warm = warm_cache.layout_wrapped_line("ab", px(0.), &runs, Some(px(0.)), None);
+
+        assert_eq!(warm.wrap_boundaries, cold.wrap_boundaries);
     }
 }

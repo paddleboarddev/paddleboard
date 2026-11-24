@@ -363,8 +363,6 @@ pub mod git {
             Switch,
             /// Selects a different repository.
             SelectRepo,
-            /// Filter remotes.
-            FilterRemotes,
             /// Create a git remote.
             CreateRemote,
             /// Opens the git branch selector.
@@ -608,6 +606,8 @@ pub mod agent {
             /// Toggles the language model selector dropdown.
             #[action(deprecated_aliases = ["assistant::ToggleModelSelector", "assistant2::ToggleModelSelector"])]
             ToggleModelSelector,
+            /// Cycles through favorited models in the ACP model selector.
+            CycleFavoriteModels,
             /// Triggers re-authentication on Gemini
             ReauthenticateAgent,
             /// Logs out of the current external agent
@@ -839,13 +839,6 @@ actions!(
     [
         /// Opens the Zed Predict onboarding modal.
         OpenZedPredictOnboarding
-    ]
-);
-actions!(
-    git_onboarding,
-    [
-        /// Opens the git integration onboarding modal.
-        OpenGitIntegrationOnboarding
     ]
 );
 actions!(
