@@ -39,7 +39,12 @@ CRATE_PATH="crates/$CRATE_NAME"
 mkdir -p "$CRATE_PATH/src"
 
 # Symlink the license
-ln -sf "../../$LICENSE_FILE" "$CRATE_PATH/$LICENSE_FILE"
+# PaddleBoard: the root GPL file is `LICENSE`, not `LICENSE-GPL`.
+LICENSE_TARGET="$LICENSE_FILE"
+if [[ "$LICENSE_FILE" == "LICENSE-GPL" ]]; then
+    LICENSE_TARGET="LICENSE"
+fi
+ln -sf "../../$LICENSE_TARGET" "$CRATE_PATH/$LICENSE_FILE"
 
 CARGO_TOML_TEMPLATE=$(cat << 'EOF'
 [package]

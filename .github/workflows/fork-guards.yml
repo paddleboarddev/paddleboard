@@ -36,6 +36,12 @@ jobs:
       - name: Check for zombie files in deleted upstream dirs
         # Covers hand-resolved merges that skip the weekly merge workflow.
         run: bash script/check-zombie-upstream-files
+      - name: Check crate licenses
+        # Upstream's own check, never run here before: it would have caught the
+        # LICENSE-AGPL files our merge kept after Zed's GPL relicense, and it
+        # catches a merged-in upstream crate whose symlink still points at the
+        # old root LICENSE-GPL name.
+        run: bash script/check-licenses
       - name: Check no personal files are committed
         # `.private/` and `.claude/` are gitignored (see CONTRIBUTING.md,
         # "Keeping your own files"); this catches the one way past that, `git add -f`.
