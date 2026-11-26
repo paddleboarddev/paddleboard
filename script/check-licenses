@@ -42,7 +42,13 @@ check_symlink_target () {
     for ((i = 0; i < depth; i++)); do
         expected_prefix="../$expected_prefix"
     done
-    local expected_target="${expected_prefix}${license_name}"
+    # PaddleBoard: the GPL text lives at the root as `LICENSE` (so GitHub and
+    # readers find it), while crates keep upstream's `LICENSE-GPL` symlink name.
+    local root_license_name="$license_name"
+    if [[ "$license_name" == "LICENSE-GPL" ]]; then
+        root_license_name="LICENSE"
+    fi
+    local expected_target="${expected_prefix}${root_license_name}"
 
     if [[ "$target" != "$expected_target" ]]; then
         echo "Error: $symlink_path points to '$target' but should point to '$expected_target'"
@@ -77,6 +83,12 @@ check_no_agpl_license_file
 
 git ls-files -z -- "Cargo.toml" "**/Cargo.toml" | while IFS= read -r -d '' cargo_toml; do
     check_manifest_for_agpl "$cargo_toml"
+
+    # PaddleBoard: vendored third-party crates keep their own MIT license, so
+    # they have no LICENSE-GPL/LICENSE-APACHE symlink to check.
+    case "$cargo_toml" in
+        corgi-patches/*|crates/tree-sitter-dockerfile/*) continue ;;
+    esac
 
     if [[ "$cargo_toml" == */Cargo.toml ]]; then
         check_license "$(dirname "$cargo_toml")"

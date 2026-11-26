@@ -104,7 +104,7 @@ if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir }
 New-Item -ItemType Directory -Force -Path "$stageDir\bin", "$stageDir\x64", "$stageDir\arm64" | Out-Null
 Copy-Item "$cargoOutDir\paddleboard.exe" "$stageDir\PaddleBoard.exe"
 Copy-Item "$cargoOutDir\cli.exe" "$stageDir\bin\paddleboard.exe"
-Copy-Item "$workspace\LICENSE-GPL" "$stageDir\LICENSE-GPL.txt"
+Copy-Item "$workspace\LICENSE" "$stageDir\LICENSE-GPL.txt"
 Copy-Item "$workspace\LICENSE-APACHE" "$stageDir\LICENSE-APACHE.txt" -ErrorAction SilentlyContinue
 
 # ConPTY: the same nupkg the inherited script downloads. The terminal uses
